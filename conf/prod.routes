@@ -1,0 +1,5 @@
+->          /                                   health.Routes
+->          /                                   definition.Routes
+POST        /customs-notification/notify        @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController.submit()
+
+GET         /admin/metrics                      @com.kenshoo.play.metrics.MetricsController.metrics
