@@ -81,7 +81,7 @@ class ApiSubscriptionFieldsConnector @Inject()(httpGet: WSGetImpl,
       }
       .recoverWith {
         case e: Throwable =>
-          logger.error(s"call to subscription information service failed. GET url=$fullUrl", e)
+          logger.error(s"call to subscription information service failed. GET url=$fullUrl")
           Future.failed(e)
       }
 

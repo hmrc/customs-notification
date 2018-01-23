@@ -32,8 +32,8 @@ class LoggingHelperSpec extends UnitSpec {
       LoggingHelper.formatError(errorMsg) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $errorMsg"
     }
 
-    "format WARN"  in {
-      LoggingHelper.formatWarn(warnMsg) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $warnMsg"
+    "format ERROR with headers" in {
+      LoggingHelper.formatError(errorMsg, LoggingHeaders) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $errorMsg"
     }
 
     "format INFO with HeaderCarrier" in {

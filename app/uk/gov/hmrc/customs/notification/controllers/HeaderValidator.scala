@@ -23,6 +23,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHead
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.Future
 
@@ -39,7 +40,6 @@ trait HeaderValidator {
     def invokeBlock[A](request: Request[A], block: (Request[A]) => Future[Result]): Future[Result] = {
       implicit val headers: Headers = request.headers
       val logMessage = "Received notification"
-      notificationLogger.info(logMessage, headers.headers)
       notificationLogger.debug(logMessage, headers.headers)
 
       if (!hasAccept) {
@@ -111,7 +111,7 @@ trait HeaderValidator {
     val resultText = if (validationResult) "passed" else "failed"
     val msg = s"$headerName header $resultText validation"
     notificationLogger.debug(msg, h.headers)
-    if (!validationResult) notificationLogger.info(msg, h.headers)
+    if (!validationResult) notificationLogger.error(msg, h.headers)
   }
 }
 
