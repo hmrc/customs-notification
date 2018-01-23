@@ -46,8 +46,6 @@ class NotificationQueueConnector @Inject()(httpPost: WSPostImpl, logger: Notific
       (CustomHeaderNames.SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.fieldsId)
     )
 
-    val msg = "Enqueuing to notification queue service"
-    logger.info(msg, headers)
     logger.debug(s"Attempting to send notification to queue\npayload=\n${request.body.xmlPayload}", headers)
 
     httpPost.POSTString[HttpResponse](url, request.body.xmlPayload, headers)
@@ -56,7 +54,7 @@ class NotificationQueueConnector @Inject()(httpPost: WSPostImpl, logger: Notific
       }
       .recoverWith {
         case e: Throwable =>
-          logger.error(s"Call to notification queue failed. url=$url", e)
+          logger.error(s"Call to notification queue failed. url=$url")
           Future.failed(e)
       }
   }

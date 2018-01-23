@@ -20,7 +20,7 @@ import javax.inject.Singleton
 
 import com.google.inject.Inject
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.logging.LoggingHelper.{formatDebug, formatError, formatInfo, formatWarn}
+import uk.gov.hmrc.customs.notification.logging.LoggingHelper.{formatDebug, formatError, formatInfo}
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -32,10 +32,8 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
   def debug(msg: => String, url: => String, payload: => String)(implicit hc: HeaderCarrier): Unit = logger.debug(formatDebug(msg, Some(url), Some(payload)))
   def debug(msg: => String, headers: => SeqOfHeader): Unit = logger.debug(formatDebug(msg, headers))
   def info(msg: => String)(implicit hc: HeaderCarrier): Unit = logger.info(formatInfo(msg))
-  def info(msg: => String, headers: => SeqOfHeader): Unit = logger.info(formatInfo(msg, headers))
-  def warn(msg: => String)(implicit hc: HeaderCarrier): Unit = logger.warn(formatWarn(msg))
-  def error(msg: => String, e: => Throwable)(implicit hc: HeaderCarrier): Unit = logger.error(formatError(msg), e)
   def error(msg: => String)(implicit hc: HeaderCarrier): Unit = logger.error(formatError(msg))
+  def error(msg: => String, headers: => SeqOfHeader): Unit = logger.error(formatError(msg, headers))
 
 }
 

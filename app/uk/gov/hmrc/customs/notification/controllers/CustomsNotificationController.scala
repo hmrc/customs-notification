@@ -55,8 +55,12 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
 
     customsNotificationService.sendNotification(xml, headers) map { sendNotificationResult => {
       sendNotificationResult match {
-          case NotificationSent => Results.NoContent
-          case DeclarantCallbackDataNotFound => ErrorCdsClientIdNotFound.XmlResult
+          case NotificationSent =>
+            logger.info("Notification sent.")
+            Results.NoContent
+          case DeclarantCallbackDataNotFound =>
+            logger.error("Declarant data not found")
+            ErrorCdsClientIdNotFound.XmlResult
         }
       }
     }

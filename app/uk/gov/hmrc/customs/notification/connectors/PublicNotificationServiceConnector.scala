@@ -54,7 +54,6 @@ class PublicNotificationServiceConnector @Inject()(httpPost: WSPostImpl,
 
     implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders(publicNotificationRequest.conversationId))
     val msg = "Calling public notification service"
-    logger.info(msg)
     logger.debug(msg, url, payload = publicNotificationRequest.body.toString)
 
     val postFuture = httpPost
@@ -64,7 +63,7 @@ class PublicNotificationServiceConnector @Inject()(httpPost: WSPostImpl,
       }
       .recoverWith {
         case e: Throwable =>
-          logger.error(s"Call to public notification service failed. POST url=$url. Payload=${publicNotificationRequest.body}", e)
+          logger.error(s"Call to public notification service failed. POST url=$url")
           Future.failed(e)
       }
     postFuture

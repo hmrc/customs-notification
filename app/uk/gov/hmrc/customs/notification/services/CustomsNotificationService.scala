@@ -44,7 +44,6 @@ class CustomsNotificationService @Inject() (logger: NotificationLogger,
 
     publicNotificationRequestService.createRequest(xml, headers) map {
       case None =>
-        logger.warn("Declarant data not found")
         DeclarantCallbackDataNotFound
       case Some(request) =>
         sendAsync(request)

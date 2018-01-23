@@ -30,8 +30,8 @@ object LoggingHelper {
     formatInfo(msg)
   }
 
-  def formatWarn(msg: String)(implicit hc: HeaderCarrier): String = {
-    formatInfo(msg)
+  def formatError(msg: String, headers: SeqOfHeader): String = {
+    formatInfo(msg, headers)
   }
 
   def formatInfo(msg: String)(implicit hc: HeaderCarrier): String = {
