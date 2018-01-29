@@ -20,5 +20,7 @@ case class NotificationQueueConfig(url: String)
 
 // TODO: pull up all other service config into here
 trait CustomsNotificationConfig {
-  val notificationQueueConfig: NotificationQueueConfig
+  def maybeBasicAuthToken: Option[String]
+
+  def notificationQueueConfig: NotificationQueueConfig
 }

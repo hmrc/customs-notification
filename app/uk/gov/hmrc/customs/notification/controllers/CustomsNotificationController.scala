@@ -18,11 +18,11 @@ package uk.gov.hmrc.customs.notification.controllers
 
 import javax.inject.{Inject, Singleton}
 
-import play.api.Configuration
 import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationSent}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.microservice.controller.BaseController
@@ -34,13 +34,14 @@ import scala.xml.NodeSeq
 @Singleton
 class CustomsNotificationController @Inject()(logger: NotificationLogger,
                                               customsNotificationService: CustomsNotificationService,
-                                              configuration: Configuration)
+                                              configService: ConfigService)
   extends BaseController with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
+  private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private lazy val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
 
-  def submit(): Action[AnyContent] = validateHeaders(loadBasicToken) async {
+  def submit(): Action[AnyContent] = validateHeaders(maybeBasicAuthToken) async {
     implicit request =>
       request.body.asXml match {
         case Some(xml) => onXmlPayload(xml, request.headers)
@@ -66,7 +67,4 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     }
   }
 
-  private lazy val loadBasicToken: Option[String] = {
-    configuration.getString("auth.token.internal")
-  }
 }
