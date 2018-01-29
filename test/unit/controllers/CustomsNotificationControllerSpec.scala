@@ -20,7 +20,6 @@ import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers}
-import play.api.Configuration
 import play.api.libs.json.{JsObject, JsString}
 import play.api.mvc._
 import play.api.test.Helpers._
@@ -29,6 +28,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationSent}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
@@ -42,15 +42,13 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
-  private val mockConfiguration = mock[Configuration]
+  private val mockConfigService = mock[ConfigService]
 
   private def controller() = new CustomsNotificationController(
     mockNotificationLogger,
     mockCustomsNotificationService,
-    mockConfiguration
+    mockConfigService
   )
-
-  private val authTokenConfigKey = "auth.token.internal"
 
   private val wrongPayloadErrorResult = ErrorResponse.errorBadRequest("Request body does not contain well-formed XML.").XmlResult
 
@@ -63,8 +61,8 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val emulatedServiceFailure = new EmulatedServiceFailure()
 
   override protected def beforeEach() {
-    reset(mockNotificationLogger, mockCustomsNotificationService, mockConfiguration)
-    when(mockConfiguration.getString(authTokenConfigKey)).thenReturn(Some(basicAuthTokenValue))
+    reset(mockNotificationLogger, mockCustomsNotificationService, mockConfigService)
+    when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
   }
 
   "CustomsNotificationController" should {
@@ -79,7 +77,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 204 for missing Authorization when auth token is not configured" in {
       when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
-      when(mockConfiguration.getString(authTokenConfigKey)).thenReturn(None)
+      when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
 
       testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
         status(result) shouldBe NO_CONTENT
@@ -88,7 +86,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 204 for invalid Authorization when auth token is not configured" in {
       when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
-      when(mockConfiguration.getString(authTokenConfigKey)).thenReturn(None)
+      when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
 
       testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>
         status(result) shouldBe NO_CONTENT

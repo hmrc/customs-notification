@@ -23,6 +23,7 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationQueueConfig}
 
 import scalaz._
+import scalaz.syntax.apply._
 import scalaz.syntax.traverse._
 
 /**
@@ -38,13 +39,21 @@ import scalaz.syntax.traverse._
 @Singleton
 class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, logger: CdsLogger) extends CustomsNotificationConfig {
 
-  private case class CustomsNotificationConfigImpl(notificationQueueConfig: NotificationQueueConfig) extends CustomsNotificationConfig
+  private case class CustomsNotificationConfigImpl(maybeBasicAuthToken: Option[String],
+                                                   notificationQueueConfig: NotificationQueueConfig) extends CustomsNotificationConfig
 
   private val config: CustomsNotificationConfig = {
 
-    val validatedNotificationQueueConfig: ValidationNel[String, NotificationQueueConfig] = configValidationNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)
+    val authTokenInternalNel: ValidationNel[String, Option[String]] =
+      configValidationNel.root.maybeString("auth.token.internal")
 
-    val validatedConfig: ValidationNel[String, CustomsNotificationConfig] = validatedNotificationQueueConfig.map(CustomsNotificationConfigImpl.apply)
+    val notificationQueueConfigNel: ValidationNel[String, NotificationQueueConfig] =
+      configValidationNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)
+
+    val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
+      (authTokenInternalNel |@|
+        notificationQueueConfigNel
+        ) (CustomsNotificationConfigImpl.apply)
 
     /*
      * the fold below is also similar to how we handle the error/success cases for Play2 forms - again the underlying
@@ -61,6 +70,8 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
     )
 
   }
+
+  override val maybeBasicAuthToken: Option[String] = config.maybeBasicAuthToken
 
   override val notificationQueueConfig: NotificationQueueConfig = config.notificationQueueConfig
 }

@@ -26,10 +26,28 @@ import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.config.inject.ServicesConfig
 import uk.gov.hmrc.play.test.UnitSpec
+import util.TestData.basicAuthTokenValue
 
 class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
   private val validAppConfig: Config = ConfigFactory.parseString(
+    s"""
+      |{
+      |auth.token.internal = "$basicAuthTokenValue"
+      |
+      |  microservice {
+      |    services {
+      |      notification-queue {
+      |        host = localhost
+      |        port = 9648
+      |        context = "/queue"
+      |      }
+      |    }
+      |  }
+      |}
+    """.stripMargin)
+
+  private val validMandatoryOnlyAppConfig: Config = ConfigFactory.parseString(
     """
       |{
       |  microservice {
@@ -53,6 +71,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   }
 
   private val validServicesConfig = new Configuration(validAppConfig)
+  private val mandatoryOnlyServicesConfig = new Configuration(validMandatoryOnlyAppConfig)
   private val emptyServicesConfig = new Configuration(emptyAppConfig)
 
   private val mockCdsLogger = mock[CdsLogger]
@@ -61,6 +80,14 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
     "return config as object model when configuration is valid" in {
       val actual = configService(validServicesConfig)
 
+      actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
+      actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
+    }
+
+    "return config as object model when configuration is valid and contains only mandatory values" in {
+      val actual = configService(mandatoryOnlyServicesConfig)
+
+      actual.maybeBasicAuthToken shouldBe None
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
     }
 
