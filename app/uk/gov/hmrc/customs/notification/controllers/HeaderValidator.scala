@@ -70,7 +70,7 @@ trait HeaderValidator {
   }
 
   private def hasContentType(implicit h: Headers) = {
-    val result = h.get(CONTENT_TYPE).fold(false)(_ == CustomMimeType.XmlCharsetUtf8)
+    val result = h.get(CONTENT_TYPE).fold(false)(_.equalsIgnoreCase(CustomMimeType.XmlCharsetUtf8))
     logValidationResult(CONTENT_TYPE, result)
     result
   }
