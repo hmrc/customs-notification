@@ -172,6 +172,8 @@ object RequestHeaders {
 
   lazy val CONTENT_TYPE_HEADER: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8
 
+  lazy val CONTENT_TYPE_HEADER_LOWERCASE: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8.toLowerCase
+
   lazy val CONTENT_TYPE_HEADER_INVALID: (String, String) = CONTENT_TYPE -> MimeTypes.BINARY
 
   lazy val ACCEPT_HEADER: (String, String) = ACCEPT -> MimeTypes.XML

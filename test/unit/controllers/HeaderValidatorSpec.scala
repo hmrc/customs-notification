@@ -49,6 +49,7 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
     Table(
       ("description", "Action with headers validation", "Headers", "Expected response"),
       ("return OK result for valid headers", withAuthTokenConfigured, ValidHeaders, Ok),
+      ("return OK result for valid headers (case insensitive)", withAuthTokenConfigured, ValidHeaders + CONTENT_TYPE_HEADER_LOWERCASE, Ok),
       ("return OK result for Authorization header missing when not configured to validate it", authTokenNotConfigured, ValidHeaders - AUTHORIZATION, Ok),
       ("return OK result for Authorization header invalid when not configured to validate it", authTokenNotConfigured, ValidHeaders + BASIC_AUTH_HEADER_INVALID, Ok),
       ("return ErrorContentTypeHeaderInvalid result for content type header missing", withAuthTokenConfigured, ValidHeaders - CONTENT_TYPE, ErrorContentTypeHeaderInvalid.XmlResult),
