@@ -62,13 +62,13 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       result shouldBe 'defined
       val resultFuture: Future[Result] = result.value
 
-      status(resultFuture) shouldBe NO_CONTENT
+      status(resultFuture) shouldBe ACCEPTED
 
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
 
       And("the public notification service was called")
-      eventually(verifyPublicNotificationServiceWasCalledWith(publicNotificationRequest))
+      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
       eventually(verifyNotificationQueueServiceWasNotCalled())
     }
 

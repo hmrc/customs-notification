@@ -19,12 +19,13 @@ package util
 import com.typesafe.config.{Config, ConfigFactory}
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.AnyContentAsXml
 import play.api.test.FakeRequest
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest, PublicNotificationRequestBody}
-import util.RequestHeaders.X_CONVERSATION_ID_HEADER
+import util.RequestHeaders._
 import util.TestData._
 
 import scala.xml.{Elem, NodeSeq}
@@ -55,10 +56,24 @@ object TestData {
   val infoMsg = "INFO"
   val debugMsg = "DEBUG"
 
+  val badgeId = "ABCDEF1234"
   val userAgent = "Customs Declaration Service"
 
   lazy val somePublicNotificationRequest: Option[PublicNotificationRequest] = Some(publicNotificationRequest)
   lazy val publicNotificationRequest: PublicNotificationRequest = publicNotificationRequest(ValidXML)
+
+  def createPushNotificationRequestPayload(outboundUrl: String = callbackUrl, authToken: String = validBasicAuthToken,
+                                           badgeId: String = badgeId, notificationPayload: NodeSeq = ValidXML,
+                                           conversationId: String = validConversationId): JsValue = Json.parse(
+    s"""
+       |{
+       |   "url": $outboundUrl
+       |   "conversationId": $conversationId,
+       |   "authHeaderToken": $authToken,
+       |   "outboundCallHeaders": [{"name": "X-Badge-Identifier", "value": "$badgeId"}],
+       |   "xmlPayload": "${notificationPayload.toString()}"
+       |}
+    """.stripMargin)
 
   def publicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
     val body = PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, xml.toString())
@@ -68,43 +83,43 @@ object TestData {
   val ValidXML: Elem = <Foo>Bar</Foo>
 
   lazy val ValidRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.X_CONVERSATION_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER, RequestHeaders.BASIC_AUTH_HEADER)
-      .withXmlBody(ValidXML)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER)
+    .withXmlBody(ValidXML)
 
   lazy val InvalidConversationIdHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.X_CONVERSATION_ID_INVALID, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, RequestHeaders.X_CONVERSATION_ID_INVALID, CONTENT_TYPE_HEADER, ACCEPT_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val MissingConversationIdHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val InvalidAuthorizationHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.X_CONVERSATION_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER, RequestHeaders.BASIC_AUTH_HEADER_INVALID)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, RequestHeaders.BASIC_AUTH_HEADER_INVALID)
     .withXmlBody(ValidXML)
 
   lazy val MissingAuthorizationHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER, X_CONVERSATION_ID_HEADER)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, X_CONVERSATION_ID_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val InvalidClientIdHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_INVALID, RequestHeaders.X_CONVERSATION_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER)
+    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_INVALID, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val MissingClientIdHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CONVERSATION_ID_INVALID, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER)
+    .withHeaders(RequestHeaders.X_CONVERSATION_ID_INVALID, CONTENT_TYPE_HEADER, ACCEPT_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val InvalidContentTypeHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.X_CONVERSATION_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER_INVALID, RequestHeaders.ACCEPT_HEADER)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER_INVALID, ACCEPT_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val MissingAcceptHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.X_CONVERSATION_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val InvalidAcceptHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER, RequestHeaders.X_CONVERSATION_ID_HEADER, RequestHeaders.CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER_INVALID)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER_INVALID)
     .withXmlBody(ValidXML)
 
   val errorResponseForMissingAcceptHeader: Elem =
@@ -169,6 +184,8 @@ object RequestHeaders {
   lazy val X_CONVERSATION_ID_HEADER: (String, String) = X_CONVERSATION_ID_HEADER_NAME -> validConversationId
 
   lazy val X_CONVERSATION_ID_INVALID: (String, String) = X_CONVERSATION_ID_HEADER_NAME -> invalidConversationId
+
+  lazy val X_BADGE_ID_HEADER: (String, String) = X_BADGE_ID_HEADER_NAME -> badgeId
 
   lazy val CONTENT_TYPE_HEADER: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8
 

@@ -18,7 +18,7 @@ package util
 
 import com.github.tomakehurst.wiremock.client.WireMock._
 import play.api.http.{HeaderNames, MimeTypes, Status}
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
@@ -43,6 +43,14 @@ trait PublicNotificationService extends WireMockRunner {
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(publicNotificationRequest.conversationId))
       .withRequestBody(equalToJson(Json.toJson(publicNotificationRequest.body).toString()))
+    )
+  }
+
+  def verifyPublicNotificationServiceWasCalledWith(expectedPayload: JsValue) {
+    verify(1, postRequestedFor(urlMatchingRequestPath)
+      .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
+      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
+      .withRequestBody(equalToJson(expectedPayload.toString()))
     )
   }
 
