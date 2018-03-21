@@ -38,11 +38,9 @@ class PublicNotificationServiceConnector @Inject()(httpPost: WSPostImpl,
                                                    logger: NotificationLogger,
                                                    serviceConfigProvider: ServiceConfigProvider) {
 
-  private def outboundHeaders(conversationId: String) = Seq(
+  private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
-    (CONTENT_TYPE, MimeTypes.JSON),
-    (X_CONVERSATION_ID_HEADER_NAME, conversationId)
-  )
+    (CONTENT_TYPE, MimeTypes.JSON))
 
   // TODO: recover on failure to enqueue to notification queue
   def send(publicNotificationRequest: PublicNotificationRequest): Future[Unit] = {
@@ -52,7 +50,7 @@ class PublicNotificationServiceConnector @Inject()(httpPost: WSPostImpl,
   private def doSend(publicNotificationRequest: PublicNotificationRequest): Future[HttpResponse] = {
     val url = serviceConfigProvider.getConfig("public-notification").url
 
-    implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders(publicNotificationRequest.conversationId))
+    implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
     val msg = "Calling public notification service"
     logger.debug(msg, url, payload = publicNotificationRequest.body.toString)
 

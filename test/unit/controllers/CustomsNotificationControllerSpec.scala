@@ -67,29 +67,29 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   "CustomsNotificationController" should {
 
-    "respond with status 204 for valid request" in {
+    "respond with status 202 for valid request" in {
       when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
 
       testSubmitResult(ValidRequest) { result =>
-        status(result) shouldBe NO_CONTENT
+        status(result) shouldBe ACCEPTED
       }
     }
 
-    "respond with status 204 for missing Authorization when auth token is not configured" in {
+    "respond with status 202 for missing Authorization when auth token is not configured" in {
       when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
 
       testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
-        status(result) shouldBe NO_CONTENT
+        status(result) shouldBe ACCEPTED
       }
     }
 
-    "respond with status 204 for invalid Authorization when auth token is not configured" in {
+    "respond with status 202 for invalid Authorization when auth token is not configured" in {
       when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
 
       testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>
-        status(result) shouldBe NO_CONTENT
+        status(result) shouldBe ACCEPTED
       }
     }
 

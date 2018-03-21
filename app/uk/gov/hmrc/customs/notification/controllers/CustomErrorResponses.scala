@@ -42,6 +42,8 @@ object CustomHeaderNames {
   val SUBSCRIPTION_FIELDS_ID_HEADER_NAME: String = "api-subscription-fields-id"
 
   val X_CONVERSATION_ID_HEADER_NAME: String = "X-Conversation-ID"
+
+  val X_BADGE_ID_HEADER_NAME : String = "X-Badge-Identifier"
 }
 
 object CustomMimeType {

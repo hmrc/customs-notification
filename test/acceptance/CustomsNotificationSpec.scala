@@ -36,7 +36,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
   override protected def beforeAll() {
     startMockServer()
-    startPublicNotificationService()
+    setupPublicNotificationServiceToReturn()
   }
 
   override protected def afterAll() {
@@ -58,17 +58,17 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)
 
-      Then("a response with a 204 status is received")
+      Then("a response with a 202 status is received")
       result shouldBe 'defined
       val resultFuture: Future[Result] = result.value
 
-      status(resultFuture) shouldBe NO_CONTENT
+      status(resultFuture) shouldBe ACCEPTED
 
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
 
-      And("the public notification service was called")
-      eventually(verifyPublicNotificationServiceWasCalledWith(publicNotificationRequest))
+      And("the notification gateway service was called correctly")
+      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
       eventually(verifyNotificationQueueServiceWasNotCalled())
     }
 
