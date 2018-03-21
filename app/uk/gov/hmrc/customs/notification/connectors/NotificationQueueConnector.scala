@@ -17,7 +17,6 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-
 import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.{AUTHORIZATION, CONTENT_TYPE, USER_AGENT}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
@@ -28,6 +27,7 @@ import uk.gov.hmrc.customs.notification.services.WSPostImpl
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 
+import scala.Option.empty
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -38,18 +38,17 @@ class NotificationQueueConnector @Inject()(httpPost: WSPostImpl, logger: Notific
   def enqueue(request: PublicNotificationRequest): Future[HttpResponse] = {
     implicit val hc: HeaderCarrier = HeaderCarrier() // Note we do not propagate HeaderCarrier values
     val url = configServices.notificationQueueConfig.url
+    val maybeBadgeId: Option[String] = Map(request.body.outboundCallHeaders.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
 
-    var headers: Seq[(String, String)] = Seq(
+    val headers: Seq[(String, String)] = Seq(
       (CONTENT_TYPE, MimeTypes.XML),
       (AUTHORIZATION, request.body.authHeaderToken),
       (USER_AGENT, "Customs Declaration Service"),
       (CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, request.body.conversationId),
       (CustomHeaderNames.SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.clientSubscriptionId)
-    )
 
+    ) ++ maybeBadgeId.fold(empty[(String, String)]){ x: String => Some((X_BADGE_ID_HEADER_NAME, x))}
 
-    val maybeBadgeId: Option[String] = Map(request.body.outboundCallHeaders.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
-    headers = maybeBadgeId.fold(headers)(x => headers :+ ((X_BADGE_ID_HEADER_NAME, x)))
 
     logger.debug(s"Attempting to send notification to queue\npayload=\n${request.body.xmlPayload}", headers)
 
