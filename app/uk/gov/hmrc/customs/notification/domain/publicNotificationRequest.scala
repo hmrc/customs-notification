@@ -38,6 +38,6 @@ object PublicNotificationRequestBody {
 }
 
 case class PublicNotificationRequest(
-                                      fieldsId: String, //TODO: why is there a fieldsId
+                                      clientSubscriptionId: String,
                                       body: PublicNotificationRequestBody
                                     )

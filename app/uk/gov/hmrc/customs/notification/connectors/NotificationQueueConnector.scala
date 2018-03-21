@@ -44,7 +44,7 @@ class NotificationQueueConnector @Inject()(httpPost: WSPostImpl, logger: Notific
       (AUTHORIZATION, request.body.authHeaderToken),
       (USER_AGENT, "Customs Declaration Service"),
       (CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, request.body.conversationId),
-      (CustomHeaderNames.SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.fieldsId)
+      (CustomHeaderNames.SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.clientSubscriptionId)
     )
 
 
