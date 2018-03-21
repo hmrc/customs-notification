@@ -23,6 +23,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
+import uk.gov.hmrc.customs.notification.domain.{PublicNotificationRequest, PublicNotificationRequestBody}
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfig.{Host, Port}
 import util.TestData._
@@ -60,18 +61,29 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAp
 
   "PublicNotificationServiceConnector" should {
 
-    "make a correct request" in {
+    "make a correct request with badgeId header" in {
       setupNotificationQueueServiceToReturn(CREATED, publicNotificationRequest)
 
-      await(postToQueue)
+      await(postToQueue(publicNotificationRequest))
 
       verifyNotificationQueueServiceWasCalledWith(publicNotificationRequest)
+    }
+
+    "make a correct request when badgeId is not provided" in {
+      val request = PublicNotificationRequest(validFieldsId,
+        PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(), ValidXML.toString()))
+
+      setupNotificationQueueServiceToReturnNoBadgeId(CREATED, request)
+
+      await(postToQueue(request))
+
+      verifyNotificationQueueServiceWasCalledWith(request)
     }
 
     "return a failed future with wrapped HttpVerb NotFoundException when external service returns 404" in {
       setupNotificationQueueServiceToReturn(NOT_FOUND, publicNotificationRequest)
 
-      val caught = intercept[Throwable](await(postToQueue))
+      val caught = intercept[Throwable](await(postToQueue(publicNotificationRequest)))
 
       caught.getCause.getClass shouldBe classOf[NotFoundException]
     }
@@ -79,7 +91,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAp
     "return a failed future with wrapped HttpVerbs BadRequestException when external service returns 400" in {
       setupNotificationQueueServiceToReturn(BAD_REQUEST, publicNotificationRequest)
 
-      val caught = intercept[RuntimeException](await(postToQueue))
+      val caught = intercept[RuntimeException](await(postToQueue(publicNotificationRequest)))
 
       caught.getCause.getClass shouldBe classOf[BadRequestException]
     }
@@ -87,18 +99,18 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAp
     "return a failed future with Upstream5xxResponse when external service returns 500" in {
       setupNotificationQueueServiceToReturn(INTERNAL_SERVER_ERROR, publicNotificationRequest)
 
-      intercept[Upstream5xxResponse](await(postToQueue))
+      intercept[Upstream5xxResponse](await(postToQueue(publicNotificationRequest)))
     }
 
     "return a failed future with wrapped HttpVerbs BadRequestException when it fails to connect the external service" in
       withoutWireMockServer {
-        val caught = intercept[RuntimeException](await(postToQueue))
+        val caught = intercept[RuntimeException](await(postToQueue(publicNotificationRequest)))
 
         caught.getCause.getClass shouldBe classOf[BadGatewayException]
       }
   }
 
-  private def postToQueue = {
-    connector.enqueue(publicNotificationRequest)
+  private def postToQueue(request: PublicNotificationRequest) = {
+    connector.enqueue(request)
   }
 }

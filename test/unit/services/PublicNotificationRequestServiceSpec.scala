@@ -21,10 +21,11 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.services.PublicNotificationRequestService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import util.RequestHeaders
+import util.{RequestHeaders, TestData}
 import util.TestData._
 
 import scala.concurrent.Future
@@ -37,7 +38,8 @@ class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
 
   private val ValidInboundHeaders = Seq(
     RequestHeaders.X_CONVERSATION_ID_HEADER,
-    RequestHeaders.X_CDS_CLIENT_ID_HEADER
+    RequestHeaders.X_CDS_CLIENT_ID_HEADER,
+    RequestHeaders.X_BADGE_ID_HEADER
   )
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
@@ -51,6 +53,22 @@ class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
       val maybeRequest = await(service.createRequest(ValidXML, Headers(ValidInboundHeaders :_*)))
 
       maybeRequest shouldBe somePublicNotificationRequest
+    }
+
+    "request does not contain badgeId header when it is not provided" in {
+      when(mockApiSubscriptionFieldsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Some(callbackData))
+
+      val maybeRequest = await(service.createRequest(ValidXML, Headers((RequestHeaders.ValidHeaders - RequestHeaders.X_BADGE_ID_HEADER._1).toSeq: _*)))
+
+      maybeRequest.get shouldBe somePublicNotificationRequest.get.copy(body = somePublicNotificationRequest.get.body.copy(outboundCallHeaders = Seq()))
+    }
+
+    "request does not contain badgeId header when it is provided as empty value" in {
+      when(mockApiSubscriptionFieldsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Some(callbackData))
+
+      val maybeRequest = await(service.createRequest(ValidXML, Headers((RequestHeaders.ValidHeaders + (X_BADGE_ID_HEADER_NAME -> "")).toSeq: _*)))
+
+      maybeRequest.get shouldBe somePublicNotificationRequest.get.copy(body = somePublicNotificationRequest.get.body.copy(outboundCallHeaders = Seq()))
     }
 
     "return None when client id not found" in {
