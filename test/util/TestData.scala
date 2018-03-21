@@ -24,7 +24,7 @@ import play.api.mvc.AnyContentAsXml
 import play.api.test.FakeRequest
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
-import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest, PublicNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header, PublicNotificationRequest, PublicNotificationRequestBody}
 import util.RequestHeaders._
 import util.TestData._
 
@@ -62,22 +62,22 @@ object TestData {
   lazy val somePublicNotificationRequest: Option[PublicNotificationRequest] = Some(publicNotificationRequest)
   lazy val publicNotificationRequest: PublicNotificationRequest = publicNotificationRequest(ValidXML)
 
-  def createPushNotificationRequestPayload(outboundUrl: String = callbackUrl, authToken: String = validBasicAuthToken,
+  def createPushNotificationRequestPayload(outboundUrl: String = callbackData.callbackUrl, securityToken: String = callbackData.securityToken,
                                            badgeId: String = badgeId, notificationPayload: NodeSeq = ValidXML,
                                            conversationId: String = validConversationId): JsValue = Json.parse(
     s"""
        |{
-       |   "url": $outboundUrl
-       |   "conversationId": $conversationId,
-       |   "authHeaderToken": $authToken,
+       |   "url": "$outboundUrl",
+       |   "conversationId": "$conversationId",
+       |   "authHeaderToken": "$securityToken",
        |   "outboundCallHeaders": [{"name": "X-Badge-Identifier", "value": "$badgeId"}],
        |   "xmlPayload": "${notificationPayload.toString()}"
        |}
     """.stripMargin)
 
   def publicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
-    val body = PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, xml.toString())
-    PublicNotificationRequest(validFieldsId, validConversationId, body)
+    val body = PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    PublicNotificationRequest(validFieldsId, body)
   }
 
   val ValidXML: Elem = <Foo>Bar</Foo>
@@ -208,7 +208,8 @@ object RequestHeaders {
     X_CONVERSATION_ID_HEADER,
     CONTENT_TYPE_HEADER,
     ACCEPT_HEADER,
-    BASIC_AUTH_HEADER
+    BASIC_AUTH_HEADER,
+    X_BADGE_ID_HEADER
   )
 
   val LoggingHeaders = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER)

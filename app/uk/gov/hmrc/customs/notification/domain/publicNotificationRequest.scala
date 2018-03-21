@@ -20,6 +20,7 @@ import play.api.libs.json.{Json, OFormat}
 
 
 case class Header(name: String, value: String)
+
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
@@ -27,6 +28,8 @@ object Header {
 case class PublicNotificationRequestBody(
                                           url: String,
                                           authHeaderToken: String,
+                                          conversationId: String,
+                                          outboundCallHeaders: Seq[Header],
                                           xmlPayload: String
                                         )
 
@@ -35,7 +38,6 @@ object PublicNotificationRequestBody {
 }
 
 case class PublicNotificationRequest(
-                                      fieldsId: String,
-                                      conversationId: String,
+                                      fieldsId: String, //TODO: why is there a fieldsId
                                       body: PublicNotificationRequestBody
                                     )

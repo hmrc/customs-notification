@@ -20,8 +20,8 @@ import javax.inject.{Inject, Singleton}
 
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
-import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest, PublicNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header, PublicNotificationRequest, PublicNotificationRequestBody}
 import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -33,18 +33,20 @@ class PublicNotificationRequestService @Inject()(apiSubscriptionFieldsConnector:
 
   def createRequest(xml: NodeSeq, headers: Headers)(implicit hc: HeaderCarrier): Future[Option[PublicNotificationRequest]] = {
     for {
-      (clientId, conversationId) <- getHeaders(headers)
+      (clientId, conversationId, mayBeBadgeId) <- getHeaders(headers)
       maybeClientData <- getClientData(clientId)
-      maybePublicNotificationRequest <- maybePublicNotificationRequest(clientId, xml, conversationId, maybeClientData)
+      maybePublicNotificationRequest <- maybePublicNotificationRequest(clientId, xml, conversationId, mayBeBadgeId, maybeClientData)
     } yield {
       maybePublicNotificationRequest
     }
   }
 
-  private def getHeaders(headers: Headers): Future[(String, String)] = {
-    // headers have been validated so safe to do a naked get
-    val tuple = (headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get, headers.get(X_CONVERSATION_ID_HEADER_NAME).get)
-    Future.successful(tuple)
+  private def getHeaders(headers: Headers): Future[(String, String, Option[String])] = {
+    // headers have been validated so safe to do a naked get except badgeId which is optional
+    Future.successful((headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get,
+      headers.get(X_CONVERSATION_ID_HEADER_NAME).get,
+      headers.get(X_BADGE_ID_HEADER_NAME).flatMap(x => if (x.isEmpty) None else Some(x)))
+    )
   }
 
   private def getClientData(clientId: String)(implicit hc: HeaderCarrier) = {
@@ -55,10 +57,12 @@ class PublicNotificationRequestService @Inject()(apiSubscriptionFieldsConnector:
   private def maybePublicNotificationRequest(clientId: String,
                                              xml: NodeSeq,
                                              conversationId: String,
+                                             mayBeBadgeId: Option[String],
                                              maybeClientData: Option[DeclarantCallbackData]): Future[Option[PublicNotificationRequest]] = {
     Future {
       maybeClientData.fold[Option[PublicNotificationRequest]](None) { clientData =>
-        val request = PublicNotificationRequest(clientId, conversationId, PublicNotificationRequestBody(clientData.callbackUrl, clientData.securityToken, xml.toString()))
+        val outboundCallHeaders: Seq[Header] = mayBeBadgeId.fold(Seq[Header]())(x => Seq(Header(X_BADGE_ID_HEADER_NAME, x)))
+        val request = PublicNotificationRequest(clientId, PublicNotificationRequestBody(clientData.callbackUrl, clientData.securityToken, conversationId, outboundCallHeaders, xml.toString()))
         Some(request)
       }
     }
