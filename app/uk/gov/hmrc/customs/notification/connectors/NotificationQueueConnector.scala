@@ -23,16 +23,16 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_BADGE_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.domain.PublicNotificationRequest
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.WSPostImpl
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.Option.empty
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class NotificationQueueConnector @Inject()(httpPost: WSPostImpl, logger: NotificationLogger, configServices: ConfigService) {
+class NotificationQueueConnector @Inject()(http: HttpClient, logger: NotificationLogger, configServices: ConfigService) {
 
   //TODO: handle POST failure scenario after Trade Test
   def enqueue(request: PublicNotificationRequest): Future[HttpResponse] = {
@@ -52,7 +52,7 @@ class NotificationQueueConnector @Inject()(httpPost: WSPostImpl, logger: Notific
 
     logger.debug(s"Attempting to send notification to queue\npayload=\n${request.body.xmlPayload}", headers)
 
-    httpPost.POSTString[HttpResponse](url, request.body.xmlPayload, headers)
+    http.POSTString[HttpResponse](url, request.body.xmlPayload, headers)
       .recoverWith {
         case httpError: HttpException => Future.failed(new RuntimeException(httpError))
       }

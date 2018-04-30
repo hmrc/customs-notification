@@ -16,25 +16,21 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import javax.inject.Singleton
-
 import com.google.inject.Inject
+import javax.inject.Singleton
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.domain.{PublicNotificationRequest, PublicNotificationRequestBody}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.WSPostImpl
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
-import uk.gov.hmrc.play.config.inject.AppName
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class PublicNotificationServiceConnector @Inject()(httpPost: WSPostImpl,
-                                                   appName: AppName,
+class PublicNotificationServiceConnector @Inject()(http: HttpClient,
                                                    logger: NotificationLogger,
                                                    serviceConfigProvider: ServiceConfigProvider) {
 
@@ -54,7 +50,7 @@ class PublicNotificationServiceConnector @Inject()(httpPost: WSPostImpl,
     val msg = "Calling public notification service"
     logger.debug(msg, url, payload = publicNotificationRequest.body.toString)
 
-    val postFuture = httpPost
+    val postFuture = http
       .POST[PublicNotificationRequestBody, HttpResponse](url, publicNotificationRequest.body)
       .recoverWith {
         case httpError: HttpException => Future.failed(new RuntimeException(httpError))
