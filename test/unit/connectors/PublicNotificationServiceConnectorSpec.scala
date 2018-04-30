@@ -25,9 +25,8 @@ import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvid
 import uk.gov.hmrc.customs.notification.connectors.PublicNotificationServiceConnector
 import uk.gov.hmrc.customs.notification.domain.PublicNotificationRequestBody
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.WSPostImpl
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
-import uk.gov.hmrc.play.config.inject.AppName
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData.publicNotificationRequest
 
@@ -36,14 +35,12 @@ import scala.xml.NodeSeq
 
 class PublicNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar {
 
-  private val mockHttpPost = mock[WSPostImpl]
-  private val mockAppName = mock[AppName]
+  private val mockHttpClient = mock[HttpClient]
   private val mockNotificationLogger = mock[NotificationLogger]
   private val serviceConfigProvider = mock[ServiceConfigProvider]
 
   private val connector = new PublicNotificationServiceConnector(
-    mockHttpPost,
-    mockAppName,
+    mockHttpClient,
     mockNotificationLogger,
     serviceConfigProvider
   )
@@ -58,21 +55,21 @@ class PublicNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar 
     when(serviceConfigProvider.getConfig("public-notification")).thenReturn(ServiceConfig(url, None, "default"))
 
     "POST valid payload" in {
-      when(mockHttpPost.POST(any[String](), any[NodeSeq](), any[Seq[(String,String)]]())(
+      when(mockHttpClient.POST(any[String](), any[NodeSeq](), any[Seq[(String,String)]]())(
         any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]()))
         .thenReturn(Future.successful(mock[HttpResponse]))
 
       await(connector.send(publicNotificationRequest))
 
       val requestBody = ArgumentCaptor.forClass(classOf[PublicNotificationRequestBody])
-      verify(mockHttpPost).POST(ArgumentMatchers.eq(url), requestBody.capture(), any[Seq[(String,String)]]())(
+      verify(mockHttpClient).POST(ArgumentMatchers.eq(url), requestBody.capture(), any[Seq[(String,String)]]())(
         any[Writes[PublicNotificationRequestBody]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]())
       val body = requestBody.getValue.asInstanceOf[PublicNotificationRequestBody]
       body shouldEqual publicNotificationRequest.body
     }
 
     "propagate exception in HTTP VERBS post" in {
-      when(mockHttpPost.POST(any[String](), any[NodeSeq](), any[Seq[(String,String)]]())(
+      when(mockHttpClient.POST(any[String](), any[NodeSeq](), any[Seq[(String,String)]]())(
         any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]()))
         .thenThrow(emulatedHttpVerbsException)
 
