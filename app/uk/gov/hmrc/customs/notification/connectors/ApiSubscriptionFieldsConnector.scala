@@ -17,7 +17,6 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.libs.json.Json
@@ -25,14 +24,14 @@ import play.mvc.Http.Status._
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFieldsResponse, DeclarantCallbackData}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.WSGetImpl
 import uk.gov.hmrc.http._
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class ApiSubscriptionFieldsConnector @Inject()(httpGet: WSGetImpl,
+class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
                                                logger: NotificationLogger,
                                                serviceConfigProvider: ServiceConfigProvider) {
 
@@ -69,7 +68,7 @@ class ApiSubscriptionFieldsConnector @Inject()(httpGet: WSGetImpl,
     val fullUrl = s"$baseUrl/$fieldsId"
     logger.debug("calling api-subscription-fields service", url = fullUrl)
 
-    httpGet.GET[HttpResponse](fullUrl)
+    http.GET[HttpResponse](fullUrl)
       .recoverWith {
         case _ : NotFoundException => Future.successful(HttpResponse(NOT_FOUND))
       }

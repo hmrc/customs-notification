@@ -19,12 +19,11 @@ package unit.services.config
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Matchers
 import org.scalatest.mockito.MockitoSugar
-import play.api.{Configuration, Environment, Mode}
-import uk.gov.hmrc.customs.api.common.config.ConfigValidationNelAdaptor
+import play.api.{Configuration, Environment}
+import uk.gov.hmrc.customs.api.common.config.{ConfigValidationNelAdaptor, ServicesConfig}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.play.config.inject.ServicesConfig
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData.basicAuthTokenValue
 
@@ -64,10 +63,8 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
   private val emptyAppConfig: Config = ConfigFactory.parseString("")
 
-  private def testServicesConfig(configuration: Configuration) = new ServicesConfig {
-    override val runModeConfiguration: Configuration = configuration
-    override val mode: Mode.Value = play.api.Mode.Test
-    override def environment: Environment = mock[Environment]
+  private def testServicesConfig(configuration: Configuration) = new ServicesConfig(configuration, mock[Environment]) {
+    override val mode = play.api.Mode.Test
   }
 
   private val validServicesConfig = new Configuration(validAppConfig)

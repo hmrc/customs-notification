@@ -50,7 +50,7 @@ lazy val microservice = (project in file("."))
     scoverageSettings
   )
 
-def onPackageName(rootPackage: String): (String => Boolean) = {
+def onPackageName(rootPackage: String): String => Boolean = {
   testName => testName startsWith rootPackage
 }
 
@@ -110,7 +110,7 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
 
 scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 
-val compileDependencies = Seq(microserviceBootStrap, xmlResolver, customsApiCommon)
+val compileDependencies = Seq(bootstrapPlay25, xmlResolver, customsApiCommon)
 
 val testDependencies = Seq(hmrcTest, scalaTest, pegDown,
   scalaTestPlusPlay, wireMock, mockito)
@@ -119,6 +119,4 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
 
 libraryDependencies ++= compileDependencies ++ testDependencies
 
-evictionWarningOptions in update :=
-  EvictionWarningOptions.default
-    .withWarnScalaVersionEviction(false)
+evictionWarningOptions in update := EvictionWarningOptions.default.withWarnTransitiveEvictions(false)

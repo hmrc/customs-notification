@@ -25,7 +25,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationSent}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
