@@ -61,12 +61,9 @@ trait CustomsNotificationGatewayService extends WireMockRunner {
     .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
     .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
 
-  private def getCallsMadeToGoogleAnalytics(): List[String] =
-    findAll(gaRequestBuilder).asScala.map(_.getBodyAsString).toList
-
 
   def aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId: String, googleAnalyticsClientId: String)(eventAction: String, eventLabel: String) :Boolean = {
-    getCallsMadeToGoogleAnalytics.contains(
+    findAll(gaRequestBuilder).asScala.find(_.getBodyAsString ==
       s"""
          |v=1&
          |t=event&
@@ -74,7 +71,7 @@ trait CustomsNotificationGatewayService extends WireMockRunner {
          |cid=$googleAnalyticsClientId&
          |ec=CDS&
          |ea=$eventAction&
-         |el=[ConversationId=$eventLabel""".stripMargin)
+         |el=[ConversationId=$eventLabel""".stripMargin).isDefined
   }
 
   def verifyNoOfGoogleAnalyticsCallsMadeWere(expectedNoOfCalls: Int): Unit =
