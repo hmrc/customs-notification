@@ -26,10 +26,11 @@ import play.api.test.Helpers._
 import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPORTED_MEDIA_TYPE}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
+import uk.gov.hmrc.customs.notification.connectors.CustomsGoogleAnalyticsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationSent}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationPassedOnToPull, NotificationSuccessfullyPushed}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
@@ -43,6 +44,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
   private val mockConfigService = mock[ConfigService]
+  private val mockGoogleAnalyticsConnector = mock[CustomsGoogleAnalyticsConnector]
 
   private def controller() = new CustomsNotificationController(
     mockNotificationLogger,
@@ -68,7 +70,15 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   "CustomsNotificationController" should {
 
     "respond with status 202 for valid request" in {
-      when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
+      when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSuccessfullyPushed)
+      when(mockGoogleAnalyticsConnector.send("notificationRequestReceived", ""))
+      testSubmitResult(ValidRequest) { result =>
+        status(result) shouldBe ACCEPTED
+      }
+    }
+
+    "respond with status 202 when NotificationPassedOnToPull" in {
+      when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationPassedOnToPull)
 
       testSubmitResult(ValidRequest) { result =>
         status(result) shouldBe ACCEPTED
@@ -76,7 +86,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
-      when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
+      when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSuccessfullyPushed)
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
 
       testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
@@ -85,7 +95,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
-      when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSent)
+      when(mockCustomsNotificationService.sendNotification(meq(ValidXML), any[Headers])(any[HeaderCarrier])).thenReturn(NotificationSuccessfullyPushed)
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
 
       testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>

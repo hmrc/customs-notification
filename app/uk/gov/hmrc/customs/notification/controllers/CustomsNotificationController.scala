@@ -23,7 +23,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationSent}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationPassedOnToPull, NotificationSuccessfullyPushed}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
@@ -56,14 +56,14 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
 
     customsNotificationService.sendNotification(xml, headers) map { sendNotificationResult => {
       sendNotificationResult match {
-          case NotificationSent =>
-            logger.info("Notification sent.")
-            Results.Accepted
-          case DeclarantCallbackDataNotFound =>
-            logger.error("Declarant data not found")
-            ErrorCdsClientIdNotFound.XmlResult
-        }
+        case NotificationSuccessfullyPushed | NotificationPassedOnToPull =>
+          logger.info("Notification sent.")
+          Results.Accepted
+        case DeclarantCallbackDataNotFound =>
+          logger.error("Declarant data not found")
+          ErrorCdsClientIdNotFound.XmlResult
       }
+    }
     }
   }
 

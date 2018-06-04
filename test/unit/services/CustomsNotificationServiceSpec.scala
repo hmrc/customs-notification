@@ -25,8 +25,8 @@ import org.scalatest.time.{Millis, Span}
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.{NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DeclarantCallbackDataNotFound, NotificationSent, PublicNotificationRequestService}
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.customs.notification.services._
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import util.RequestHeaders
 import util.TestData._
@@ -63,26 +63,40 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   }
 
   "CustomsNotificationService" should {
+
     "return NotificationSent for valid input" in {
       when(mockPublicNotificationRequestService.createRequest(ValidXML, ValidHeaders)).thenReturn(Future.successful(Some(publicNotificationRequest)))
       when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.successful(()))
 
       val request = await(customsNotificationService.sendNotification(ValidXML, ValidHeaders))
 
-      request shouldBe NotificationSent
+      request shouldBe NotificationSuccessfullyPushed
       verifyZeroInteractions(mockNotificationQueueConnector)
     }
 
-    "enqueue notification if push fails" in {
+    "forward notification to Pull when push fails" in {
       when(mockPublicNotificationRequestService.createRequest(ValidXML, ValidHeaders)).thenReturn(Future.successful(Some(publicNotificationRequest)))
       when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
+      when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.successful((mock[HttpResponse])))
 
-      await(customsNotificationService.sendNotification(ValidXML, ValidHeaders))
+      val request = await(customsNotificationService.sendNotification(ValidXML, ValidHeaders))
 
+      request shouldBe NotificationPassedOnToPull
       eventually(verify(mockPublicNotificationServiceConnector).send(meq(publicNotificationRequest)))
       eventually(verify(mockNotificationQueueConnector).enqueue(meq(publicNotificationRequest)))
     }
 
+    "return error when failed to pass the notification on to Pull" in {
+      when(mockPublicNotificationRequestService.createRequest(ValidXML, ValidHeaders)).thenReturn(Future.successful(Some(publicNotificationRequest)))
+      when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
+      when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.failed(new RuntimeException("pull failed")))
+
+      val result = intercept[RuntimeException] {
+        await(customsNotificationService.sendNotification(ValidXML, ValidHeaders))
+      }
+
+      result.getMessage shouldBe "pull failed"
+    }
 
     "return DeclarantCallbackDataNotFound when client Id not found" in {
       when(mockPublicNotificationRequestService.createRequest(ValidXML, ValidHeaders)).thenReturn(Future.successful(None))
@@ -103,16 +117,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       verifyZeroInteractions(mockPublicNotificationServiceConnector)
       verifyZeroInteractions(mockNotificationQueueConnector)
     }
-
-    "PublicNotificationServiceConnector runs in an independent Future so should not propagate exception" in {
-      when(mockPublicNotificationRequestService.createRequest(ValidXML, ValidHeaders)).thenReturn(Future.successful(Some(publicNotificationRequest)))
-      when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
-
-      val result = await(customsNotificationService.sendNotification(ValidXML, ValidHeaders))
-
-      result shouldBe NotificationSent
-    }
-
   }
 
 }

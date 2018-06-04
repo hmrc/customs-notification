@@ -30,34 +30,38 @@ import scala.xml.NodeSeq
 
 sealed trait SendNotificationResult
 
-case object NotificationSent extends SendNotificationResult
+case object NotificationSuccessfullyPushed extends SendNotificationResult
+
+case object NotificationPassedOnToPull extends SendNotificationResult
+
 case object DeclarantCallbackDataNotFound extends SendNotificationResult
 
 @Singleton
-class CustomsNotificationService @Inject() (logger: NotificationLogger,
-                                            publicNotificationRequestService: PublicNotificationRequestService,
-                                            pushConnector: PublicNotificationServiceConnector,
-                                            queueConnector: NotificationQueueConnector
-                                           ) {
+class CustomsNotificationService @Inject()(logger: NotificationLogger,
+                                           publicNotificationRequestService: PublicNotificationRequestService,
+                                           pushConnector: PublicNotificationServiceConnector,
+                                           queueConnector: NotificationQueueConnector
+                                          ) {
 
   def sendNotification(xml: NodeSeq, headers: Headers)(implicit hc: HeaderCarrier): Future[SendNotificationResult] = {
-
-    publicNotificationRequestService.createRequest(xml, headers) map {
+    // TODO: Headers should have not been passed on to the service from controller.
+    // fetch the values required from headers in controller, validate them and pass a populated domain object
+    publicNotificationRequestService.createRequest(xml, headers) flatMap {
       case None =>
-        DeclarantCallbackDataNotFound
+        Future.successful(DeclarantCallbackDataNotFound)
       case Some(request) =>
         sendAsync(request)
-        NotificationSent
     }
   }
 
-  private def sendAsync(publicNotificationRequest: PublicNotificationRequest): Future[Unit] = {
-    Future {
-      pushConnector.send(publicNotificationRequest)
-        .recoverWith {
-          case _ =>
-            queueConnector.enqueue(publicNotificationRequest).map(_ => ())
-        }
-    }
+  private def sendAsync(publicNotificationRequest: PublicNotificationRequest): Future[SendNotificationResult] = {
+
+    pushConnector.send(publicNotificationRequest)
+      .map(_ => NotificationSuccessfullyPushed)
+      .recoverWith {
+        case _ =>
+          queueConnector.enqueue(publicNotificationRequest).map(_ => NotificationPassedOnToPull)
+      }
+
   }
 }
