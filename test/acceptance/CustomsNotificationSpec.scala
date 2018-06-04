@@ -18,10 +18,13 @@ package acceptance
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, OptionValues}
+import play.api.Application
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.test.Helpers._
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import util.TestData._
-import util.{ApiSubscriptionFieldsService, NotificationQueueService, PublicNotificationService}
+import util.{ApiSubscriptionFieldsService, CustomsNotificationGatewayService, NotificationQueueService}
 
 import scala.concurrent.Future
 import scala.xml.NodeSeq
@@ -29,10 +32,26 @@ import scala.xml.Utility.trim
 import scala.xml.XML.loadString
 
 class CustomsNotificationSpec extends AcceptanceTestSpec
-  with Matchers with OptionValues with PublicNotificationService
-  with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks  {
+  with Matchers with OptionValues
+  with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
+  with CustomsNotificationGatewayService {
 
   private val endpoint = "/customs-notification/notify"
+  implicit val googleAnalyticsTrackingId: String = "UA-43414424-2"
+  implicit val googleAnalyticsClientId: String = "555"
+  val googleAnalyticsEventValue = "10"
+  val conversationIdValidRequest = ValidRequest.headers.get(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME).get
+
+  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
+    acceptanceTestConfigs +
+      ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
+      ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
+      ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
+
+
+  private def callWasMadeToGoogleAnalyticsWith: (String, String) => Boolean =
+    aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId, googleAnalyticsClientId) _
+
 
   override protected def beforeAll() {
     startMockServer()
@@ -51,6 +70,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
     scenario("DMS/MDG submits a valid request") {
       startApiSubscriptionFieldsService(validFieldsId)
+      setupGoogleAnalyticsEndpoint()
 
       Given("the API is available")
       val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
@@ -70,6 +90,13 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       And("the notification gateway service was called correctly")
       eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
       eventually(verifyNotificationQueueServiceWasNotCalled())
+      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
+
+      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
+        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
+
+      callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
+        s"[ConversationId=$conversationIdValidRequest] A notification has been pushed successfully") shouldBe true
     }
 
   }
@@ -84,12 +111,12 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       ("client id missing", MissingClientIdHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForMissingClientId),
       ("conversation id invalid", InvalidConversationIdHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForInvalidConversationId),
       ("conversation id missing", MissingConversationIdHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForMissingConversationId),
-      ("empty payload", ValidRequest.withXmlBody(NodeSeq.Empty).copyFakeRequest(method = POST, uri = endpoint) , BAD_REQUEST, errorResponseForPlayXmlBodyParserError)
+      ("empty payload", ValidRequest.withXmlBody(NodeSeq.Empty).copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForPlayXmlBodyParserError)
     )
 
   feature("For invalid requests, ensure error payloads are correct") {
 
-    forAll(table){ (description, request, httpCode, responseXML) =>
+    forAll(table) { (description, request, httpCode, responseXML) =>
 
       scenario(s"DMS/MDG submits an invalid request with $description") {
 

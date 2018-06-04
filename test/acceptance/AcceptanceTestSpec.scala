@@ -31,7 +31,7 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
 
   override implicit def patienceConfig: PatienceConfig = super.patienceConfig.copy(timeout = Span(Wait, Seconds))
 
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(Map(
+  val acceptanceTestConfigs: Map[String, Any] = Map(
     "auth.token.internal" -> "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=",
     "microservice.services.public-notification.host" -> ExternalServicesConfig.Host,
     "microservice.services.public-notification.port" -> ExternalServicesConfig.Port,
@@ -40,6 +40,8 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
     "microservice.services.api-subscription-fields.port" -> ExternalServicesConfig.Port,
     "microservice.services.api-subscription-fields.context" -> ExternalServicesConfig.ApiSubscriptionFieldsServiceContext,
     "auditing.enabled" -> false
-    )).build()
+  )
+
+  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
 
 }
