@@ -21,6 +21,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header, PublicNotificationRequest, PublicNotificationRequestBody}
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -30,6 +31,10 @@ import scala.xml.NodeSeq
 
 @Singleton
 class PublicNotificationRequestService @Inject()(apiSubscriptionFieldsConnector: ApiSubscriptionFieldsConnector) {
+
+  def createRequest(xml: NodeSeq, clientData: DeclarantCallbackData, metaData: RequestMetaData): PublicNotificationRequest = {
+    ???
+  }
 
   def createRequest(xml: NodeSeq, headers: Headers)(implicit hc: HeaderCarrier): Future[Option[PublicNotificationRequest]] = {
     for {

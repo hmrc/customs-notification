@@ -27,42 +27,46 @@ import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.xml.{Elem, NodeSeq}
+import scala.xml.NodeSeq
 
 sealed trait SendNotificationResult
 
 case object NotificationSent extends SendNotificationResult
+
 case object DeclarantCallbackDataNotFound extends SendNotificationResult
 
 @Singleton
-class CustomsNotificationService @Inject() (logger: NotificationLogger,
-                                            publicNotificationRequestService: PublicNotificationRequestService,
-                                            pushConnector: PublicNotificationServiceConnector,
-                                            queueConnector: NotificationQueueConnector
-                                           ) {
-  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData): Future[Unit] = ???
+class CustomsNotificationService @Inject()(logger: NotificationLogger,
+                                           publicNotificationRequestService: PublicNotificationRequestService,
+                                           pushConnector: PublicNotificationServiceConnector,
+                                           queueConnector: NotificationQueueConnector
+                                          ) {
+  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData): Future[Unit] =
+    pushAndThenPassOnToPullIfPushFails(publicNotificationRequestService.createRequest(xml, callbackDetails, metaData))
 
 
-  def sendNotification(xml: NodeSeq, callbackDetaila: DeclarantCallbackData, idsRcvd: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] = ???
-
-  def sendNotification(xml: NodeSeq, headers: Headers)(implicit hc: HeaderCarrier): Future[SendNotificationResult] = {
-
-    publicNotificationRequestService.createRequest(xml, headers) map {
-      case None =>
-        DeclarantCallbackDataNotFound
-      case Some(request) =>
-        sendAsync(request)
-        NotificationSent
+  def pushAndThenPassOnToPullIfPushFails(publicNotificationRequest: PublicNotificationRequest): Future[Unit] = {
+    pushConnector.send(publicNotificationRequest).recoverWith {
+      case _ =>
+        queueConnector.enqueue(publicNotificationRequest).map(_ => ())
     }
   }
 
+//  def sendNotification(xml: NodeSeq, headers: Headers)(implicit hc: HeaderCarrier): Future[SendNotificationResult] = {
+//
+//    publicNotificationRequestService.createRequest(xml, headers) map {
+//      case None =>
+//        DeclarantCallbackDataNotFound
+//      case Some(request) =>
+//        sendAsync(request)
+//        NotificationSent
+//    }
+//  }
+
+
   private def sendAsync(publicNotificationRequest: PublicNotificationRequest): Future[Unit] = {
     Future {
-      pushConnector.send(publicNotificationRequest)
-        .recoverWith {
-          case _ =>
-            queueConnector.enqueue(publicNotificationRequest).map(_ => ())
-        }
+      pushAndThenPassOnToPullIfPushFails(publicNotificationRequest)
     }
   }
 }
