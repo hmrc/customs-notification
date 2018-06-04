@@ -20,13 +20,14 @@ import javax.inject.{Inject, Singleton}
 
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.{NotificationQueueConnector, PublicNotificationServiceConnector}
-import uk.gov.hmrc.customs.notification.domain.PublicNotificationRequest
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
+import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.xml.NodeSeq
+import scala.xml.{Elem, NodeSeq}
 
 sealed trait SendNotificationResult
 
@@ -39,6 +40,10 @@ class CustomsNotificationService @Inject() (logger: NotificationLogger,
                                             pushConnector: PublicNotificationServiceConnector,
                                             queueConnector: NotificationQueueConnector
                                            ) {
+  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData): Future[Unit] = ???
+
+
+  def sendNotification(xml: NodeSeq, callbackDetaila: DeclarantCallbackData, idsRcvd: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] = ???
 
   def sendNotification(xml: NodeSeq, headers: Headers)(implicit hc: HeaderCarrier): Future[SendNotificationResult] = {
 
