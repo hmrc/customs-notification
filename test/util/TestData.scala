@@ -47,8 +47,10 @@ object TestData {
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
 
   val callbackUrl = "http://callback"
+  val invalidCallbackUrl = "Im-Invalid"
   val securityToken = "securityToken"
   val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
+  val invalidCallbackData = DeclarantCallbackData(invalidCallbackUrl, securityToken)
 
   val url = "http://some-url"
   val errorMsg = "ERROR"
@@ -77,6 +79,11 @@ object TestData {
 
   def publicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
     val body = PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    PublicNotificationRequest(validFieldsId, body)
+  }
+
+  def failedPublicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
+    val body = PublicNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
     PublicNotificationRequest(validFieldsId, body)
   }
 

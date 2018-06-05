@@ -69,7 +69,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   feature("Ensure call to public notification service is made when request is valid") {
 
     scenario("DMS/MDG submits a valid request") {
-      startApiSubscriptionFieldsService(validFieldsId)
+      startApiSubscriptionFieldsService(validFieldsId,callbackData)
       setupGoogleAnalyticsEndpoint()
 
       Given("the API is available")
@@ -97,6 +97,40 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
       callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
         s"[ConversationId=$conversationIdValidRequest] A notification has been pushed successfully") shouldBe true
+    }
+
+    scenario("DMS/MDG submits a valid request with incorrect callback details used") {
+      startApiSubscriptionFieldsService(validFieldsId,invalidCallbackData)
+      setupGoogleAnalyticsEndpoint()
+
+      Given("the API is available")
+      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+
+      When("a POST request with data is sent to the API")
+      val result: Option[Future[Result]] = route(app = app, request)
+
+      Then("a response with a 202 status is received")
+      result shouldBe 'defined
+      val resultFuture: Future[Result] = result.value
+
+      status(resultFuture) shouldBe ACCEPTED
+
+      And("the response body is empty")
+      contentAsString(resultFuture) shouldBe 'empty
+
+      And("the notification gateway service was called correctly")
+      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
+      eventually(verifyNotificationQueueServiceWasNotCalled())
+      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(3))
+
+      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
+        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
+
+      callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
+        s"[ConversationId=$conversationIdValidRequest] A notification Push request failed") shouldBe true
+
+      callWasMadeToGoogleAnalyticsWith("notificationLeftToBePulled",
+        s"[ConversationId=$conversationIdValidRequest] A notification has been left to be pulled") shouldBe true
     }
 
   }
