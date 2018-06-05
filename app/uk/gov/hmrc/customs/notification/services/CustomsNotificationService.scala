@@ -22,16 +22,11 @@ import uk.gov.hmrc.customs.notification.connectors.{NotificationQueueConnector, 
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
-
-sealed trait SendNotificationResult
-
-case object NotificationSent extends SendNotificationResult
-
-case object DeclarantCallbackDataNotFound extends SendNotificationResult
 
 @Singleton
 class CustomsNotificationService @Inject()(logger: NotificationLogger,
@@ -39,14 +34,18 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            pushConnector: PublicNotificationServiceConnector,
                                            queueConnector: NotificationQueueConnector
                                           ) {
-  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData): Future[Unit] =
+  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] =
     pushAndThenPassOnToPullIfPushFails(publicNotificationRequestService.createRequest(xml, callbackDetails, metaData))
 
 
-  def pushAndThenPassOnToPullIfPushFails(publicNotificationRequest: PublicNotificationRequest): Future[Unit] = {
-    pushConnector.send(publicNotificationRequest).recoverWith {
+  def pushAndThenPassOnToPullIfPushFails(publicNotificationRequest: PublicNotificationRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
+    pushConnector.send(publicNotificationRequest).map(_ =>
+      logger.info("Notification has been pushed")(hc)
+    ).recover {
       case _ =>
-        queueConnector.enqueue(publicNotificationRequest).map(_ => ())
+        queueConnector.enqueue(publicNotificationRequest).map(_ =>
+          logger.info("Notification has been passed on to PULL service")(hc)
+        )
     }
   }
 }

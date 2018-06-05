@@ -16,12 +16,8 @@
 
 package unit.services
 
-import java.util.UUID
-
-import org.mockito.ArgumentMatchers.{eq => meq, _}
-import org.mockito.Mockito._
+import org.mockito.ArgumentMatchers.{eq => meq}
 import org.scalatest.mockito.MockitoSugar
-import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
@@ -29,10 +25,7 @@ import uk.gov.hmrc.customs.notification.domain.{Header, PublicNotificationReques
 import uk.gov.hmrc.customs.notification.services.PublicNotificationRequestService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import util.{RequestHeaders, TestData}
 import util.TestData._
-
-import scala.concurrent.Future
 
 class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
 

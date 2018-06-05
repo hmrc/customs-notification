@@ -30,12 +30,17 @@ class PublicNotificationRequestService @Inject()(apiSubscriptionFieldsConnector:
 
   def createRequest(notificationXML: NodeSeq, clientData: DeclarantCallbackData, metaData: RequestMetaData): PublicNotificationRequest = {
 
+    val outboundCallHeaders: Seq[Header] = metaData.mayBeBadgeId match {
+      case x if x == None || x.get.isEmpty => Seq()
+      case Some(badgeId) => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId))
+    }
+
     PublicNotificationRequest(metaData.clientId,
       PublicNotificationRequestBody(
         clientData.callbackUrl,
         clientData.securityToken,
         metaData.conversationId.toString,
-        metaData.mayBeBadgeId.fold(Seq[Header]())(x => Seq(Header(X_BADGE_ID_HEADER_NAME, x))),
+        outboundCallHeaders,
         notificationXML.toString()))
   }
 }

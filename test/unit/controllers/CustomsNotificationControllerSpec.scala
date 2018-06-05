@@ -86,7 +86,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(ValidXML, mockCallbackDetails, expectedRequestMetaData)
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier])
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
@@ -97,7 +97,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(ValidXML, mockCallbackDetails, expectedRequestMetaData.copy(mayBeBadgeId = None))
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
@@ -187,7 +187,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 202 when handle notification fails unexpectedly" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
-      when(mockCustomsNotificationService.handleNotification(any(), any(), any()))
+      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
         .thenReturn(Future.failed(emulatedServiceFailure))
 
       testSubmitResult(ValidRequest) { result =>
