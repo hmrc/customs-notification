@@ -78,7 +78,10 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
        |}
        |""".stripMargin
 
-  def startApiSubscriptionFieldsService(fieldsId: String): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, callbackData)
+//  def startApiSubscriptionFieldsService(fieldsId: String): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, callbackData)
+
+  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData : DeclarantCallbackData = callbackData): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, testCallbackData)
+
 
   def setupApiSubscriptionFieldsServiceToReturn(status: Int, fieldsId: String, fields: DeclarantCallbackData): Unit =
     stubFor(
