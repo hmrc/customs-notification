@@ -90,13 +90,13 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       And("the notification gateway service was called correctly")
       eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
       eventually(verifyNotificationQueueServiceWasNotCalled())
-//      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
-//
-//      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
-//        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
-//
-//      callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
-//        s"[ConversationId=$conversationIdValidRequest] A notification has been pushed successfully") shouldBe true
+      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
+
+      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
+        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
+
+      callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
+        s"[ConversationId=$conversationIdValidRequest] A notification has been pushed successfully") shouldBe true
     }
 
     scenario("DMS/MDG submits a valid request with incorrect callback details used") {

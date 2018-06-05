@@ -42,10 +42,12 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     pushConnector.send(publicNotificationRequest).map(_ =>
       logger.info("Notification has been pushed")(hc)
     ).recover {
+
       case _ =>
         queueConnector.enqueue(publicNotificationRequest).map(_ =>
           logger.info("Notification has been passed on to PULL service")(hc)
         )
+
     }
   }
 }
