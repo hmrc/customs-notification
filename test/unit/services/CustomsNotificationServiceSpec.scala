@@ -61,7 +61,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
   "CustomsNotificationService" should {
 
-    "handle valid input" in {
+    "first try to Push the notification" in {
       when(mockPublicNotificationRequestService.createRequest(ValidXML, mockCallbackData, mockRequestMetaData)).thenReturn(Future.successful(publicNotificationRequest))
       when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.successful(()))
 
@@ -71,7 +71,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       verifyZeroInteractions(mockNotificationQueueConnector)
     }
 
-    "enqueue notification if push fails" in {
+    "enqueue notification to be pulled when push fails" in {
       when(mockPublicNotificationRequestService.createRequest(ValidXML, mockCallbackData, mockRequestMetaData)).thenReturn(Future.successful(publicNotificationRequest))
       when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
       when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.successful(mock[HttpResponse]))

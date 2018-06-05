@@ -18,12 +18,10 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 
-import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.{NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -49,24 +47,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     pushConnector.send(publicNotificationRequest).recoverWith {
       case _ =>
         queueConnector.enqueue(publicNotificationRequest).map(_ => ())
-    }
-  }
-
-  //  def sendNotification(xml: NodeSeq, headers: Headers)(implicit hc: HeaderCarrier): Future[SendNotificationResult] = {
-  //
-  //    publicNotificationRequestService.createRequest(xml, headers) map {
-  //      case None =>
-  //        DeclarantCallbackDataNotFound
-  //      case Some(request) =>
-  //        sendAsync(request)
-  //        NotificationSent
-  //    }
-  //  }
-
-
-  private def sendAsync(publicNotificationRequest: PublicNotificationRequest): Future[Unit] = {
-    Future {
-      pushAndThenPassOnToPullIfPushFails(publicNotificationRequest)
     }
   }
 }

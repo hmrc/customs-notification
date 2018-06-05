@@ -16,12 +16,16 @@
 
 package unit.services
 
+import java.util.UUID
+
 import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
+import uk.gov.hmrc.customs.notification.domain.{Header, PublicNotificationRequest, PublicNotificationRequestBody}
 import uk.gov.hmrc.customs.notification.services.PublicNotificationRequestService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
@@ -36,60 +40,35 @@ class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
 
   private val service = new PublicNotificationRequestService(mockApiSubscriptionFieldsConnector)
 
-  private val ValidInboundHeaders = Seq(
-    RequestHeaders.X_CONVERSATION_ID_HEADER,
-    RequestHeaders.X_CDS_CLIENT_ID_HEADER,
-    RequestHeaders.X_BADGE_ID_HEADER
-  )
-
   implicit val hc: HeaderCarrier = HeaderCarrier()
+  val metaData = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
 
   private val emulatedClientDataFailure = new IllegalStateException("boom")
 
   "PublicNotificationRequestService" should {
-    "return Some request for valid input" in {
-      when(mockApiSubscriptionFieldsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Some(callbackData))
 
-      val maybeRequest = await(service.createRequest(ValidXML, Headers(ValidInboundHeaders :_*)))
-
-      maybeRequest shouldBe somePublicNotificationRequest
+    "return valid request when badgeId is provided" in {
+      val metaDataWithSomeBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
+      service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId))
     }
 
     "request does not contain badgeId header when it is not provided" in {
-      when(mockApiSubscriptionFieldsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Some(callbackData))
-
-      val maybeRequest = await(service.createRequest(ValidXML, Headers((RequestHeaders.ValidHeaders - RequestHeaders.X_BADGE_ID_HEADER._1).toSeq: _*)))
-
-      maybeRequest.get shouldBe somePublicNotificationRequest.get.copy(body = somePublicNotificationRequest.get.body.copy(outboundCallHeaders = Seq()))
+      val metaDataWithNoBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, None)
+      service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None)
     }
 
     "request does not contain badgeId header when it is provided as empty value" in {
-      when(mockApiSubscriptionFieldsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Some(callbackData))
-
-      val maybeRequest = await(service.createRequest(ValidXML, Headers((RequestHeaders.ValidHeaders + (X_BADGE_ID_HEADER_NAME -> "")).toSeq: _*)))
-
-      maybeRequest.get shouldBe somePublicNotificationRequest.get.copy(body = somePublicNotificationRequest.get.body.copy(outboundCallHeaders = Seq()))
+      val metaDataWithEmptyBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, Some(""))
+      service.createRequest(ValidXML, callbackData, metaDataWithEmptyBadgeId) shouldBe expectedRequest(None)
     }
 
-    "return None when client id not found" in {
-      when(mockApiSubscriptionFieldsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(None)
+  }
 
-      val maybeRequest = await(service.createRequest(ValidXML, Headers(ValidInboundHeaders :_*)))
+  private def expectedRequest(expectedBadgeId: Option[String]) = {
+    val expectedHeaders: Seq[Header] = expectedBadgeId.fold(Seq[Header]())(badgeId => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)))
 
-      maybeRequest shouldBe None
-    }
-
-    "propagate exception in ApiSubscriptionFieldsConnector" in {
-      when(mockApiSubscriptionFieldsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Future.failed(emulatedClientDataFailure))
-
-      val caught = intercept[IllegalStateException] {
-        await(service.createRequest(ValidXML, Headers(ValidInboundHeaders :_*)))
-      }
-
-      caught shouldBe emulatedClientDataFailure
-    }
-
-
+    PublicNotificationRequest(validFieldsId,
+      PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
   }
 
 }

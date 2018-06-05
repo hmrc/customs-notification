@@ -16,6 +16,8 @@
 
 package util
 
+import java.util.UUID
+
 import com.typesafe.config.{Config, ConfigFactory}
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
@@ -33,6 +35,7 @@ import scala.xml.{Elem, NodeSeq}
 object TestData {
 
   val validConversationId: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
+  val validConversationIdUUID = UUID.fromString(validConversationId)
   val invalidConversationId: String = "I-am-not-a-valid-uuid"
 
   val validFieldsId = "ffff01f9-ec3b-4ede-b263-61b626dde232"
