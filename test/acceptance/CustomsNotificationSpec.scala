@@ -121,7 +121,10 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       And("the notification gateway service was called correctly")
       eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
       eventually(verifyNotificationQueueServiceWasNotCalled())
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
+      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(3))
+
+      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
+        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
 
       callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
         s"[ConversationId=$conversationIdValidRequest] A notification Push request failed") shouldBe true
