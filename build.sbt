@@ -113,7 +113,7 @@ scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 val compileDependencies = Seq(bootstrapPlay25, xmlResolver, customsApiCommon)
 
 val testDependencies = Seq(hmrcTest, scalaTest, pegDown,
-  scalaTestPlusPlay, wireMock, mockito)
+  scalaTestPlusPlay, wireMock, mockito, customsApiCommonTests)
 
 unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
 

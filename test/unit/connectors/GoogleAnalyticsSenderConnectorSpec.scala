@@ -16,7 +16,6 @@
 
 package unit.connectors
 
-import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.mockito.{ArgumentCaptor, ArgumentMatchers}
@@ -27,18 +26,23 @@ import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json, Writes}
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.test.UnitSpec
+import util.MockitoPassByNameHelper.PassByNameVerifier
+import util.TestData._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach {
 
   private val mockHttpClient = mock[HttpClient]
-  private val mockNotificationLogger = mock[NotificationLogger]
+  private val mockCdsLogger = mock[CdsLogger]
+  private val notificationLogger = new NotificationLogger(mockCdsLogger)
   private val mockServiceConfigProvider = mock[ServiceConfigProvider]
 
   private val url = "the-url"
@@ -48,30 +52,33 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
   private val eventName: String = "event-name"
   private val eventLabel: String = "event-label"
 
-  private lazy val configuration = Configuration.from(Map(
+  private val validConfigMap = Map(
     "googleAnalytics.trackingId" -> gaTrackingId,
     "googleAnalytics.clientId" -> gaClientId,
     "googleAnalytics.eventValue" -> gaEventValue
-  ))
+  )
+  private lazy val configuration = Configuration.from(validConfigMap)
 
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
+    X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
+    X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
 
   private lazy val connector = new GoogleAnalyticsSenderConnector(
     mockHttpClient,
-    mockNotificationLogger,
+    notificationLogger,
     mockServiceConfigProvider,
     configuration
   )
 
   override def beforeEach(): Unit = {
-    reset(mockServiceConfigProvider, mockNotificationLogger, mockHttpClient)
+    reset(mockServiceConfigProvider, mockCdsLogger, mockHttpClient)
     when(mockServiceConfigProvider.getConfig("google-analytics-sender")).thenReturn(ServiceConfig(url, None, "default"))
     when(mockHttpClient.POST(any[String](), any[JsValue](), any[Seq[(String, String)]]())(any[Writes[JsValue]](), any[HttpReads[HttpResponse]](), meq(hc), any[ExecutionContext]()))
       .thenReturn(Future.successful(mock[HttpResponse]))
   }
 
-  private val emulatedHttpVerbsException = new RuntimeException("FooBar")
+  private val emulatedHttpVerbsException = new RuntimeException("Something has gone wrong....")
 
   "GoogleAnalyticsSenderConnector" should {
 
@@ -102,25 +109,55 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
       verify(mockHttpClient).POST(ArgumentMatchers.eq(url), any(), meq(expectedHeaders))(any(), any(), any(), any())
     }
 
-    "not propogate exception, log it correctly" in {
-      when(mockHttpClient.POST(any(), any(), any())(any[Writes[JsValue]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]())).thenReturn(Future.failed(emulatedHttpVerbsException))
+    "not propagate exception, log it correctly" in {
+      when(mockHttpClient.POST(any(), any(), any())(any[Writes[JsValue]](), any[HttpReads[HttpResponse]](), meq(hc), any[ExecutionContext]()))
+        .thenReturn(Future.failed(emulatedHttpVerbsException))
 
       await(connector.send(eventName, eventLabel))
 
-      verify(mockNotificationLogger).error(s"Call to GoogleAnalytics sender service failed. POST url= $url")(hc)
+      PassByNameVerifier(mockCdsLogger, "error")
+        .withByNameParam(s"[conversationId=$validConversationId][fieldsId=$validFieldsId] Call to GoogleAnalytics sender service failed. POST url= $url, reason = ${emulatedHttpVerbsException.getMessage}")
+        .verify()
     }
 
+    "fail when GA Tracking Id is not configured" in {
 
-    //    "propagate exception in HTTP VERBS post" in {
-    //      when(mockHttpClient.POST(any[String](), any[NodeSeq](), any[Seq[(String, String)]]())(
-    //        any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]()))
-    //        .thenThrow(emulatedHttpVerbsException)
-    //
-    //      val caught = intercept[RuntimeException] {
-    //        await(connector.send(publicNotificationRequest))
-    //      }
-    //
-    //      caught shouldBe emulatedHttpVerbsException
-    //    }
+      val e = intercept[RuntimeException] {
+        new GoogleAnalyticsSenderConnector(
+          mockHttpClient,
+          notificationLogger,
+          mockServiceConfigProvider,
+          Configuration.from(validConfigMap - "googleAnalytics.trackingId"))
+      }
+
+      e.getMessage shouldBe "Google Analytics Tracking Id is not configured"
+    }
+
+    "fail when GA Client Id is not configured" in {
+
+      val e = intercept[RuntimeException] {
+        new GoogleAnalyticsSenderConnector(
+          mockHttpClient,
+          notificationLogger,
+          mockServiceConfigProvider,
+          Configuration.from(validConfigMap - "googleAnalytics.clientId"))
+      }
+
+      e.getMessage shouldBe "Google Analytics Client Id is not configured"
+    }
+
+    "fail when GA Event value is not configured" in {
+
+      val e = intercept[RuntimeException] {
+        new GoogleAnalyticsSenderConnector(
+          mockHttpClient,
+          notificationLogger,
+          mockServiceConfigProvider,
+          Configuration.from(validConfigMap - "googleAnalytics.eventValue"))
+      }
+
+      e.getMessage shouldBe "Google Analytics Event Value is not configured"
+    }
+
   }
 }

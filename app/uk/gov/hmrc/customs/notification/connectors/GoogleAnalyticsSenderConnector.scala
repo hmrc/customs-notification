@@ -22,7 +22,7 @@ import com.google.inject.Inject
 import play.api.Configuration
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
-import play.api.libs.json.Json
+import play.api.libs.json.Json.parse
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
@@ -40,45 +40,30 @@ class GoogleAnalyticsSenderConnector @Inject()(http: HttpClient,
 
   private val url = serviceConfigProvider.getConfig("google-analytics-sender").url
 
-  private val gaTrackingId = configuration.getString("googleAnalytics.trackingId").get
-  private val gaClientId = configuration.getString("googleAnalytics.clientId").get
-  private val gaEventValue = configuration.getInt("googleAnalytics.eventValue").get
+  private val gaTrackingId = configuration.getString("googleAnalytics.trackingId").getOrElse(throw new RuntimeException("Google Analytics Tracking Id is not configured"))
+  private val gaClientId = configuration.getString("googleAnalytics.clientId").getOrElse(throw new RuntimeException("Google Analytics Client Id is not configured"))
+  private val gaEventValue = configuration.getInt("googleAnalytics.eventValue").getOrElse(throw new RuntimeException("Google Analytics Event Value is not configured"))
 
   private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
 
+
+
   def send(eventName: String, message: String)(implicit hc: HeaderCarrier): Future[Unit] = {
 
-    http.POST(url, Json.parse(
+    http.POST(url, parse(
       s"""
          | {
          |   "payload": "v=1&t=event&tid=$gaTrackingId&cid=$gaClientId&ec=CDS&ea=$eventName&el=$message&ev=$gaEventValue"
          | }
-      """.stripMargin), outboundHeaders).map(_ => ()).recover {
-      case ex: Throwable =>
-        logger.error(s"Call to GoogleAnalytics sender service failed. POST url= $url")
-    }
+      """.stripMargin), outboundHeaders)
+
+      .map(_ => ())
+
+      .recover {
+        case ex: Throwable =>
+          logger.error(s"Call to GoogleAnalytics sender service failed. POST url= $url, reason = ${ex.getMessage}")
+      }
   }
-
-  //  private def doSend(publicNotificationRequest: PublicNotificationRequest): Future[HttpResponse] = {
-  //    val url = serviceConfigProvider.getConfig("public-notification").url
-  //
-  //    implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
-  //    val msg = "Calling public notification service"
-  //    logger.debug(msg, url, payload = publicNotificationRequest.body.toString)
-  //
-  //    val postFuture = http
-  //      .POST[PublicNotificationRequestBody, HttpResponse](url, publicNotificationRequest.body)
-  //      .recoverWith {
-  //        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
-  //      }
-  //      .recoverWith {
-  //        case e: Throwable =>
-  //          logger.error(s"Call to public notification service failed. POST url=$url")
-  //          Future.failed(e)
-  //      }
-  //    postFuture
-  //  }
-
 }
