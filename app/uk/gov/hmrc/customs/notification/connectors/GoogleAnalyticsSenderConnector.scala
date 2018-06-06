@@ -51,15 +51,18 @@ class GoogleAnalyticsSenderConnector @Inject()(http: HttpClient,
 
   def send(eventName: String, message: String)(implicit hc: HeaderCarrier): Future[Unit] = {
 
+    val payload = s"""v=1&t=event&tid=$gaTrackingId&cid=$gaClientId&ec=CDS&ea=$eventName&el=$message&ev=$gaEventValue"""
     http.POST(url, parse(
       s"""
          | {
-         |   "payload": "v=1&t=event&tid=$gaTrackingId&cid=$gaClientId&ec=CDS&ea=$eventName&el=$message&ev=$gaEventValue"
+         |   "payload": "$payload"
          | }""".stripMargin), outboundHeaders
-    ).map(_ => ())
-      .recover {
-        case ex: Throwable =>
-          logger.error(s"Call to GoogleAnalytics sender service failed. POST url= $url, reason = ${ex.getMessage}")
-      }
+    ).map { _ =>
+      logger.debug(s"Successfully sent GA event to $url, eventName= $eventName, eventLabel= $message, payload= $payload")
+      ()
+    }.recover {
+      case ex: Throwable =>
+        logger.error(s"Call to GoogleAnalytics sender service failed. POST url= $url, eventName= $eventName, eventLabel= $message, reason= ${ex.getMessage}")
+    }
   }
 }
