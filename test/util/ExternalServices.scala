@@ -128,7 +128,7 @@ trait NotificationQueueService extends WireMockRunner {
     mayBeBadgeId
   }
 
-  def runNotificationQueueService(status: Int = CREATED) = {
+  def runNotificationQueueService(status: Int = CREATED): Unit = {
     stubFor(post(urlMatchingRequestPath)
       willReturn aResponse()
       .withStatus(status))
