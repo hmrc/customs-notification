@@ -38,10 +38,9 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   with GoogleAnalyticsSenderService {
 
   private val endpoint = "/customs-notification/notify"
-  implicit val googleAnalyticsTrackingId: String = "UA-43414424-2"
-  implicit val googleAnalyticsClientId: String = "555"
-  val googleAnalyticsEventValue = "10"
-  val conversationIdValidRequest = ValidRequest.headers.get(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME).get
+  private val googleAnalyticsTrackingId: String = "UA-43414424-2"
+  private val googleAnalyticsClientId: String = "555"
+  private val googleAnalyticsEventValue = "10"
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
@@ -126,13 +125,13 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(3))
 
       callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
-        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
+        s"[ConversationId=$validConversationId] A notification received for delivery") shouldBe true
 
       callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
-        s"[ConversationId=$conversationIdValidRequest] A notification Push request failed") shouldBe true
+        s"[ConversationId=$validConversationId] A notification Push request failed") shouldBe true
 
       callWasMadeToGoogleAnalyticsWith("notificationLeftToBePulled",
-        s"[ConversationId=$conversationIdValidRequest] A notification has been left to be pulled") shouldBe true
+        s"[ConversationId=$validConversationId] A notification has been left to be pulled") shouldBe true
     }
 
   }

@@ -38,24 +38,31 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] = {
 
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
-    pushAnxdThenPassOnToPullIfPushFails(publicNotificationRequestService.createRequest(xml, callbackDetails, metaData))
+    pushAndThenPassOnToPullIfPushFails(publicNotificationRequestService.createRequest(xml, callbackDetails, metaData))
   }
 
 
-  private def pushAnxdThenPassOnToPullIfPushFails(publicNotificationRequest: PublicNotificationRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
+  private def pushAndThenPassOnToPullIfPushFails(publicNotificationRequest: PublicNotificationRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
     pushConnector.send(publicNotificationRequest)
       .flatMap { _ =>
         logger.info("Notification has been pushed")
         gaConnector.send("notificationPushRequestSuccess", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been pushed successfully")
       }.recover {
-      case _ =>
+      case _: Throwable =>
         gaConnector.send("notificationPushRequestFailed", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification Push request failed")
-        queueConnector.enqueue(publicNotificationRequest).map { _ =>
-          gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been left to be pulled")
-          logger.info("Notification has been passed on to PULL service")(hc)
-          ()
-        }
+        passOnToPullQueue(publicNotificationRequest)
+    }
+  }
 
+  private def passOnToPullQueue(publicNotificationRequest: PublicNotificationRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
+    queueConnector.enqueue(publicNotificationRequest)
+      .map { _ =>
+        gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been left to be pulled")
+        logger.info("Notification has been passed on to PULL service")(hc)
+        ()
+      }.recover {
+      case t: Throwable =>
+        gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification Pull request failed")
     }
   }
 }

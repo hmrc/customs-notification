@@ -32,10 +32,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData
 import util.TestData._
-import java.util
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.concurrent.Future
 
 class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
@@ -126,6 +123,28 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       capturedMsgs.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
       capturedMsgs.get(capturedEventNames.indexOf("notificationPushRequestFailed")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification Push request failed"
       capturedMsgs.get(capturedEventNames.indexOf("notificationLeftToBePulled")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification has been left to be pulled"
+    }
+
+    "send notificationRequestReceived, notificationPushRequestFailed and notificationPullRequestFailed GA events when push fails" in {
+      when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
+      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
+      when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
+
+
+      await(customsNotificationService.handleNotification(ValidXML, mockCallbackData, requestMetaData))
+
+      eventually(verify(mockPublicNotificationServiceConnector).send(meq(publicNotificationRequest)))
+
+      val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+      val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+
+      eventually(verify(mockGAConnector, times(3)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
+
+      val capturedEventNames = eventNameCaptor.getAllValues
+      val capturedMsgs = msgCaptor.getAllValues()
+      capturedMsgs.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
+      capturedMsgs.get(capturedEventNames.indexOf("notificationPushRequestFailed")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification Push request failed"
+      capturedMsgs.get(capturedEventNames.indexOf("notificationPullRequestFailed")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification Pull request failed"
     }
   }
 
