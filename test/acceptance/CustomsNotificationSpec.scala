@@ -24,7 +24,7 @@ import play.api.mvc._
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import util.TestData._
-import util.{ApiSubscriptionFieldsService, CustomsNotificationGatewayService, NotificationQueueService}
+import util._
 
 import scala.concurrent.Future
 import scala.xml.NodeSeq
@@ -34,7 +34,8 @@ import scala.xml.XML.loadString
 class CustomsNotificationSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
-  with CustomsNotificationGatewayService {
+  with PublicNotificationService
+  with GoogleAnalyticsSenderService {
 
   private val endpoint = "/customs-notification/notify"
   implicit val googleAnalyticsTrackingId: String = "UA-43414424-2"
@@ -50,7 +51,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
 
   private def callWasMadeToGoogleAnalyticsWith: (String, String) => Boolean =
-    aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId, googleAnalyticsClientId) _
+    aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId, googleAnalyticsClientId, googleAnalyticsEventValue) _
 
 
   override protected def beforeAll() {
@@ -93,15 +94,17 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
 
       callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
-        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
+        s"[ConversationId=$validConversationId] A notification received for delivery") shouldBe true
 
       callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
-        s"[ConversationId=$conversationIdValidRequest] A notification has been pushed successfully") shouldBe true
+        s"[ConversationId=$validConversationId] A notification has been pushed successfully") shouldBe true
     }
 
     scenario("DMS/MDG submits a valid request with incorrect callback details used") {
-      startApiSubscriptionFieldsService(validFieldsId,invalidCallbackData)
+      startApiSubscriptionFieldsService(validFieldsId,callbackData)
+      setupPublicNotificationServiceToReturn(404)
       setupGoogleAnalyticsEndpoint()
+      runNotificationQueueService(CREATED)
 
       Given("the API is available")
       val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
@@ -120,17 +123,16 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
       And("the notification gateway service was called correctly")
       eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
-      eventually(verifyNotificationQueueServiceWasNotCalled())
-//      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(3))
-//
-//      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
-//        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
-//
-//      callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
-//        s"[ConversationId=$conversationIdValidRequest] A notification Push request failed") shouldBe true
-//
-//      callWasMadeToGoogleAnalyticsWith("notificationLeftToBePulled",
-//        s"[ConversationId=$conversationIdValidRequest] A notification has been left to be pulled") shouldBe true
+      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(3))
+
+      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
+        s"[ConversationId=$conversationIdValidRequest] A notification received for delivery") shouldBe true
+
+      callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
+        s"[ConversationId=$conversationIdValidRequest] A notification Push request failed") shouldBe true
+
+      callWasMadeToGoogleAnalyticsWith("notificationLeftToBePulled",
+        s"[ConversationId=$conversationIdValidRequest] A notification has been left to be pulled") shouldBe true
     }
 
   }

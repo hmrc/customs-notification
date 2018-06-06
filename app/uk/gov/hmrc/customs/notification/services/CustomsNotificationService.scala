@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 
-import uk.gov.hmrc.customs.notification.connectors.{NotificationQueueConnector, PublicNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -32,21 +32,29 @@ import scala.xml.NodeSeq
 class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            publicNotificationRequestService: PublicNotificationRequestService,
                                            pushConnector: PublicNotificationServiceConnector,
-                                           queueConnector: NotificationQueueConnector
+                                           queueConnector: NotificationQueueConnector,
+                                           gaConnector: GoogleAnalyticsSenderConnector
                                           ) {
-  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] =
-    pushAndThenPassOnToPullIfPushFails(publicNotificationRequestService.createRequest(xml, callbackDetails, metaData))
+  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] = {
+
+    gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
+    pushAnxdThenPassOnToPullIfPushFails(publicNotificationRequestService.createRequest(xml, callbackDetails, metaData))
+  }
 
 
-  def pushAndThenPassOnToPullIfPushFails(publicNotificationRequest: PublicNotificationRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
-    pushConnector.send(publicNotificationRequest).map(_ =>
-      logger.info("Notification has been pushed")(hc)
-    ).recover {
-
+  private def pushAnxdThenPassOnToPullIfPushFails(publicNotificationRequest: PublicNotificationRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
+    pushConnector.send(publicNotificationRequest)
+      .flatMap { _ =>
+        logger.info("Notification has been pushed")
+        gaConnector.send("notificationPushRequestSuccess", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been pushed successfully")
+      }.recover {
       case _ =>
-        queueConnector.enqueue(publicNotificationRequest).map(_ =>
+        gaConnector.send("notificationPushRequestFailed", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification Push request failed")
+        queueConnector.enqueue(publicNotificationRequest).map { _ =>
+          gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been left to be pulled")
           logger.info("Notification has been passed on to PULL service")(hc)
-        )
+          ()
+        }
 
     }
   }

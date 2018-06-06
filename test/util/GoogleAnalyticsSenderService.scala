@@ -19,9 +19,8 @@ package util
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder
 import play.api.http.{HeaderNames, MimeTypes}
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.Json.parse
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.domain.PublicNotificationRequest
 
 import scala.collection.JavaConverters._
 
@@ -38,20 +37,13 @@ trait GoogleAnalyticsSenderService extends WireMockRunner {
     .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
 
 
-  def aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId: String, googleAnalyticsClientId: String)(eventAction: String, eventLabel: String) :Boolean = {
-    findAll(gaRequestBuilder).asScala.find(_.getBodyAsString ==
-      s"""
-         |v=1&
-         |t=event&
-         |tid=$googleAnalyticsTrackingId&
-         |cid=$googleAnalyticsClientId&
-         |ec=CDS&
-         |ea=$eventAction&
-         |el=[ConversationId=$eventLabel""".stripMargin).isDefined
+  def aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId: String, googleAnalyticsClientId: String, eventValue: String)(eventAction: String, eventLabel: String): Boolean = {
+    findAll(gaRequestBuilder).asScala.find(x => (
+      parse(x.getBodyAsString) == parse(
+        s""" {"payload" : "v=1&t=event&tid=$googleAnalyticsTrackingId&cid=$googleAnalyticsClientId&ec=CDS&ea=$eventAction&el=$eventLabel&ev=$eventValue"} """
+      ))).isDefined
   }
 
   def verifyNoOfGoogleAnalyticsCallsMadeWere(expectedNoOfCalls: Int): Unit =
     verify(expectedNoOfCalls, gaRequestBuilder)
-
-
 }

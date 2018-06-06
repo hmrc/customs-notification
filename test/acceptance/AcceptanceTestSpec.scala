@@ -24,6 +24,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import util.ExternalServicesConfig
 
+
 trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneAppPerSuite
    with BeforeAndAfterAll with BeforeAndAfterEach with Eventually {
 
@@ -39,6 +40,12 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
     "microservice.services.api-subscription-fields.host" -> ExternalServicesConfig.Host,
     "microservice.services.api-subscription-fields.port" -> ExternalServicesConfig.Port,
     "microservice.services.api-subscription-fields.context" -> ExternalServicesConfig.ApiSubscriptionFieldsServiceContext,
+    "microservice.services.google-analytics-sender.host" -> ExternalServicesConfig.Host,
+    "microservice.services.google-analytics-sender.port" -> ExternalServicesConfig.Port,
+    "microservice.services.google-analytics-sender.context" -> ExternalServicesConfig.GoogleAnalyticsEndpointContext,
+    "microservice.services.notification-queue.host" -> ExternalServicesConfig.Host,
+    "microservice.services.notification-queue.port" -> ExternalServicesConfig.Port,
+    "microservice.services.notification-queue.context" -> ExternalServicesConfig.NotificationQueueContext,
     "auditing.enabled" -> false
   )
 
