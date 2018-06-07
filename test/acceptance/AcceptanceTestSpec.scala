@@ -24,6 +24,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import util.ExternalServicesConfig
 
+
 trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneAppPerSuite
    with BeforeAndAfterAll with BeforeAndAfterEach with Eventually {
 
@@ -31,7 +32,7 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
 
   override implicit def patienceConfig: PatienceConfig = super.patienceConfig.copy(timeout = Span(Wait, Seconds))
 
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(Map(
+  val acceptanceTestConfigs: Map[String, Any] = Map(
     "auth.token.internal" -> "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=",
     "microservice.services.public-notification.host" -> ExternalServicesConfig.Host,
     "microservice.services.public-notification.port" -> ExternalServicesConfig.Port,
@@ -39,7 +40,15 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
     "microservice.services.api-subscription-fields.host" -> ExternalServicesConfig.Host,
     "microservice.services.api-subscription-fields.port" -> ExternalServicesConfig.Port,
     "microservice.services.api-subscription-fields.context" -> ExternalServicesConfig.ApiSubscriptionFieldsServiceContext,
+    "microservice.services.google-analytics-sender.host" -> ExternalServicesConfig.Host,
+    "microservice.services.google-analytics-sender.port" -> ExternalServicesConfig.Port,
+    "microservice.services.google-analytics-sender.context" -> ExternalServicesConfig.GoogleAnalyticsEndpointContext,
+    "microservice.services.notification-queue.host" -> ExternalServicesConfig.Host,
+    "microservice.services.notification-queue.port" -> ExternalServicesConfig.Port,
+    "microservice.services.notification-queue.context" -> ExternalServicesConfig.NotificationQueueContext,
     "auditing.enabled" -> false
-    )).build()
+  )
+
+  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
 
 }

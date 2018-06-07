@@ -9,7 +9,7 @@ object AppDependencies {
   private val mockitoVersion = "2.18.3"
   private val pegdownVersion = "1.6.0"
   private val wireMockVersion = "2.17.0"
-  private val customsApiCommonVersion = "1.25.0"
+  private val customsApiCommonVersion = "1.26.0"
   private val testScope = "test,it"
 
   val xmlResolver = "xml-resolver" % "xml-resolver" % "1.2"
@@ -29,5 +29,7 @@ object AppDependencies {
   val mockito =  "org.mockito" % "mockito-core" % mockitoVersion % testScope
 
   val customsApiCommon = "uk.gov.hmrc" %% "customs-api-common" % customsApiCommonVersion
+
+  val customsApiCommonTests = "uk.gov.hmrc" %% "customs-api-common" % customsApiCommonVersion % testScope classifier "tests"
 
 }
