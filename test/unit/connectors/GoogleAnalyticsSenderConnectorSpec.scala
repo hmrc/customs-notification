@@ -53,14 +53,6 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
   private val eventName: String = "event-name"
   private val eventLabel: String = "event-label"
 
-  private val validConfigMap = Map(
-    "googleAnalytics.trackingId" -> gaTrackingId,
-    "googleAnalytics.clientId" -> gaClientId,
-    "googleAnalytics.eventValue" -> gaEventValue
-  )
-  private lazy val configuration = Configuration.from(validConfigMap)
-
-
   private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
     X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
     X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
