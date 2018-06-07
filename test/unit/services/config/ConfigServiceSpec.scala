@@ -22,7 +22,7 @@ import org.scalatest.mockito.MockitoSugar
 import play.api.{Configuration, Environment}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidationNelAdaptor, ServicesConfig}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
+import uk.gov.hmrc.customs.notification.domain.{GoogleAnalyticsSenderConfig, NotificationQueueConfig}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData.basicAuthTokenValue
@@ -34,12 +34,21 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |{
       |auth.token.internal = "$basicAuthTokenValue"
       |
+      |googleAnalytics.trackingId = UA-11111-1
+      |googleAnalytics.clientId = 555
+      |googleAnalytics.eventValue = 10
+      |
       |  microservice {
       |    services {
       |      notification-queue {
       |        host = localhost
       |        port = 9648
       |        context = "/queue"
+      |      }
+      |      google-analytics-sender {
+      |       host = localhost2
+      |       port = 9822
+      |       context = /send-google-analytics
       |      }
       |    }
       |  }
@@ -49,12 +58,21 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val validMandatoryOnlyAppConfig: Config = ConfigFactory.parseString(
     """
       |{
+      |googleAnalytics.trackingId = UA-11111-1
+      |googleAnalytics.clientId = 555
+      |googleAnalytics.eventValue = 10
+      |
       |  microservice {
       |    services {
       |      notification-queue {
       |        host = localhost
       |        port = 9648
       |        context = "/queue"
+      |      }
+      |      google-analytics-sender {
+      |       host = localhost2
+      |       port = 9822
+      |       context = /send-google-analytics
       |      }
       |    }
       |  }
@@ -79,6 +97,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
       actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
+      actual.googleAnalyticsSenderConfig shouldBe GoogleAnalyticsSenderConfig("http://localhost2:9822/send-google-analytics", "UA-11111-1", "555", "10")
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -91,7 +110,12 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
       val expected = """
       |Could not find config notification-queue.host
-      |Service configuration not found for key: notification-queue.context""".stripMargin
+      |Service configuration not found for key: notification-queue.context
+      |Could not find config google-analytics-sender.host
+      |Service configuration not found for key: google-analytics-sender.context
+      |Could not find config key 'googleAnalytics.trackingId'
+      |Could not find config key 'googleAnalytics.clientId'
+      |Could not find config key 'googleAnalytics.eventValue'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 

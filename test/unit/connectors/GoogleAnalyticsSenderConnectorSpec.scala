@@ -25,11 +25,12 @@ import play.api.Configuration
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json, Writes}
-import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.domain.GoogleAnalyticsSenderConfig
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.test.UnitSpec
@@ -43,11 +44,11 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
   private val mockHttpClient = mock[HttpClient]
   private val mockCdsLogger = mock[CdsLogger]
   private val notificationLogger = mock[NotificationLogger]
-  private val mockServiceConfigProvider = mock[ServiceConfigProvider]
+  private val mockConfigService = mock[ConfigService]
 
   private val url = "the-url"
-  private implicit val gaTrackingId: String = "UA-43414424-2"
-  private implicit val gaClientId: String = "555"
+  private val gaTrackingId: String = "UA-43414424-2"
+  private val gaClientId: String = "555"
   private val gaEventValue = "10"
   private val eventName: String = "event-name"
   private val eventLabel: String = "event-label"
@@ -67,13 +68,12 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
   private lazy val connector = new GoogleAnalyticsSenderConnector(
     mockHttpClient,
     notificationLogger,
-    mockServiceConfigProvider,
-    configuration
+    mockConfigService
   )
 
   override def beforeEach(): Unit = {
-    reset(mockServiceConfigProvider, mockCdsLogger, mockHttpClient)
-    when(mockServiceConfigProvider.getConfig("google-analytics-sender")).thenReturn(ServiceConfig(url, None, "default"))
+    reset(mockConfigService, mockCdsLogger, mockHttpClient)
+    when(mockConfigService.googleAnalyticsSenderConfig).thenReturn(GoogleAnalyticsSenderConfig(url, gaTrackingId, gaClientId, gaEventValue))
     when(mockHttpClient.POST(any[String](), any[JsValue](), any[Seq[(String, String)]]())(any[Writes[JsValue]](), any[HttpReads[HttpResponse]](), meq(hc), any[ExecutionContext]()))
       .thenReturn(Future.successful(mock[HttpResponse]))
   }
@@ -120,45 +120,5 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
         .withParamMatcher(meq(hc))
         .verify()
     }
-
-    "fail when GA Tracking Id is not configured" in {
-
-      val e = intercept[RuntimeException] {
-        new GoogleAnalyticsSenderConnector(
-          mockHttpClient,
-          notificationLogger,
-          mockServiceConfigProvider,
-          Configuration.from(validConfigMap - "googleAnalytics.trackingId"))
-      }
-
-      e.getMessage shouldBe "Google Analytics Tracking Id is not configured"
-    }
-
-    "fail when GA Client Id is not configured" in {
-
-      val e = intercept[RuntimeException] {
-        new GoogleAnalyticsSenderConnector(
-          mockHttpClient,
-          notificationLogger,
-          mockServiceConfigProvider,
-          Configuration.from(validConfigMap - "googleAnalytics.clientId"))
-      }
-
-      e.getMessage shouldBe "Google Analytics Client Id is not configured"
-    }
-
-    "fail when GA Event value is not configured" in {
-
-      val e = intercept[RuntimeException] {
-        new GoogleAnalyticsSenderConnector(
-          mockHttpClient,
-          notificationLogger,
-          mockServiceConfigProvider,
-          Configuration.from(validConfigMap - "googleAnalytics.eventValue"))
-      }
-
-      e.getMessage shouldBe "Google Analytics Event Value is not configured"
-    }
-
   }
 }

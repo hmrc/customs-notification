@@ -20,7 +20,7 @@ import javax.inject.{Inject, Singleton}
 
 import uk.gov.hmrc.customs.api.common.config.ConfigValidationNelAdaptor
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationQueueConfig}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, GoogleAnalyticsSenderConfig, NotificationQueueConfig}
 
 import scalaz._
 import scalaz.syntax.apply._
@@ -40,7 +40,10 @@ import scalaz.syntax.traverse._
 class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, logger: CdsLogger) extends CustomsNotificationConfig {
 
   private case class CustomsNotificationConfigImpl(maybeBasicAuthToken: Option[String],
-                                                   notificationQueueConfig: NotificationQueueConfig) extends CustomsNotificationConfig
+                                                   notificationQueueConfig: NotificationQueueConfig,
+                                                   googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig) extends CustomsNotificationConfig
+
+  private val root = configValidationNel.root
 
   private val config: CustomsNotificationConfig = {
 
@@ -50,9 +53,20 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
     val notificationQueueConfigNel: ValidationNel[String, NotificationQueueConfig] =
       configValidationNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)
 
+
+    val gaSenderUrl = configValidationNel.service("google-analytics-sender").serviceUrl
+    val gaTrackingId = root.string("googleAnalytics.trackingId")
+    val gaClientId = root.string("googleAnalytics.clientId")
+    val gaEventValue = root.string("googleAnalytics.eventValue")
+
+    val validatedGoogleAnalyticsSenderConfig: ValidationNel[String, GoogleAnalyticsSenderConfig] = (
+      gaSenderUrl |@| gaTrackingId |@| gaClientId |@| gaEventValue
+      ) (GoogleAnalyticsSenderConfig.apply)
+
+
     val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
       (authTokenInternalNel |@|
-        notificationQueueConfigNel
+        notificationQueueConfigNel |@| validatedGoogleAnalyticsSenderConfig
         ) (CustomsNotificationConfigImpl.apply)
 
     /*
@@ -74,4 +88,6 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
   override val maybeBasicAuthToken: Option[String] = config.maybeBasicAuthToken
 
   override val notificationQueueConfig: NotificationQueueConfig = config.notificationQueueConfig
+
+  override val googleAnalyticsSenderConfig = config.googleAnalyticsSenderConfig
 }

@@ -25,6 +25,7 @@ import play.api.http.MimeTypes
 import play.api.libs.json.Json.parse
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -34,15 +35,10 @@ import scala.concurrent.Future
 @Singleton
 class GoogleAnalyticsSenderConnector @Inject()(http: HttpClient,
                                                logger: NotificationLogger,
-                                               serviceConfigProvider: ServiceConfigProvider,
-                                               configuration: Configuration) {
+                                               configService: ConfigService) {
 
 
-  private val url = serviceConfigProvider.getConfig("google-analytics-sender").url
-
-  private val gaTrackingId = configuration.getString("googleAnalytics.trackingId").getOrElse(throw new RuntimeException("Google Analytics Tracking Id is not configured"))
-  private val gaClientId = configuration.getString("googleAnalytics.clientId").getOrElse(throw new RuntimeException("Google Analytics Client Id is not configured"))
-  private val gaEventValue = configuration.getInt("googleAnalytics.eventValue").getOrElse(throw new RuntimeException("Google Analytics Event Value is not configured"))
+  private val gaSenderConfigs = configService.googleAnalyticsSenderConfig
 
   private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
@@ -52,19 +48,19 @@ class GoogleAnalyticsSenderConnector @Inject()(http: HttpClient,
     parse(
       s"""
          | {
-         |   "payload": "v=1&t=event&tid=$gaTrackingId&cid=$gaClientId&ec=CDS&ea=$eventName&el=$eventLabel&ev=$gaEventValue"
+         |   "payload": "v=1&t=event&tid=${gaSenderConfigs.gaTrackingId}&cid=${gaSenderConfigs.gaClientId}&ec=CDS&ea=$eventName&el=$eventLabel&ev=${gaSenderConfigs.gaEventValue}"
          | }""".stripMargin)
   }
 
   def send(eventName: String, message: String)(implicit hc: HeaderCarrier): Future[Unit] = {
 
-    http.POST(url, payload(eventName, message), outboundHeaders)
+    http.POST(gaSenderConfigs.url, payload(eventName, message), outboundHeaders)
       .map { _ =>
-        logger.debug(s"Successfully sent GA event to $url, eventName= $eventName, eventLabel= $message, trackingId= $gaTrackingId")
+        logger.debug(s"Successfully sent GA event to ${gaSenderConfigs.url}, eventName= $eventName, eventLabel= $message, trackingId= ${gaSenderConfigs.gaTrackingId}")
         ()
       }.recover {
       case ex: Throwable =>
-        logger.error(s"Call to GoogleAnalytics sender service failed. POST url= $url, eventName= $eventName, eventLabel= $message, reason= ${ex.getMessage}")
+        logger.error(s"Call to GoogleAnalytics sender service failed. POST url= ${gaSenderConfigs.url}, eventName= $eventName, eventLabel= $message, reason= ${ex.getMessage}")
     }
   }
 }

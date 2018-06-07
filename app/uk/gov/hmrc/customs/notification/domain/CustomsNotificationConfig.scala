@@ -18,9 +18,13 @@ package uk.gov.hmrc.customs.notification.domain
 
 case class NotificationQueueConfig(url: String)
 
+case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClientId: String, gaEventValue: String)
+
 // TODO: pull up all other service config into here
 trait CustomsNotificationConfig {
   def maybeBasicAuthToken: Option[String]
 
   def notificationQueueConfig: NotificationQueueConfig
+
+  def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig
 }
