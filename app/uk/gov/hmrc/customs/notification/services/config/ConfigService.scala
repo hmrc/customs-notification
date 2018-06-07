@@ -59,14 +59,14 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
     val gaClientId = root.string("googleAnalytics.clientId")
     val gaEventValue = root.string("googleAnalytics.eventValue")
 
-    val validatedGoogleAnalyticsSenderConfig: ValidationNel[String, GoogleAnalyticsSenderConfig] = (
+    val validatedGoogleAnalyticsSenderConfigNel: ValidationNel[String, GoogleAnalyticsSenderConfig] = (
       gaSenderUrl |@| gaTrackingId |@| gaClientId |@| gaEventValue
       ) (GoogleAnalyticsSenderConfig.apply)
 
 
     val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
       (authTokenInternalNel |@|
-        notificationQueueConfigNel |@| validatedGoogleAnalyticsSenderConfig
+        notificationQueueConfigNel |@| validatedGoogleAnalyticsSenderConfigNel
         ) (CustomsNotificationConfigImpl.apply)
 
     /*
