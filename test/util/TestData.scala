@@ -16,6 +16,8 @@
 
 package util
 
+import java.util.UUID
+
 import com.typesafe.config.{Config, ConfigFactory}
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
@@ -33,6 +35,7 @@ import scala.xml.{Elem, NodeSeq}
 object TestData {
 
   val validConversationId: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
+  val validConversationIdUUID = UUID.fromString(validConversationId)
   val invalidConversationId: String = "I-am-not-a-valid-uuid"
 
   val validFieldsId = "ffff01f9-ec3b-4ede-b263-61b626dde232"
@@ -47,8 +50,10 @@ object TestData {
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
 
   val callbackUrl = "http://callback"
+  val invalidCallbackUrl = "Im-Invalid"
   val securityToken = "securityToken"
   val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
+  val invalidCallbackData = DeclarantCallbackData(invalidCallbackUrl, securityToken)
 
   val url = "http://some-url"
   val errorMsg = "ERROR"
@@ -77,6 +82,11 @@ object TestData {
 
   def publicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
     val body = PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    PublicNotificationRequest(validFieldsId, body)
+  }
+
+  def failedPublicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
+    val body = PublicNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
     PublicNotificationRequest(validFieldsId, body)
   }
 

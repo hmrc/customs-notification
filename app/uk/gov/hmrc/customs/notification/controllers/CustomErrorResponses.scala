@@ -39,6 +39,7 @@ object CustomErrorResponses {
 
 object CustomHeaderNames {
   val X_CDS_CLIENT_ID_HEADER_NAME: String = "X-CDS-Client-ID"
+
   val SUBSCRIPTION_FIELDS_ID_HEADER_NAME: String = "api-subscription-fields-id"
 
   val X_CONVERSATION_ID_HEADER_NAME: String = "X-Conversation-ID"

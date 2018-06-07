@@ -78,7 +78,8 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
        |}
        |""".stripMargin
 
-  def startApiSubscriptionFieldsService(fieldsId: String): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, callbackData)
+  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData : DeclarantCallbackData = callbackData): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, testCallbackData)
+
 
   def setupApiSubscriptionFieldsServiceToReturn(status: Int, fieldsId: String, fields: DeclarantCallbackData): Unit =
     stubFor(
@@ -123,6 +124,12 @@ trait NotificationQueueService extends WireMockRunner {
   def getBadgeIdHeader(request: PublicNotificationRequest): Option[String] = {
     val mayBeBadgeId = Map(request.body.outboundCallHeaders.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
     mayBeBadgeId
+  }
+
+  def runNotificationQueueService(status: Int = CREATED): Unit = {
+    stubFor(post(urlMatchingRequestPath)
+      willReturn aResponse()
+      .withStatus(status))
   }
 
   def setupNotificationQueueServiceToReturn(status: Int,
@@ -183,6 +190,7 @@ object ExternalServicesConfig {
   val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "11111").toInt
   val Host = "localhost"
   val PublicNotificationServiceContext = "/make-post-call"
+  val GoogleAnalyticsEndpointContext = "/google-analytics"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"
 }
