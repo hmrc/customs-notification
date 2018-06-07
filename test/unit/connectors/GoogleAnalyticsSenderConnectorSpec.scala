@@ -42,7 +42,7 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
 
   private val mockHttpClient = mock[HttpClient]
   private val mockCdsLogger = mock[CdsLogger]
-  private val notificationLogger = new NotificationLogger(mockCdsLogger)
+  private val notificationLogger = mock[NotificationLogger]
   private val mockServiceConfigProvider = mock[ServiceConfigProvider]
 
   private val url = "the-url"
@@ -115,8 +115,9 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
 
       await(connector.send(eventName, eventLabel))
 
-      PassByNameVerifier(mockCdsLogger, "error")
-        .withByNameParam(s"[conversationId=$validConversationId][fieldsId=$validFieldsId] Call to GoogleAnalytics sender service failed. POST url= $url, reason = ${emulatedHttpVerbsException.getMessage}")
+      PassByNameVerifier(notificationLogger, "error")
+        .withByNameParam(s"Call to GoogleAnalytics sender service failed. POST url= $url, eventName= $eventName, eventLabel= $eventLabel, reason= ${emulatedHttpVerbsException.getMessage}")
+        .withParamMatcher(meq(hc))
         .verify()
     }
 

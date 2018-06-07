@@ -70,7 +70,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val emulatedServiceFailure = new EmulatedServiceFailure()
 
-  val expectedRequestMetaData = RequestMetaData(validFieldsId, UUID.fromString(validConversationId), Some(badgeId))
+  private val expectedRequestMetaData = RequestMetaData(validFieldsId, UUID.fromString(validConversationId), Some(badgeId))
 
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService)

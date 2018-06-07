@@ -22,7 +22,6 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import util.TestData._
 import util._
 
