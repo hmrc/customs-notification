@@ -36,9 +36,16 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            gaConnector: GoogleAnalyticsSenderConnector
                                           ) {
   def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] = {
-
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
-    pushAndThenPassOnToPullIfPushFails(publicNotificationRequestService.createRequest(xml, callbackDetails, metaData))
+
+    val publicNotificationRequest = publicNotificationRequestService.createRequest(xml, callbackDetails, metaData)
+
+    if (callbackDetails.callbackUrl.isEmpty) {
+      logger.info("Notification will be enqueued as callbackUrl is empty")
+      passOnToPullQueue(publicNotificationRequest)
+    } else {
+      pushAndThenPassOnToPullIfPushFails(publicNotificationRequest)
+    }
   }
 
 
