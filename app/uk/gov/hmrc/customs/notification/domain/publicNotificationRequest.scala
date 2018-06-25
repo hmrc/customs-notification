@@ -16,6 +16,10 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
+import java.security.Timestamp
+import java.util.UUID
+
+import org.joda.time.DateTime
 import play.api.libs.json.{Json, OFormat}
 
 
@@ -41,3 +45,10 @@ case class PublicNotificationRequest(
                                       clientSubscriptionId: String,
                                       body: PublicNotificationRequestBody
                                     )
+
+
+case class Notification(headers: Seq[(String, String)], payload: String, contentType: String)
+
+case class ClientNotification(csid: ClientSubscriptionId, notification: Notification, timestamp: DateTime)
+
+case class ClientSubscriptionId(id: UUID)
