@@ -12,7 +12,7 @@ import scala.concurrent.duration.Duration
 trait LockRepo {
 
 
-  def lock(csid: ClientSubscriptionId): Future[Boolean]
+  def lock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean]
 
   def release(csid: ClientSubscriptionId): Future[Unit]
 
