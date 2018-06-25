@@ -17,20 +17,21 @@
 package unit.services
 
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.{any, eq => meq}
+import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
-import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain.DeclarantCallbackData
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, PublicNotificationRequestService}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import util.TestData
 import util.TestData._
 
 import scala.concurrent.Future
@@ -40,125 +41,91 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private val badgeIdValue = "test-badge-id"
+  private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
+    X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
+    X_BADGE_ID_HEADER_NAME -> badgeIdValue,
+    X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val mockPublicNotificationRequestService = mock[PublicNotificationRequestService]
-  private val mockPublicNotificationServiceConnector = mock[PublicNotificationServiceConnector]
-  private val mockNotificationQueueConnector = mock[NotificationQueueConnector]
   private val validCallbackData = DeclarantCallbackData("callbackUrl", "securityToken")
   private val callbackDataWithEmptyCallbackUrl = DeclarantCallbackData("", "securityToken")
-  private val requestMetaData = RequestMetaData(TestData.validFieldsId, validConversationIdUUID, None)
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeIdValue))
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
+  private val mockClientNotificationRepo = mock[ClientNotificationRepo]
+  private val mockNotificationDispatcher = mock[NotificationDispatcher]
+  private val contentType = "application/xml"
+  private val badgeIdHeader: (String, String) = hc.headers.filter(a => a._1 == "X-Badge-Identifier").head
+  private val expectedHeaders = Seq(Header(badgeIdHeader._1, badgeIdHeader._2))
+  private val notification = Notification(conversationId, expectedHeaders, pushNotificationRequest.body.xmlPayload, contentType)
+  private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
+  private val mockPullService = mock[PullClientNotificationService]
 
   private val customsNotificationService = new CustomsNotificationService(
     mockNotificationLogger,
-    mockPublicNotificationRequestService,
-    mockPublicNotificationServiceConnector,
-    mockNotificationQueueConnector,
-    mockGAConnector
+    mockGAConnector,
+    mockClientNotificationRepo,
+    mockNotificationDispatcher,
+    mockPullService
   )
 
+
   override protected def beforeEach() {
-    reset(mockPublicNotificationRequestService, mockPublicNotificationServiceConnector, mockNotificationQueueConnector, mockGAConnector)
-    when(mockPublicNotificationRequestService.createRequest(ValidXML, validCallbackData, requestMetaData)).thenReturn(Future.successful(publicNotificationRequest))
-    when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.successful(()))
+    reset(mockNotificationDispatcher, mockClientNotificationRepo, mockGAConnector)
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
-    when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.successful(mock[HttpResponse]))
+    when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(true))
+    when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))).thenReturn(Future.successful(()))
   }
 
   "CustomsNotificationService" should {
 
     "first try to Push the notification" in {
-      await(customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData))
-
-      eventually(verify(mockPublicNotificationServiceConnector).send(meq(publicNotificationRequest)))
-      verifyZeroInteractions(mockNotificationQueueConnector)
-    }
-
-    "send notificationRequestReceived & notificationPushRequestSuccess GA events when notification is pushed successfully" in {
-      when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.successful(()))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
-
-      await(customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData))
-
-      eventually(verify(mockPublicNotificationServiceConnector).send(meq(publicNotificationRequest)))
-
-      val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-      val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-
-      eventually(verify(mockGAConnector, times(2)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
-
-      val capturedEventNames = eventNameCaptor.getAllValues
-      msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
-      msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationPushRequestSuccess")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification has been pushed successfully"
+      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
+      await(result) shouldBe true
+      eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
+      eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
+      verifyGAReceivedEvent()
+      verifyZeroInteractions(mockPullService)
     }
 
     "enqueue notification to be pulled when subscription fields callbackUrl is empty" in {
-      when(mockPublicNotificationRequestService.createRequest(ValidXML, callbackDataWithEmptyCallbackUrl, requestMetaData)).thenReturn(Future.successful(publicNotificationRequest))
+      when(mockPullService.sendAsync(any())).thenReturn(Future.successful((true)))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       await(customsNotificationService.handleNotification(ValidXML, callbackDataWithEmptyCallbackUrl, requestMetaData))
 
-      eventually(verify(mockNotificationQueueConnector).enqueue(meq(publicNotificationRequest)))
-      val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-      val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-      eventually(verify(mockGAConnector, times(2)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
-      val capturedEventNames = eventNameCaptor.getAllValues
-      msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
-      msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationLeftToBePulled")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification has been left to be pulled"
+      verify(mockPullService).sendAsync(refEq(clientNotification, "timeReceived", "id"))
+
+      verifyGAReceivedEvent()
     }
 
+    "fails when was unable to save notification to repository" in {
+      when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(false))
 
-    "enqueue notification to be pulled when push fails" in {
-      when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
+      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
 
-      await(customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData))
-
-      eventually(verify(mockPublicNotificationServiceConnector).send(meq(publicNotificationRequest)))
-      eventually(verify(mockNotificationQueueConnector).enqueue(meq(publicNotificationRequest)))
+      await(result) shouldBe false
+      verifyZeroInteractions(mockNotificationDispatcher)
+      verifyZeroInteractions(mockPullService)
     }
 
-    "send notificationRequestReceived, notificationPushRequestFailed and notificationLeftToBePulled GA events when push fails" in {
-      when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
+    "fails when was unable to save notification to repository due to unexpected exception" in {
+      when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.failed(new RuntimeException("save gone wrong")))
 
-      await(customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData))
+      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
 
-      eventually(verify(mockPublicNotificationServiceConnector).send(meq(publicNotificationRequest)))
-
-      val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-      val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-
-      eventually(verify(mockGAConnector, times(3)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
-
-      val capturedEventNames = eventNameCaptor.getAllValues
-      val capturedMsgs = msgCaptor.getAllValues
-      capturedMsgs.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
-      capturedMsgs.get(capturedEventNames.indexOf("notificationPushRequestFailed")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification Push request failed"
-      capturedMsgs.get(capturedEventNames.indexOf("notificationLeftToBePulled")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification has been left to be pulled"
-    }
-
-    "send notificationRequestReceived, notificationPushRequestFailed and notificationPullRequestFailed GA events when push fails" in {
-      when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
-      when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.failed(emulatedServiceFailure))
-
-      await(customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData))
-
-      eventually(verify(mockPublicNotificationServiceConnector).send(meq(publicNotificationRequest)))
-
-      val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-      val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-
-      eventually(verify(mockGAConnector, times(3)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
-
-      val capturedEventNames = eventNameCaptor.getAllValues
-      val capturedMsgs = msgCaptor.getAllValues
-      capturedMsgs.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
-      capturedMsgs.get(capturedEventNames.indexOf("notificationPushRequestFailed")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification Push request failed"
-      capturedMsgs.get(capturedEventNames.indexOf("notificationPullRequestFailed")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification Pull request failed"
+      await(result) shouldBe false
+      verifyZeroInteractions(mockNotificationDispatcher)
+      verifyZeroInteractions(mockPullService)
     }
   }
 
+  private def verifyGAReceivedEvent() = {
+    val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+    val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+    eventually(verify(mockGAConnector, times(1)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
+    val capturedEventNames = eventNameCaptor.getAllValues
+
+    msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
+  }
 }

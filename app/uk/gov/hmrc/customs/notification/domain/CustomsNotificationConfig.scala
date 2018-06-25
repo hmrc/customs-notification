@@ -16,9 +16,13 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
+import scala.concurrent.duration.FiniteDuration
+
 case class NotificationQueueConfig(url: String)
 
 case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClientId: String, gaEventValue: String)
+
+case class PushNotificationConfig(pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration)
 
 // TODO: pull up all other service config into here
 trait CustomsNotificationConfig {
@@ -27,4 +31,6 @@ trait CustomsNotificationConfig {
   def notificationQueueConfig: NotificationQueueConfig
 
   def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig
+
+  def pushNotificationConfig: PushNotificationConfig
 }

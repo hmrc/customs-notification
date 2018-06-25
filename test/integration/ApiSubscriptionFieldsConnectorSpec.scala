@@ -25,9 +25,9 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.http.logging.Authorization
 import uk.gov.hmrc.http.{BadGatewayException, HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
-import util.ExternalServicesConfig.{Host, Port}
+import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ApiSubscriptionFieldsService, ExternalServicesConfig, RequestHeaders}
+import util.{ApiSubscriptionFieldsService, ExternalServicesConfiguration, RequestHeaders}
 
 class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
   with BeforeAndAfterAll with ApiSubscriptionFieldsService {
@@ -62,10 +62,10 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec with GuiceO
       "auditing.enabled" -> false,
       "microservice.services.api-subscription-fields.host" -> Host,
       "microservice.services.api-subscription-fields.port" -> Port,
-      "microservice.services.api-subscription-fields.context" -> ExternalServicesConfig.ApiSubscriptionFieldsServiceContext
+      "microservice.services.api-subscription-fields.context" -> ExternalServicesConfiguration.ApiSubscriptionFieldsServiceContext
     )).build()
 
-  "PublicNotificationServiceConnector" should {
+  "ApiSubscriptionFieldsServiceConnector" should {
 
     "make a correct request and return correct data when external service responds with 200 (OK) and payload" in {
       startApiSubscriptionFieldsService(validFieldsId)

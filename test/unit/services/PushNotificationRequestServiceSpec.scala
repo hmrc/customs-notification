@@ -16,42 +16,39 @@
 
 package unit.services
 
-import org.mockito.ArgumentMatchers.{eq => meq}
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain.{Header, PublicNotificationRequest, PublicNotificationRequestBody}
-import uk.gov.hmrc.customs.notification.services.PublicNotificationRequestService
+import uk.gov.hmrc.customs.notification.domain.{Header, PushNotificationRequest, PushNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.services.PushNotificationRequestService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
 
-class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
+class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
 
   private val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
 
-  private val service = new PublicNotificationRequestService(mockApiSubscriptionFieldsConnector)
+  private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
-  val metaData = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
+  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
 
-  private val emulatedClientDataFailure = new IllegalStateException("boom")
-
-  "PublicNotificationRequestService" should {
+  "PushNotificationRequestService" should {
 
     "return valid request when badgeId is provided" in {
-      val metaDataWithSomeBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
+      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
       service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId))
     }
 
     "request does not contain badgeId header when it is not provided" in {
-      val metaDataWithNoBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, None)
+      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None)
       service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None)
     }
 
     "request does not contain badgeId header when it is provided as empty value" in {
-      val metaDataWithEmptyBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, Some(""))
+      val metaDataWithEmptyBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(""))
       service.createRequest(ValidXML, callbackData, metaDataWithEmptyBadgeId) shouldBe expectedRequest(None)
     }
 
@@ -60,8 +57,8 @@ class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private def expectedRequest(expectedBadgeId: Option[String]) = {
     val expectedHeaders: Seq[Header] = expectedBadgeId.fold(Seq[Header]())(badgeId => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)))
 
-    PublicNotificationRequest(validFieldsId,
-      PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
+    PushNotificationRequest(validFieldsId,
+      PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
   }
 
 }

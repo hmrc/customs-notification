@@ -10,11 +10,17 @@ object AppDependencies {
   private val pegdownVersion = "1.6.0"
   private val wireMockVersion = "2.17.0"
   private val customsApiCommonVersion = "1.26.0"
+  private val playReactivemongoVersion = "6.2.0"
+  private val mongoLockVersion = "5.1.0"
   private val testScope = "test,it"
 
   val xmlResolver = "xml-resolver" % "xml-resolver" % "1.2"
 
   val bootstrapPlay25 = "uk.gov.hmrc" %% "bootstrap-play-25" % bootstrapPlay25Version
+
+  val playReactiveMongo = "uk.gov.hmrc" %% "play-reactivemongo" % playReactivemongoVersion
+
+  val mongoLock = "uk.gov.hmrc" %% "mongo-lock" % mongoLockVersion
 
   val hmrcTest = "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % testScope
 
@@ -31,5 +37,7 @@ object AppDependencies {
   val customsApiCommon = "uk.gov.hmrc" %% "customs-api-common" % customsApiCommonVersion
 
   val customsApiCommonTests = "uk.gov.hmrc" %% "customs-api-common" % customsApiCommonVersion % testScope classifier "tests"
+
+  val reactiveMongoTest = "uk.gov.hmrc" %% "reactivemongo-test" % "3.1.0" % testScope
 
 }
