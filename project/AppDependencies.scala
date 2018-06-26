@@ -10,6 +10,7 @@ object AppDependencies {
   private val pegdownVersion = "1.6.0"
   private val wireMockVersion = "2.17.0"
   private val customsApiCommonVersion = "1.26.0"
+  private val mongoLockApiVersion = "5.1.0"
   private val testScope = "test,it"
 
   val xmlResolver = "xml-resolver" % "xml-resolver" % "1.2"
@@ -31,5 +32,7 @@ object AppDependencies {
   val customsApiCommon = "uk.gov.hmrc" %% "customs-api-common" % customsApiCommonVersion
 
   val customsApiCommonTests = "uk.gov.hmrc" %% "customs-api-common" % customsApiCommonVersion % testScope classifier "tests"
+
+  val mongoLockApi = "uk.gov.hmrc" %% "mongo-lock" % mongoLockApiVersion
 
 }

@@ -25,7 +25,6 @@ class ConfigModule extends AbstractModule {
   override def configure(): Unit = {
     // asEagerSingleton forces evaluation at application startup time
     bind(classOf[CustomsNotificationConfig]).to(classOf[ConfigService]).asEagerSingleton()
-
   }
 
 }
