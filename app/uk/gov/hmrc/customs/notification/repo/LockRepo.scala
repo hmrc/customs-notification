@@ -29,9 +29,10 @@ import scala.concurrent.Future
 trait LockRepo {
 
   val db: () => DB
+  val repo = new LockRepository()(db)
 
   def lock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean] = {
-    val lock: ExclusiveTimePeriodLock = new AbstractNotificationLock(duration, db) {
+    val lock: ExclusiveTimePeriodLock = new AbstractNotificationLock(duration, db, repo) {
       override def lockId: String = csid.id.toString
     }
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
@@ -48,11 +49,11 @@ trait LockRepo {
   //def refreshLock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean]
 }
 
-abstract class AbstractNotificationLock(duration: Duration, mongoDb: () => DB) extends ExclusiveTimePeriodLock{
+abstract class AbstractNotificationLock(duration: Duration, mongoDb: () => DB, repository: LockRepository) extends ExclusiveTimePeriodLock{
   override lazy val serverId = "customs-notification-locks"
   override val holdLockFor: Duration = duration
   private implicit val mongo: () => DB = mongoDb
-  override val repo = new LockRepository
+  override val repo: LockRepository = repository
 }
 
 
