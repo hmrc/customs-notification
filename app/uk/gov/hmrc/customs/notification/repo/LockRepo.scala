@@ -16,38 +16,43 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import org.joda.time.Duration
-import reactivemongo.api.{DB, DefaultDB}
-import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.lock.{LockKeeper, LockRepository}
 
+import org.joda.time.Duration
+import reactivemongo.api.DB
+import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockRepository}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-
-/**
-  * Created by dev on 25/06/2018.
-  */
 
 trait LockRepo {
 
   val db: () => DB
 
-  def buildLockKeeper(csid: ClientSubscriptionId, duration: Duration): LockKeeper = new LockKeeper() {
-    override val lockId = s"${csid}-lock"
-    override val forceLockReleaseAfter: Duration = duration
-    private implicit val mongo: () => DB = db
-    override val repo = new LockRepository
-  }
-
   def lock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean] = {
-    val lock: LockKeeper = buildLockKeeper(csid, duration)
-    lock.tryLock()
+    val lock: ExclusiveTimePeriodLock = new AbstractNotificationLock(duration, db) {
+      override def lockId: String = csid.id.toString
+    }
+    val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
+    val eventualBoolean: Future[Boolean] = eventualMaybeBoolean.map {
+      case Some(true) => true
+      case _ => false
+    }
+    eventualBoolean
+
   }
 
-  def release(csid: ClientSubscriptionId): Future[Unit]
-
+  //def release(csid: ClientSubscriptionId): Future[Unit]
   // if it returns false, stop processing the client, abort abort abort
-  def refreshLock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean]
+  //def refreshLock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean]
+}
+
+abstract class AbstractNotificationLock(duration: Duration, mongoDb: () => DB) extends ExclusiveTimePeriodLock{
+  override lazy val serverId = "customs-notification-locks"
+  override val holdLockFor: Duration = duration
+  private implicit val mongo: () => DB = mongoDb
+  override val repo = new LockRepository
 }
 
 
