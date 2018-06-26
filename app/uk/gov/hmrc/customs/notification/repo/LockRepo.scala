@@ -16,22 +16,38 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import org.joda.time.DateTime
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId}
+import org.joda.time.Duration
+import reactivemongo.api.{DB, DefaultDB}
+import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.lock.{LockKeeper, LockRepository}
 
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
+
 
 /**
   * Created by dev on 25/06/2018.
   */
+
 trait LockRepo {
 
+  val db: () => DB
 
-  def lock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean]
+  def buildLockKeeper(csid: ClientSubscriptionId, duration: Duration): LockKeeper = new LockKeeper() {
+    override val lockId = s"${csid}-lock"
+    override val forceLockReleaseAfter: Duration = duration
+    private implicit val mongo: () => DB = db
+    override val repo = new LockRepository
+  }
+
+  def lock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean] = {
+    val lock: LockKeeper = buildLockKeeper(csid, duration)
+    lock.tryLock()
+  }
 
   def release(csid: ClientSubscriptionId): Future[Unit]
 
   // if it returns false, stop processing the client, abort abort abort
   def refreshLock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean]
 }
+
+
