@@ -23,11 +23,13 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
+import play.api.http.HeaderNames
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain.DeclarantCallbackData
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, DeclarantCallbackData}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, PublicNotificationRequestService}
+import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PublicNotificationRequestService}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData
@@ -40,7 +42,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(HeaderNames.CONTENT_TYPE -> "application/xml"))
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockPublicNotificationRequestService = mock[PublicNotificationRequestService]
@@ -50,13 +52,17 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val callbackDataWithEmptyCallbackUrl = DeclarantCallbackData("", "securityToken")
   private val requestMetaData = RequestMetaData(TestData.validFieldsId, validConversationIdUUID, None)
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
+  private val mockClientNotificationRepo = mock[ClientNotificationRepo]
+  private val mockNotificationDispatcher = mock[NotificationDispatcher]
 
   private val customsNotificationService = new CustomsNotificationService(
     mockNotificationLogger,
     mockPublicNotificationRequestService,
     mockPublicNotificationServiceConnector,
     mockNotificationQueueConnector,
-    mockGAConnector
+    mockGAConnector,
+    mockClientNotificationRepo,
+    mockNotificationDispatcher
   )
 
   override protected def beforeEach() {
@@ -65,6 +71,8 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.successful(()))
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
     when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.successful(mock[HttpResponse]))
+    when(mockClientNotificationRepo.save(any[ClientNotification])).thenReturn(Future.successful(true)) //TODO MC revisit
+    when(mockNotificationDispatcher.process(any[Set[ClientSubscriptionId]])).thenReturn(Future.successful(())) //TODO MC revisit
   }
 
   "CustomsNotificationService" should {
