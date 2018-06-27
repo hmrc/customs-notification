@@ -23,18 +23,20 @@ import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockRepository}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
+class OwnerId(val ownerId: String) extends AnyVal
 
 trait LockRepo {
 
   val db: () => DB
   val repo = new LockRepository()(db)
 
-  def lock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean] = {
-    val lock: ExclusiveTimePeriodLock = new AbstractNotificationLock(duration, db, repo) {
-      override def lockId: String = csid.id.toString
-    }
+  /*
+    Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
+   */
+  def lock(csId: ClientSubscriptionId, duration: Duration, ownerId : OwnerId): Future[Boolean] = {
+    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, ownerId, duration, db, repo)
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
     val eventualBoolean: Future[Boolean] = eventualMaybeBoolean.map {
       case Some(true) => true
@@ -44,15 +46,33 @@ trait LockRepo {
 
   }
 
-  //def release(csid: ClientSubscriptionId): Future[Unit]
+  /*
+   Calling release lock will call directly to the repository code
+  */
+  def release(csId: ClientSubscriptionId, ownerId: OwnerId): Future[Unit] ={
+    val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, ownerId,  Duration.ZERO, db, repo)
+    lock.releaseLock()
+  }
+
+  /*
+    Calling refresh locks will call lock function so will try and renew first then acquire lock if unable to renew
+  */
   // if it returns false, stop processing the client, abort abort abort
-  //def refreshLock(csid: ClientSubscriptionId, duration: Duration): Future[Boolean]
+  def refreshLock(csId: ClientSubscriptionId, duration: Duration, ownerId: OwnerId): Future[Boolean] = {
+    lock(csId, duration, ownerId)
+  }
 }
 
-abstract class AbstractNotificationLock(duration: Duration, mongoDb: () => DB, repository: LockRepository) extends ExclusiveTimePeriodLock{
+class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerId :OwnerId, duration: Duration, mongoDb: () => DB, repository: LockRepository) extends ExclusiveTimePeriodLock{
   override val holdLockFor: Duration = duration
   private implicit val mongo: () => DB = mongoDb
   override val repo: LockRepository = repository
-}
+  override def lockId: String = csId.id.toString
+  override lazy val serverId = lockOwnerId.ownerId
 
+  def releaseLock()(implicit ec : ExecutionContext): Future[Unit] = {
+    repo.releaseLock(lockId, serverId)
+  }
+
+}
 
