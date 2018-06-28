@@ -23,6 +23,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
 import reactivemongo.api.{Cursor, DB}
+import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
 import uk.gov.hmrc.customs.notification.domain._
@@ -89,8 +90,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       collectionSize shouldBe 1
 
       val findResult = await(repository.collection.find(selector(validClientSubscriptionId1)).one[ClientNotification]).get
-      findResult.mongoObjectId should not be None
-      findResult shouldBe client1Notification1
+      findResult._id should not be None
     }
 
     "successfully save when called multiple times" in {
@@ -101,8 +101,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       collectionSize shouldBe 3
       val clientNotifications = await(repository.collection.find(selector(validClientSubscriptionId1)).cursor[ClientNotification]().collect[List](Int.MaxValue, Cursor.FailOnError[List[ClientNotification]]()))
       clientNotifications.size shouldBe 2
-      clientNotifications should contain(client1Notification1)
-      clientNotifications should contain(client1Notification2)
+      clientNotifications.head._id should not be None
     }
 
     "fetch by clientSubscriptionId should return a single record when found" in {
@@ -112,7 +111,8 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
         val clientNotification = await(repository.fetch(validClientSubscriptionId1))
 
-        clientNotification.head shouldBe client1Notification1
+        clientNotification.head._id should not be None
+        clientNotification.head.notification shouldBe client1Notification1.notification
       }
 
     "return empty List when not found" in {
@@ -130,7 +130,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       collectionSize shouldBe 2
       val clientNotifications = repository.fetch(client1Notification1.csid)
 
-      val objectIdToDelete = clientNotifications.head.mongoObjectId.get.id
+      val objectIdToDelete = clientNotifications.head._id.get
       await(repository.delete(objectIdToDelete))
 
       collectionSize shouldBe 1
@@ -141,7 +141,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client1Notification2))
       collectionSize shouldBe 2
 
-      await(repository.delete("does-not-exist"))
+      await(repository.delete(BSONObjectID.generate()))
 
       collectionSize shouldBe 2
     }

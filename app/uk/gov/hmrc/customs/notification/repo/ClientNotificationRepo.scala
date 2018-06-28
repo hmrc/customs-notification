@@ -42,7 +42,7 @@ trait ClientNotificationRepo {
   def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]]
 
   //make sure we log it properly, we cant recover from delete failure, we might need to raise an alert for this one. We'll come back to this one.
-  def delete(mongoObjectId: String): Future[Unit]
+  def delete(mongoObjectId: BSONObjectID): Future[Unit]
 }
 
 //TODO add logging
@@ -91,7 +91,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
     Future.successful(Set.empty)
   }
 
-  override def delete(mongoObjectId: String): Future[Unit] = {
+  override def delete(mongoObjectId: BSONObjectID): Future[Unit] = {
     val selector = Json.obj("_id" -> mongoObjectId)
     lazy val errorMsg = s"Could not delete entity for selector: $selector"
     collection.remove(selector).map(handleDeleteError(_, errorMsg))
