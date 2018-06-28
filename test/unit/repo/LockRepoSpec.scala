@@ -49,7 +49,7 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
       val ownerId = new OwnerId("worker1")
       when(lockRepository.renew(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(true))
       when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.lock(csid, duration, ownerId)) shouldBe true
+      await(lockRepo.lock(csid, ownerId, duration)) shouldBe true
     }
 
     "when requesting a lock for a client subscription Id should return false if lock already exists" in {
@@ -57,7 +57,7 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
       val ownerId = new OwnerId("worker1")
       when(lockRepository.renew(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
       when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.lock(csid, duration, ownerId)) shouldBe false
+      await(lockRepo.lock(csid, ownerId, duration)) shouldBe false
     }
 
     "when requesting a lock and repository returns failed future propagate the failed future" in {
@@ -67,7 +67,7 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
       when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
       when(lockRepository.releaseLock(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
       assertThrows[GenericDriverException] {
-        await(lockRepo.lock(csid, duration, ownerId))
+        await(lockRepo.lock(csid, ownerId, duration))
       }
     }
 
@@ -99,15 +99,22 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
       val ownerId = new OwnerId("worker1")
       when(lockRepository.renew(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(true))
       when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.refreshLock(csid, duration, ownerId)) shouldBe true
+      await(lockRepo.refreshLock(csid, ownerId, duration)) shouldBe true
     }
 
     "when asking if a lock exists for a client subscription Id should return true if lock does exists" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
       val ownerId = new OwnerId("worker1")
-      when(lockRepository.isLocked(meq(csid.id.toString), ownerId.ownerId)).thenReturn(Future.successful(true))
+      when(lockRepository.isLocked(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.successful(true))
       await(lockRepo.isLocked(csid, ownerId)) shouldBe true
      }
+
+    "when asking if a lock exists for a client subscription Id should return false if lock does not exists" in {
+      val csid = ClientSubscriptionId(UUID.randomUUID())
+      val ownerId = new OwnerId("worker1")
+      when(lockRepository.isLocked(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.successful(false))
+      await(lockRepo.isLocked(csid, ownerId)) shouldBe false
+    }
 
   }
 

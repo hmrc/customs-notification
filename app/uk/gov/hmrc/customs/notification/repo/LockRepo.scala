@@ -35,7 +35,7 @@ trait LockRepo {
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
    */
-  def lock(csId: ClientSubscriptionId, duration: Duration, ownerId : OwnerId): Future[Boolean] = {
+  def lock(csId: ClientSubscriptionId, ownerId : OwnerId, duration: Duration): Future[Boolean] = {
     val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, ownerId, duration, db, repo)
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
     val eventualBoolean: Future[Boolean] = eventualMaybeBoolean.map {
@@ -58,8 +58,8 @@ trait LockRepo {
     Calling refresh locks will call lock function so will try and renew first then acquire lock if unable to renew
   */
   // if it returns false, stop processing the client, abort abort abort
-  def refreshLock(csId: ClientSubscriptionId, duration: Duration, ownerId: OwnerId): Future[Boolean] = {
-    lock(csId, duration, ownerId)
+  def refreshLock(csId: ClientSubscriptionId,  ownerId: OwnerId, duration: Duration): Future[Boolean] = {
+    lock(csId, ownerId, duration)
   }
 
 
