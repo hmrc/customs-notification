@@ -75,7 +75,6 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
         Results.Accepted
 
       case None =>
-        //TODO MC shouldn't we send to pull Q here? according to CDD-1614 we should
         logger.error("Declarant data not found")
         ErrorCdsClientIdNotFound.XmlResult
 
