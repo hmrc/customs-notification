@@ -102,8 +102,13 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
       await(lockRepo.refreshLock(csid, duration, ownerId)) shouldBe true
     }
 
+    "when asking if a lock exists for a client subscription Id should return true if lock does exists" in {
+      val csid = ClientSubscriptionId(UUID.randomUUID())
+      val ownerId = new OwnerId("worker1")
+      when(lockRepository.isLocked(meq(csid.id.toString), ownerId.ownerId)).thenReturn(Future.successful(true))
+      await(lockRepo.isLocked(csid, ownerId)) shouldBe true
+     }
 
   }
-
 
 }

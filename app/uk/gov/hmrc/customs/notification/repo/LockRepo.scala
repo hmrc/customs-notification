@@ -49,7 +49,7 @@ trait LockRepo {
   /*
    Calling release lock will call directly to the repository code
   */
-  def release(csId: ClientSubscriptionId, ownerId: OwnerId): Future[Unit] ={
+  def release(csId: ClientSubscriptionId, ownerId: OwnerId): Future[Unit] = {
     val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, ownerId,  Duration.ZERO, db, repo)
     lock.releaseLock()
   }
@@ -60,6 +60,12 @@ trait LockRepo {
   // if it returns false, stop processing the client, abort abort abort
   def refreshLock(csId: ClientSubscriptionId, duration: Duration, ownerId: OwnerId): Future[Boolean] = {
     lock(csId, duration, ownerId)
+  }
+
+
+  def isLocked(csId: ClientSubscriptionId, ownerId: OwnerId): Future[Boolean] = {
+    val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, ownerId,  Duration.ZERO, db, repo)
+    lock.isLocked()
   }
 }
 
@@ -72,6 +78,10 @@ class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerI
 
   def releaseLock()(implicit ec : ExecutionContext): Future[Unit] = {
     repo.releaseLock(lockId, serverId)
+  }
+
+  def isLocked()(implicit ec : ExecutionContext): Future[Boolean] = {
+    repo.isLocked(lockId, serverId)
   }
 
 }

@@ -75,7 +75,6 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
       await(lockRepo.lock(ClientSubscriptionId(csId), twentyFiveSecondsDuration, ownerId2)) shouldBe false
     }
 
-
     "when requesting to release a lock that exists and is owned by caller, should release successfully" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val ownerId1 = new OwnerId("worker1")
@@ -107,6 +106,22 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
       val ownerId2 = new OwnerId("worker2")
       await(lockRepo.lock(csId, twentyFiveSecondsDuration, ownerId1)) shouldBe true
       await(lockRepo.refreshLock(csId, twentyFiveSecondsDuration, ownerId2)) shouldBe false
+    }
+
+    "when requesting if a lock exists should return true if lock exists" in {
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val ownerId1 = new OwnerId("worker1")
+      val ownerId2 = new OwnerId("worker2")
+      await(lockRepo.lock(csId, twentyFiveSecondsDuration, ownerId1)) shouldBe true
+      await(lockRepo.isLocked(csId, ownerId1)) shouldBe true
+      await(lockRepo.release(csId, ownerId1)) shouldBe ((): Unit)
+      await(lockRepo.isLocked(csId, ownerId1)) shouldBe false
+
+    }
+
+    "when requesting if a lock exists should return false if lock does not exist" in {
+      val ownerId1 = new OwnerId("worker1")
+      await(lockRepo.isLocked(ClientSubscriptionId(UUID.randomUUID()), ownerId1)) shouldBe false
     }
 
   }
