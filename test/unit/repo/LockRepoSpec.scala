@@ -45,75 +45,88 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
   "LockRepo" should {
 
     "when requesting a lock for a client subscription Id should return true if lock does not already exist" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(true))
-      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.lock(csid,lockOwnerId, duration)) shouldBe true
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(true))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
+      
+      await(lockRepo.lock(csId,lockOwnerId, duration)) shouldBe true
     }
 
     "when requesting a lock for a client subscription Id should return false if lock already exists" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
-      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.lock(csid,lockOwnerId, duration)) shouldBe false
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
+      
+      await(lockRepo.lock(csId,lockOwnerId, duration)) shouldBe false
     }
 
     "when requesting a lock and repository returns failed future propagate the failed future" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
-      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      when(lockRepository.releaseLock(meq(csId.id.toString), meq(lockOwnerId.id))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      
       assertThrows[GenericDriverException] {
-        await(lockRepo.lock(csid,lockOwnerId, duration))
+        await(lockRepo.lock(csId,lockOwnerId, duration))
       }
     }
 
     "when requesting to release a lock that exists and is owned by caller, should release successfully" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(()))
-      await(lockRepo.release(csid,lockOwnerId)) shouldBe (():Unit)
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+
+      when(lockRepository.releaseLock(meq(csId.id.toString), meq(lockOwnerId.id))).thenReturn(Future.successful(()))
+      
+      await(lockRepo.release(csId,lockOwnerId)) shouldBe (():Unit)
     }
 
     "when requesting to release a lock that doesn't exists , should release successfully" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(()))
-      await(lockRepo.release(csid,lockOwnerId)) shouldBe (():Unit)
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+
+      when(lockRepository.releaseLock(meq(csId.id.toString), meq(lockOwnerId.id))).thenReturn(Future.successful(()))
+      
+      await(lockRepo.release(csId,lockOwnerId)) shouldBe (():Unit)
     }
 
     "when requesting to release a lock and repository returns failed future propagate the failed future" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+      when(lockRepository.releaseLock(meq(csId.id.toString), meq(lockOwnerId.id))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      
       assertThrows[GenericDriverException] {
-        await(lockRepo.release(csid,lockOwnerId)) shouldBe (():Unit)
+        await(lockRepo.release(csId,lockOwnerId)) shouldBe (():Unit)
       }
     }
 
     "when requesting to refresh a lock for a client subscription Id should return true if lock does not already exist" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(true))
-      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.refreshLock(csid,lockOwnerId, duration)) shouldBe true
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(true))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
+      
+      await(lockRepo.refreshLock(csId,lockOwnerId, duration)) shouldBe true
     }
 
     "when asking if a lock exists for a client subscription Id should return true if lock does exists" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.isLocked(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(true))
-      await(lockRepo.isLocked(csid,lockOwnerId)) shouldBe true
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+     val lockOwnerId = new LockOwnerId("worker1")
+      when(lockRepository.isLocked(meq(csId.id.toString), meq(lockOwnerId.id))).thenReturn(Future.successful(true))
+      await(lockRepo.isLocked(csId,lockOwnerId)) shouldBe true
      }
 
     "when asking if a lock exists for a client subscription Id should return false if lock does not exists" in {
-      val csid = ClientSubscriptionId(UUID.randomUUID())
-     val lockOwnerId =new LockOwnerId("worker1")
-      when(lockRepository.isLocked(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(false))
-      await(lockRepo.isLocked(csid,lockOwnerId)) shouldBe false
+      val csId = ClientSubscriptionId(UUID.randomUUID())
+      val lockOwnerId = new LockOwnerId("worker1")
+      when(lockRepository.isLocked(meq(csId.id.toString), meq(lockOwnerId.id))).thenReturn(Future.successful(false))
+      
+      await(lockRepo.isLocked(csId,lockOwnerId)) shouldBe false
     }
 
   }
