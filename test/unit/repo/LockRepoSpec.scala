@@ -24,7 +24,7 @@ import org.scalatest.mockito.MockitoSugar
 import reactivemongo.api.DB
 import reactivemongo.core.errors.GenericDriverException
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.repo.{LockRepo, OwnerId}
+import uk.gov.hmrc.customs.notification.repo.{LockRepo, LockOwnerId}
 import uk.gov.hmrc.lock.LockRepository
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -46,74 +46,74 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
 
     "when requesting a lock for a client subscription Id should return true if lock does not already exist" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(true))
-      when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.lock(csid, ownerId, duration)) shouldBe true
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(true))
+      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
+      await(lockRepo.lock(csid,lockOwnerId, duration)) shouldBe true
     }
 
     "when requesting a lock for a client subscription Id should return false if lock already exists" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
-      when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.lock(csid, ownerId, duration)) shouldBe false
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
+      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
+      await(lockRepo.lock(csid,lockOwnerId, duration)) shouldBe false
     }
 
     "when requesting a lock and repository returns failed future propagate the failed future" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
-      when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
       assertThrows[GenericDriverException] {
-        await(lockRepo.lock(csid, ownerId, duration))
+        await(lockRepo.lock(csid,lockOwnerId, duration))
       }
     }
 
     "when requesting to release a lock that exists and is owned by caller, should release successfully" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.successful(()))
-      await(lockRepo.release(csid, ownerId)) shouldBe (():Unit)
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(()))
+      await(lockRepo.release(csid,lockOwnerId)) shouldBe (():Unit)
     }
 
     "when requesting to release a lock that doesn't exists , should release successfully" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.successful(()))
-      await(lockRepo.release(csid, ownerId)) shouldBe (():Unit)
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(()))
+      await(lockRepo.release(csid,lockOwnerId)) shouldBe (():Unit)
     }
 
     "when requesting to release a lock and repository returns failed future propagate the failed future" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.releaseLock(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.releaseLock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
       assertThrows[GenericDriverException] {
-        await(lockRepo.release(csid, ownerId)) shouldBe (():Unit)
+        await(lockRepo.release(csid,lockOwnerId)) shouldBe (():Unit)
       }
     }
 
     "when requesting to refresh a lock for a client subscription Id should return true if lock does not already exist" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.renew(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(true))
-      when(lockRepository.lock(meq(csid.id.toString), meq(ownerId.ownerId), meq(duration))).thenReturn(Future.successful(false))
-      await(lockRepo.refreshLock(csid, ownerId, duration)) shouldBe true
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.renew(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(true))
+      when(lockRepository.lock(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId), meq(duration))).thenReturn(Future.successful(false))
+      await(lockRepo.refreshLock(csid,lockOwnerId, duration)) shouldBe true
     }
 
     "when asking if a lock exists for a client subscription Id should return true if lock does exists" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.isLocked(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.successful(true))
-      await(lockRepo.isLocked(csid, ownerId)) shouldBe true
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.isLocked(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(true))
+      await(lockRepo.isLocked(csid,lockOwnerId)) shouldBe true
      }
 
     "when asking if a lock exists for a client subscription Id should return false if lock does not exists" in {
       val csid = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId = new OwnerId("worker1")
-      when(lockRepository.isLocked(meq(csid.id.toString), meq(ownerId.ownerId))).thenReturn(Future.successful(false))
-      await(lockRepo.isLocked(csid, ownerId)) shouldBe false
+     val lockOwnerId =new LockOwnerId("worker1")
+      when(lockRepository.isLocked(meq(csid.id.toString), meq(lockOwnerId.lockOwnerId))).thenReturn(Future.successful(false))
+      await(lockRepo.isLocked(csid,lockOwnerId)) shouldBe false
     }
 
   }
