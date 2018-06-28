@@ -19,8 +19,11 @@ package uk.gov.hmrc.customs.notification.domain
 import java.util.UUID
 
 import org.joda.time.DateTime
-import play.api.libs.json.{Json, OFormat}
-
+import play.api.libs.json.Format._
+import play.api.libs.json._
+import reactivemongo.bson.BSONObjectID
+import reactivemongo.play.json._
+import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 case class Header(name: String, value: String)
 
@@ -46,8 +49,53 @@ case class PublicNotificationRequest(
                                     )
 
 
-case class Notification(headers: Seq[(String, String)], payload: String, contentType: String)
-
-case class ClientNotification(csid: ClientSubscriptionId, notification: Notification, timestamp: DateTime)
+case class Notification(headers: Seq[Header], payload: String, contentType: String)
+object Notification {
+  implicit val notificationJF = Json.format[Notification]
+}
 
 case class ClientSubscriptionId(id: UUID)
+object ClientSubscriptionId {
+  implicit val clientSubscriptionIdJF = new Format[ClientSubscriptionId] {
+    def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
+    def reads(json: JsValue) = json match {
+      case JsNull => JsError()
+      case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
+    }
+  }
+}
+
+case class MongoObjectId(id: BSONObjectID)
+object MongoObjectId {
+    implicit val mongoObjectIdJF = Json.format[MongoObjectId]
+//  implicit val mongoObjectIdJF = new Format[MongoObjectId] {
+//    def writes(id: MongoObjectId) = JsString(id.id.stringify)
+//    def reads(json: JsValue) = json match {
+//      case JsNull => JsError()
+//      case _ => JsSuccess(MongoObjectId(json.as[BSONObjectID]))
+//    }
+//  }
+
+}
+
+case class ClientNotification(csid: ClientSubscriptionId, notification: Notification, timeReceived: DateTime, mongoObjectId: Option[MongoObjectId] = None)
+object ClientNotification {
+  implicit val clientNotificationJF = Json.format[ClientNotification]
+
+//  implicit val reads = (
+//      (__ \ "csid").read[ClientSubscriptionId] and
+//      (__ \ "notification").read[Notification] and
+//      (__ \ "timeReceived").read[DateTime] and
+////      (__ \ "_id").readNullable[MongoObjectId]
+//      (__ \ "mongoObjectId").readNullable[MongoObjectId]
+//    )(ClientNotification.apply _)
+//
+//  implicit val writes = (
+//      (__ \ "csid").write[ClientSubscriptionId] and
+//      (__ \ "notification").write[Notification] and
+//      (__ \ "timeReceived").write[DateTime] and
+//      (__ \ "").writeNullable[MongoObjectId]
+//    )(unlift(ClientNotification.unapply))
+//
+//  implicit val clientNotificationJF = OFormat(reads, writes)
+}
