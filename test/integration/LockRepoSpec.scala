@@ -14,22 +14,26 @@
  * limitations under the License.
  */
 
-package acceptance
+package integration
 
 import java.util.UUID
 
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.mockito.MockitoSugar
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
-import uk.gov.hmrc.lock.{LockRepository, NotificationLockRepository}
+import uk.gov.hmrc.lock.NotificationLockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with BeforeAndAfterAll {
+class LockRepoSpec extends UnitSpec
+  with MockitoSugar
+  with MongoSpecSupport
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach {
 
   val lockRepository = new NotificationLockRepository
 
@@ -38,48 +42,34 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
     override val repo: NotificationLockRepository = lockRepository
   }
 
-  override def beforeAll(): Unit = {
-    lockRepository.drop
+  override def beforeEach() {
+    await(lockRepository.drop)
   }
 
-  override def afterAll(): Unit = {
-    lockRepository.drop
+  override def afterAll() {
+    await(lockRepository.drop)
   }
-
+  val ONE = 1
   private val five = 5
   private val twentyFive = 25
   private val fiveThousand = 5000
   private val fiveSecondsDuration = org.joda.time.Duration.standardSeconds(five)
   private val twentyFiveSecondsDuration = org.joda.time.Duration.standardSeconds(twentyFive)
   private val fiveThousandSecondsDuration = org.joda.time.Duration.standardSeconds(fiveThousand)
+  private val fiveThousandSecondsinThePastDuration = org.joda.time.Duration.standardSeconds(ONE).minus(fiveThousand)
 
   "LockRepo" should {
 
-    "when requesting to get all lock should return lock that are not expired" in {
-
-      val csId = UUID.randomUUID()
-      val csId2 = UUID.randomUUID()
-      val csId3 = UUID.randomUUID()
-      val ownerId = new LockOwnerId("caller1")
-
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsDuration)) shouldBe true
-
-      await(lockRepo.currentLocks()).size shouldBe 3
-    }
-
-
     "when requesting a lock for a client subscription Id should return true if lock does not already exist" in {
       val csId = UUID.randomUUID()
-      val ownerId = new LockOwnerId("caller1")
+      val ownerId = LockOwnerId("caller1")
 
       await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveSecondsDuration)) shouldBe true
     }
 
     "when requesting a lock for a client subscription Id should return true even if lock already exists" in {
       val csId = UUID.randomUUID()
-      val ownerId = new LockOwnerId("caller1")
+      val ownerId = LockOwnerId("caller1")
 
       await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
@@ -87,8 +77,8 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
 
     "when requesting a lock should return false if we do not own the lock" in {
       val csId = UUID.randomUUID()
-      val ownerId1 = new LockOwnerId("caller1")
-      val ownerId2 = new LockOwnerId("caller2")
+      val ownerId1 = LockOwnerId("caller1")
+      val ownerId2 = LockOwnerId("caller2")
 
       await(lockRepo.lock(ClientSubscriptionId(csId), ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.lock(ClientSubscriptionId(csId), ownerId1, twentyFiveSecondsDuration)) shouldBe true
@@ -97,8 +87,8 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
 
     "when requesting to release a lock that exists and is owned by caller, should release successfully" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId1 = new LockOwnerId("worker1")
-      val ownerId2 = new LockOwnerId("worker2")
+      val ownerId1 = LockOwnerId("worker1")
+      val ownerId2 = LockOwnerId("worker2")
 
       await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.release(csId, ownerId1)) should be ((): Unit)
@@ -107,8 +97,8 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
 
     "when requesting to release a lock that exists and is NOT owned by caller, should fail to release lock" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId1 = new LockOwnerId("worker1")
-      val ownerId2 = new LockOwnerId("worker2")
+      val ownerId1 = LockOwnerId("worker1")
+      val ownerId2 = LockOwnerId("worker2")
 
       await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.release(csId, ownerId2)) should be ((): Unit)
@@ -117,7 +107,7 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
 
     "when requesting to refresh a lock that exists and is owned by caller, should refresh successfully" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId1 = new LockOwnerId("worker1")
+      val ownerId1 = LockOwnerId("worker1")
 
       await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.refreshLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
@@ -125,8 +115,8 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
 
     "when requesting to refresh a lock that exists and is NOT owned by caller, should fail to refresh lock" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId1 = new LockOwnerId("worker1")
-      val ownerId2 = new LockOwnerId("worker2")
+      val ownerId1 = LockOwnerId("worker1")
+      val ownerId2 = LockOwnerId("worker2")
 
       await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.refreshLock(csId, ownerId2, twentyFiveSecondsDuration)) shouldBe false
@@ -134,7 +124,7 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
 
     "when requesting if a lock exists should return true if lock exists" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
-      val ownerId1 = new LockOwnerId("worker1")
+      val ownerId1 = LockOwnerId("worker1")
 
       await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.isLocked(csId, ownerId1)) shouldBe true
@@ -144,9 +134,47 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
     }
 
     "when requesting if a lock exists should return false if lock does not exist" in {
-      val ownerId1 = new LockOwnerId("worker1")
+      val ownerId1 = LockOwnerId("worker1")
 
       await(lockRepo.isLocked(ClientSubscriptionId(UUID.randomUUID()), ownerId1)) shouldBe false
+    }
+
+    "when requesting to get all lock should return lock that are not expired" in {
+
+      val csId = UUID.randomUUID()
+      val csId2 = UUID.randomUUID()
+      val csId3 = UUID.randomUUID()
+      val csId4 = UUID.randomUUID()
+      val csId5 = UUID.randomUUID()
+      val csId6 = UUID.randomUUID()
+      val ownerId = LockOwnerId("caller1")
+      val ownerId2 = LockOwnerId("caller2")
+
+      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId4), ownerId2, fiveThousandSecondsinThePastDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId5), ownerId2, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId6), ownerId2, fiveThousandSecondsDuration)) shouldBe true
+
+      val locks = await(lockRepo.currentLocks())
+      locks.size shouldBe 5
+
+    }
+
+
+    "when requesting to get all lock should return nothing if all locks are expired" in {
+
+      val csId = UUID.randomUUID()
+      val csId2 = UUID.randomUUID()
+      val csId3 = UUID.randomUUID()
+      val ownerId = LockOwnerId("caller1")
+
+      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
+
+      await(lockRepo.currentLocks()).size shouldBe 0
     }
 
   }
