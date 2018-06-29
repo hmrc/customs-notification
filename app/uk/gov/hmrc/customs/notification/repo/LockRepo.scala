@@ -26,7 +26,7 @@ import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, NotificationLockRepository}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
-case class LockOwnerId(val id: String) extends AnyVal
+case class LockOwnerId(id: String) extends AnyVal
 
 trait LockRepo {
 
@@ -69,7 +69,7 @@ trait LockRepo {
     lock.isLocked()
   }
 
-  def currentLocks(): Future[List[ClientSubscriptionId]] = {
+  def currentLocks(): Future[Set[ClientSubscriptionId]] = {
     val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(ClientSubscriptionId(UUID.randomUUID()), LockOwnerId("jhghjg"),  Duration.ZERO, db, repo)
     lock.findAllNonExpiredLocks()
   }
@@ -90,7 +90,7 @@ class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerI
     repo.isLocked(lockId, serverId)
   }
 
-  def findAllNonExpiredLocks()(implicit ec : ExecutionContext): Future[List[ClientSubscriptionId]] = {
+  def findAllNonExpiredLocks()(implicit ec : ExecutionContext): Future[Set[ClientSubscriptionId]] = {
     repo.findAllNonExpiredLocks()
   }
 }

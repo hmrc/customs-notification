@@ -28,7 +28,8 @@ import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.repo.{ClientNotificationMongoRepo, MongoDbProvider}
+import uk.gov.hmrc.customs.notification.repo.{ClientNotificationMongoRepo, LockOwnerId, LockRepo, MongoDbProvider}
+import uk.gov.hmrc.lock.NotificationLockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -64,11 +65,20 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   private val mockNotificationLogger = mock[NotificationLogger]
 
+  private val timeoutInSeconds = 2
+  private val duration = org.joda.time.Duration.standardSeconds(timeoutInSeconds)
+
   private val mongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
   }
 
-  private val repository = new ClientNotificationMongoRepo(mongoDbProvider, mockNotificationLogger)
+  val notificationLockRepository = new NotificationLockRepository
+  val lockRepo: LockRepo = new LockRepo() {
+    val db: () => DB = () => mock[DB]
+    override val repo: NotificationLockRepository = notificationLockRepository
+  }
+
+  private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockNotificationLogger)
 
   override def beforeEach() {
     await(repository.drop)
@@ -149,7 +159,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       collectionSize shouldBe 2
     }
 
-    "records returned in insertion order" in {
+    "notifications returned in insertion order" in {
       await(repository.save(client1Notification1))
       await(repository.save(client1Notification2))
       await(repository.save(client2Notification1))
@@ -161,6 +171,20 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       clientNotifications.head.notification.payload shouldBe payload1
       clientNotifications(1).notification.payload shouldBe payload2
       clientNotifications(2).notification.payload shouldBe payload3
+    }
+
+    "only notifications without locks should be returned" in {
+      await(repository.save(client1Notification1))
+      await(repository.save(client1Notification2))
+      await(repository.save(client2Notification1))
+      await(repository.save(client1Notification3))
+
+      await(lockRepo.lock(validClientSubscriptionId1, LockOwnerId(validClientSubscriptionId1.id.toString), duration))
+
+      val unlockedNotifications = await(repository.fetchDistinctNotificationCSIDsWhichAreNotLocked())
+
+      unlockedNotifications.size shouldBe 1
+      unlockedNotifications.head shouldBe validClientSubscriptionId2
     }
 
   }

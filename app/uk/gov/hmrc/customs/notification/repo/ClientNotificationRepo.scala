@@ -48,6 +48,7 @@ trait ClientNotificationRepo {
 //TODO add logging
 @Singleton
 class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
+                                            lockRepo: LockRepo,
                                             notificationLogger: NotificationLogger)
   extends ReactiveRepository[ClientNotification, BSONObjectID]("notifications", mongoDbProvider.mongo,
     ClientNotification.clientNotificationJF, ReactiveMongoFormats.objectIdFormats)
@@ -88,9 +89,10 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   }
 
   override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = {
-    //TODO add 'not locked' condition
-//    collection.distinct("clientSubscriptionId")
-    Future.successful(Set.empty)
+    for {
+      csids <- collection.distinct[ClientSubscriptionId, Set]("csid")
+      lockedCsids <- lockRepo.currentLocks()
+    } yield csids diff lockedCsids
   }
 
   override def delete(mongoObjectId: BSONObjectID): Future[Unit] = {
