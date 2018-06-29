@@ -17,8 +17,8 @@
 package uk.gov.hmrc.customs.notification.controllers
 
 import java.util.UUID
-
 import javax.inject.{Inject, Singleton}
+
 import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector

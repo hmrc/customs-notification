@@ -26,7 +26,7 @@ import scala.concurrent.Future
 trait ClientNotificationRepo {
 
 
-  def save(cn: ClientNotification): Future[Boolean] //TODO MC why don't we return Future[Unit] here ?
+  def save(cn: ClientNotification): Future[Boolean]
   //FIFO based on whatever we decide to use, this method  has to return the list in insertion order. for now, leaving the timestamp in there but it yet to be decided.
   // speak to Avinder & Paul to get more context
   def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]]
