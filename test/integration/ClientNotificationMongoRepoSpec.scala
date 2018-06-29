@@ -50,13 +50,16 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   private val payload1 = "<foo1></foo1>"
   private val payload2 = "<foo2></foo2>"
+  private val payload3 = "<foo3></foo3>"
   private val timeReceived = DateTime.now()
   private val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   private val notification1 = Notification(headers, payload1, CustomMimeType.XmlCharsetUtf8)
   private val notification2 = Notification(headers, payload2, CustomMimeType.XmlCharsetUtf8)
+  private val notification3 = Notification(headers, payload3, CustomMimeType.XmlCharsetUtf8)
 
   private val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1, timeReceived, None)
   private val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2, timeReceived, None)
+  private val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3, timeReceived, None)
   private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1, timeReceived, None)
 
   private val mockNotificationLogger = mock[NotificationLogger]
@@ -123,7 +126,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.fetch(nonExistentClientNotification.csid)) shouldBe Nil
     }
 
-    "delete by mongoObjectId should remove record" in {
+    "delete by ObjectId should remove record" in {
       await(repository.save(client1Notification1))
       await(repository.save(client1Notification2))
 
@@ -144,6 +147,20 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.delete(BSONObjectID.generate()))
 
       collectionSize shouldBe 2
+    }
+
+    "records returned in insertion order" in {
+      await(repository.save(client1Notification1))
+      await(repository.save(client1Notification2))
+      await(repository.save(client2Notification1))
+      await(repository.save(client1Notification3))
+
+      collectionSize shouldBe 4
+      val clientNotifications = await(repository.collection.find(selector(validClientSubscriptionId1)).cursor[ClientNotification]().collect[List](Int.MaxValue, Cursor.FailOnError[List[ClientNotification]]()))
+      clientNotifications.size shouldBe 3
+      clientNotifications.head.notification.payload shouldBe payload1
+      clientNotifications(1).notification.payload shouldBe payload2
+      clientNotifications(2).notification.payload shouldBe payload3
     }
 
   }
