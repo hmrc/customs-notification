@@ -24,19 +24,19 @@ import org.scalatest.mockito.MockitoSugar
 import reactivemongo.api.DB
 import reactivemongo.core.errors.GenericDriverException
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.repo.{LockRepo, LockOwnerId}
-import uk.gov.hmrc.lock.LockRepository
+import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
+import uk.gov.hmrc.lock. NotificationLockRepository
 import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.concurrent.Future
 
 class LockRepoSpec extends UnitSpec with MockitoSugar {
 
-  val lockRepository: LockRepository = mock[LockRepository]
+  val lockRepository: NotificationLockRepository = mock[NotificationLockRepository]
 
   val lockRepo: LockRepo = new LockRepo() {
     val db: () => DB = () => mock[DB]
-    override val repo: LockRepository = lockRepository
+    override val repo: NotificationLockRepository = lockRepository
   }
 
   private val timeoutInSeconds = 5

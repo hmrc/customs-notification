@@ -16,20 +16,22 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
+import java.util.UUID
+
 import org.joda.time.Duration
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockRepository}
+import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, NotificationLockRepository}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
-class LockOwnerId(val id: String) extends AnyVal
+case class LockOwnerId(val id: String) extends AnyVal
 
 trait LockRepo {
 
   val db: () => DB
-  val repo = new LockRepository()(db)
+  val repo = new NotificationLockRepository()(db)
 
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
@@ -66,12 +68,17 @@ trait LockRepo {
     val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId,  Duration.ZERO, db, repo)
     lock.isLocked()
   }
+
+  def currentLocks(): Future[List[ClientSubscriptionId]] = {
+    val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(ClientSubscriptionId(UUID.randomUUID()), LockOwnerId("jhghjg"),  Duration.ZERO, db, repo)
+    lock.findAllNonExpiredLocks()
+  }
 }
 
-class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, duration: Duration, mongoDb: () => DB, repository: LockRepository) extends ExclusiveTimePeriodLock{
+class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, duration: Duration, mongoDb: () => DB, repository: NotificationLockRepository) extends ExclusiveTimePeriodLock{
   override val holdLockFor: Duration = duration
   private implicit val mongo: () => DB = mongoDb
-  override val repo: LockRepository = repository
+  override val repo: NotificationLockRepository = repository
   override def lockId: String = csId.id.toString
   override lazy val serverId = lockOwnerId.id
 
@@ -83,4 +90,7 @@ class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerI
     repo.isLocked(lockId, serverId)
   }
 
+  def findAllNonExpiredLocks()(implicit ec : ExecutionContext): Future[List[ClientSubscriptionId]] = {
+    repo.findAllNonExpiredLocks()
+  }
 }

@@ -22,8 +22,8 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.repo.{LockRepo, LockOwnerId}
-import uk.gov.hmrc.lock.LockRepository
+import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
+import uk.gov.hmrc.lock.{LockRepository, NotificationLockRepository}
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -31,11 +31,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with BeforeAndAfterAll {
 
-  val lockRepository = new LockRepository
+  val lockRepository = new NotificationLockRepository
 
   val lockRepo: LockRepo = new LockRepo() {
     val db: () => DB = () => mock[DB]
-    override val repo: LockRepository = lockRepository
+    override val repo: NotificationLockRepository = lockRepository
   }
 
   override def beforeAll(): Unit = {
@@ -48,10 +48,27 @@ class LockRepoSpec extends UnitSpec with MockitoSugar with MongoSpecSupport with
 
   private val five = 5
   private val twentyFive = 25
+  private val fiveThousand = 5000
   private val fiveSecondsDuration = org.joda.time.Duration.standardSeconds(five)
   private val twentyFiveSecondsDuration = org.joda.time.Duration.standardSeconds(twentyFive)
+  private val fiveThousandSecondsDuration = org.joda.time.Duration.standardSeconds(fiveThousand)
 
   "LockRepo" should {
+
+    "when requesting to get all lock should return lock that are not expired" in {
+
+      val csId = UUID.randomUUID()
+      val csId2 = UUID.randomUUID()
+      val csId3 = UUID.randomUUID()
+      val ownerId = new LockOwnerId("caller1")
+
+      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.lock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsDuration)) shouldBe true
+
+      await(lockRepo.currentLocks()).size shouldBe 3
+    }
+
 
     "when requesting a lock for a client subscription Id should return true if lock does not already exist" in {
       val csId = UUID.randomUUID()
