@@ -165,12 +165,12 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       collectionSize shouldBe 2
       val clientNotifications = repository.fetch(client1Notification1.csid)
 
-      val objectIdToDelete = clientNotifications.head._id.get
-      await(repository.delete(objectIdToDelete))
+      val clientNotificationToDelete = clientNotifications.head
+      await(repository.delete(clientNotificationToDelete))
 
       collectionSize shouldBe 1
       PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"deleting clientNotification with objectId: $objectIdToDelete")
+        .withByNameParam(s"deleting clientNotification with objectId: ${clientNotificationToDelete._id}")
         .withParamMatcher(any[HeaderCarrier])
         .verify()
 
@@ -181,7 +181,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client1Notification2))
       collectionSize shouldBe 2
 
-      await(repository.delete(BSONObjectID.generate()))
+      await(repository.delete(client1Notification1.copy(_id = Some(BSONObjectID.generate()))))
 
       collectionSize shouldBe 2
     }

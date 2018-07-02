@@ -40,7 +40,7 @@ trait ClientNotificationRepo {
 
   def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]]
 
-  def delete(mongoObjectId: BSONObjectID): Future[Unit]
+  def delete(clientNotification: ClientNotification): Future[Unit]
 }
 
 @Singleton
@@ -95,10 +95,10 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
     } yield csids diff lockedCsids
   }
 
-  override def delete(mongoObjectId: BSONObjectID): Future[Unit] = {
-    notificationLogger.debug(s"deleting clientNotification with objectId: ${mongoObjectId.toString()}")
+  override def delete(clientNotification: ClientNotification): Future[Unit] = {
+    notificationLogger.debug(s"deleting clientNotification with objectId: ${clientNotification._id}")
 
-    val selector = Json.obj("_id" -> mongoObjectId)
+    val selector = Json.obj("_id" -> clientNotification._id)
     lazy val errorMsg = s"Could not delete entity for selector: $selector"
     collection.remove(selector).map(errorHandler.handleDeleteError(_, errorMsg))
   }
