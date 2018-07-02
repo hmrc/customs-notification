@@ -73,7 +73,9 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
 
     lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
 
-    collection.insert(clientNotification).map {
+    val selector = Json.obj("_id" -> BSONObjectID.generate())
+    val update = Json.obj("$currentDate" -> Json.obj("timeReceived" -> true), "$set" -> clientNotification)
+    collection.update(selector, update, upsert = true).map {
       writeResult => errorHandler.handleSaveError(writeResult, errorMsg, clientNotification)
     }
   }
@@ -82,8 +84,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
     notificationLogger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString}")
 
     val selector = Json.obj("csid" -> csid.id)
-    //TODO setting the value of timeReceived in MongoDB rather than passing from service appears to be a non-trivial task.
-    val sortOrder = Json.obj("timeReceived" -> -1)
+    val sortOrder = Json.obj("timeReceived" -> 1)
     collection.find(selector).sort(sortOrder).cursor().collect[List](Int.MaxValue, Cursor.FailOnError[List[ClientNotification]]())
   }
 
