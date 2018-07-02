@@ -127,16 +127,14 @@ class LockRepoSpec extends UnitSpec
       val ownerId1 = LockOwnerId("worker1")
 
       await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.isLocked(csId, ownerId1)) shouldBe true
+      await(lockRepo.isLocked(csId)) shouldBe true
       await(lockRepo.release(csId, ownerId1)) shouldBe ((): Unit)
-      await(lockRepo.isLocked(csId, ownerId1)) shouldBe false
+      await(lockRepo.isLocked(csId)) shouldBe false
 
     }
 
     "when requesting if a lock exists should return false if lock does not exist" in {
-      val ownerId1 = LockOwnerId("worker1")
-
-      await(lockRepo.isLocked(ClientSubscriptionId(UUID.randomUUID()), ownerId1)) shouldBe false
+      await(lockRepo.isLocked(ClientSubscriptionId(UUID.randomUUID()))) shouldBe false
     }
 
     "when requesting to get all lock should return lock that are not expired" in {

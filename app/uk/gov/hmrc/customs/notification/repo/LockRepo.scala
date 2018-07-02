@@ -60,7 +60,7 @@ trait LockRepo extends CurrentTime{
     repo.releaseLock(csId.id.toString, lockOwnerId.id)
   }
 
-  def isLocked(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Boolean]  = withCurrentTime { now =>
+  def isLocked(csId: ClientSubscriptionId): Future[Boolean]  = withCurrentTime { now =>
     repo.find(LockFormats.id -> csId.id.toString, expiryTime -> Json.obj("$gte" -> now)).map(!_.isEmpty)
   }
 
