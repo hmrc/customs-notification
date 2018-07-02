@@ -22,6 +22,7 @@ import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers}
+import play.api.http.HeaderNames.CONTENT_TYPE
 import play.api.libs.json.{JsObject, JsString}
 import play.api.mvc._
 import play.api.test.Helpers._
@@ -43,6 +44,7 @@ import scala.concurrent.Future
 class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private implicit val headers: Headers = Headers(CONTENT_TYPE -> "application/xml")
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
@@ -86,7 +88,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier])
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier], any[Headers])
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
@@ -97,7 +99,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier], any[Headers])
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
@@ -187,7 +189,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 202 when handle notification fails unexpectedly" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
-      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
+      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any(), any()))
         .thenReturn(Future.failed(emulatedServiceFailure))
 
       testSubmitResult(ValidRequest) { result =>

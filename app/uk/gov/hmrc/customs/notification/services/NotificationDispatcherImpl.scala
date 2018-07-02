@@ -16,20 +16,13 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import com.google.inject.ImplementedBy
+import javax.inject.Singleton
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 
 import scala.concurrent.Future
 
-/**
-  * Created by dev on 25/06/2018.
-  */
-
-//TODO MC temporary annotation, to be removed
-@ImplementedBy(classOf[NotificationDispatcherImpl])
-trait NotificationDispatcher {
-
-  def process(csids: Set[ClientSubscriptionId]): Future[Unit]
-
-
+//TODO MC temporary, to be removed
+@Singleton
+class NotificationDispatcherImpl extends NotificationDispatcher{
+  override def process(csids: Set[ClientSubscriptionId]): Future[Unit] = Future.successful(())
 }

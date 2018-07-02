@@ -17,8 +17,8 @@
 package uk.gov.hmrc.customs.notification.controllers
 
 import java.util.UUID
-import javax.inject.{Inject, Singleton}
 
+import javax.inject.{Inject, Singleton}
 import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
@@ -50,7 +50,9 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
   def submit(): Action[AnyContent] = validateHeaders(maybeBasicAuthToken) async {
     implicit request =>
       request.body.asXml match {
-        case Some(xml) => process(xml, requestMetaData(request.headers))
+        case Some(xml) =>
+          implicit val headers: Headers = request.headers
+          process(xml, requestMetaData(request.headers))
         case None =>
           notificationLogger.error(xmlValidationErrorMessage)
           Future.successful(ErrorResponse.errorBadRequest(xmlValidationErrorMessage).XmlResult)
@@ -64,7 +66,7 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
       headers.get(X_BADGE_ID_HEADER_NAME))
   }
 
-  private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {
+  private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier, headers: Headers): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
     callbackDetailsConnector.getClientData(md.clientId).map {
