@@ -87,12 +87,12 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   override def beforeEach() {
     await(repository.drop)
-    await(notificationLockRepository.drop)
+    await(lockRepository.drop)
   }
 
   override def afterAll() {
     await(repository.drop)
-    await(notificationLockRepository.drop)
+    await(lockRepository.drop)
   }
 
   private def collectionSize: Int = {
