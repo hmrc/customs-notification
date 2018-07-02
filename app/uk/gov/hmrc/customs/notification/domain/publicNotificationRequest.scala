@@ -50,13 +50,24 @@ object Notification {
   implicit val notificationJF = Json.format[Notification]
 }
 
-case class ClientSubscriptionId(id: UUID)
+case class ClientSubscriptionId(id: UUID) extends AnyVal
 object ClientSubscriptionId {
   implicit val clientSubscriptionIdJF = new Format[ClientSubscriptionId] {
     def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
     def reads(json: JsValue) = json match {
       case JsNull => JsError()
       case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
+    }
+  }
+}
+
+case class ConversationId(id: UUID) extends AnyVal
+object ConversationId {
+  implicit val conversationIdJF = new Format[ConversationId] {
+    def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
+    def reads(json: JsValue) = json match {
+      case JsNull => JsError()
+      case _ => JsSuccess(ConversationId(json.as[UUID]))
     }
   }
 }
