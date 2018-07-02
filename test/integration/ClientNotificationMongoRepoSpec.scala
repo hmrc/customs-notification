@@ -31,7 +31,7 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.lock.NotificationLockRepository
+import uk.gov.hmrc.lock.LockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -70,16 +70,17 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
 
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
-  private val timeoutInMilliSeconds = 2000
+  private val timeoutInSeconds = 2
+  private val duration = org.joda.time.Duration.standardSeconds(timeoutInSeconds)
 
   private val mongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
   }
 
-  val notificationLockRepository = new NotificationLockRepository
+  val lockRepository = new LockRepository
   val lockRepo: LockRepo = new LockRepo() {
     val db: () => DB = () => mock[DB]
-    override val repo: NotificationLockRepository = notificationLockRepository
+    override val repo: LockRepository = lockRepository
   }
 
   private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
@@ -201,7 +202,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client2Notification1))
       await(repository.save(client1Notification3))
 
-      await(lockRepo.lock(validClientSubscriptionId1, LockOwnerId(validClientSubscriptionId1.id.toString), timeoutInMilliSeconds))
+      await(lockRepo.tryToAcquireOrRenewLock(validClientSubscriptionId1, LockOwnerId(validClientSubscriptionId1.id.toString), duration))
 
       val unlockedNotifications = await(repository.fetchDistinctNotificationCSIDsWhichAreNotLocked())
 
