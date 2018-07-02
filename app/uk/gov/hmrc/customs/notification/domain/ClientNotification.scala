@@ -21,8 +21,7 @@ import play.api.libs.json.{Json, OFormat}
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
-case class ClientNotification(conversationId: ConversationId,
-                              csid: ClientSubscriptionId,
+case class ClientNotification(csid: ClientSubscriptionId,
                               notification: Notification,
                               timeReceived: Option[DateTime] = None,
                               _id: Option[BSONObjectID] = None)

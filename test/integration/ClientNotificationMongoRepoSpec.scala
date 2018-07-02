@@ -61,14 +61,14 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val payload3 = "<foo3></foo3>"
 
   private val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
-  private val notification1 = Notification(headers, payload1, CustomMimeType.XmlCharsetUtf8)
-  private val notification2 = Notification(headers, payload2, CustomMimeType.XmlCharsetUtf8)
-  private val notification3 = Notification(headers, payload3, CustomMimeType.XmlCharsetUtf8)
+  private val notification1 = Notification(validConversationId, headers, payload1, CustomMimeType.XmlCharsetUtf8)
+  private val notification2 = Notification(validConversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
+  private val notification3 = Notification(validConversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
 
-  private val client1Notification1 = ClientNotification(validConversationId, validClientSubscriptionId1, notification1)
-  private val client1Notification2 = ClientNotification(validConversationId, validClientSubscriptionId1, notification2)
-  private val client1Notification3 = ClientNotification(validConversationId, validClientSubscriptionId1, notification3)
-  private val client2Notification1 = ClientNotification(validConversationId, validClientSubscriptionId2, notification1)
+  private val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1)
+  private val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2)
+  private val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3)
+  private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1)
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
@@ -118,7 +118,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       findResult._id should not be None
       findResult.timeReceived should not be None
       PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"saving clientNotification: ClientNotification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,None)")
+        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,None)")
         .withParamMatcher(any[HeaderCarrier])
         .verify()
     }

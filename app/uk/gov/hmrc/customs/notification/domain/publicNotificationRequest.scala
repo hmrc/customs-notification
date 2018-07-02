@@ -44,8 +44,18 @@ case class PublicNotificationRequest(
                                       body: PublicNotificationRequestBody
                                     )
 
+case class ConversationId(id: UUID) extends AnyVal
+object ConversationId {
+  implicit val conversationIdJF = new Format[ConversationId] {
+    def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
+    def reads(json: JsValue) = json match {
+      case JsNull => JsError()
+      case _ => JsSuccess(ConversationId(json.as[UUID]))
+    }
+  }
+}
 
-case class Notification(headers: Seq[Header], payload: String, contentType: String)
+case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String)
 object Notification {
   implicit val notificationJF = Json.format[Notification]
 }
@@ -61,13 +71,3 @@ object ClientSubscriptionId {
   }
 }
 
-case class ConversationId(id: UUID) extends AnyVal
-object ConversationId {
-  implicit val conversationIdJF = new Format[ConversationId] {
-    def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
-    def reads(json: JsValue) = json match {
-      case JsNull => JsError()
-      case _ => JsSuccess(ConversationId(json.as[UUID]))
-    }
-  }
-}
