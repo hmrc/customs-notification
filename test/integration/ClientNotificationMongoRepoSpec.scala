@@ -18,7 +18,9 @@ package integration
 
 import java.util.UUID
 
-import org.joda.time.DateTime
+import org.joda.time.{DateTime, DateTimeZone}
+import org.mockito.ArgumentMatchers.{eq => meq, _}
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
@@ -28,10 +30,12 @@ import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.repo.{ClientNotificationMongoRepo, LockOwnerId, LockRepo, MongoDbProvider}
+import uk.gov.hmrc.customs.notification.repo._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.lock.NotificationLockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
+import util.MockitoPassByNameHelper.PassByNameVerifier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -52,19 +56,28 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val payload1 = "<foo1></foo1>"
   private val payload2 = "<foo2></foo2>"
   private val payload3 = "<foo3></foo3>"
-  private val timeReceived = DateTime.now()
+
+  private val year = 2017
+  private val monthOfYear = 7
+  private val dayOfMonth = 4
+  private val hourOfDay = 13
+  private val minuteOfHour = 45
+  private val timeReceived = new DateTime(year, monthOfYear, dayOfMonth, hourOfDay, minuteOfHour, DateTimeZone.UTC)
+
   private val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   private val notification1 = Notification(headers, payload1, CustomMimeType.XmlCharsetUtf8)
   private val notification2 = Notification(headers, payload2, CustomMimeType.XmlCharsetUtf8)
   private val notification3 = Notification(headers, payload3, CustomMimeType.XmlCharsetUtf8)
 
-  private val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1, timeReceived, None)
-  private val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2, timeReceived, None)
-  private val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3, timeReceived, None)
-  private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1, timeReceived, None)
+  private val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1, timeReceived)
+  private val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2, timeReceived)
+  private val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3, timeReceived)
+  private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1, timeReceived)
 
   private val mockNotificationLogger = mock[NotificationLogger]
+  private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
 
+  private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
   private val timeoutInSeconds = 2
   private val duration = org.joda.time.Duration.standardSeconds(timeoutInSeconds)
 
@@ -78,7 +91,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     override val repo: NotificationLockRepository = notificationLockRepository
   }
 
-  private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockNotificationLogger)
+  private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
 
   override def beforeEach() {
     await(repository.drop)
@@ -98,12 +111,17 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   "repository" should {
     "successfully save a single notification" in {
+      when(mockErrorHandler.handleSaveError(any(), any(), any())).thenReturn(true)
       val saveResult = await(repository.save(client1Notification1))
       saveResult shouldBe true
       collectionSize shouldBe 1
 
       val findResult = await(repository.collection.find(selector(validClientSubscriptionId1)).one[ClientNotification]).get
       findResult._id should not be None
+      PassByNameVerifier(mockNotificationLogger, "debug")
+        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),2017-07-04T13:45:00.000Z,None)")
+        .withParamMatcher(any[HeaderCarrier])
+        .verify()
     }
 
     "successfully save when called multiple times" in {
@@ -118,15 +136,20 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     }
 
     "fetch by clientSubscriptionId should return a single record when found" in {
-        await(repository.save(client1Notification1))
-        await(repository.save(client1Notification2))
-        await(repository.save(client2Notification1))
+      await(repository.save(client1Notification1))
+      await(repository.save(client1Notification2))
+      await(repository.save(client2Notification1))
 
-        val clientNotification = await(repository.fetch(validClientSubscriptionId1))
+      val clientNotification = await(repository.fetch(validClientSubscriptionId1))
 
-        clientNotification.head._id should not be None
-        clientNotification.head.notification shouldBe client1Notification1.notification
-      }
+      clientNotification.head._id should not be None
+      clientNotification.head.notification shouldBe client1Notification1.notification
+
+      PassByNameVerifier(mockNotificationLogger, "debug")
+        .withByNameParam("fetching clientNotification(s) with csid: eaca01f9-ec3b-4ede-b263-61b626dde232")
+        .withParamMatcher(any[HeaderCarrier])
+        .verify()
+    }
 
     "return empty List when not found" in {
       await(repository.save(client1Notification1))
@@ -147,6 +170,11 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.delete(objectIdToDelete))
 
       collectionSize shouldBe 1
+      PassByNameVerifier(mockNotificationLogger, "debug")
+        .withByNameParam(s"deleting clientNotification with objectId: $objectIdToDelete")
+        .withParamMatcher(any[HeaderCarrier])
+        .verify()
+
       }
 
     "collection should be same size when deleting non-existent record" in {

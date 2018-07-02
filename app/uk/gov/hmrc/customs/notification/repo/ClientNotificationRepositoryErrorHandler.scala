@@ -16,12 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import play.api.Logger
+import javax.inject.{Inject, Singleton}
+
 import reactivemongo.api.commands.WriteResult
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
-trait ClientNotificationRepositoryErrorHandler {
+@Singleton
+class ClientNotificationRepositoryErrorHandler @Inject() (notificationLogger: NotificationLogger) {
 
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
 
@@ -29,7 +32,7 @@ trait ClientNotificationRepositoryErrorHandler {
     handleError(result, databaseAltered, exceptionMsg)
   }
 
-  def handleSaveError(writeResult: WriteResult, exceptionMsg: => String, clientNotification: => ClientNotification): Boolean = {
+  def handleSaveError(writeResult: WriteResult, exceptionMsg: String, clientNotification: ClientNotification): Boolean = {
 
     def handleSaveError(result: WriteResult): Boolean =
       if (databaseAltered(result)) {
@@ -46,8 +49,7 @@ trait ClientNotificationRepositoryErrorHandler {
     result.writeConcernError.fold(f(result)) {
       errMsg => {
         val errorMsg = s"$exceptionMsg. $errMsg"
-        //TODO replace with notificationsLogger
-        Logger.error(errorMsg)
+        notificationLogger.error(errorMsg)
         throw new RuntimeException(errorMsg)
       }
     }

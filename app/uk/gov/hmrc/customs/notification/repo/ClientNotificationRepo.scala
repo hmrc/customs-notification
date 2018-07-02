@@ -35,25 +35,22 @@ import scala.concurrent.Future
 trait ClientNotificationRepo {
 
   def save(clientNotification: ClientNotification): Future[Boolean]
-  //FIFO based on whatever we decide to use, this method  has to return the list in insertion order. for now, leaving the timestamp in there but it yet to be decided.
-  // speak to Avinder & Paul to get more context
+
   def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]]
 
   def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]]
 
-  //make sure we log it properly, we cant recover from delete failure, we might need to raise an alert for this one. We'll come back to this one.
   def delete(mongoObjectId: BSONObjectID): Future[Unit]
 }
 
-//TODO add logging
 @Singleton
 class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
                                             lockRepo: LockRepo,
+                                            errorHandler: ClientNotificationRepositoryErrorHandler,
                                             notificationLogger: NotificationLogger)
   extends ReactiveRepository[ClientNotification, BSONObjectID]("notifications", mongoDbProvider.mongo,
     ClientNotification.clientNotificationJF, ReactiveMongoFormats.objectIdFormats)
-    with ClientNotificationRepo
-    with ClientNotificationRepositoryErrorHandler{
+    with ClientNotificationRepo {
 
   private implicit val format = ClientNotification.clientNotificationJF
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
@@ -66,7 +63,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
     ),
     Index(
       key = Seq("csid" -> IndexType.Ascending, "timeReceived" -> IndexType.Descending),
-      name = Some("clientId-timeReceived-Index"),
+      name = Some("csid-timeReceived-Index"),
       unique = true
     )
   )
@@ -77,11 +74,13 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
     lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
 
     collection.insert(clientNotification).map {
-      writeResult => handleSaveError(writeResult, errorMsg, clientNotification)
+      writeResult => errorHandler.handleSaveError(writeResult, errorMsg, clientNotification)
     }
   }
 
   override def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]] = {
+    notificationLogger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString}")
+
     val selector = Json.obj("csid" -> csid.id)
     //TODO setting the value of timeReceived in MongoDB rather than passing from service appears to be a non-trivial task.
     val sortOrder = Json.obj("timeReceived" -> -1)
@@ -96,9 +95,11 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   }
 
   override def delete(mongoObjectId: BSONObjectID): Future[Unit] = {
+    notificationLogger.debug(s"deleting clientNotification with objectId: ${mongoObjectId.toString()}")
+
     val selector = Json.obj("_id" -> mongoObjectId)
     lazy val errorMsg = s"Could not delete entity for selector: $selector"
-    collection.remove(selector).map(handleDeleteError(_, errorMsg))
+    collection.remove(selector).map(errorHandler.handleDeleteError(_, errorMsg))
   }
 
 }
