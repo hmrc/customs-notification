@@ -19,11 +19,11 @@ package uk.gov.hmrc.customs.notification.repo
 import java.util.UUID
 
 import org.joda.time.Duration
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
-import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockRepository}
+import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
 import uk.gov.hmrc.mongo.CurrentTime
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
@@ -40,7 +40,7 @@ trait LockRepo extends CurrentTime{
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
    */
-  def lock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = {
+  def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = {
 
     val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration,db, repo)
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
@@ -60,20 +60,11 @@ trait LockRepo extends CurrentTime{
     repo.releaseLock(csId.id.toString, lockOwnerId.id)
   }
 
-  /*
-    Calling refresh locks will call lock function so will try and renew first then acquire lock if unable to renew
-  */
-  // if it returns false, stop processing the client, abort abort abort
-  def refreshLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = {
-    lock(csId,lockOwnerId, lockDuration)
+  def isLocked(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Boolean]  = withCurrentTime { now =>
+    repo.find(LockFormats.id -> csId.id.toString, expiryTime -> Json.obj("$gte" -> now)).map(!_.isEmpty)
   }
 
-
-  def isLocked(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Boolean] = {
-    repo.isLocked(csId.id.toString, lockOwnerId.id)
-  }
-
-  def currentLocks(): Future[Set[ClientSubscriptionId]] = withCurrentTime { now =>
+  def lockedCSIds(): Future[Set[ClientSubscriptionId]] = withCurrentTime { now =>
     repo.find(expiryTime -> Json.obj("$gte" -> now.toDateTime())).map({
       listOfLocks => listOfLocks.toSet[Lock].map(lock => ClientSubscriptionId(UUID.fromString(lock.id)))
     })

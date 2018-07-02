@@ -90,7 +90,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = {
     for {
       csids <- collection.distinct[ClientSubscriptionId, Set]("csid")
-      lockedCsids <- lockRepo.currentLocks()
+      lockedCsids <- lockRepo.lockedCSIds()
     } yield csids diff lockedCsids
   }
 

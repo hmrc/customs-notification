@@ -207,7 +207,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client2Notification1))
       await(repository.save(client1Notification3))
 
-      await(lockRepo.lock(validClientSubscriptionId1, LockOwnerId(validClientSubscriptionId1.id.toString), duration))
+      await(lockRepo.tryToAcquireOrRenewLock(validClientSubscriptionId1, LockOwnerId(validClientSubscriptionId1.id.toString), duration))
 
       val unlockedNotifications = await(repository.fetchDistinctNotificationCSIDsWhichAreNotLocked())
 

@@ -64,15 +64,15 @@ class LockRepoSpec extends UnitSpec
       val csId = UUID.randomUUID()
       val ownerId = LockOwnerId("caller1")
 
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, fiveSecondsDuration)) shouldBe true
     }
 
     "when requesting a lock for a client subscription Id should return true even if lock already exists" in {
       val csId = UUID.randomUUID()
       val ownerId = LockOwnerId("caller1")
 
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
     }
 
     "when requesting a lock should return false if we do not own the lock" in {
@@ -80,9 +80,9 @@ class LockRepoSpec extends UnitSpec
       val ownerId1 = LockOwnerId("caller1")
       val ownerId2 = LockOwnerId("caller2")
 
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId1, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId1, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId2, twentyFiveSecondsDuration)) shouldBe false
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId2, twentyFiveSecondsDuration)) shouldBe false
     }
 
     "when requesting to release a lock that exists and is owned by caller, should release successfully" in {
@@ -90,9 +90,9 @@ class LockRepoSpec extends UnitSpec
       val ownerId1 = LockOwnerId("worker1")
       val ownerId2 = LockOwnerId("worker2")
 
-      await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.release(csId, ownerId1)) should be ((): Unit)
-      await(lockRepo.lock(csId, ownerId2, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId2, twentyFiveSecondsDuration)) shouldBe true
     }
 
     "when requesting to release a lock that exists and is NOT owned by caller, should fail to release lock" in {
@@ -100,17 +100,17 @@ class LockRepoSpec extends UnitSpec
       val ownerId1 = LockOwnerId("worker1")
       val ownerId2 = LockOwnerId("worker2")
 
-      await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.release(csId, ownerId2)) should be ((): Unit)
-      await(lockRepo.lock(csId, ownerId2, twentyFiveSecondsDuration)) shouldBe false
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId2, twentyFiveSecondsDuration)) shouldBe false
     }
 
     "when requesting to refresh a lock that exists and is owned by caller, should refresh successfully" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val ownerId1 = LockOwnerId("worker1")
 
-      await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.refreshLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
     }
 
     "when requesting to refresh a lock that exists and is NOT owned by caller, should fail to refresh lock" in {
@@ -118,15 +118,15 @@ class LockRepoSpec extends UnitSpec
       val ownerId1 = LockOwnerId("worker1")
       val ownerId2 = LockOwnerId("worker2")
 
-      await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.refreshLock(csId, ownerId2, twentyFiveSecondsDuration)) shouldBe false
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId2, twentyFiveSecondsDuration)) shouldBe false
     }
 
     "when requesting if a lock exists should return true if lock exists" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val ownerId1 = LockOwnerId("worker1")
 
-      await(lockRepo.lock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.isLocked(csId, ownerId1)) shouldBe true
       await(lockRepo.release(csId, ownerId1)) shouldBe ((): Unit)
       await(lockRepo.isLocked(csId, ownerId1)) shouldBe false
@@ -150,14 +150,14 @@ class LockRepoSpec extends UnitSpec
       val ownerId = LockOwnerId("caller1")
       val ownerId2 = LockOwnerId("caller2")
 
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId4), ownerId2, fiveThousandSecondsinThePastDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId5), ownerId2, fiveThousandSecondsDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId6), ownerId2, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId4), ownerId2, fiveThousandSecondsinThePastDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId5), ownerId2, fiveThousandSecondsDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId6), ownerId2, fiveThousandSecondsDuration)) shouldBe true
 
-      val locks = await(lockRepo.currentLocks())
+      val locks = await(lockRepo.lockedCSIds())
       locks.size shouldBe 5
 
     }
@@ -170,11 +170,11 @@ class LockRepoSpec extends UnitSpec
       val csId3 = UUID.randomUUID()
       val ownerId = LockOwnerId("caller1")
 
-      await(lockRepo.lock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
-      await(lockRepo.lock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId2), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
+      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId3), ownerId, fiveThousandSecondsinThePastDuration)) shouldBe true
 
-      await(lockRepo.currentLocks()).size shouldBe 0
+      await(lockRepo.lockedCSIds()).size shouldBe 0
     }
 
   }
