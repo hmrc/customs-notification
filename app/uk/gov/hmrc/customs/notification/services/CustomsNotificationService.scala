@@ -20,7 +20,7 @@ import java.util.UUID
 
 import javax.inject.{Inject, Singleton}
 import org.joda.time.DateTime
-import play.api.http.HeaderNames
+import play.api.http.{HeaderNames, MimeTypes}
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
@@ -42,33 +42,29 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            clientNotificationRepo: ClientNotificationRepo,
                                            notificationDispatcher: NotificationDispatcher
                                           ) {
-  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier, headers: Headers): Future[Unit] = {
+  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
-
-    val publicNotificationRequest = publicNotificationRequestService.createRequest(xml, callbackDetails, metaData)
 
     if (callbackDetails.callbackUrl.isEmpty) {
       logger.info("Notification will be enqueued as callbackUrl is empty")
-      passOnToPullQueue(publicNotificationRequest)
+      passOnToPullQueue(xml, callbackDetails, metaData)
     } else {
-      saveNotificationToDatabaseAndCallDispatcher(publicNotificationRequest)
+      val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(hc.headers.seq, xml.toString, MimeTypes.XML), DateTime.now())
+      saveNotificationToDatabaseAndCallDispatcher(clientNotification)
     }
   }
 
-  private def saveNotificationToDatabaseAndCallDispatcher(req: PublicNotificationRequest)(implicit hc: HeaderCarrier, headers: Headers) = {
-    val contentType = headers.get(HeaderNames.CONTENT_TYPE).getOrElse(throw new IllegalStateException("Content type missing? Very unlikely"))
+  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification)(implicit hc: HeaderCarrier) = {
 
-    val notification = Notification(hc.headers.seq, req.body.xmlPayload, contentType)
-    val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(req.clientSubscriptionId))
-
-    clientNotificationRepo.save(ClientNotification(clientSubscriptionId, notification, DateTime.now())).flatMap {
-      case true => notificationDispatcher.process(Set(clientSubscriptionId))
+    clientNotificationRepo.save(clientNotification).flatMap {
+      case true => notificationDispatcher.process(Set(clientNotification.csid))
       case false => Future.failed(throw new RuntimeException("Dispatcher failed to process the notification"))
     }
 
   }
 
-  private def passOnToPullQueue(publicNotificationRequest: PublicNotificationRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
+  private def passOnToPullQueue(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Unit] = {
+    val publicNotificationRequest = publicNotificationRequestService.createRequest(xml, callbackDetails, metaData)
     queueConnector.enqueue(publicNotificationRequest)
       .map { _ =>
         gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been left to be pulled")

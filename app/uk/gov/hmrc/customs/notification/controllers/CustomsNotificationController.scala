@@ -51,7 +51,6 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     implicit request =>
       request.body.asXml match {
         case Some(xml) =>
-          implicit val headers: Headers = request.headers
           process(xml, requestMetaData(request.headers))
         case None =>
           notificationLogger.error(xmlValidationErrorMessage)
@@ -66,7 +65,7 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
       headers.get(X_BADGE_ID_HEADER_NAME))
   }
 
-  private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier, headers: Headers): Future[Result] = {
+  private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
     callbackDetailsConnector.getClientData(md.clientId).map {
