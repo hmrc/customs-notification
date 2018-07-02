@@ -18,7 +18,8 @@ package unit.repo
 
 import java.util.UUID
 
-import org.mockito.ArgumentMatchers.{eq => meq}
+import org.joda.time.Duration
+import org.mockito.ArgumentMatchers.{eq => meq, any}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import reactivemongo.api.DB
@@ -48,32 +49,32 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val lockOwnerId = LockOwnerId("worker1")
 
-      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(true))
-      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.successful(true))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.successful(false))
       
-      await(lockRepo.lock(csId,lockOwnerId, duration)) shouldBe true
+      await(lockRepo.lock(csId,lockOwnerId, timeoutInSeconds)) shouldBe true
     }
 
     "when requesting a lock for a client subscription Id should return false if lock already exists" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val lockOwnerId = LockOwnerId("worker1")
 
-      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
-      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.successful(false))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.successful(false))
       
-      await(lockRepo.lock(csId,lockOwnerId, duration)) shouldBe false
+      await(lockRepo.lock(csId,lockOwnerId, timeoutInSeconds)) shouldBe false
     }
 
     "when requesting a lock and repository returns failed future propagate the failed future" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val lockOwnerId = LockOwnerId("worker1")
 
-      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
-      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
       when(lockRepository.releaseLock(meq(csId.id.toString), meq(lockOwnerId.id))).thenReturn(Future.failed(GenericDriverException(s"fails to remove:lock")))
       
       assertThrows[GenericDriverException] {
-        await(lockRepo.lock(csId,lockOwnerId, duration))
+        await(lockRepo.lock(csId,lockOwnerId, timeoutInSeconds))
       }
     }
 
@@ -108,10 +109,10 @@ class LockRepoSpec extends UnitSpec with MockitoSugar {
     "when requesting to refresh a lock for a client subscription Id should return true if lock does not already exist" in {
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val lockOwnerId = LockOwnerId("worker1")
-      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(true))
-      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), meq(duration))).thenReturn(Future.successful(false))
+      when(lockRepository.renew(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.successful(true))
+      when(lockRepository.lock(meq(csId.id.toString), meq(lockOwnerId.id), any[Duration])).thenReturn(Future.successful(false))
       
-      await(lockRepo.refreshLock(csId,lockOwnerId, duration)) shouldBe true
+      await(lockRepo.refreshLock(csId,lockOwnerId, timeoutInSeconds)) shouldBe true
     }
 
     "when asking if a lock exists for a client subscription Id should return true if lock does exists" in {

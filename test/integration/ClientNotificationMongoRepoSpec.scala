@@ -78,8 +78,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
 
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
-  private val timeoutInSeconds = 2
-  private val duration = org.joda.time.Duration.standardSeconds(timeoutInSeconds)
+  private val timeoutInMilliSeconds = 2000
 
   private val mongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
@@ -207,7 +206,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client2Notification1))
       await(repository.save(client1Notification3))
 
-      await(lockRepo.lock(validClientSubscriptionId1, LockOwnerId(validClientSubscriptionId1.id.toString), duration))
+      await(lockRepo.lock(validClientSubscriptionId1, LockOwnerId(validClientSubscriptionId1.id.toString), timeoutInMilliSeconds))
 
       val unlockedNotifications = await(repository.fetchDistinctNotificationCSIDsWhichAreNotLocked())
 
