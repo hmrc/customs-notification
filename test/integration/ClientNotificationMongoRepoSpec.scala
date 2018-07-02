@@ -18,7 +18,6 @@ package integration
 
 import java.util.UUID
 
-import org.joda.time.{DateTime, DateTimeZone}
 import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
@@ -57,22 +56,15 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val payload2 = "<foo2></foo2>"
   private val payload3 = "<foo3></foo3>"
 
-  private val year = 2017
-  private val monthOfYear = 7
-  private val dayOfMonth = 4
-  private val hourOfDay = 13
-  private val minuteOfHour = 45
-  private val timeReceived = new DateTime(year, monthOfYear, dayOfMonth, hourOfDay, minuteOfHour, DateTimeZone.UTC)
-
   private val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   private val notification1 = Notification(headers, payload1, CustomMimeType.XmlCharsetUtf8)
   private val notification2 = Notification(headers, payload2, CustomMimeType.XmlCharsetUtf8)
   private val notification3 = Notification(headers, payload3, CustomMimeType.XmlCharsetUtf8)
 
-  private val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1, timeReceived)
-  private val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2, timeReceived)
-  private val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3, timeReceived)
-  private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1, timeReceived)
+  private val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1)
+  private val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2)
+  private val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3)
+  private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1)
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
@@ -94,10 +86,12 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   override def beforeEach() {
     await(repository.drop)
+    await(notificationLockRepository.drop)
   }
 
   override def afterAll() {
     await(repository.drop)
+    await(notificationLockRepository.drop)
   }
 
   private def collectionSize: Int = {
@@ -117,8 +111,9 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
       val findResult = await(repository.collection.find(selector(validClientSubscriptionId1)).one[ClientNotification]).get
       findResult._id should not be None
+      findResult.timeReceived should not be None
       PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),2017-07-04T13:45:00.000Z,None)")
+        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,None)")
         .withParamMatcher(any[HeaderCarrier])
         .verify()
     }
