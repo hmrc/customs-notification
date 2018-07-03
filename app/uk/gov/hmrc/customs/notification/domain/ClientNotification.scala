@@ -17,17 +17,17 @@
 package uk.gov.hmrc.customs.notification.domain
 
 import org.joda.time.DateTime
-import play.api.libs.json.{Json, OFormat}
+import play.api.libs.json.Json
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 case class ClientNotification(csid: ClientSubscriptionId,
                               notification: Notification,
                               timeReceived: Option[DateTime] = None,
-                              _id: Option[BSONObjectID] = None)
+                              id: BSONObjectID = BSONObjectID.generate)
 
 object ClientNotification {
   implicit val dateFormats = ReactiveMongoFormats.dateTimeFormats
   implicit val idFormat = reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
-  implicit val clientNotificationJF: OFormat[ClientNotification] = Json.format[ClientNotification]
+  implicit val clientNotificationJF = ReactiveMongoFormats.mongoEntity(Json.format[ClientNotification])
 }
