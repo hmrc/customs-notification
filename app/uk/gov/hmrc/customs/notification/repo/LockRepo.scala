@@ -18,8 +18,10 @@ package uk.gov.hmrc.customs.notification.repo
 
 import java.util.UUID
 
+import com.google.inject.ImplementedBy
+import javax.inject.Singleton
 import org.joda.time.Duration
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.Json
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
@@ -32,10 +34,11 @@ import scala.concurrent.Future
 
 case class LockOwnerId(id: String) extends AnyVal
 
+@ImplementedBy(classOf[DummyLockRepo])
 trait LockRepo extends CurrentTime{
 
   val db: () => DB
-  val repo = new LockRepository()(db)
+  lazy val repo = new LockRepository()(db) //TODO MC remove lazy
 
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
@@ -83,3 +86,10 @@ class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerI
 
 }
 
+//TODO MC to be removed after CDD-1612
+@Singleton
+class DummyLockRepo extends LockRepo {
+  override lazy val db: () => DB = ???
+
+  override def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = Future.successful(true)
+}

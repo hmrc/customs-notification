@@ -18,7 +18,7 @@ package integration
 
 import java.util.UUID
 
-import org.mockito.ArgumentMatchers.{eq => meq, _}
+import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -84,7 +84,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   val lockRepository = new LockRepository
   val lockRepo: LockRepo = new LockRepo() {
     val db: () => DB = () => mock[DB]
-    override val repo: LockRepository = lockRepository
+    override lazy val repo: LockRepository = lockRepository
   }
 
   private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)

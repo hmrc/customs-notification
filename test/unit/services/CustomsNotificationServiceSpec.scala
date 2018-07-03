@@ -18,7 +18,6 @@ package unit.services
 
 import java.util.UUID
 
-import org.joda.time.DateTime
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._
@@ -28,7 +27,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, DeclarantCallbackData, Notification}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PublicNotificationRequestService}
@@ -57,9 +56,9 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
   private val contentType = "application/xml"
-  private val notification = Notification(hc.headers.seq, publicNotificationRequest.body.xmlPayload, contentType)
+  private val notification = Notification(conversationId ,hc.headers.seq.map(a => Header(a._1, a._2)), publicNotificationRequest.body.xmlPayload, contentType)
   private val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(publicNotificationRequest.clientSubscriptionId))
-  private val clientNotification = ClientNotification(clientSubscriptionId, notification, DateTime.now())
+  private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
 
   private val customsNotificationService = new CustomsNotificationService(
     mockNotificationLogger,
@@ -78,7 +77,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     when(mockPublicNotificationServiceConnector.send(publicNotificationRequest)).thenReturn(Future.successful(()))
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
     when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.successful(mock[HttpResponse]))
-    when(mockClientNotificationRepo.save(refEq(clientNotification, "timestamp"))).thenReturn(Future.successful(true))
+    when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(true))
     when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))(meq(hc))).thenReturn(Future.successful(()))
   }
 
@@ -87,7 +86,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     "first try to Push the notification" in {
       val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
       result shouldBe Right("success")
-      eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timestamp")))
+      eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
       eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId)))(meq(hc)))
     }
 
@@ -107,7 +106,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     }
 
     "fails when was unable to save notification to repository" in {
-      when(mockClientNotificationRepo.save(refEq(clientNotification, "timestamp"))).thenReturn(Future.successful(false))
+      when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(false))
 
       val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
 

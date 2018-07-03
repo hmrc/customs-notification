@@ -18,8 +18,8 @@ package integration
 
 import java.util.UUID
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
@@ -39,7 +39,7 @@ class LockRepoSpec extends UnitSpec
 
   val lockRepo: LockRepo = new LockRepo() {
     val db: () => DB = () => mock[DB]
-    override val repo: LockRepository = lockRepository
+    override lazy val repo: LockRepository = lockRepository
   }
 
   override def beforeEach() {

@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
+import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
-
 import play.api.libs.json.Json
 import reactivemongo.api.Cursor
 import reactivemongo.api.indexes.{Index, IndexType}
@@ -31,6 +31,7 @@ import uk.gov.hmrc.mongo.ReactiveRepository
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+@ImplementedBy(classOf[ClientNotificationMongoRepo])
 trait ClientNotificationRepo {
 
   def save(clientNotification: ClientNotification): Future[Boolean]

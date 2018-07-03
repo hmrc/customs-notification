@@ -68,7 +68,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   feature("Ensure call to public notification service is made when request is valid") {
 
     scenario("DMS/MDG submits a valid request") {
-      startApiSubscriptionFieldsService(validFieldsId,callbackData)
+      startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupGoogleAnalyticsEndpoint()
 
       Given("the API is available")

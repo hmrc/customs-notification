@@ -20,7 +20,6 @@ import java.util.UUID
 
 import javax.inject.{Inject, Singleton}
 import org.joda.time.Duration
-import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
@@ -52,25 +51,5 @@ class NotificationDispatcherImpl @Inject()(lockRepo: LockRepo, logger: Notificat
   }
 }
 
-/**
-  * For each csid {
-  * tryLock(csid, lockOwnerId)
-  * if lock obtained {
-  * spawn worker(csid)
-  * } // else we do nothing with workers
-  * }
-  *
-  */
 
-//TODO MC to be removed after CDD-1613
-class DummyClientWorker extends ClientWorker {
-  override def processNotificationsFor(csid: ClientSubscriptionId): Future[Unit] = Future.successful(())
-}
 
-//TODO MC to be removed after CDD-1612
-@Singleton
-class DummyLockRepo extends LockRepo {
-  override lazy val db: () => DB = ???
-
-  override def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = Future.successful(true)
-}

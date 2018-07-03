@@ -102,7 +102,7 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
     ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
     ,".*(AuthService|BuildInfo|Routes).*"
   ).mkString(";"),
-  coverageMinimum := 97,
+  coverageMinimum := 98,
   coverageFailOnMinimum := true,
   coverageHighlighting := true,
   parallelExecution in Test := false

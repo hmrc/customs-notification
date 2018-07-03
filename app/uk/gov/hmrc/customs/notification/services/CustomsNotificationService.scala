@@ -20,7 +20,6 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import javax.inject.{Inject, Singleton}
-import org.joda.time.DateTime
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
@@ -55,7 +54,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
       Await.result(passOnToPullQueue(xml, callbackDetails, metaData), Duration(passOnToPullQueueTimeout, TimeUnit.SECONDS))
     } else {
       val value = hc.headers.seq.map(a => Header(a._1, a._2))
-      val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), value, xml.toString, MimeTypes.XML), Some(DateTime.now()))
+      val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), value, xml.toString, MimeTypes.XML), None)
       Await.result(saveNotificationToDatabaseAndCallDispatcher(clientNotification), Duration(saveNotificationToDatabaseAndCallDispatcherTimeout, TimeUnit.SECONDS))
     }
   }
