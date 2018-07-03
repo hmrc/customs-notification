@@ -18,12 +18,12 @@ package uk.gov.hmrc.customs.notification.repo
 
 import java.util.UUID
 
-import com.google.inject.ImplementedBy
-import javax.inject.Singleton
+import javax.inject.{Inject, Singleton}
 import org.joda.time.Duration
 import play.api.libs.json.Json
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
 import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
 import uk.gov.hmrc.mongo.CurrentTime
@@ -34,18 +34,18 @@ import scala.concurrent.Future
 
 case class LockOwnerId(id: String) extends AnyVal
 
-@ImplementedBy(classOf[DummyLockRepo])
-trait LockRepo extends CurrentTime{
+@Singleton
+class LockRepo @Inject()(mongoDbProvider: MongoDbProvider,
+                         notificationLogger: NotificationLogger) extends CurrentTime {
 
-  val db: () => DB
-  lazy val repo = new LockRepository()(db) //TODO MC remove lazy
+  val repo = new LockRepository()(mongoDbProvider.mongo)
 
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
    */
   def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = {
 
-    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration,db, repo)
+    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration,mongoDbProvider.mongo, repo)
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
     val eventualBoolean: Future[Boolean] = eventualMaybeBoolean.map {
       case Some(true) => true
@@ -64,7 +64,7 @@ trait LockRepo extends CurrentTime{
   }
 
   def isLocked(csId: ClientSubscriptionId): Future[Boolean]  = withCurrentTime { now =>
-    repo.find(LockFormats.id -> csId.id.toString, expiryTime -> Json.obj("$gte" -> now)).map(!_.isEmpty)
+    repo.find(LockFormats.id -> csId.id.toString, expiryTime -> Json.obj("$gte" -> now)).map(_.nonEmpty)
   }
 
   def lockedCSIds(): Future[Set[ClientSubscriptionId]] = withCurrentTime { now =>
@@ -84,12 +84,4 @@ class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerI
 
   override lazy val serverId = lockOwnerId.id
 
-}
-
-//TODO MC to be removed after CDD-1612
-@Singleton
-class DummyLockRepo extends LockRepo {
-  override lazy val db: () => DB = ???
-
-  override def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = Future.successful(true)
 }

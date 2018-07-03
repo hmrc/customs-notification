@@ -43,8 +43,8 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            notificationDispatcher: NotificationDispatcher
                                           ) {
 
-  private val passOnToPullQueueTimeout = 500 //TODO MC configurable?
-  private val saveNotificationToDatabaseAndCallDispatcherTimeout = 600 //TODO MC configurable?
+  private val passOnToPullQueueTimeout = 500 //TODO MC configurable - next PR
+  private val saveNotificationToDatabaseAndCallDispatcherTimeout = 600 //TODO MC configurable - next PR
 
   def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Either[String, String] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")

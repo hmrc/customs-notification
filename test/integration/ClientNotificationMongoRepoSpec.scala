@@ -18,6 +18,7 @@ package integration
 
 import java.util.UUID
 
+import org.joda.time.{DateTime, DateTimeZone, Seconds}
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
@@ -82,9 +83,9 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   }
 
   val lockRepository = new LockRepository
-  val lockRepo: LockRepo = new LockRepo() {
+  val lockRepo: LockRepo = new LockRepo(mongoDbProvider, mockNotificationLogger) {
     val db: () => DB = () => mock[DB]
-    override lazy val repo: LockRepository = lockRepository
+    override val repo: LockRepository = lockRepository
   }
 
   private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
@@ -107,6 +108,13 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     Json.obj("csid" -> clientSubscriptionId.id)
   }
 
+  private def logVerifier(logLevel: String, logText: String): Unit = {
+    PassByNameVerifier(mockNotificationLogger, logLevel)
+      .withByNameParam(logText)
+      .withParamMatcher(any[HeaderCarrier])
+      .verify()
+  }
+
   "repository" should {
     "successfully save a single notification" in {
       when(mockErrorHandler.handleSaveError(any(), any(), any())).thenReturn(true)
@@ -117,10 +125,10 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       val findResult = await(repository.collection.find(selector(validClientSubscriptionId1)).one[ClientNotification]).get
       findResult.id should not be None
       findResult.timeReceived should not be None
-      PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,${client1Notification1.id})")
-        .withParamMatcher(any[HeaderCarrier])
-        .verify()
+      Seconds.secondsBetween(DateTime.now(DateTimeZone.UTC), findResult.timeReceived.get).getSeconds should be < 3
+      findResult.notification shouldBe client1Notification1.notification
+      findResult.csid shouldBe client1Notification1.csid
+      logVerifier("debug", s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,${client1Notification1.id})")
     }
 
     "successfully save when called multiple times" in {
@@ -144,10 +152,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       clientNotification.head.id should not be None
       clientNotification.head.notification shouldBe client1Notification1.notification
 
-      PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam("fetching clientNotification(s) with csid: eaca01f9-ec3b-4ede-b263-61b626dde232")
-        .withParamMatcher(any[HeaderCarrier])
-        .verify()
+      logVerifier("debug", "fetching clientNotification(s) with csid: eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
     "return empty List when not found" in {
@@ -158,7 +163,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.fetch(nonExistentClientNotification.csid)) shouldBe Nil
     }
 
-    "delete by ObjectId should remove record" in {
+    "delete by ClientNotification should remove record" in {
       await(repository.save(client1Notification1))
       await(repository.save(client1Notification2))
 
@@ -169,12 +174,8 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.delete(clientNotificationToDelete))
 
       collectionSize shouldBe 1
-      PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"deleting clientNotification with objectId: ${clientNotificationToDelete.id}")
-        .withParamMatcher(any[HeaderCarrier])
-        .verify()
-
-      }
+      logVerifier("debug", s"deleting clientNotification with objectId: ${clientNotificationToDelete.id}")
+    }
 
     "collection should be same size when deleting non-existent record" in {
       await(repository.save(client1Notification1))

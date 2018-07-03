@@ -22,6 +22,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.test.Helpers._
+import uk.gov.hmrc.mongo.MongoSpecSupport
 import util.TestData._
 import util._
 
@@ -34,7 +35,8 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
   with PublicNotificationService
-  with GoogleAnalyticsSenderService {
+  with GoogleAnalyticsSenderService
+  with MongoSpecSupport {
 
   private val endpoint = "/customs-notification/notify"
   private val googleAnalyticsTrackingId: String = "UA-43414424-2"
@@ -101,7 +103,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
     scenario("DMS/MDG submits a valid request with incorrect callback details used") {
       startApiSubscriptionFieldsService(validFieldsId,callbackData)
-      setupPublicNotificationServiceToReturn(404)
+      setupPublicNotificationServiceToReturn(NOT_FOUND)
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 

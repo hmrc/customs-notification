@@ -102,12 +102,11 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
     ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
     ,".*(AuthService|BuildInfo|Routes).*"
   ).mkString(";"),
-  coverageMinimum := 98,
+  coverageMinimum := 99,
   coverageFailOnMinimum := true,
   coverageHighlighting := true,
   parallelExecution in Test := false
 )
-//TODO MC revert coverageMinimum back to 99
 
 scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 
