@@ -82,7 +82,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   }
 
   val lockRepository = new LockRepository
-  val lockRepo: LockRepo = new LockRepo() {
+  val lockRepo: LockRepo = new LockRepo(mongoDbProvider, mockNotificationLogger) {
     val db: () => DB = () => mock[DB]
     override val repo: LockRepository = lockRepository
   }

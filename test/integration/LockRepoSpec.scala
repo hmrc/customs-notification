@@ -18,11 +18,12 @@ package integration
 
 import java.util.UUID
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo, MongoDbProvider}
 import uk.gov.hmrc.lock.LockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
@@ -33,14 +34,16 @@ class LockRepoSpec extends UnitSpec
   with MockitoSugar
   with MongoSpecSupport
   with BeforeAndAfterAll
-  with BeforeAndAfterEach {
-
+  with BeforeAndAfterEach { self =>
   val lockRepository = new LockRepository
+  private val mockNotificationLogger = mock[NotificationLogger]
 
-  val lockRepo: LockRepo = new LockRepo() {
-    val db: () => DB = () => mock[DB]
-    override val repo: LockRepository = lockRepository
+
+  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider {
+    override val mongo: () => DB = self.mongo
   }
+
+  val lockRepo: LockRepo = new LockRepo(mongoDbProvider, mockNotificationLogger)
 
   override def beforeEach() {
     await(lockRepository.drop)
@@ -65,14 +68,6 @@ class LockRepoSpec extends UnitSpec
       val ownerId = LockOwnerId("caller1")
 
       await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, fiveSecondsDuration)) shouldBe true
-    }
-
-    "when requesting a lock for a client subscription Id should return true even if lock already exists" in {
-      val csId = UUID.randomUUID()
-      val ownerId = LockOwnerId("caller1")
-
-      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.tryToAcquireOrRenewLock(ClientSubscriptionId(csId), ownerId, twentyFiveSecondsDuration)) shouldBe true
     }
 
     "when requesting a lock should return false if we do not own the lock" in {
@@ -111,6 +106,7 @@ class LockRepoSpec extends UnitSpec
 
       await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
       await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
+
     }
 
     "when requesting to refresh a lock that exists and is NOT owned by caller, should fail to refresh lock" in {
