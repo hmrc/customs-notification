@@ -16,17 +16,23 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
+import java.util.UUID
+
 import org.joda.time.Duration
+import play.api.libs.json.{JsValue, Json}
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockRepository}
+import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
+import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
+import uk.gov.hmrc.mongo.CurrentTime
+import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
-class LockOwnerId(val id: String) extends AnyVal
+case class LockOwnerId(id: String) extends AnyVal
 
-trait LockRepo {
+trait LockRepo extends CurrentTime{
 
   val db: () => DB
   val repo = new LockRepository()(db)
@@ -34,8 +40,9 @@ trait LockRepo {
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
    */
-  def lock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, duration: Duration): Future[Boolean] = {
-    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, duration, db, repo)
+  def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = {
+
+    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration,db, repo)
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
     val eventualBoolean: Future[Boolean] = eventualMaybeBoolean.map {
       case Some(true) => true
@@ -44,43 +51,35 @@ trait LockRepo {
     eventualBoolean
 
   }
+  implicit val dateFormat = ReactiveMongoFormats.dateTimeFormats
 
   /*
    Calling release lock will call directly to the repository code
   */
   def release(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Unit] = {
-    val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId,  Duration.ZERO, db, repo)
-    lock.releaseLock()
+    repo.releaseLock(csId.id.toString, lockOwnerId.id)
   }
 
-  /*
-    Calling refresh locks will call lock function so will try and renew first then acquire lock if unable to renew
-  */
-  // if it returns false, stop processing the client, abort abort abort
-  def refreshLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, duration: Duration): Future[Boolean] = {
-    lock(csId,lockOwnerId, duration)
+  def isLocked(csId: ClientSubscriptionId): Future[Boolean]  = withCurrentTime { now =>
+    repo.find(LockFormats.id -> csId.id.toString, expiryTime -> Json.obj("$gte" -> now)).map(!_.isEmpty)
   }
 
-
-  def isLocked(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Boolean] = {
-    val lock: NotificationExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId,  Duration.ZERO, db, repo)
-    lock.isLocked()
+  def lockedCSIds(): Future[Set[ClientSubscriptionId]] = withCurrentTime { now =>
+    repo.find(expiryTime -> Json.obj("$gte" -> now.toDateTime())).map({
+      listOfLocks => listOfLocks.toSet[Lock].map(lock => ClientSubscriptionId(UUID.fromString(lock.id)))
+    })
   }
+
 }
 
-class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, duration: Duration, mongoDb: () => DB, repository: LockRepository) extends ExclusiveTimePeriodLock{
+class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, duration: Duration, mongoDb: () => DB, repository: LockRepository) extends ExclusiveTimePeriodLock {
   override val holdLockFor: Duration = duration
   private implicit val mongo: () => DB = mongoDb
   override val repo: LockRepository = repository
+
   override def lockId: String = csId.id.toString
+
   override lazy val serverId = lockOwnerId.id
 
-  def releaseLock()(implicit ec : ExecutionContext): Future[Unit] = {
-    repo.releaseLock(lockId, serverId)
-  }
-
-  def isLocked()(implicit ec : ExecutionContext): Future[Boolean] = {
-    repo.isLocked(lockId, serverId)
-  }
-
 }
+

@@ -18,9 +18,8 @@ package uk.gov.hmrc.customs.notification.domain
 
 import java.util.UUID
 
-import org.joda.time.DateTime
-import play.api.libs.json.{Json, OFormat}
-
+import play.api.libs.json.Format._
+import play.api.libs.json.{Format, Json, OFormat, _}
 
 case class Header(name: String, value: String)
 
@@ -45,9 +44,30 @@ case class PublicNotificationRequest(
                                       body: PublicNotificationRequestBody
                                     )
 
+case class ConversationId(id: UUID) extends AnyVal
+object ConversationId {
+  implicit val conversationIdJF = new Format[ConversationId] {
+    def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
+    def reads(json: JsValue) = json match {
+      case JsNull => JsError()
+      case _ => JsSuccess(ConversationId(json.as[UUID]))
+    }
+  }
+}
 
-case class Notification(headers: Seq[(String, String)], payload: String, contentType: String)
+case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String)
+object Notification {
+  implicit val notificationJF = Json.format[Notification]
+}
 
-case class ClientNotification(csid: ClientSubscriptionId, notification: Notification, timestamp: DateTime)
+case class ClientSubscriptionId(id: UUID) extends AnyVal
+object ClientSubscriptionId {
+  implicit val clientSubscriptionIdJF = new Format[ClientSubscriptionId] {
+    def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
+    def reads(json: JsValue) = json match {
+      case JsNull => JsError()
+      case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
+    }
+  }
+}
 
-case class ClientSubscriptionId(id: UUID)
