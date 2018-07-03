@@ -27,7 +27,6 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscr
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -51,8 +50,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   extends ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = mongoDbProvider.mongo,
-    domainFormat = ClientNotification.clientNotificationJF,
-    idFormat = ReactiveMongoFormats.objectIdFormats
+    domainFormat = ClientNotification.clientNotificationJF
   ) with ClientNotificationRepo {
 
   private implicit val format = ClientNotification.clientNotificationJF
@@ -76,7 +74,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
 
     lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
 
-    val selector = Json.obj("_id" -> clientNotification._id)
+    val selector = Json.obj("_id" -> clientNotification.id)
     val update = Json.obj("$currentDate" -> Json.obj("timeReceived" -> true), "$set" -> clientNotification)
     collection.update(selector, update, upsert = true).map {
       writeResult => errorHandler.handleSaveError(writeResult, errorMsg, clientNotification)
@@ -99,9 +97,9 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   }
 
   override def delete(clientNotification: ClientNotification): Future[Unit] = {
-    notificationLogger.debug(s"deleting clientNotification with objectId: ${clientNotification._id}")
+    notificationLogger.debug(s"deleting clientNotification with objectId: ${clientNotification.id}")
 
-    val selector = Json.obj("_id" -> clientNotification._id)
+    val selector = Json.obj("_id" -> clientNotification.id)
     lazy val errorMsg = s"Could not delete entity for selector: $selector"
     collection.remove(selector).map(errorHandler.handleDeleteError(_, errorMsg))
   }

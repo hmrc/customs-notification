@@ -115,10 +115,10 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       collectionSize shouldBe 1
 
       val findResult = await(repository.collection.find(selector(validClientSubscriptionId1)).one[ClientNotification]).get
-      findResult._id should not be None
+      findResult.id should not be None
       findResult.timeReceived should not be None
       PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,${client1Notification1._id})")
+        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,${client1Notification1.id})")
         .withParamMatcher(any[HeaderCarrier])
         .verify()
     }
@@ -131,7 +131,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       collectionSize shouldBe 3
       val clientNotifications = await(repository.collection.find(selector(validClientSubscriptionId1)).cursor[ClientNotification]().collect[List](Int.MaxValue, Cursor.FailOnError[List[ClientNotification]]()))
       clientNotifications.size shouldBe 2
-      clientNotifications.head._id should not be None
+      clientNotifications.head.id should not be None
     }
 
     "fetch by clientSubscriptionId should return a single record when found" in {
@@ -141,7 +141,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
       val clientNotification = await(repository.fetch(validClientSubscriptionId1))
 
-      clientNotification.head._id should not be None
+      clientNotification.head.id should not be None
       clientNotification.head.notification shouldBe client1Notification1.notification
 
       PassByNameVerifier(mockNotificationLogger, "debug")
@@ -170,7 +170,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
       collectionSize shouldBe 1
       PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"deleting clientNotification with objectId: ${clientNotificationToDelete._id}")
+        .withByNameParam(s"deleting clientNotification with objectId: ${clientNotificationToDelete.id}")
         .withParamMatcher(any[HeaderCarrier])
         .verify()
 
@@ -181,7 +181,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client1Notification2))
       collectionSize shouldBe 2
 
-      await(repository.delete(client1Notification1.copy(_id = BSONObjectID.generate())))
+      await(repository.delete(client1Notification1.copy(id = BSONObjectID.generate())))
 
       collectionSize shouldBe 2
     }
