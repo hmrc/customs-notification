@@ -111,7 +111,7 @@ class ClientWorkerSpec extends UnitSpec with MockitoSugar with Eventually {
         val actual = await(clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId))
 
         actual shouldBe (())
-        eventually{
+        eventually {
           verifyLogInfo(s"About to process notifications")
           ordered.verify(mockPushConnector).send(ameq(pnrOne))
           ordered.verify(mockClientNotificationRepo).delete(ClientNotificationOne)
@@ -126,6 +126,7 @@ class ClientWorkerSpec extends UnitSpec with MockitoSugar with Eventually {
     }
 
     "In un-happy path" should {
+      //if fetch failed once, we should just give up there.
       "log repo error twice when fetch client notifications fail, once for PUSH and once for PULL" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
@@ -134,16 +135,18 @@ class ClientWorkerSpec extends UnitSpec with MockitoSugar with Eventually {
         val actual = await(clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId))
 
         actual shouldBe (())
-        eventually{
-          verifyLogError("Error pushing notification")
-          verifyLogError("Error enqueueing notification to pull queue")
-          verifyZeroInteractions(mockApiSubscriptionFieldsConnector)
-          verifyZeroInteractions(mockPushConnector)
-          verify(mockCancelable).cancel()
-        }
+        //        eventually{
+        verifyLogError("Error fetching notifications")
+        //          verifyLogError("Error enqueueing notification to pull queue")
+        verifyZeroInteractions(mockApiSubscriptionFieldsConnector)
+        verifyZeroInteractions(mockPushConnector)
+        verifyZeroInteractions(mockPullConnector)
+        verify(mockCancelable).cancel()
+        //        }
 
       }
-
+      // Question is: if fetch callback details fails, should we pass on the notifications to Pull or should we give up?
+      // why are we trying to get api subscription fields id to pass on to pull?
       "log two errors when api subscription fields call throws exception, once for PUSH and once for PULL" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
@@ -154,15 +157,17 @@ class ClientWorkerSpec extends UnitSpec with MockitoSugar with Eventually {
         val actual = await(clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId))
 
         actual shouldBe (())
-        eventually{
-          verifyLogError("Error pushing notification")
-          verifyLogError("Error enqueueing notification to pull queue")
-          verifyZeroInteractions(mockPushConnector)
-          verify(mockCancelable).cancel()
-        }
+        //        eventually{
+        // if fetch callback details failed, why are we logging that push notification failed, we need to log in details whats exactly failed.
+        verifyLogError("Error pushing notification")
+        //        verifyLogError("Error enqueueing notification to pull queue")
+        verifyZeroInteractions(mockPushConnector)
+        verifyZeroInteractions(mockPullConnector)
+        verify(mockCancelable).cancel()
+        //        }
 
       }
-
+      // if callbackDetails are not found then it is not an error for PUSH notification, it is that client is not subscribed for PUSH
       "log two errors when api subscription fields call returns None, once for PUSH and once for PULL" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
@@ -173,12 +178,12 @@ class ClientWorkerSpec extends UnitSpec with MockitoSugar with Eventually {
         val actual = await(clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId))
 
         actual shouldBe (())
-        eventually{
-          verifyLogError("Error pushing notification")
-          verifyLogError("Error enqueueing notification to pull queue")
-          verifyZeroInteractions(mockPushConnector)
-          verify(mockCancelable).cancel()
-        }
+        //        eventually{
+        verifyLogError("Error pushing notification")
+        verifyLogError("Error enqueueing notification to pull queue")
+        verifyZeroInteractions(mockPushConnector)
+        verify(mockCancelable).cancel()
+        //        }
 
       }
 
@@ -194,7 +199,7 @@ class ClientWorkerSpec extends UnitSpec with MockitoSugar with Eventually {
         val actual = await(clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId))
 
         actual shouldBe (())
-        eventually{
+        eventually {
           verify(mockClientNotificationRepo, never()).delete(any[ClientNotification])
           verify(mockCancelable).cancel()
           verifyZeroInteractions(mockLockRepo)
