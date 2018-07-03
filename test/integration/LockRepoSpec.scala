@@ -43,10 +43,7 @@ class LockRepoSpec extends UnitSpec
     override val mongo: () => DB = self.mongo
   }
 
-  val lockRepo: LockRepo = new LockRepo(mongoDbProvider, mockNotificationLogger) {
-    val db: () => DB = () => mock[DB]
-    override val repo: LockRepository = lockRepository
-  }
+  val lockRepo: LockRepo = new LockRepo(mongoDbProvider, mockNotificationLogger)
 
   override def beforeEach() {
     await(lockRepository.drop)

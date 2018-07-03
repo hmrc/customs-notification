@@ -27,6 +27,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
 import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
+import uk.gov.hmrc.mongo.CurrentTime
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -35,14 +36,9 @@ case class LockOwnerId(id: String) extends AnyVal
 
 @Singleton
 class LockRepo @Inject()(mongoDbProvider: MongoDbProvider,
-                         notificationLogger: NotificationLogger) {
+                         notificationLogger: NotificationLogger) extends CurrentTime {
 
   val repo = new LockRepository()(mongoDbProvider.mongo)
-
-  protected lazy val zone = DateTimeZone.UTC
-
-  private def withCurrentTime[A](f: (DateTime) => A) = f(DateTime.now.withZone(zone))
-
 
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
@@ -68,7 +64,7 @@ class LockRepo @Inject()(mongoDbProvider: MongoDbProvider,
   }
 
   def isLocked(csId: ClientSubscriptionId): Future[Boolean]  = withCurrentTime { now =>
-    repo.find(LockFormats.id -> csId.id.toString, expiryTime -> Json.obj("$gte" -> now)).map(!_.isEmpty)
+    repo.find(LockFormats.id -> csId.id.toString, expiryTime -> Json.obj("$gte" -> now)).map(_.nonEmpty)
   }
 
   def lockedCSIds(): Future[Set[ClientSubscriptionId]] = withCurrentTime { now =>
