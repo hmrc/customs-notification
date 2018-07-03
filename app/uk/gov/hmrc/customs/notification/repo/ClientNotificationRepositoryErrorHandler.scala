@@ -39,7 +39,7 @@ class ClientNotificationRepositoryErrorHandler @Inject() (notificationLogger: No
         true
       }
       else {
-        throw new RuntimeException(exceptionMsg)
+        throw new IllegalStateException(exceptionMsg)
       }
 
     handleError(writeResult, handleSaveError, exceptionMsg)

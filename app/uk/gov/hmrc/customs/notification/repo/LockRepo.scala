@@ -17,17 +17,17 @@
 package uk.gov.hmrc.customs.notification.repo
 
 import java.util.UUID
-
 import javax.inject.{Inject, Singleton}
-import org.joda.time.{DateTime, DateTimeZone, Duration}
+
+import org.joda.time.Duration
 import play.api.libs.json.Json
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
 import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.mongo.CurrentTime
+import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
