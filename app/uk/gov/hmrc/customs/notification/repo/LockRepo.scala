@@ -18,13 +18,14 @@ package uk.gov.hmrc.customs.notification.repo
 
 import java.util.UUID
 
-import org.joda.time.Duration
-import play.api.libs.json.{JsValue, Json}
+import javax.inject.{Inject, Singleton}
+import org.joda.time.{DateTime, DateTimeZone, Duration}
+import play.api.libs.json.Json
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
 import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
-import uk.gov.hmrc.mongo.CurrentTime
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -32,17 +33,23 @@ import scala.concurrent.Future
 
 case class LockOwnerId(id: String) extends AnyVal
 
-trait LockRepo extends CurrentTime{
+@Singleton
+class LockRepo @Inject()(mongoDbProvider: MongoDbProvider,
+                         notificationLogger: NotificationLogger) {
 
-  val db: () => DB
-  val repo = new LockRepository()(db)
+  val repo = new LockRepository()(mongoDbProvider.mongo)
+
+  protected lazy val zone = DateTimeZone.UTC
+
+  private def withCurrentTime[A](f: (DateTime) => A) = f(DateTime.now.withZone(zone))
+
 
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
    */
   def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = {
 
-    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration,db, repo)
+    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration,mongoDbProvider.mongo, repo)
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
     val eventualBoolean: Future[Boolean] = eventualMaybeBoolean.map {
       case Some(true) => true
