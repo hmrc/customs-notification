@@ -118,7 +118,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       findResult._id should not be None
       findResult.timeReceived should not be None
       PassByNameVerifier(mockNotificationLogger, "debug")
-        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,None)")
+        .withByNameParam(s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,${client1Notification1._id})")
         .withParamMatcher(any[HeaderCarrier])
         .verify()
     }
@@ -181,7 +181,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client1Notification2))
       collectionSize shouldBe 2
 
-      await(repository.delete(client1Notification1.copy(_id = Some(BSONObjectID.generate()))))
+      await(repository.delete(client1Notification1.copy(_id = BSONObjectID.generate())))
 
       collectionSize shouldBe 2
     }

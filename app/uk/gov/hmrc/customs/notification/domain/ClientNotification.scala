@@ -24,7 +24,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 case class ClientNotification(csid: ClientSubscriptionId,
                               notification: Notification,
                               timeReceived: Option[DateTime] = None,
-                              _id: Option[BSONObjectID] = None)
+                              _id: BSONObjectID = BSONObjectID.generate)
 
 object ClientNotification {
   implicit val dateFormats = ReactiveMongoFormats.dateTimeFormats

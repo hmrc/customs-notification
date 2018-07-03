@@ -48,9 +48,12 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
                                             lockRepo: LockRepo,
                                             errorHandler: ClientNotificationRepositoryErrorHandler,
                                             notificationLogger: NotificationLogger)
-  extends ReactiveRepository[ClientNotification, BSONObjectID]("notifications", mongoDbProvider.mongo,
-    ClientNotification.clientNotificationJF, ReactiveMongoFormats.objectIdFormats)
-    with ClientNotificationRepo {
+  extends ReactiveRepository[ClientNotification, BSONObjectID](
+    collectionName = "notifications",
+    mongo = mongoDbProvider.mongo,
+    domainFormat = ClientNotification.clientNotificationJF,
+    idFormat = ReactiveMongoFormats.objectIdFormats
+  ) with ClientNotificationRepo {
 
   private implicit val format = ClientNotification.clientNotificationJF
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
@@ -73,7 +76,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
 
     lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
 
-    val selector = Json.obj("_id" -> BSONObjectID.generate())
+    val selector = Json.obj("_id" -> clientNotification._id)
     val update = Json.obj("$currentDate" -> Json.obj("timeReceived" -> true), "$set" -> clientNotification)
     collection.update(selector, update, upsert = true).map {
       writeResult => errorHandler.handleSaveError(writeResult, errorMsg, clientNotification)
