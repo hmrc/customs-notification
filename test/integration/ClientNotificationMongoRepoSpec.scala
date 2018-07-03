@@ -108,7 +108,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     Json.obj("csid" -> clientSubscriptionId.id)
   }
 
-  private def logVerifier(logLevel: String, logText: String): Unit = {
+  private def logVerifier(logLevel: String, logText: String) = {
     PassByNameVerifier(mockNotificationLogger, logLevel)
       .withByNameParam(logText)
       .withParamMatcher(any[HeaderCarrier])

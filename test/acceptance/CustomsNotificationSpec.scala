@@ -39,7 +39,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   with MongoSpecSupport {
 
   private val endpoint = "/customs-notification/notify"
-  private val googleAnalyticsTrackingId: String = "UA-43414424-2"
+  private val googleAnalyticsTrackingId: String = "UA-12345678-2"
   private val googleAnalyticsClientId: String = "555"
   private val googleAnalyticsEventValue = "10"
 
