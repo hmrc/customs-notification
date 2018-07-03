@@ -18,9 +18,8 @@ package integration
 
 import java.util.UUID
 
-import org.joda.time.{DateTime, DateTimeZone}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -40,7 +39,7 @@ class LockRepoSpec extends UnitSpec
   private val mockNotificationLogger = mock[NotificationLogger]
 
 
-  private val mongoDbProvider = new MongoDbProvider {
+  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
   }
 
@@ -108,10 +107,7 @@ class LockRepoSpec extends UnitSpec
       val csId = ClientSubscriptionId(UUID.randomUUID())
       val ownerId1 = LockOwnerId("worker1")
 
-      val expiryTime = DateTime.now(DateTimeZone.UTC).plus(twentyFiveSecondsDuration)
-
       await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
-      await(lockRepo.lockedCSIds()).filter(csId => csId.equals(csId))
       await(lockRepo.tryToAcquireOrRenewLock(csId, ownerId1, twentyFiveSecondsDuration)) shouldBe true
 
     }
