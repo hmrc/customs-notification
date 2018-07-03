@@ -20,7 +20,7 @@ import javax.inject.{Inject, Singleton}
 
 import uk.gov.hmrc.customs.api.common.config.ConfigValidationNelAdaptor
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, GoogleAnalyticsSenderConfig, NotificationQueueConfig}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, GoogleAnalyticsSenderConfig, NotificationQueueConfig, PushNotificationConfig}
 
 import scalaz._
 import scalaz.syntax.apply._
@@ -41,7 +41,8 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
 
   private case class CustomsNotificationConfigImpl(maybeBasicAuthToken: Option[String],
                                                    notificationQueueConfig: NotificationQueueConfig,
-                                                   googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig) extends CustomsNotificationConfig
+                                                   googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig,
+                                                   pushNotificationConfig: PushNotificationConfig) extends CustomsNotificationConfig
 
   private val root = configValidationNel.root
 
@@ -64,10 +65,24 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
       ) (GoogleAnalyticsSenderConfig.apply)
 
 
+    val pollingDelayInMillisecondsNel: ValidationNel[String, Int] =
+      configValidationNel.root.int("push.polling.delay.duration.milliseconds")
+    val pushLockDurationInMillisecondsNel: ValidationNel[String, Int] =
+      configValidationNel.root.int("push.lock.duration.milliseconds")
+    val pushLockRefreshDurationInMillisecondsNel: ValidationNel[String, Int] =
+      configValidationNel.root.int("push.lock.refresh.duration.milliseconds")
+    val pushNotificationConfig: ValidationNel[String, PushNotificationConfig] = (
+      pollingDelayInMillisecondsNel |@|
+        pushLockDurationInMillisecondsNel |@|
+        pushLockRefreshDurationInMillisecondsNel
+      )(PushNotificationConfig.apply)
+
     val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
       (authTokenInternalNel |@|
-        notificationQueueConfigNel |@| validatedGoogleAnalyticsSenderConfigNel
-        ) (CustomsNotificationConfigImpl.apply)
+        notificationQueueConfigNel |@|
+        validatedGoogleAnalyticsSenderConfigNel |@|
+        pushNotificationConfig
+        )(CustomsNotificationConfigImpl.apply)
 
     /*
      * the fold below is also similar to how we handle the error/success cases for Play2 forms - again the underlying
@@ -90,4 +105,6 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
   override val notificationQueueConfig: NotificationQueueConfig = config.notificationQueueConfig
 
   override val googleAnalyticsSenderConfig = config.googleAnalyticsSenderConfig
+
+  override val pushNotificationConfig: PushNotificationConfig = config.pushNotificationConfig
 }

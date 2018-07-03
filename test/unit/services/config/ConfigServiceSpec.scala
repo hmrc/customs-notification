@@ -33,6 +33,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
     s"""
       |{
       |auth.token.internal = "$basicAuthTokenValue"
+      |push.polling.delay.duration.milliseconds = 5000
+      |push.lock.duration.milliseconds = 1000
+      |push.lock.refresh.duration.milliseconds = 2000
       |
       |googleAnalytics.trackingId = UA-11111-1
       |googleAnalytics.clientId = 555
@@ -61,6 +64,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |googleAnalytics.trackingId = UA-11111-1
       |googleAnalytics.clientId = 555
       |googleAnalytics.eventValue = 10
+      |push.polling.delay.duration.milliseconds = 5000
+      |push.lock.duration.milliseconds = 1000
+      |push.lock.refresh.duration.milliseconds = 2000
       |
       |  microservice {
       |    services {
@@ -98,6 +104,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
       actual.googleAnalyticsSenderConfig shouldBe GoogleAnalyticsSenderConfig("http://localhost2:9822/send-google-analytics", "UA-11111-1", "555", "10")
+      actual.pushNotificationConfig.pollingDelayInMilliseconds shouldBe 5000
+      actual.pushNotificationConfig.lockDurationInMilliseconds shouldBe 1000
+      actual.pushNotificationConfig.lockRefreshDurationInMilliseconds shouldBe 2000
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -105,17 +114,23 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
       actual.maybeBasicAuthToken shouldBe None
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
+      actual.pushNotificationConfig.pollingDelayInMilliseconds shouldBe 5000
+      actual.pushNotificationConfig.lockDurationInMilliseconds shouldBe 1000
+      actual.pushNotificationConfig.lockRefreshDurationInMilliseconds shouldBe 2000
     }
 
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
       val expected = """
-      |Could not find config notification-queue.host
-      |Service configuration not found for key: notification-queue.context
-      |Could not find config google-analytics-sender.host
-      |Service configuration not found for key: google-analytics-sender.context
-      |Could not find config key 'googleAnalytics.trackingId'
-      |Could not find config key 'googleAnalytics.clientId'
-      |Could not find config key 'googleAnalytics.eventValue'""".stripMargin
+        |Could not find config notification-queue.host
+        |Service configuration not found for key: notification-queue.context
+        |Could not find config google-analytics-sender.host
+        |Service configuration not found for key: google-analytics-sender.context
+        |Could not find config key 'googleAnalytics.trackingId'
+        |Could not find config key 'googleAnalytics.clientId'
+        |Could not find config key 'googleAnalytics.eventValue'
+        |Could not find config key 'push.polling.delay.duration.milliseconds'
+        |Could not find config key 'push.lock.duration.milliseconds'
+        |Could not find config key 'push.lock.refresh.duration.milliseconds'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 

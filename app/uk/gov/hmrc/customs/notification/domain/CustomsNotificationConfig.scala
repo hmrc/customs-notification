@@ -20,6 +20,8 @@ case class NotificationQueueConfig(url: String)
 
 case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClientId: String, gaEventValue: String)
 
+case class PushNotificationConfig(pollingDelayInMilliseconds: Int, lockDurationInMilliseconds: Int, lockRefreshDurationInMilliseconds: Int)
+
 // TODO: pull up all other service config into here
 trait CustomsNotificationConfig {
   def maybeBasicAuthToken: Option[String]
@@ -27,4 +29,6 @@ trait CustomsNotificationConfig {
   def notificationQueueConfig: NotificationQueueConfig
 
   def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig
+
+  def pushNotificationConfig: PushNotificationConfig
 }

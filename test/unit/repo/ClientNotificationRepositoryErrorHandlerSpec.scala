@@ -16,15 +16,13 @@
 
 package unit.repo
 
+import org.mockito.ArgumentMatchers.{eq => meq}
 import org.scalatest.mockito.MockitoSugar
-import org.mockito.ArgumentMatchers.{eq => meq, _}
 import reactivemongo.api.commands.{DefaultWriteResult, WriteConcernError, WriteError}
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepositoryErrorHandler
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import util.MockitoPassByNameHelper.PassByNameVerifier
 
 class ClientNotificationRepositoryErrorHandlerSpec extends UnitSpec with MockitoSugar {
 

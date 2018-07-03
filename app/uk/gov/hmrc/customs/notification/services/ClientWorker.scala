@@ -16,14 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import com.google.inject.ImplementedBy
+import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.repo.LockOwnerId
 
 import scala.concurrent.Future
 
-/**
-  * Created by dev on 25/06/2018.
-  */
+@ImplementedBy(classOf[ClientWorkerImpl])
 trait ClientWorker {
 
-  def processNotificationsFor(csid: ClientSubscriptionId): Future[Unit]
+  def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Unit]
 }
+
