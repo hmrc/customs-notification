@@ -18,18 +18,13 @@ package uk.gov.hmrc.customs.notification.services
 
 import com.google.inject.ImplementedBy
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.Future
 
-/**
-  * Created by dev on 25/06/2018.
-  */
-
-//TODO MC temporary annotation, to be removed
 @ImplementedBy(classOf[NotificationDispatcherImpl])
 trait NotificationDispatcher {
 
-  def process(csids: Set[ClientSubscriptionId]): Future[Unit]
-
+  def process(csids: Set[ClientSubscriptionId])(implicit hc: HeaderCarrier): Future[Unit]
 
 }

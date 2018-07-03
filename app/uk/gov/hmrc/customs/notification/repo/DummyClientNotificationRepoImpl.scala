@@ -21,14 +21,13 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscr
 
 import scala.concurrent.Future
 
-//TODO MC temporary, to be removed
+//TODO MC to be removed after CDD-1603
 @Singleton
-class ClientNotificationRepoImpl extends ClientNotificationRepo {
+class DummyClientNotificationRepoImpl extends ClientNotificationRepo {
   override def save(cn: ClientNotification): Future[Boolean] = Future.successful(true)
 
-  override def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]] = Future.successful(List.empty)
+  override def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]] = ???
+  override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = ???
 
-  override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = Future.successful(Set.empty)
-
-  override def delete(mongoObjectId: String): Future[Unit] = Future.successful(())
+  override def delete(clientNotification: ClientNotification): Future[Unit] = ???
 }

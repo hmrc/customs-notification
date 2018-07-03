@@ -71,9 +71,12 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     callbackDetailsConnector.getClientData(md.clientId).map {
 
       case Some(callbackData) =>
-        customsNotificationService.handleNotification(xml, callbackData, md)
-        logger.info("Notification accepted to be delivered")
-        Results.Accepted
+        customsNotificationService.handleNotification(xml, callbackData, md) match {
+          case Right(_) =>
+            logger.info("Notification processed successfully")
+            Results.Accepted
+          case Left(msg) => ErrorResponse.errorInternalServerError(msg).XmlResult
+        }
 
       case None =>
         logger.error("Declarant data not found")

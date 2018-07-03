@@ -16,13 +16,61 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import javax.inject.Singleton
-import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import java.util.UUID
 
+import javax.inject.{Inject, Singleton}
+import org.joda.time.Duration
+import reactivemongo.api.DB
+import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
+import uk.gov.hmrc.http.HeaderCarrier
+
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-//TODO MC temporary, to be removed
 @Singleton
-class NotificationDispatcherImpl extends NotificationDispatcher{
-  override def process(csids: Set[ClientSubscriptionId]): Future[Unit] = Future.successful(())
+class NotificationDispatcherImpl @Inject()(lockRepo: LockRepo, logger: NotificationLogger) extends NotificationDispatcher {
+
+  private val duration = Duration.standardMinutes(2) //TODO MC this should be configurable property (Avinder will make this change)
+
+  override def process(csids: Set[ClientSubscriptionId])(implicit hc: HeaderCarrier): Future[Unit] = {
+    logger.debug(s"received $csids and about to process them")
+
+    Future.successful {
+      csids.foreach {
+        csid =>
+          val lockOwnerId = LockOwnerId(UUID.randomUUID().toString)
+          lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, duration).flatMap {
+            case true =>
+              logger.debug(s"sending $csid to worker")
+              new DummyClientWorker().processNotificationsFor(csid)
+            case false => Future.successful(())
+          }
+      }
+    }
+  }
+}
+
+/**
+  * For each csid {
+  * tryLock(csid, lockOwnerId)
+  * if lock obtained {
+  * spawn worker(csid)
+  * } // else we do nothing with workers
+  * }
+  *
+  */
+
+//TODO MC to be removed after CDD-1613
+class DummyClientWorker extends ClientWorker {
+  override def processNotificationsFor(csid: ClientSubscriptionId): Future[Unit] = Future.successful(())
+}
+
+//TODO MC to be removed after CDD-1612
+@Singleton
+class DummyLockRepo extends LockRepo {
+  override lazy val db: () => DB = ???
+
+  override def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = Future.successful(true)
 }

@@ -26,8 +26,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
-import play.api.http.HeaderNames._
-import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, DeclarantCallbackData, Notification}
@@ -81,16 +79,16 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
     when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.successful(mock[HttpResponse]))
     when(mockClientNotificationRepo.save(refEq(clientNotification, "timestamp"))).thenReturn(Future.successful(true))
-    when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))).thenReturn(Future.successful(()))
+    when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))(meq(hc))).thenReturn(Future.successful(()))
   }
 
   "CustomsNotificationService" should {
 
     "first try to Push the notification" in {
-      await(customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData))
-
+      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
+      result shouldBe Right("success")
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timestamp")))
-      eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
+      eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId)))(meq(hc)))
     }
 
     "enqueue notification to be pulled when subscription fields callbackUrl is empty" in {
@@ -111,11 +109,9 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     "fails when was unable to save notification to repository" in {
       when(mockClientNotificationRepo.save(refEq(clientNotification, "timestamp"))).thenReturn(Future.successful(false))
 
-      val caught = intercept[RuntimeException] {
-        await(customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData))
-      }
+      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
 
-      caught.getMessage shouldBe "Dispatcher failed to process the notification"
+      result shouldBe Left("Dispatcher failed to process the notification")
     }
   }
 }

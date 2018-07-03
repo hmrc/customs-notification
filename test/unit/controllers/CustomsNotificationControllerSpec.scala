@@ -22,7 +22,6 @@ import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers}
-import play.api.http.HeaderNames.CONTENT_TYPE
 import play.api.libs.json.{JsObject, JsString}
 import play.api.mvc._
 import play.api.test.Helpers._
@@ -63,19 +62,24 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val internalServerError = ErrorResponse.errorInternalServerError("Internal Server Error").XmlResult
 
+  private def internalServerError(msg: String) = ErrorResponse.errorInternalServerError(msg).XmlResult
+
   private val clientIdMissingResult = ErrorResponse.errorBadRequest("The X-CDS-Client-ID header is missing").XmlResult
 
   private val conversationIdMissingResult = ErrorResponse.errorBadRequest("The X-Conversation-ID header is missing").XmlResult
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
 
-  private val emulatedServiceFailure = new EmulatedServiceFailure()
+  private val emulatedServiceFailureMessage = "Emulated service failure"
 
   private val expectedRequestMetaData = RequestMetaData(validFieldsId, UUID.fromString(validConversationId), Some(badgeId))
+
+  private val rightReturned = Right("crash test dummy")
 
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
+    when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier])).thenReturn(rightReturned)
   }
 
   "CustomsNotificationController" should {
@@ -93,6 +97,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 202 for missing Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(rightReturned)
 
       testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED
@@ -104,6 +109,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(rightReturned)
 
       testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED
@@ -186,13 +192,14 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       }
     }
 
-    "respond with status 202 when handle notification fails unexpectedly" in {
+    "respond with status 500 when handle notification fails" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
-        .thenReturn(Future.failed(emulatedServiceFailure))
+        .thenReturn(Left(emulatedServiceFailureMessage))
 
       testSubmitResult(ValidRequest) { result =>
-        status(result) shouldBe ACCEPTED
+        status(result) shouldBe INTERNAL_SERVER_ERROR
+        await(result) shouldBe internalServerError(emulatedServiceFailureMessage)
       }
     }
 
@@ -207,5 +214,4 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     val result = controller().submit().apply(request)
     test(result)
   }
-
 }
