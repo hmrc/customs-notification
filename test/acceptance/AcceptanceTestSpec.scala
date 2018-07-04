@@ -46,7 +46,8 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
     "microservice.services.notification-queue.host" -> ExternalServicesConfig.Host,
     "microservice.services.notification-queue.port" -> ExternalServicesConfig.Port,
     "microservice.services.notification-queue.context" -> ExternalServicesConfig.NotificationQueueContext,
-    "auditing.enabled" -> false
+    "auditing.enabled" -> false,
+    "mongodb.uri" -> "mongodb://localhost:27017/customs-notification"
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()

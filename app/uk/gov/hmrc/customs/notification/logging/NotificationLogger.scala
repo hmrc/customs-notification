@@ -16,9 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.logging
 
-import javax.inject.Singleton
-
 import com.google.inject.Inject
+import javax.inject.Singleton
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.{formatDebug, formatError, formatInfo}
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
@@ -34,6 +33,7 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
   def info(msg: => String)(implicit hc: HeaderCarrier): Unit = logger.info(formatInfo(msg))
   def error(msg: => String)(implicit hc: HeaderCarrier): Unit = logger.error(formatError(msg))
   def error(msg: => String, headers: => SeqOfHeader): Unit = logger.error(formatError(msg, headers))
+  def debugWithoutRequestContext(s: => String): Unit = logger.debug(s)
 
 }
 

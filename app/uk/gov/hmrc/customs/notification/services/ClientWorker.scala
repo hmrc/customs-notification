@@ -27,3 +27,9 @@ trait ClientWorker {
 
   def processNotificationsFor(csid: ClientSubscriptionId): Future[Unit]
 }
+
+//TODO MC to be removed after CDD-1613
+class DummyClientWorker extends ClientWorker {
+  override def processNotificationsFor(csid: ClientSubscriptionId): Future[Unit] = Future.successful(())
+}
+
