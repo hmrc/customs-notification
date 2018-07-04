@@ -16,11 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 @Singleton
 class PullClientNotificationService @Inject() (notificationQueueConnector: NotificationQueueConnector,
@@ -28,7 +32,11 @@ class PullClientNotificationService @Inject() (notificationQueueConnector: Notif
 
   def send(clientNotification: ClientNotification): Boolean = {
 
-    true
+    Await.ready(
+      notificationQueueConnector.enqueue(clientNotification),
+      // This timeout value does not matter as the httpVerbs timeout is the real timeout for us which is currently set as 20Seconds.
+      Duration.apply(25, TimeUnit.SECONDS)
+    ).value.get.isSuccess
   }
 
 }

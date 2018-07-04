@@ -71,6 +71,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   )
 
   override def save(clientNotification: ClientNotification): Future[Boolean] = {
+    println(clientNotification)
     notificationLogger.debug(s"saving clientNotification: $clientNotification")
 
     lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
