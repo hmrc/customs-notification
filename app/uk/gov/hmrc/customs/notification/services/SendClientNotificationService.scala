@@ -2,12 +2,15 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 
+import uk.gov.hmrc.customs.notification.connectors.PublicNotificationServiceConnector
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
 @Singleton
-class SendClientNotificationService @Inject()(notificationsLogger: NotificationLogger) {
+class SendClientNotificationService @Inject()(publicNotificationServiceConnector: PublicNotificationServiceConnector,
+                                              notificationsLogger: NotificationLogger) {
 
-  def send(): Boolean = {
+  def send(declarantCallbackData: DeclarantCallbackData, clientNotification: ClientNotification): Boolean = {
 
     true
   }
