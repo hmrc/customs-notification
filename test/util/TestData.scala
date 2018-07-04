@@ -40,6 +40,7 @@ object TestData {
   val invalidConversationId: String = "I-am-not-a-valid-uuid"
 
   val validFieldsId = "ffff01f9-ec3b-4ede-b263-61b626dde232"
+  val clientSubscriptionId = ClientSubscriptionId(UUID.randomUUID())
   val invalidFieldsId = "I-am-not-a-valid-type-4-uuid"
 
   val basicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
@@ -67,6 +68,21 @@ object TestData {
 
   lazy val somePublicNotificationRequest: Option[PublicNotificationRequest] = Some(publicNotificationRequest)
   lazy val publicNotificationRequest: PublicNotificationRequest = publicNotificationRequest(ValidXML)
+
+  def clientNotification(withBadgeId: Boolean = true): ClientNotification = {
+
+    val headers: Seq[Header] = if(withBadgeId) { Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))} else Seq[Header]()
+
+    ClientNotification(
+      csid = clientSubscriptionId,
+      Notification(
+        conversationId = conversationId,
+        headers = headers,
+        payload = ValidXML.toString(),
+        contentType = MimeTypes.XML
+      )
+    )
+  }
 
   def createPushNotificationRequestPayload(outboundUrl: String = callbackData.callbackUrl, securityToken: String = callbackData.securityToken,
                                            badgeId: String = badgeId, notificationPayload: NodeSeq = ValidXML,

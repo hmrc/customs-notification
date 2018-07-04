@@ -23,7 +23,7 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, PublicNotificationRequest}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PublicNotificationRequest}
 import util.TestData._
 
 trait PublicNotificationService extends WireMockRunner {
@@ -78,7 +78,7 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
        |}
        |""".stripMargin
 
-  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData : DeclarantCallbackData = callbackData): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, testCallbackData)
+  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData: DeclarantCallbackData = callbackData): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, testCallbackData)
 
 
   def setupApiSubscriptionFieldsServiceToReturn(status: Int, fieldsId: String, fields: DeclarantCallbackData): Unit =
@@ -121,10 +121,12 @@ trait NotificationQueueService extends WireMockRunner {
   self: Matchers =>
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfig.NotificationQueueContext)
 
-  def getBadgeIdHeader(request: PublicNotificationRequest): Option[String] = {
-    val mayBeBadgeId = Map(request.body.outboundCallHeaders.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
-    mayBeBadgeId
-  }
+  def getBadgeIdHeader(request: PublicNotificationRequest): Option[String] =
+    extractBadgeIdHeaderValue(request.body.outboundCallHeaders)
+
+
+  private def extractBadgeIdHeaderValue(headers: Seq[Header]) =
+    Map(headers.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
 
   def runNotificationQueueService(status: Int = CREATED): Unit = {
     stubFor(post(urlMatchingRequestPath)
@@ -143,6 +145,18 @@ trait NotificationQueueService extends WireMockRunner {
       .withHeader(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, equalTo(request.body.conversationId))
       .withHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME, equalTo(getBadgeIdHeader(request).get))
       .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(fieldsId))
+      willReturn aResponse()
+      .withStatus(status))
+  }
+
+  def setupPullQueueServiceToReturn(status: Int,
+                                    request: ClientNotification): Unit = {
+
+    stubFor(post(urlMatchingRequestPath)
+      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
+      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
+      .withHeader(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.toString()))
+      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.toString()))
       willReturn aResponse()
       .withStatus(status))
   }
@@ -176,6 +190,24 @@ trait NotificationQueueService extends WireMockRunner {
     assert(allRequestsMade.size() == 1)
 
     getBadgeIdHeader(request) match {
+      case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
+      case None => allRequestsMade.get(0).containsHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME) shouldBe false
+    }
+  }
+
+  def verifyPullQueueServiceWasCalledWith(request: ClientNotification): Unit = {
+
+    val allRequestsMade = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath)
+      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
+      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
+      .withHeader(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.id.toString))
+      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.id.toString))
+      .withRequestBody(equalToXml(request.notification.payload))
+    )
+
+    assert(allRequestsMade.size() == 1)
+
+    extractBadgeIdHeaderValue(request.notification.headers) match {
       case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
       case None => allRequestsMade.get(0).containsHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME) shouldBe false
     }

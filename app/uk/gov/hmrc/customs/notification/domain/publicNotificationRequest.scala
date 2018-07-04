@@ -44,7 +44,9 @@ case class PublicNotificationRequest(
                                       body: PublicNotificationRequestBody
                                     )
 
-case class ConversationId(id: UUID) extends AnyVal
+case class ConversationId(id: UUID) extends AnyVal {
+  override def toString(): String = id.toString
+}
 object ConversationId {
   implicit val conversationIdJF = new Format[ConversationId] {
     def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
@@ -60,7 +62,9 @@ object Notification {
   implicit val notificationJF = Json.format[Notification]
 }
 
-case class ClientSubscriptionId(id: UUID) extends AnyVal
+case class ClientSubscriptionId(id: UUID) extends AnyVal {
+  override def toString(): String = id.toString
+}
 object ClientSubscriptionId {
   implicit val clientSubscriptionIdJF = new Format[ClientSubscriptionId] {
     def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
