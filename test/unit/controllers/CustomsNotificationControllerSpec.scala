@@ -74,12 +74,14 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val expectedRequestMetaData = RequestMetaData(validFieldsId, UUID.fromString(validConversationId), Some(badgeId))
 
-  private val rightReturned = Right("crash test dummy")
+  private val eventualTrue = Future.successful(true)
+
+  private val eventualFalse = Future.successful(false)
 
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
-    when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier])).thenReturn(rightReturned)
+    when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier])).thenReturn(eventualTrue)
   }
 
   "CustomsNotificationController" should {
@@ -97,7 +99,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 202 for missing Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(rightReturned)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
       testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED
@@ -109,7 +111,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(rightReturned)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
       testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED
@@ -195,11 +197,20 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 500 when handle notification fails" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
-        .thenReturn(Left(emulatedServiceFailureMessage))
+        .thenReturn(eventualFalse)
 
       testSubmitResult(ValidRequest) { result =>
         status(result) shouldBe INTERNAL_SERVER_ERROR
-        await(result) shouldBe internalServerError(emulatedServiceFailureMessage)
+      }
+    }
+
+    "respond with status 500 when handle notification fails unexpectedly" in {
+      returnMockedCallbackDetailsForTheClientIdInRequest()
+      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
+        .thenThrow(emulatedServiceFailure)
+
+      testSubmitResult(ValidRequest) { result =>
+        status(result) shouldBe INTERNAL_SERVER_ERROR
       }
     }
 

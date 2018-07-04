@@ -17,7 +17,6 @@
 package uk.gov.hmrc.customs.notification.repo
 
 import java.util.UUID
-import javax.inject.{Inject, Singleton}
 
 import javax.inject.{Inject, Singleton}
 import org.joda.time.Duration

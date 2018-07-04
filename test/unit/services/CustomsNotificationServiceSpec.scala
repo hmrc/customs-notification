@@ -85,7 +85,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
     "first try to Push the notification" in {
       val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
-      result shouldBe Right("success")
+      await(result) shouldBe true
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
       eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId)))(meq(hc)))
     }
@@ -110,7 +110,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
       val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
 
-      result shouldBe Left("Dispatcher failed to process the notification")
+      await(result) shouldBe false
     }
   }
 }

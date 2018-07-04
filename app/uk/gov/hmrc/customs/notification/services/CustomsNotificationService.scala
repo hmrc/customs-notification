@@ -17,7 +17,6 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
@@ -28,9 +27,8 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.http.HeaderCarrier
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
+import scala.concurrent.Future
 import scala.xml.NodeSeq
 
 @Singleton
@@ -43,44 +41,46 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            notificationDispatcher: NotificationDispatcher
                                           ) {
 
-  private val passOnToPullQueueTimeout = 500 //TODO MC configurable - next PR
-  private val saveNotificationToDatabaseAndCallDispatcherTimeout = 600 //TODO MC configurable - next PR
-
-  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Either[String, String] = {
+  def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
 
     if (callbackDetails.callbackUrl.isEmpty) {
       logger.info("Notification will be enqueued as callbackUrl is empty")
-      Await.result(passOnToPullQueue(xml, callbackDetails, metaData), Duration(passOnToPullQueueTimeout, TimeUnit.SECONDS))
+      passOnToPullQueue(xml, callbackDetails, metaData)
     } else {
       val value = hc.headers.seq.map(a => Header(a._1, a._2))
       val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), value, xml.toString, MimeTypes.XML), None)
-      Await.result(saveNotificationToDatabaseAndCallDispatcher(clientNotification), Duration(saveNotificationToDatabaseAndCallDispatcherTimeout, TimeUnit.SECONDS))
+      saveNotificationToDatabaseAndCallDispatcher(clientNotification)
     }
   }
 
-  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification)(implicit hc: HeaderCarrier) = {
+  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification)(implicit hc: HeaderCarrier): Future[Boolean] = {
 
     clientNotificationRepo.save(clientNotification).map {
       case true =>
         notificationDispatcher.process(Set(clientNotification.csid))
-        Right("success")
-      case false => Left("Dispatcher failed to process the notification")
+        true
+      case false => logger.error("Dispatcher failed to process the notification")
+        false
+    }.recoverWith {
+      case t: Throwable =>
+        logger.error(s"Processing failed ${t.getMessage}")
+        Future.failed(t)
     }
 
   }
 
-  private def passOnToPullQueue(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier) = {
+  private def passOnToPullQueue(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     val publicNotificationRequest = publicNotificationRequestService.createRequest(xml, callbackDetails, metaData)
     queueConnector.enqueue(publicNotificationRequest)
       .map { _ =>
         gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been left to be pulled")
         logger.info("Notification has been passed on to PULL service")(hc)
-        Right("success")
+        true
       }.recover {
       case _: Throwable =>
         gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification Pull request failed")
-        Left("failed to pass on to pull queue")
+        false
     }
   }
 }
