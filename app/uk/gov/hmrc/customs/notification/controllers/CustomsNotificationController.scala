@@ -71,7 +71,9 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     callbackDetailsConnector.getClientData(md.clientId).flatMap {
 
       case Some(callbackData) =>
-        customsNotificationService.handleNotification(xml, callbackData, md) map {
+        customsNotificationService.handleNotification(xml, callbackData, md).recover{
+          case _: Throwable => ErrorInternalServerError.XmlResult
+        }.map {
           case true =>
             logger.info("Notification processed successfully")
             Results.Accepted

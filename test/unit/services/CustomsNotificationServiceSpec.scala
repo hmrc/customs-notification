@@ -78,7 +78,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
     when(mockNotificationQueueConnector.enqueue(publicNotificationRequest)).thenReturn(Future.successful(mock[HttpResponse]))
     when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(true))
-    when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))(meq(hc))).thenReturn(Future.successful(()))
+    when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))).thenReturn(Future.successful(()))
   }
 
   "CustomsNotificationService" should {
@@ -87,7 +87,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
       await(result) shouldBe true
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
-      eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId)))(meq(hc)))
+      eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
     }
 
     "enqueue notification to be pulled when subscription fields callbackUrl is empty" in {

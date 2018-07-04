@@ -62,10 +62,10 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         true
       case false => logger.error("Dispatcher failed to process the notification")
         false
-    }.recoverWith {
+    }.recover {
       case t: Throwable =>
         logger.error(s"Processing failed ${t.getMessage}")
-        Future.failed(t)
+        false
     }
 
   }
