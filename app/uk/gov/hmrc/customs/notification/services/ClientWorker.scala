@@ -28,6 +28,6 @@ trait ClientWorker {
 
 //TODO MC to be removed after CDD-1613
 class DummyClientWorker extends ClientWorker {
-  override def processNotificationsFor(csid: ClientSubscriptionId): Future[Unit] = Future.successful(())
+  override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Unit] = Future.successful(())
 }
 
