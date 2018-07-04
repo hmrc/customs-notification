@@ -7,7 +7,7 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCal
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
 @Singleton
-class SendClientNotificationService @Inject()(publicNotificationServiceConnector: PublicNotificationServiceConnector,
+class PushClientNotificationService @Inject()(publicNotificationServiceConnector: PublicNotificationServiceConnector,
                                               notificationsLogger: NotificationLogger) {
 
   def send(declarantCallbackData: DeclarantCallbackData, clientNotification: ClientNotification): Boolean = {
