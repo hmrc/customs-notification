@@ -67,7 +67,7 @@ class ClientWorkerImpl @Inject()(
     //however looking at api-subscription-fields service I do not think it is required so keep new HeaderCarrier() for now
     implicit val hc = HeaderCarrier()
     implicit val refreshLockFailed: AtomicBoolean = new AtomicBoolean(false)
-    val timer = actorSystem.scheduler.schedule(refreshDuration, refreshDuration, new Runnable {
+    val timer = actorSystem.scheduler.schedule(initialDelay = refreshDuration, interval = refreshDuration, new Runnable {
       override def run() = {
         refreshLock(csid, lockOwnerId)
       }
@@ -136,10 +136,14 @@ class ClientWorkerImpl @Inject()(
       val maybeDeclarantCallbackData = blockingMaybeDeclarantDetails(cn)
 
       maybeDeclarantCallbackData.fold(throw new PushProcessingException("Declarant details not found")){ declarantCallbackData =>
-        if (push.send(declarantCallbackData, cn)) {
-          blockingDeleteNotification(cn)
+        if (declarantCallbackData.callbackUrl.isEmpty) {
+          throw new PushProcessingException("callbackUrl is empty")
         } else {
-          throw new PushProcessingException("Push of notification failed")
+          if (push.send(declarantCallbackData, cn)) {
+            blockingDeleteNotification(cn)
+          } else {
+            throw new PushProcessingException("Push of notification failed")
+          }
         }
       }
     }
