@@ -50,7 +50,7 @@ class NotificationDispatcherImpl @Inject()(lockRepo: LockRepo, logger: Notificat
           lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, duration).flatMap {
             case true =>
               logger.debugWithoutRequestContext(s"sending $csid to worker")
-              new DummyClientWorker().processNotificationsFor(csid)
+              new DummyClientWorker().processNotificationsFor(csid, lockOwnerId)
             case false => Future.successful(())
           }
       }
