@@ -33,6 +33,12 @@ import scala.util.control.NonFatal
 /*
 Assumptions:
 - "Still Locked" - my interpretation is that lock refresh has not failed
+Questions
+- I still have concerns with blocking code inside a FUTURE
+- I think if we have many concurrent CSIDs then with blocking code inside a FUTURE we may exhaust thread pool
+  - https://stackoverflow.com/questions/15950998/futures-for-blocking-calls-in-scala
+  - we may have to take responsibility of tuning thread pool with upper limit to prevent exhaustion
+
  */
 @Singleton
 class ClientWorkerImpl @Inject()(
