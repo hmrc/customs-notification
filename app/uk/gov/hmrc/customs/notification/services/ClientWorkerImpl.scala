@@ -46,15 +46,15 @@ Questions
  */
 @Singleton
 class ClientWorkerImpl @Inject()(
-                        //TODO: pass in serviceConfig
-                        actorSystem: ActorSystem,
-                        repo: ClientNotificationRepo,
-                        callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                        push: PushClientNotificationService,
-                        pull: PullClientNotificationService,
-                        lockRepo: LockRepo,
-                        logger: NotificationLogger
-                      ) extends ClientWorker {
+                                  //TODO: pass in serviceConfig
+                                  actorSystem: ActorSystem,
+                                  repo: ClientNotificationRepo,
+                                  callbackDetailsConnector: ApiSubscriptionFieldsConnector,
+                                  push: PushClientNotificationService,
+                                  pull: PullClientNotificationService,
+                                  lockRepo: LockRepo,
+                                  logger: NotificationLogger
+                                ) extends ClientWorker {
 
   private val extendLockDuration =  org.joda.time.Duration.millis(1200)//org.joda.time.Duration.millis(config.pushNotificationConfig.lockRefreshDurationInMilliseconds)
   private val refreshDuration = 800 milliseconds //Duration(config.pushNotificationConfig.lockRefreshDurationInMilliseconds, TimeUnit.MILLISECONDS)
@@ -131,7 +131,7 @@ class ClientWorkerImpl @Inject()(
         throw new IllegalStateException("quiting pull processing - error refreshing lock")
       }
 
-      val maybeDeclarantCallbackData = Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration) //TODO: extract to method
+      val maybeDeclarantCallbackData = blockingMaybeDeclarantDetails(cn)
 
       maybeDeclarantCallbackData.fold(throw new PushProcessingException("Declarant details not found")){ declarantCallbackData =>
         if (push.send(declarantCallbackData, cn)) {
@@ -141,6 +141,10 @@ class ClientWorkerImpl @Inject()(
         }
       }
     }
+  }
+
+  private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier) = {
+    Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)
   }
 
   private def blockingDeleteNotification(cn: ClientNotification)(implicit hc: HeaderCarrier): Unit = {
@@ -176,14 +180,10 @@ class ClientWorkerImpl @Inject()(
         throw new IllegalStateException("quiting pull processing - error refreshing lock")
       }
 
-      val maybeDeclarantCallbackData = Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)
-
-      maybeDeclarantCallbackData.fold(throw new PullProcessingException("Declarant details not found")){ declarantCallbackData =>
-        if (pull.send(cn)) {
-          blockingDeleteNotification(cn)
-        } else {
-          throw new PullProcessingException("Pull of notification failed")
-        }
+      if (pull.send(cn)) {
+        blockingDeleteNotification(cn)
+      } else {
+        throw new PullProcessingException("Pull of notification failed")
       }
     }
   }
