@@ -16,19 +16,42 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 
 import uk.gov.hmrc.customs.notification.connectors.PublicNotificationServiceConnector
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, PublicNotificationRequest, PublicNotificationRequestBody}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.http.HeaderCarrier
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 
 @Singleton
-class PushClientNotificationService @Inject()(publicNotificationServiceConnector: PublicNotificationServiceConnector,
-                                              notificationsLogger: NotificationLogger) {
+class PushClientNotificationService @Inject() (publicNotificationServiceConnector: PublicNotificationServiceConnector,
+                                               notificationLogger: NotificationLogger) {
 
+  private implicit val hc = HeaderCarrier()
   def send(declarantCallbackData: DeclarantCallbackData, clientNotification: ClientNotification): Boolean = {
 
-    true
+    val publicNotificationRequest = publicNotificationRequestFrom(declarantCallbackData, clientNotification)
+
+    Await.ready(publicNotificationServiceConnector.send(publicNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
+  }
+
+  private def publicNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData,
+                                            clientNotification: ClientNotification): PublicNotificationRequest = {
+
+    PublicNotificationRequest(
+      clientNotification.csid.id.toString,
+      PublicNotificationRequestBody(
+        declarantCallbackData.callbackUrl,
+        declarantCallbackData.securityToken,
+        clientNotification.notification.conversationId.id.toString,
+        clientNotification.notification.headers,
+        clientNotification.notification.payload
+      ))
   }
 
 }
