@@ -18,6 +18,7 @@ package uk.gov.hmrc.customs.notification.logging
 
 import play.api.http.HeaderNames.AUTHORIZATION
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, ConversationId}
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -25,6 +26,13 @@ object LoggingHelper {
 
   private val headerOverwriteValue = "value-not-logged"
   private val headersToOverwrite = Set(AUTHORIZATION)
+
+  def logMsgPrefix(clientSubscriptionId: ClientSubscriptionId, conversationId: ConversationId): String =
+  s"[conversationId=$conversationId][clientSubscriptionId=$clientSubscriptionId]"
+
+
+  def logMsgPrefix(clientNotification: ClientNotification): String =
+    s"[conversationId=${clientNotification.notification.conversationId}][clientSubscriptionId=${clientNotification.csid}]"
 
   def formatError(msg: String)(implicit hc: HeaderCarrier): String = {
     formatInfo(msg)
