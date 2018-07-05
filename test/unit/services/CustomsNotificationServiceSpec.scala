@@ -18,7 +18,7 @@ package unit.services
 
 import java.util.UUID
 
-import org.mockito.ArgumentCaptor
+import org.mockito.{ArgumentCaptor, ArgumentMatcher}
 import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
@@ -30,7 +30,7 @@ import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PushNotificationRequestService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService, PushNotificationRequestService}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData
@@ -46,9 +46,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val mockPushNotificationRequestService = mock[PushNotificationRequestService]
-  private val mockPushNotificationServiceConnector = mock[PushNotificationServiceConnector]
-  private val mockNotificationQueueConnector = mock[NotificationQueueConnector]
   private val validCallbackData = DeclarantCallbackData("callbackUrl", "securityToken")
   private val callbackDataWithEmptyCallbackUrl = DeclarantCallbackData("", "securityToken")
   private val requestMetaData = RequestMetaData(TestData.validFieldsId, validConversationIdUUID, None)
@@ -59,24 +56,20 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val notification = Notification(conversationId ,hc.headers.seq.map(a => Header(a._1, a._2)), pushNotificationRequest.body.xmlPayload, contentType)
   private val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(pushNotificationRequest.clientSubscriptionId))
   private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
+  private val mockPullService = mock[PullClientNotificationService]
 
   private val customsNotificationService = new CustomsNotificationService(
     mockNotificationLogger,
-    mockPushNotificationRequestService,
-    mockPushNotificationServiceConnector,
-    mockNotificationQueueConnector,
     mockGAConnector,
     mockClientNotificationRepo,
-    mockNotificationDispatcher
+    mockNotificationDispatcher,
+    mockPullService
   )
 
 
   override protected def beforeEach() {
-    reset(mockPushNotificationRequestService, mockPushNotificationServiceConnector, mockNotificationQueueConnector, mockGAConnector)
-    when(mockPushNotificationRequestService.createRequest(ValidXML, validCallbackData, requestMetaData)).thenReturn(Future.successful(pushNotificationRequest))
-    when(mockPushNotificationServiceConnector.send(pushNotificationRequest)).thenReturn(Future.successful(()))
+    reset(mockNotificationDispatcher, mockClientNotificationRepo, mockGAConnector)
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
-    when(mockNotificationQueueConnector.enqueue(pushNotificationRequest)).thenReturn(Future.successful(mock[HttpResponse]))
     when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(true))
     when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))).thenReturn(Future.successful(()))
   }
@@ -88,21 +81,19 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       await(result) shouldBe true
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
       eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
+      verifyGAReceivedEvent()
+      verifyZeroInteractions(mockPullService)
     }
 
     "enqueue notification to be pulled when subscription fields callbackUrl is empty" in {
-      when(mockPushNotificationRequestService.createRequest(ValidXML, callbackDataWithEmptyCallbackUrl, requestMetaData)).thenReturn(Future.successful(pushNotificationRequest))
+      when(mockPullService.sendAsync(any())).thenReturn(Future.successful((true)))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       await(customsNotificationService.handleNotification(ValidXML, callbackDataWithEmptyCallbackUrl, requestMetaData))
 
-      eventually(verify(mockNotificationQueueConnector).enqueue(meq(pushNotificationRequest)))
-      val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-      val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-      eventually(verify(mockGAConnector, times(2)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
-      val capturedEventNames = eventNameCaptor.getAllValues
-      msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
-      msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationLeftToBePulled")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification has been left to be pulled"
+      verify(mockPullService).sendAsync(refEq(clientNotification, "timeReceived", "id"))
+
+      verifyGAReceivedEvent()
     }
 
     "fails when was unable to save notification to repository" in {
@@ -111,6 +102,17 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
 
       await(result) shouldBe false
+      verifyZeroInteractions(mockNotificationDispatcher)
+      verifyZeroInteractions(mockPullService)
     }
+  }
+
+  private def verifyGAReceivedEvent() = {
+    val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+    val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+    eventually(verify(mockGAConnector, times(1)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
+    val capturedEventNames = eventNameCaptor.getAllValues
+
+    msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
   }
 }

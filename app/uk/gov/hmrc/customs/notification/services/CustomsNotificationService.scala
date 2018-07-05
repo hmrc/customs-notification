@@ -17,10 +17,10 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.util.UUID
-
 import javax.inject.{Inject, Singleton}
+
 import play.api.http.MimeTypes
-import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PushNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -33,23 +33,22 @@ import scala.xml.NodeSeq
 
 @Singleton
 class CustomsNotificationService @Inject()(logger: NotificationLogger,
-                                           pushNotificationRequestService: PushNotificationRequestService,
-                                           pushConnector: PushNotificationServiceConnector,
-                                           queueConnector: NotificationQueueConnector,
                                            gaConnector: GoogleAnalyticsSenderConnector,
                                            clientNotificationRepo: ClientNotificationRepo,
-                                           notificationDispatcher: NotificationDispatcher
+                                           notificationDispatcher: NotificationDispatcher,
+                                           pullClientNotificationService: PullClientNotificationService
                                           ) {
 
   def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
 
+    val value = hc.headers.seq.map(a => Header(a._1, a._2))
+    val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), value, xml.toString, MimeTypes.XML), None)
+
     if (callbackDetails.callbackUrl.isEmpty) {
       logger.info("Notification will be enqueued as callbackUrl is empty")
-      passOnToPullQueue(xml, callbackDetails, metaData)
+      pullClientNotificationService.sendAsync(clientNotification)
     } else {
-      val value = hc.headers.seq.map(a => Header(a._1, a._2))
-      val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), value, xml.toString, MimeTypes.XML), None)
       saveNotificationToDatabaseAndCallDispatcher(clientNotification)
     }
   }
@@ -68,19 +67,5 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         false
     }
 
-  }
-
-  private def passOnToPullQueue(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
-    val pushNotificationRequest = pushNotificationRequestService.createRequest(xml, callbackDetails, metaData)
-    queueConnector.enqueue(pushNotificationRequest)
-      .map { _ =>
-        gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification has been left to be pulled")
-        logger.info("Notification has been passed on to PULL service")(hc)
-        true
-      }.recover {
-      case _: Throwable =>
-        gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification Pull request failed")
-        false
-    }
   }
 }
