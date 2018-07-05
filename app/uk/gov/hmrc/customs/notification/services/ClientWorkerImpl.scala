@@ -35,6 +35,8 @@ case class PushProcessingException(msg: String) extends RuntimeException(msg)
 case class PullProcessingException(msg: String) extends RuntimeException(msg)
 
 /*
+TODO:
+- refreshDuration -
 Assumptions:
 - "Still Locked" - my interpretation is that lock refresh has not failed
 Questions
@@ -182,8 +184,6 @@ class ClientWorkerImpl @Inject()(
 
       if (pull.send(cn)) {
         blockingDeleteNotification(cn)
-      } else {
-        throw new PullProcessingException("Pull of notification failed")
       }
     }
   }
