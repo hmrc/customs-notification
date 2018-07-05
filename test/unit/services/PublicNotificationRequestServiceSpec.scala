@@ -16,7 +16,6 @@
 
 package unit.services
 
-import org.mockito.ArgumentMatchers.{eq => meq}
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
@@ -35,8 +34,6 @@ class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
   val metaData = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
-
-  private val emulatedClientDataFailure = new IllegalStateException("boom")
 
   "PublicNotificationRequestService" should {
 

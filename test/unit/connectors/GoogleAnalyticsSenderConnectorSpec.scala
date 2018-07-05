@@ -21,7 +21,6 @@ import org.mockito.Mockito._
 import org.mockito.{ArgumentCaptor, ArgumentMatchers}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.mockito.MockitoSugar
-import play.api.Configuration
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json, Writes}

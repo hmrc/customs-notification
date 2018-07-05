@@ -8,7 +8,7 @@ import uk.gov.hmrc.DefaultBuildSettings.{addTestReportOption, defaultSettings, s
 import uk.gov.hmrc.PublishingSettings._
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
-import language.postfixOps
+import scala.language.postfixOps
 
 name := "customs-notification"
 

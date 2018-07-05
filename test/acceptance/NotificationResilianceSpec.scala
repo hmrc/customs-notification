@@ -17,26 +17,18 @@
 package acceptance
 
 import java.util.UUID
-import java.util.UUID.randomUUID
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, OptionValues}
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.mvc._
 import play.api.test.Helpers._
-import reactivemongo.api.FailoverStrategy
-import reactivemongo.api.collections.bson.BSONCollection
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
 
-import scala.concurrent.Future
-import scala.xml.NodeSeq
-import scala.xml.Utility.trim
-import scala.xml.XML.loadString
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class NotificationResilianceSpec extends AcceptanceTestSpec

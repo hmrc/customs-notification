@@ -19,7 +19,7 @@ package integration
 import java.util.UUID
 
 import org.joda.time.{DateTime, DateTimeZone, Seconds}
-import org.mockito.ArgumentMatchers.{eq => meq, _}
+import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -128,7 +128,6 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       Seconds.secondsBetween(DateTime.now(DateTimeZone.UTC), findResult.timeReceived.get).getSeconds should be < 3
       findResult.notification shouldBe client1Notification1.notification
       findResult.csid shouldBe client1Notification1.csid
-      logVerifier("debug", s"saving clientNotification: ClientNotification(ClientSubscriptionId(eaca01f9-ec3b-4ede-b263-61b626dde232),Notification(ConversationId(638b405b-9f04-418a-b648-ce565b111b7b),List(Header(h1,v1), Header(h2,v2)),<foo1></foo1>,application/xml; charset=UTF-8),None,${client1Notification1.id})")
     }
 
     "successfully save when called multiple times" in {

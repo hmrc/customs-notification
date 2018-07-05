@@ -17,8 +17,8 @@
 package uk.gov.hmrc.customs.notification.repo
 
 import java.util.UUID
-import javax.inject.{Inject, Singleton}
 
+import javax.inject.{Inject, Singleton}
 import org.joda.time.Duration
 import play.api.libs.json.Json
 import reactivemongo.api.DB
@@ -85,4 +85,3 @@ class NotificationExclusiveTimePeriodLock(csId: ClientSubscriptionId, lockOwnerI
   override lazy val serverId = lockOwnerId.id
 
 }
-
