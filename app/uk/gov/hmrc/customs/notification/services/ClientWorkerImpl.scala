@@ -20,8 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.{Inject, Singleton}
 
 import akka.actor.ActorSystem
-import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
-import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.http.HeaderCarrier
@@ -31,6 +30,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationDouble
 import scala.util.control.NonFatal
 
+/*
+Assumptions:
+- "Still Locked" - my interpretation is that lock refresh has not failed
+ */
 @Singleton
 class ClientWorkerImpl @Inject()(
                         //TODO: pass in serviceConfig
@@ -81,10 +84,19 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
+  private def releaseLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier): Future[Unit] = {
+    lockRepo.release(csid, lockOwnerId).map { _ =>
+      logger.info("released lock")
+    }.recover {
+      case NonFatal(e) =>
+        val msg = "error releasing lock"
+        logger.error(msg) //TODO: extend logging API so that we can log an error on a throwable
+    }
+  }
+
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
 
     logger.info(s"About to push notifications")
-
     (for {
       clientNotifications <- repo.fetch(csid)
     } yield ()).recover{
@@ -95,14 +107,12 @@ class ClientWorkerImpl @Inject()(
 
   }
 
-  private def releaseLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier): Future[Unit] = {
-    lockRepo.release(csid, lockOwnerId).map { _ =>
-      logger.info("released lock")
-    }.recover {
-      case NonFatal(e) =>
-        val msg = "error releasing lock"
-        logger.error(msg) //TODO: extend logging API so that we can log an error on a throwable
+
+  protected def innerBlockingProcess(clientNotifications: Seq[ClientNotification]) = {
+    clientNotifications.foreach{cn =>
+
     }
   }
+
 
 }
