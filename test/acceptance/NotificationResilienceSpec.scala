@@ -31,10 +31,10 @@ import util._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class NotificationResilianceSpec extends AcceptanceTestSpec
+class NotificationResilienceSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
-  with PublicNotificationService
+  with PushNotificationService
   with GoogleAnalyticsSenderService
   with MongoSpecSupport
 {
@@ -65,7 +65,7 @@ class NotificationResilianceSpec extends AcceptanceTestSpec
 
   override protected def beforeAll() {
     startMockServer()
-    setupPublicNotificationServiceToReturn()
+    setupPushNotificationServiceToReturn()
   }
 
   override protected def beforeEach(): Unit = {
@@ -93,7 +93,7 @@ class NotificationResilianceSpec extends AcceptanceTestSpec
 
 
       And("the notification gateway service was called correctly")
-      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
+      eventually(verifyPushNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
       eventually(verifyNotificationQueueServiceWasNotCalled())
       eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
 
@@ -107,15 +107,15 @@ class NotificationResilianceSpec extends AcceptanceTestSpec
         Notification(ConversationId(validConversationIdUUID), Seq[Header](), ValidXML.toString(), "application/xml")))
 
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
-      setupPublicNotificationServiceToReturn(404)
+      setupPushNotificationServiceToReturn(404)
       setupGoogleAnalyticsEndpoint()
 
       And("the notification gateway service was called correctly")
 
-      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
+      eventually(verifyPushNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
       eventually(verifyNotificationQueueServiceWasCalledWith(
-        PublicNotificationRequest(validFieldsId,
-        PublicNotificationRequestBody(callbackUrl,
+        PushNotificationRequest(validFieldsId,
+        PushNotificationRequestBody(callbackUrl,
           basicAuthTokenValue,
           validConversationId,
           Seq[Header](),

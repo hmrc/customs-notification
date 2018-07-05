@@ -22,24 +22,24 @@ import org.mockito.{ArgumentCaptor, ArgumentMatchers}
 import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json.Writes
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
-import uk.gov.hmrc.customs.notification.connectors.PublicNotificationServiceConnector
-import uk.gov.hmrc.customs.notification.domain.PublicNotificationRequestBody
+import uk.gov.hmrc.customs.notification.connectors.PushNotificationServiceConnector
+import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.test.UnitSpec
-import util.TestData.publicNotificationRequest
+import util.TestData.pushNotificationRequest
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
-class PublicNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar {
+class PushNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar {
 
   private val mockHttpClient = mock[HttpClient]
   private val mockNotificationLogger = mock[NotificationLogger]
   private val serviceConfigProvider = mock[ServiceConfigProvider]
 
-  private val connector = new PublicNotificationServiceConnector(
+  private val connector = new PushNotificationServiceConnector(
     mockHttpClient,
     mockNotificationLogger,
     serviceConfigProvider
@@ -59,13 +59,13 @@ class PublicNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar 
         any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]()))
         .thenReturn(Future.successful(mock[HttpResponse]))
 
-      await(connector.send(publicNotificationRequest))
+      await(connector.send(pushNotificationRequest))
 
-      val requestBody = ArgumentCaptor.forClass(classOf[PublicNotificationRequestBody])
+      val requestBody = ArgumentCaptor.forClass(classOf[PushNotificationRequestBody])
       verify(mockHttpClient).POST(ArgumentMatchers.eq(url), requestBody.capture(), any[Seq[(String,String)]]())(
-        any[Writes[PublicNotificationRequestBody]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]())
-      val body = requestBody.getValue.asInstanceOf[PublicNotificationRequestBody]
-      body shouldEqual publicNotificationRequest.body
+        any[Writes[PushNotificationRequestBody]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]())
+      val body = requestBody.getValue.asInstanceOf[PushNotificationRequestBody]
+      body shouldEqual pushNotificationRequest.body
     }
 
     "propagate exception in HTTP VERBS post" in {
@@ -74,7 +74,7 @@ class PublicNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar 
         .thenThrow(emulatedHttpVerbsException)
 
       val caught = intercept[RuntimeException] {
-        await(connector.send(publicNotificationRequest))
+        await(connector.send(pushNotificationRequest))
       }
 
       caught shouldBe emulatedHttpVerbsException

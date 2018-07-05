@@ -66,8 +66,8 @@ object TestData {
   val badgeId = "ABCDEF1234"
   val userAgent = "Customs Declaration Service"
 
-  lazy val somePublicNotificationRequest: Option[PublicNotificationRequest] = Some(publicNotificationRequest)
-  lazy val publicNotificationRequest: PublicNotificationRequest = publicNotificationRequest(ValidXML)
+  lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
+  lazy val pushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML)
 
   def clientNotification(withBadgeId: Boolean = true): ClientNotification = {
 
@@ -97,14 +97,14 @@ object TestData {
        |}
     """.stripMargin)
 
-  def publicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
-    val body = PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
-    PublicNotificationRequest(validFieldsId, body)
+  def pushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
+    val body = PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    PushNotificationRequest(validFieldsId, body)
   }
 
-  def failedPublicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
-    val body = PublicNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
-    PublicNotificationRequest(validFieldsId, body)
+  def failedPushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
+    val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    PushNotificationRequest(validFieldsId, body)
   }
 
   val ValidXML: Elem = <Foo>Bar</Foo>

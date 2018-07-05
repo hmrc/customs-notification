@@ -19,8 +19,9 @@ package uk.gov.hmrc.customs.notification.services
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 
-import uk.gov.hmrc.customs.notification.connectors.PublicNotificationServiceConnector
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, PublicNotificationRequest, PublicNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, PushNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, PushNotificationRequest, PushNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -29,23 +30,33 @@ import scala.concurrent.duration.Duration
 
 
 @Singleton
-class PushClientNotificationService @Inject() (publicNotificationServiceConnector: PublicNotificationServiceConnector,
+class PushClientNotificationService @Inject() (publicNotificationServiceConnector: PushNotificationServiceConnector,
+                                               gaConnector: GoogleAnalyticsSenderConnector,
                                                notificationLogger: NotificationLogger) {
 
   private implicit val hc = HeaderCarrier()
+
   def send(declarantCallbackData: DeclarantCallbackData, clientNotification: ClientNotification): Boolean = {
 
-    val publicNotificationRequest = publicNotificationRequestFrom(declarantCallbackData, clientNotification)
+    val pushNotificationRequest = pushNotificationRequestFrom(declarantCallbackData, clientNotification)
 
-    Await.ready(publicNotificationServiceConnector.send(publicNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
+    val result = Await.ready(publicNotificationServiceConnector.send(pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
+    if (result) {
+      notificationLogger.debug(s"${logMsgPrefix(clientNotification)} Notification has been pushed")
+      gaConnector.send("notificationPushRequestSuccess", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification has been pushed successfully")
+    } else {
+      notificationLogger.error(s"${logMsgPrefix(clientNotification)} Notification push failed")
+      gaConnector.send("notificationPushRequestFailed", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification Push request failed")
+    }
+    result
   }
 
-  private def publicNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData,
-                                            clientNotification: ClientNotification): PublicNotificationRequest = {
+  private def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData,
+                                            clientNotification: ClientNotification): PushNotificationRequest = {
 
-    PublicNotificationRequest(
+    PushNotificationRequest(
       clientNotification.csid.id.toString,
-      PublicNotificationRequestBody(
+      PushNotificationRequestBody(
         declarantCallbackData.callbackUrl,
         declarantCallbackData.securityToken,
         clientNotification.notification.conversationId.id.toString,

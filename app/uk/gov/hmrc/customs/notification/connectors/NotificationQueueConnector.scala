@@ -22,7 +22,7 @@ import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.{AUTHORIZATION, CONTENT_TYPE, USER_AGENT}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_BADGE_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, PublicNotificationRequest}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, PushNotificationRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
@@ -66,7 +66,7 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: Notificatio
   }
 
   //TODO: handle POST failure scenario after Trade Test
-  def enqueue(request: PublicNotificationRequest): Future[HttpResponse] = {
+  def enqueue(request: PushNotificationRequest): Future[HttpResponse] = {
     implicit val hc: HeaderCarrier = HeaderCarrier() // Note we do not propagate HeaderCarrier values
     val url = configServices.notificationQueueConfig.url
     val maybeBadgeId: Option[String] = Map(request.body.outboundCallHeaders.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)

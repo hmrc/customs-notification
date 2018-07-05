@@ -20,7 +20,7 @@ import java.util.UUID
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
-import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PublicNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PushNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -33,8 +33,8 @@ import scala.xml.NodeSeq
 
 @Singleton
 class CustomsNotificationService @Inject()(logger: NotificationLogger,
-                                           publicNotificationRequestService: PublicNotificationRequestService,
-                                           pushConnector: PublicNotificationServiceConnector,
+                                           pushNotificationRequestService: PushNotificationRequestService,
+                                           pushConnector: PushNotificationServiceConnector,
                                            queueConnector: NotificationQueueConnector,
                                            gaConnector: GoogleAnalyticsSenderConnector,
                                            clientNotificationRepo: ClientNotificationRepo,
@@ -71,15 +71,15 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   }
 
   private def passOnToPullQueue(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
-    val publicNotificationRequest = publicNotificationRequestService.createRequest(xml, callbackDetails, metaData)
-    queueConnector.enqueue(publicNotificationRequest)
+    val pushNotificationRequest = pushNotificationRequestService.createRequest(xml, callbackDetails, metaData)
+    queueConnector.enqueue(pushNotificationRequest)
       .map { _ =>
-        gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification has been left to be pulled")
+        gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification has been left to be pulled")
         logger.info("Notification has been passed on to PULL service")(hc)
         true
       }.recover {
       case _: Throwable =>
-        gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${publicNotificationRequest.body.conversationId}] A notification Pull request failed")
+        gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification Pull request failed")
         false
     }
   }

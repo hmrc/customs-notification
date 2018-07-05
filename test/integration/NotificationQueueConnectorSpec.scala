@@ -25,9 +25,9 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.http._
-import util.ExternalServicesConfig.{Host, Port}
+import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ExternalServicesConfig, NotificationQueueService}
+import util.{ExternalServicesConfiguration, NotificationQueueService}
 
 class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
   with BeforeAndAfterAll with NotificationQueueService {
@@ -56,7 +56,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAp
       "auditing.enabled" -> false,
       "microservice.services.notification-queue.host" -> Host,
       "microservice.services.notification-queue.port" -> Port,
-      "microservice.services.notification-queue.context" -> ExternalServicesConfig.NotificationQueueContext
+      "microservice.services.notification-queue.context" -> ExternalServicesConfiguration.NotificationQueueContext
     )).build()
 
   "PullNotificationServiceConnector" should {

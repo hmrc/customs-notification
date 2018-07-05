@@ -23,28 +23,28 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PublicNotificationRequest}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PushNotificationRequest}
 import util.TestData._
 
-trait PublicNotificationService extends WireMockRunner {
-  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfig.PublicNotificationServiceContext)
+trait PushNotificationService extends WireMockRunner {
+  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
 
-  def setupPublicNotificationServiceToReturn(status: Int = NO_CONTENT): Unit =
+  def setupPushNotificationServiceToReturn(status: Int = NO_CONTENT): Unit =
     stubFor(post(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       willReturn aResponse()
       .withStatus(status))
 
-  def verifyPublicNotificationServiceWasCalledWith(publicNotificationRequest: PublicNotificationRequest) {
+  def verifyPushNotificationServiceWasCalledWith(pushNotificationRequest: PushNotificationRequest) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
-      .withRequestBody(equalToJson(Json.toJson(publicNotificationRequest.body).toString()))
+      .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest.body).toString()))
     )
   }
 
-  def verifyPublicNotificationServiceWasCalledWith(expectedPayload: JsValue) {
+  def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
@@ -58,7 +58,7 @@ trait PublicNotificationService extends WireMockRunner {
 trait ApiSubscriptionFieldsService extends WireMockRunner {
 
   def apiSubscriptionFieldsUrl(fieldsId: String): String =
-    s"${ExternalServicesConfig.ApiSubscriptionFieldsServiceContext}/$fieldsId"
+    s"${ExternalServicesConfiguration.ApiSubscriptionFieldsServiceContext}/$fieldsId"
 
   private def urlMatchingRequestPath(fieldsId: String) = {
     urlEqualTo(apiSubscriptionFieldsUrl(fieldsId))
@@ -119,9 +119,9 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
 
 trait NotificationQueueService extends WireMockRunner {
   self: Matchers =>
-  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfig.NotificationQueueContext)
+  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.NotificationQueueContext)
 
-  def getBadgeIdHeader(request: PublicNotificationRequest): Option[String] =
+  def getBadgeIdHeader(request: PushNotificationRequest): Option[String] =
     extractBadgeIdHeaderValue(request.body.outboundCallHeaders)
 
 
@@ -135,7 +135,7 @@ trait NotificationQueueService extends WireMockRunner {
   }
 
   def setupNotificationQueueServiceToReturn(status: Int,
-                                            request: PublicNotificationRequest,
+                                            request: PushNotificationRequest,
                                             fieldsId: String = validFieldsId): Unit = {
 
     stubFor(post(urlMatchingRequestPath)
@@ -162,7 +162,7 @@ trait NotificationQueueService extends WireMockRunner {
   }
 
   def setupNotificationQueueServiceToReturnNoBadgeId(status: Int,
-                                                     request: PublicNotificationRequest,
+                                                     request: PushNotificationRequest,
                                                      fieldsId: String = validFieldsId): Unit = {
 
     stubFor(post(urlMatchingRequestPath)
@@ -175,7 +175,7 @@ trait NotificationQueueService extends WireMockRunner {
       .withStatus(status))
   }
 
-  def verifyNotificationQueueServiceWasCalledWith(request: PublicNotificationRequest,
+  def verifyNotificationQueueServiceWasCalledWith(request: PushNotificationRequest,
                                                   fieldsId: String = validFieldsId): Unit = {
 
     val allRequestsMade = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath)
@@ -218,10 +218,10 @@ trait NotificationQueueService extends WireMockRunner {
 
 }
 
-object ExternalServicesConfig {
+object ExternalServicesConfiguration {
   val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "11111").toInt
   val Host = "localhost"
-  val PublicNotificationServiceContext = "/make-post-call"
+  val PushNotificationServiceContext = "/make-post-call"
   val GoogleAnalyticsEndpointContext = "/google-analytics"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"

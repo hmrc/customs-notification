@@ -27,7 +27,7 @@ object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
 
-case class PublicNotificationRequestBody(
+case class PushNotificationRequestBody(
                                           url: String,
                                           authHeaderToken: String,
                                           conversationId: String,
@@ -35,13 +35,13 @@ case class PublicNotificationRequestBody(
                                           xmlPayload: String
                                         )
 
-object PublicNotificationRequestBody {
-  implicit val jsonFormat: OFormat[PublicNotificationRequestBody] = Json.format[PublicNotificationRequestBody]
+object PushNotificationRequestBody {
+  implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
 }
 
-case class PublicNotificationRequest(
+case class PushNotificationRequest(
                                       clientSubscriptionId: String,
-                                      body: PublicNotificationRequestBody
+                                      body: PushNotificationRequestBody
                                     )
 
 case class ConversationId(id: UUID) extends AnyVal {

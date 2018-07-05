@@ -20,22 +20,22 @@ import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain.{Header, PublicNotificationRequest, PublicNotificationRequestBody}
-import uk.gov.hmrc.customs.notification.services.PublicNotificationRequestService
+import uk.gov.hmrc.customs.notification.domain.{Header, PushNotificationRequest, PushNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.services.PushNotificationRequestService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
 
-class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
+class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
 
   private val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
 
-  private val service = new PublicNotificationRequestService(mockApiSubscriptionFieldsConnector)
+  private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
   val metaData = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
 
-  "PublicNotificationRequestService" should {
+  "PushNotificationRequestService" should {
 
     "return valid request when badgeId is provided" in {
       val metaDataWithSomeBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
@@ -57,8 +57,8 @@ class PublicNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private def expectedRequest(expectedBadgeId: Option[String]) = {
     val expectedHeaders: Seq[Header] = expectedBadgeId.fold(Seq[Header]())(badgeId => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)))
 
-    PublicNotificationRequest(validFieldsId,
-      PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
+    PushNotificationRequest(validFieldsId,
+      PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
   }
 
 }

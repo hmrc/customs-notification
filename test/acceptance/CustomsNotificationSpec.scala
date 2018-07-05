@@ -34,7 +34,7 @@ import scala.xml.XML.loadString
 class CustomsNotificationSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
-  with PublicNotificationService
+  with PushNotificationService
   with GoogleAnalyticsSenderService
   with MongoSpecSupport {
 
@@ -56,7 +56,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
   override protected def beforeAll() {
     startMockServer()
-    setupPublicNotificationServiceToReturn()
+    setupPushNotificationServiceToReturn()
   }
 
   override protected def afterAll() {
@@ -90,7 +90,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
       //TODO MC to be refactored - verify if stored in repository
 //      And("the notification gateway service was called correctly")
-//      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
+//      eventually(verifyPushNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
 //      eventually(verifyNotificationQueueServiceWasNotCalled())
 //      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
 //
@@ -103,7 +103,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
     scenario("DMS/MDG submits a valid request with incorrect callback details used") {
       startApiSubscriptionFieldsService(validFieldsId,callbackData)
-      setupPublicNotificationServiceToReturn(NOT_FOUND)
+      setupPushNotificationServiceToReturn(NOT_FOUND)
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
@@ -124,7 +124,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
       //TODO MC to be refactored - verify if stored in repository
 //      And("the notification gateway service was called correctly")
-//      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
+//      eventually(verifyPushNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
 //      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(3))
 //
 //      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
