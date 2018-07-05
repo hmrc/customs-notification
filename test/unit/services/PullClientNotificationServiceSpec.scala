@@ -14,48 +14,87 @@
  * limitations under the License.
  */
 
-package unit.services;
+package unit.services
 
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
-import org.mockito.{ArgumentMatchers, Mockito}
+;
+
+import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.{any, eq => meq}
+import org.mockito.Mockito._
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.mockito.MockitoSugar
-import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.PullClientNotificationService
-import uk.gov.hmrc.http.HttpResponse
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
+import util.TestData._
 
 import scala.concurrent.Future;
 
-class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar {
+class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach {
 
-  private val pullConnector = mock[NotificationQueueConnector]
-  private val mockLogger = mock[NotificationLogger]
-  private val service = new PullClientNotificationService(pullConnector, mockLogger)
+  private val mockPullConnector = mock[NotificationQueueConnector]
+  private val mockLogger = mock[CdsLogger]
+  private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
+  private val service = new PullClientNotificationService(mockPullConnector, mockLogger, mockGAConnector)
   private val mockNotification = mock[ClientNotification]
+  private implicit val hc = mock[HeaderCarrier]
+  private val someNotification = clientNotification()
+
+  override protected def beforeEach(): Unit = {
+    reset(mockPullConnector, mockLogger, mockGAConnector)
+
+    when(mockPullConnector.enqueue(any[ClientNotification]))
+      .thenReturn(Future.successful(mock[HttpResponse]))
+
+    when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
+
+  }
 
   "Pull service" should {
 
-    "wait for result and return True when the request to Pull Service is successful" in {
-      when(pullConnector.enqueue(any[ClientNotification]))
-        .thenReturn(Future.successful(mock[HttpResponse]))
+    "return sync True when the request to Pull Service is successful" in {
+      service.send(someNotification) should be(true)
 
-      await(service.send(mockNotification)) should be(true)
-
-
+      andGAEventHasBeenSentWith("notificationLeftToBePulled", s"[ConversationId=${someNotification.notification.conversationId}] A notification has been left to be pulled")
     }
 
-    "wait for result and return False when the request to Pull Service is not successful" in {
-      when(pullConnector.enqueue(any[ClientNotification]))
+    "return sync False when the request to Pull Service is not successful" in {
+      when(mockPullConnector.enqueue(any[ClientNotification]))
         .thenReturn(Future.failed(new RuntimeException("something went wrong")))
 
-      await(service.send(mockNotification)) should be(false)
+      service.send(someNotification) should be(false)
 
+      andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
+    }
 
+    "return async True when the request to Pull Service is successful" in {
+      await(service.sendAsync(someNotification)) should be(true)
+
+      andGAEventHasBeenSentWith("notificationLeftToBePulled", s"[ConversationId=${someNotification.notification.conversationId}] A notification has been left to be pulled")
+    }
+
+    "return async False when the request to Pull Service is not successful" in {
+      when(mockPullConnector.enqueue(any[ClientNotification]))
+        .thenReturn(Future.failed(new RuntimeException("something went wrong")))
+
+      await(service.sendAsync(someNotification)) should be(false)
+
+      andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
     }
 
   }
 
+  private def andGAEventHasBeenSentWith(expectedEventName: String, expectedMessage: String) = {
+    val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+    val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
+
+    verify(mockGAConnector, times(1)).send(eventNameCaptor.capture(), msgCaptor.capture())(any())
+
+    val capturedEventNames = eventNameCaptor.getAllValues
+    eventNameCaptor.getValue should be(expectedEventName)
+    msgCaptor.getValue should be(expectedMessage)
+  }
 }

@@ -19,24 +19,47 @@ package uk.gov.hmrc.customs.notification.services
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 
-import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
-import uk.gov.hmrc.customs.notification.domain.ClientNotification
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector}
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData}
+import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
+import uk.gov.hmrc.customs.notification.logging.{LoggingHelper, NotificationLogger}
+import uk.gov.hmrc.http.HeaderCarrier
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 @Singleton
 class PullClientNotificationService @Inject() (notificationQueueConnector: NotificationQueueConnector,
-                                               notificationsLogger: NotificationLogger) {
+                                               logger: CdsLogger,
+                                               gaConnector: GoogleAnalyticsSenderConnector) {
+
+  private implicit val hc = HeaderCarrier()
 
   def send(clientNotification: ClientNotification): Boolean = {
 
     Await.ready(
-      notificationQueueConnector.enqueue(clientNotification),
+      sendAsync(clientNotification),
       // This timeout value does not matter as the httpVerbs timeout is the real timeout for us which is currently set as 20Seconds.
       Duration.apply(25, TimeUnit.SECONDS)
-    ).value.get.isSuccess
+    ).value.get.get
   }
 
+
+  def sendAsync(clientNotification: ClientNotification): Future[Boolean] = {
+    notificationQueueConnector.enqueue(clientNotification).map { _ =>
+      gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${clientNotification.notification.conversationId}] A notification has been left to be pulled")
+      logger.info(logMsgPrefix(clientNotification) + "Notification has been passed on to PULL service")
+      true
+    }
+      .recover {
+        case t: Throwable =>
+          gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${clientNotification.notification.conversationId}] A notification Pull request failed")
+          logger.error(logMsgPrefix(clientNotification) + "Failed to pass the notification to PULL service", t)
+          false
+      }
+  }
 }
