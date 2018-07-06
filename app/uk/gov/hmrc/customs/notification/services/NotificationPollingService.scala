@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.modules
+package uk.gov.hmrc.customs.notification.services
 
 import akka.actor.ActorSystem
 import javax.inject._
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.NotificationDispatcher
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 
 import scala.concurrent.ExecutionContext
@@ -32,11 +31,11 @@ class NotificationPollingService @Inject() (config: ConfigService,
                                             clientNotificationRepo: ClientNotificationRepo,
                                             notificationDispatcher: NotificationDispatcher)(implicit executionContext: ExecutionContext) {
 
-  actorSystem.scheduler.schedule(initialDelay = 0.seconds, interval = 5.seconds) {
-    val eventualIds = clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked()
-    eventualIds.map(csIdSet => {
-      val eventualUnit = notificationDispatcher.process(csIdSet)
-      eventualUnit
+  private val pollingDelay: FiniteDuration = config.pushNotificationConfig.pollingDelay
+
+  actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
+    clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked().map(csIdSet => {
+      notificationDispatcher.process(csIdSet)
     })
   }
 }
