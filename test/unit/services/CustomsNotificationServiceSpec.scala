@@ -18,20 +18,21 @@ package unit.services
 
 import java.util.UUID
 
-import org.mockito.{ArgumentCaptor, ArgumentMatcher}
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
-import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector, PushNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService, PushNotificationRequestService}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData
 import util.TestData._
@@ -43,7 +44,10 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
+    X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
+    X_BADGE_ID_HEADER_NAME -> "test-badge-id",
+    X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val validCallbackData = DeclarantCallbackData("callbackUrl", "securityToken")
@@ -53,7 +57,9 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
   private val contentType = "application/xml"
-  private val notification = Notification(conversationId ,hc.headers.seq.map(a => Header(a._1, a._2)), pushNotificationRequest.body.xmlPayload, contentType)
+  private val badgeIdHeader: (String, String) = hc.headers.filter(a => a._1 == "X-Badge-Identifier").head
+  private val expectedHeaders = Seq(Header(badgeIdHeader._1, badgeIdHeader._2))
+  private val notification = Notification(conversationId, expectedHeaders, pushNotificationRequest.body.xmlPayload, contentType)
   private val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(pushNotificationRequest.clientSubscriptionId))
   private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
   private val mockPullService = mock[PullClientNotificationService]

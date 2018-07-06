@@ -17,10 +17,11 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.util.UUID
-import javax.inject.{Inject, Singleton}
 
+import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -39,11 +40,14 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            pullClientNotificationService: PullClientNotificationService
                                           ) {
 
+  private val allowedHeaders = Seq(X_BADGE_ID_HEADER_NAME)
+
   def handleNotification(xml: NodeSeq, callbackDetails: DeclarantCallbackData, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
 
-    val value = hc.headers.seq.map(a => Header(a._1, a._2))
-    val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), value, xml.toString, MimeTypes.XML), None)
+    val headers = hc.headers.seq.filter(a => allowedHeaders contains a._1).map(a => Header(a._1, a._2))
+
+    val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), headers, xml.toString, MimeTypes.XML), None)
 
     if (callbackDetails.callbackUrl.isEmpty) {
       logger.info("Notification will be enqueued as callbackUrl is empty")
