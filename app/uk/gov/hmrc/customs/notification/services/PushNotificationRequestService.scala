@@ -17,7 +17,6 @@
 package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
-
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_BADGE_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
@@ -35,11 +34,11 @@ class PushNotificationRequestService @Inject()(apiSubscriptionFieldsConnector: A
       case Some(badgeId) => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId))
     }
 
-    PushNotificationRequest(metaData.clientId,
+    PushNotificationRequest(metaData.clientId.id.toString,
       PushNotificationRequestBody(
         clientData.callbackUrl,
         clientData.securityToken,
-        metaData.conversationId.toString,
+        metaData.conversationId.toString(),
         outboundCallHeaders,
         notificationXML.toString()))
   }

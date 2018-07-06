@@ -24,6 +24,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, ConversationId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
@@ -34,7 +35,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
-case class RequestMetaData(clientId: String, conversationId: UUID, mayBeBadgeId: Option[String])
+case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[String])
 
 @Singleton
 class CustomsNotificationController @Inject()(logger: NotificationLogger,
@@ -60,15 +61,15 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
 
   private def requestMetaData(headers: Headers): RequestMetaData = {
     // headers have been validated so safe to do a naked get except badgeId which is optional
-    RequestMetaData(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get,
-      UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get),
+    RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
+      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
       headers.get(X_BADGE_ID_HEADER_NAME))
   }
 
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier) = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
-    callbackDetailsConnector.getClientData(md.clientId).flatMap {
+    callbackDetailsConnector.getClientData(md.clientId.id.toString).flatMap {
 
       case Some(callbackData) =>
         customsNotificationService.handleNotification(xml, callbackData, md).recover{

@@ -33,22 +33,22 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
-  val metaData = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
+  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
 
   "PushNotificationRequestService" should {
 
     "return valid request when badgeId is provided" in {
-      val metaDataWithSomeBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, Some(badgeId))
+      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
       service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId))
     }
 
     "request does not contain badgeId header when it is not provided" in {
-      val metaDataWithNoBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, None)
+      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None)
       service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None)
     }
 
     "request does not contain badgeId header when it is provided as empty value" in {
-      val metaDataWithEmptyBadgeId = RequestMetaData(validFieldsId, validConversationIdUUID, Some(""))
+      val metaDataWithEmptyBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(""))
       service.createRequest(ValidXML, callbackData, metaDataWithEmptyBadgeId) shouldBe expectedRequest(None)
     }
 
