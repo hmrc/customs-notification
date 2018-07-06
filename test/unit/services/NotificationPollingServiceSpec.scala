@@ -52,8 +52,7 @@ class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
 
 
       when(configServiceMock.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
-      when(mockPushNotificationConfig.lockDuration).thenReturn(org.joda.time.Duration.millis(5000))
-      when(mockPushNotificationConfig.pollingDelay).thenReturn(0.seconds)
+      when(mockPushNotificationConfig.pollingDelay).thenReturn(5.seconds)
 
       val argumentCapture = ArgumentCaptor.forClass(classOf[Set[ClientSubscriptionId]])
 

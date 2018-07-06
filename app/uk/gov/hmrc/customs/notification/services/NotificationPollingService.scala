@@ -22,8 +22,7 @@ import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration.fromNanos
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 
 @Singleton
@@ -33,9 +32,8 @@ class NotificationPollingService @Inject() (config: ConfigService,
                                             notificationDispatcher: NotificationDispatcher)(implicit executionContext: ExecutionContext) {
 
   private val pollingDelay: FiniteDuration = config.pushNotificationConfig.pollingDelay
-  private val lockDuration: FiniteDuration = fromNanos(config.pushNotificationConfig.lockDuration.getMillis * 1000 * 1000)
 
-  actorSystem.scheduler.schedule(pollingDelay, lockDuration) {
+  actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
     clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked().map(csIdSet => {
       notificationDispatcher.process(csIdSet)
     })
