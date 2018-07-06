@@ -132,7 +132,6 @@ class ClientWorkerImpl @Inject()(
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
     Future{
       blockingProcessLoop(csid, lockOwnerId)
-      logger.info(s"[clientSubscriptionId=$csid] Push successful")
       blockingReleaseLock(csid, lockOwnerId)
     }
   }
@@ -146,6 +145,7 @@ class ClientWorkerImpl @Inject()(
         if (seq.nonEmpty) {
           blockingPushProcessing(seq)
           blockingProcessLoop(csid, lockOwnerId) //TODO: replace recursion
+          logger.info(s"[clientSubscriptionId=$csid] Push successful")
         }
       } catch {
         case PushProcessingException(msg) =>
