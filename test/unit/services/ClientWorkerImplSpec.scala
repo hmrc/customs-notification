@@ -42,7 +42,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
   private val oneThousand = 1000
   private val lockDuration = org.joda.time.Duration.millis(oneThousand)
-0
+
   trait SetUp {
     val mockActorSystem = mock[ActorSystem]
     val mockScheduler = mock[Scheduler]

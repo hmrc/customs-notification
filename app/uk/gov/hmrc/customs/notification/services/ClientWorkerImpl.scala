@@ -32,10 +32,9 @@ import scala.concurrent.duration.{DurationDouble, FiniteDuration}
 import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
 
-case class PushProcessingException(msg: String) extends RuntimeException(msg)
-
 /*
 TODO:
+- Do we need to also call isLocked?
 Questions
 - I still have concerns with blocking code inside a FUTURE
 - I think if we have many concurrent CSIDs then with blocking code inside a FUTURE we may exhaust thread pool
@@ -54,6 +53,8 @@ class ClientWorkerImpl @Inject()(
                                   lockRepo: LockRepo,
                                   logger: NotificationLogger
                                 ) extends ClientWorker {
+
+  private case class PushProcessingException(msg: String) extends RuntimeException(msg)
 
   private val awaitApiCallDuration = 120 second
 
