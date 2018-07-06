@@ -30,6 +30,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.http.HeaderCarrier
 
+import scala.collection.immutable.Seq
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationDouble, FiniteDuration}
 import scala.concurrent.{Await, Future}
@@ -113,35 +114,48 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  private def releaseLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier): Future[Unit] = {
-    lockRepo.release(csid, lockOwnerId).map { _ =>
+  private def blockingReleaseLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier): Unit = {
+    val f = lockRepo.release(csid, lockOwnerId).map { _ =>
       logger.info(s"[clientSubscriptionId=$csid][lockOwnerId=${lockOwnerId.id}] released lock")
     }.recover {
       case NonFatal(_) =>
         val msg = s"[clientSubscriptionId=$csid][lockOwnerId=${lockOwnerId.id}] error releasing lock"
         logger.error(msg) //TODO: extend logging API so that we can log an error on a throwable
     }
+    Await.result(f, awaitApiCallDuration)
+  }
+
+  private def blockingFetch(csid: ClientSubscriptionId): Seq[ClientNotification] = {
+    Await.result(repo.fetch(csid), awaitApiCallDuration)
   }
 
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
-
-    logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
-
-    repo.fetch(csid).map{ clientNotifications =>
-      blockingInnerPushLoop(clientNotifications)
-    }.flatMap {_ =>
+    Future{
+      blockingProcessLoop(csid, lockOwnerId)
       logger.info(s"[clientSubscriptionId=$csid] Push successful")
-      releaseLock(csid, lockOwnerId)
-    }.recover{
-      case PushProcessingException(msg) =>
-        enqueueNotificationsOnPullQueue(csid, lockOwnerId)
-      case NonFatal(e) =>
-        logger.error(s"[clientSubscriptionId=$csid] error pushing notifications: ${e.getMessage}")
-        releaseLock(csid, lockOwnerId)
+      blockingReleaseLock(csid, lockOwnerId)
     }
   }
 
-  private def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  private def blockingProcessLoop(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+
+    logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
+
+      try {
+        val seq = blockingFetch(csid)
+        if (seq.nonEmpty) {
+          blockingPushProcessing(seq)
+          blockingProcessLoop(csid, lockOwnerId) //TODO: replace recursion
+        }
+      } catch {
+        case PushProcessingException(msg) =>
+          blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
+        case NonFatal(e) =>
+          logger.error(s"[clientSubscriptionId=$csid] error pushing notifications: ${e.getMessage}")
+      }
+  }
+
+  private def blockingPushProcessing(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
         throw new IllegalStateException("quitting pull processing - error refreshing lock")
@@ -178,19 +192,17 @@ class ClientWorkerImpl @Inject()(
   }
 
 
-  private def enqueueNotificationsOnPullQueue(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean) = {
+  private def blockingEnqueueNotificationsOnPullQueue(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     logger.info(s"[clientSubscriptionId=$csid] About to enqueue notifications to pull queue")
 
-    repo.fetch(csid).map{ clientNotifications =>
-      blockingInnerPullLoop(clientNotifications)
-    }.map{ _ =>
+    try {
+      blockingInnerPullLoop(blockingFetch(csid))
       logger.info(s"[clientSubscriptionId=$csid] enqueue to pull queue successful")
-      releaseLock(csid, lockOwnerId)
-    }.recover{
+    } catch {
       case NonFatal(_) =>
         logger.error(s"[clientSubscriptionId=$csid] error enqueuing notifications to pull queue")
-        releaseLock(csid, lockOwnerId)
     }
+
   }
 
   private def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {

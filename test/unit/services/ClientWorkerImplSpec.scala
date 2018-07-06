@@ -94,7 +94,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "push notifications when there are no errors" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)))
+          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List()))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
@@ -115,7 +115,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "push notifications even when there are errors deleting the notification after a successful push" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List()))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
@@ -162,6 +162,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         eventually {
           verify(mockCancelable).cancel()
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+          verify(mockPullClientNotificationService).send(ameq(ClientNotificationOne))
         }
       }
     }

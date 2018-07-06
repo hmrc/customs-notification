@@ -103,9 +103,9 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     "In happy path" should {
       "refresh timer when elapsed time > time delay duration" in new SetUp {
 
-        when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId) , any[org.joda.time.Duration])).thenReturn(Future.successful(true))
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List()))
+        when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId) , any[org.joda.time.Duration])).thenReturn(Future.successful(true))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
