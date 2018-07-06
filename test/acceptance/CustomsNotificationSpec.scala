@@ -67,7 +67,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     resetMockServer()
   }
 
-  feature("Ensure call to public notification service is made when request is valid") {
+  feature("Ensure call to push notification service is made when request is valid") {
 
     scenario("DMS/MDG submits a valid request") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)

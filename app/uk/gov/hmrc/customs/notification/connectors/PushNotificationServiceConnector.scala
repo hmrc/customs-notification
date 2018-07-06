@@ -47,7 +47,7 @@ class PushNotificationServiceConnector @Inject()(http: HttpClient,
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
-    val msg = "Calling public notification service"
+    val msg = "Calling push notification service"
     logger.debug(msg, url, payload = pushNotificationRequest.body.toString)
 
     val postFuture = http
@@ -57,7 +57,7 @@ class PushNotificationServiceConnector @Inject()(http: HttpClient,
       }
       .recoverWith {
         case e: Throwable =>
-          logger.error(s"Call to public notification service failed. POST url=$url")
+          logger.error(s"Call to push notification service failed. POST url=$url")
           Future.failed(e)
       }
     postFuture

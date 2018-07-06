@@ -30,7 +30,7 @@ import scala.concurrent.duration.Duration
 
 
 @Singleton
-class PushClientNotificationService @Inject() (publicNotificationServiceConnector: PushNotificationServiceConnector,
+class PushClientNotificationService @Inject() (pushNotificationServiceConnector: PushNotificationServiceConnector,
                                                gaConnector: GoogleAnalyticsSenderConnector,
                                                notificationLogger: NotificationLogger) {
 
@@ -40,7 +40,7 @@ class PushClientNotificationService @Inject() (publicNotificationServiceConnecto
 
     val pushNotificationRequest = pushNotificationRequestFrom(declarantCallbackData, clientNotification)
 
-    val result = Await.ready(publicNotificationServiceConnector.send(pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
+    val result = Await.ready(pushNotificationServiceConnector.send(pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
     if (result) {
       notificationLogger.debug(s"${logMsgPrefix(clientNotification)} Notification has been pushed")
       gaConnector.send("notificationPushRequestSuccess", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification has been pushed successfully")

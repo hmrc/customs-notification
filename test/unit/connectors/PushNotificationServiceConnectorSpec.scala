@@ -51,7 +51,7 @@ class PushNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  "PublicNotificationServiceConnector" should {
+  "PushNotificationServiceConnector" should {
     when(serviceConfigProvider.getConfig("public-notification")).thenReturn(ServiceConfig(url, None, "default"))
 
     "POST valid payload" in {

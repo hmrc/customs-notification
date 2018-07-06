@@ -34,15 +34,15 @@ import scala.concurrent.Future
 
 class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterEach {
 
-  private val mockPublicNotificationServiceConnector = mock[PushNotificationServiceConnector]
+  private val mockPushNotificationServiceConnector = mock[PushNotificationServiceConnector]
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockNotificationLogger = mock[NotificationLogger]
   private implicit val hc = HeaderCarrier()
 
-  private val pushService = new PushClientNotificationService(mockPublicNotificationServiceConnector, mockGAConnector, mockNotificationLogger)
+  private val pushService = new PushClientNotificationService(mockPushNotificationServiceConnector, mockGAConnector, mockNotificationLogger)
 
   override protected def beforeEach(): Unit = {
-    reset(mockPublicNotificationServiceConnector, mockGAConnector, mockNotificationLogger)
+    reset(mockPushNotificationServiceConnector, mockGAConnector, mockNotificationLogger)
 
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
   }
@@ -50,18 +50,18 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
   "PushClientNotificationService" should {
     "return true when push is successful" in {
-      when(mockPublicNotificationServiceConnector.send(pnrOne)).thenReturn(Future.successful(()))
+      when(mockPushNotificationServiceConnector.send(pnrOne)).thenReturn(Future.successful(()))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       val result = await(pushService.send(DeclarantCallbackDataOne, ClientNotificationOne))
 
       result shouldBe true
-      eventually(verify(mockPublicNotificationServiceConnector).send(meq(pnrOne)))
+      eventually(verify(mockPushNotificationServiceConnector).send(meq(pnrOne)))
       andGAEventHasBeenSentWith("notificationPushRequestSuccess", "[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] A notification has been pushed successfully")
     }
 
     "return false when push fails" in {
-      when(mockPublicNotificationServiceConnector.send(pnrOne)).thenReturn(Future.failed(emulatedServiceFailure))
+      when(mockPushNotificationServiceConnector.send(pnrOne)).thenReturn(Future.failed(emulatedServiceFailure))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       val result = await(pushService.send(DeclarantCallbackDataOne, ClientNotificationOne))
