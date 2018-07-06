@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-package unit.modules
+package unit.services
 
 import java.util.UUID.randomUUID
 
 import akka.actor.ActorSystem
+import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.modules.NotificationPollingService
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, PushNotificationConfig}
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.NotificationDispatcher
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
+import uk.gov.hmrc.customs.notification.services.{NotificationDispatcher, NotificationPollingService}
 import uk.gov.hmrc.play.test.UnitSpec
-import org.mockito.ArgumentCaptor
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.duration.FiniteDuration
 
 class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
   val clientNotificationRepoMock = mock[ClientNotificationRepo]
@@ -45,8 +46,14 @@ class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
 
       val csIds = Set(ClientSubscriptionId(randomUUID), ClientSubscriptionId(randomUUID), ClientSubscriptionId(randomUUID))
       val csIdsMinus1 = csIds.take(2)
+      val mockPushNotificationConfig = mock[PushNotificationConfig]
 
       when(clientNotificationRepoMock.fetchDistinctNotificationCSIDsWhichAreNotLocked()).thenReturn(Future.successful(csIds)).thenReturn(csIdsMinus1)
+
+
+      when(configServiceMock.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
+      when(mockPushNotificationConfig.lockDuration).thenReturn(org.joda.time.Duration.millis(5000))
+      when(mockPushNotificationConfig.pollingDelay).thenReturn(0.seconds)
 
       val argumentCapture = ArgumentCaptor.forClass(classOf[Set[ClientSubscriptionId]])
 

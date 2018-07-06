@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.modules
+package uk.gov.hmrc.customs.notification.services
 
 import akka.actor.ActorSystem
 import javax.inject._
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.NotificationDispatcher
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
+import scala.concurrent.duration.Duration.fromNanos
+import scala.concurrent.duration.FiniteDuration
 
 
 @Singleton
@@ -32,11 +32,12 @@ class NotificationPollingService @Inject() (config: ConfigService,
                                             clientNotificationRepo: ClientNotificationRepo,
                                             notificationDispatcher: NotificationDispatcher)(implicit executionContext: ExecutionContext) {
 
-  actorSystem.scheduler.schedule(initialDelay = 0.seconds, interval = 5.seconds) {
-    val eventualIds = clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked()
-    eventualIds.map(csIdSet => {
-      val eventualUnit = notificationDispatcher.process(csIdSet)
-      eventualUnit
+  private val pollingDelay: FiniteDuration = config.pushNotificationConfig.pollingDelay
+  private val lockDuration: FiniteDuration = fromNanos(config.pushNotificationConfig.lockDuration.getMillis * 1000 * 1000)
+
+  actorSystem.scheduler.schedule(pollingDelay, lockDuration) {
+    clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked().map(csIdSet => {
+      notificationDispatcher.process(csIdSet)
     })
   }
 }
