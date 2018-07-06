@@ -57,7 +57,7 @@ class PushNotificationServiceConnector @Inject()(http: HttpClient,
       }
       .recoverWith {
         case e: Throwable =>
-          logger.error(s"Call to push notification service failed. POST url=$url")
+          logger.error(s"Call to push notification service failed. POST url=$url, $e")
           Future.failed(e)
       }
     postFuture

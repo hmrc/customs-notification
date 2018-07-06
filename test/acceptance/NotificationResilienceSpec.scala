@@ -25,6 +25,7 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.repo.MongoDbProvider
 import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
@@ -33,11 +34,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class NotificationResilienceSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
-  with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
+  with ApiSubscriptionFieldsService with NotificationQueueService
   with PushNotificationService
   with GoogleAnalyticsSenderService
-  with MongoSpecSupport
-{
+  with MongoSpecSupport {
 
   private val endpoint = "/customs-notification/notify"
   private val googleAnalyticsTrackingId: String = "UA-12345678-2"
@@ -46,7 +46,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
 
   val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
-    mongo = mongo,
+    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
     domainFormat = ClientNotification.clientNotificationJF) {
 
 
@@ -56,6 +56,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
     acceptanceTestConfigs +
       ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
       ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
+      ("push.polling.delay.duration.milliseconds" -> 2) +
       ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
 
 
@@ -65,10 +66,10 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
 
   override protected def beforeAll() {
     startMockServer()
-    setupPushNotificationServiceToReturn()
   }
 
   override protected def beforeEach(): Unit = {
+    resetMockServer()
     await(repo.drop)
   }
 
@@ -76,50 +77,39 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
     stopMockServer()
   }
 
-  override protected def afterEach(): Unit = {
-    resetMockServer()
-  }
 
   feature("Ensure call to customs notification gateway are made") {
-    // TODO once code is in place
-    ignore("when notifications are present in the database") {
 
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(validConversationIdUUID), Seq[Header](), ValidXML.toString(), "application/xml")))
-
+    scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
+      setupPushNotificationServiceToReturn()
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
+      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
+        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")))
 
       And("the notification gateway service was called correctly")
-      eventually(verifyPushNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
+      eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
       eventually(verifyNotificationQueueServiceWasNotCalled())
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
+      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(1))
 
       callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
         s"[ConversationId=$validConversationId] A notification has been pushed successfully") shouldBe true
     }
-    // TODO once code is in place
-    ignore("when notifications are present in the database and push fails") {
 
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(validConversationIdUUID), Seq[Header](), ValidXML.toString(), "application/xml")))
-
+    scenario("when notifications are present in the database and push fails") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupPushNotificationServiceToReturn(404)
       setupGoogleAnalyticsEndpoint()
+      runNotificationQueueService(CREATED)
+
+      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
+        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")))
 
       And("the notification gateway service was called correctly")
-
-      eventually(verifyPushNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
-      eventually(verifyNotificationQueueServiceWasCalledWith(
-        PushNotificationRequest(validFieldsId,
-        PushNotificationRequestBody(callbackUrl,
-          basicAuthTokenValue,
-          validConversationId,
-          Seq[Header](),
-          ValidXML.toString()))))
+      eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
+      eventually(verifyNotificationQueueServiceWasCalledWith(pushNotificationRequest))
 
       eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
 
