@@ -44,15 +44,16 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
 
+  private val badgeIdValue = "test-badge-id"
   private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
     X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
-    X_BADGE_ID_HEADER_NAME -> "test-badge-id",
+    X_BADGE_ID_HEADER_NAME -> badgeIdValue,
     X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val validCallbackData = DeclarantCallbackData("callbackUrl", "securityToken")
   private val callbackDataWithEmptyCallbackUrl = DeclarantCallbackData("", "securityToken")
-  private val requestMetaData = RequestMetaData(TestData.validFieldsId, validConversationIdUUID, None)
+  private val requestMetaData = RequestMetaData(TestData.validFieldsId, validConversationIdUUID, Some(badgeIdValue))
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
