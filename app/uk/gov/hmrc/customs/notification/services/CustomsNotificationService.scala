@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import java.util.UUID
-
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
@@ -45,7 +43,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     val headers = metaData.mayBeBadgeId.fold(Seq.empty[Header])(id => Seq(Header(X_BADGE_ID_HEADER_NAME, id)))
 
-    val clientNotification = ClientNotification(ClientSubscriptionId(UUID.fromString(metaData.clientId)), Notification(ConversationId(metaData.conversationId), headers, xml.toString, MimeTypes.XML), None)
+    val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None)
 
     if (callbackDetails.callbackUrl.isEmpty) {
       logger.info("Notification will be enqueued as callbackUrl is empty")

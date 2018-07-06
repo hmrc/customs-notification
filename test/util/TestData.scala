@@ -40,7 +40,7 @@ object TestData {
   val invalidConversationId: String = "I-am-not-a-valid-uuid"
 
   val validFieldsId = "ffff01f9-ec3b-4ede-b263-61b626dde232"
-  val clientSubscriptionId = ClientSubscriptionId(UUID.randomUUID())
+  val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(validFieldsId))
   val invalidFieldsId = "I-am-not-a-valid-type-4-uuid"
 
   val basicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
