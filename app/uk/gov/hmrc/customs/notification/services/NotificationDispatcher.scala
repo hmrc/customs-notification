@@ -17,13 +17,13 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.util.UUID
+import javax.inject.{Inject, Singleton}
 
 import com.google.inject.ImplementedBy
-import javax.inject.{Inject, Singleton}
-import org.joda.time.Duration
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
+import uk.gov.hmrc.customs.notification.services.config.ConfigService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -35,9 +35,12 @@ trait NotificationDispatcher {
 }
 
 @Singleton
-class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker, lockRepo: LockRepo, logger: NotificationLogger) extends NotificationDispatcher {
+class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker,
+                                           lockRepo: LockRepo,
+                                           configService: ConfigService,
+                                           logger: NotificationLogger) extends NotificationDispatcher {
 
-  private val duration = Duration.standardMinutes(2) //TODO MC this should be configurable property (Avinder will make this change)
+  private val duration = configService.pushNotificationConfig.lockDuration
 
   def process(csids: Set[ClientSubscriptionId]): Future[Unit] = {
     logger.debugWithoutRequestContext(s"received $csids and about to process them")
