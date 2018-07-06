@@ -34,7 +34,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class NotificationResilienceSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
-  with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
+  with ApiSubscriptionFieldsService with NotificationQueueService
   with PushNotificationService
   with GoogleAnalyticsSenderService
   with MongoSpecSupport {
@@ -56,6 +56,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
     acceptanceTestConfigs +
       ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
       ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
+      ("push.polling.delay.duration.milliseconds" -> 2) +
       ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
 
 
@@ -65,12 +66,10 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
 
   override protected def beforeAll() {
     startMockServer()
-
   }
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    setupPushNotificationServiceToReturn()
     await(repo.drop)
   }
 
@@ -83,6 +82,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
 
     scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
+      setupPushNotificationServiceToReturn()
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
