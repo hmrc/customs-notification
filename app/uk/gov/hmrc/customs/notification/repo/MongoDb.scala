@@ -18,8 +18,8 @@ package uk.gov.hmrc.customs.notification.repo
 
 import javax.inject.Singleton
 
-import com.google.inject.ImplementedBy
-import play.modules.reactivemongo.MongoDbConnection
+import com.google.inject.{ImplementedBy, Inject}
+import play.modules.reactivemongo.{MongoDbConnection, ReactiveMongoComponent}
 import reactivemongo.api.DB
 
 @ImplementedBy(classOf[MongoDb])
@@ -28,6 +28,6 @@ trait MongoDbProvider {
 }
 
 @Singleton
-class MongoDb extends MongoDbConnection with MongoDbProvider {
-  override val mongo: () => DB = db
+class MongoDb @Inject()(reactiveMongoComponent: ReactiveMongoComponent)  extends MongoDbProvider {
+  override val mongo: () => DB = reactiveMongoComponent.mongoConnector.db
 }

@@ -57,7 +57,18 @@ class PushNotificationServiceConnectorSpec extends IntegrationTestSpec with Guic
       "auditing.enabled" -> false,
       "microservice.services.public-notification.host" -> Host,
       "microservice.services.public-notification.port" -> Port,
-      "microservice.services.public-notification.context" -> ExternalServicesConfiguration.PushNotificationServiceContext
+      "microservice.services.public-notification.context" -> ExternalServicesConfiguration.PushNotificationServiceContext,
+      "microservice.services.api-subscription-fields.host" -> ExternalServicesConfiguration.Host,
+      "microservice.services.api-subscription-fields.port" -> ExternalServicesConfiguration.Port,
+      "microservice.services.api-subscription-fields.context" -> ExternalServicesConfiguration.ApiSubscriptionFieldsServiceContext,
+      "microservice.services.google-analytics-sender.host" -> ExternalServicesConfiguration.Host,
+      "microservice.services.google-analytics-sender.port" -> ExternalServicesConfiguration.Port,
+      "microservice.services.google-analytics-sender.context" -> ExternalServicesConfiguration.GoogleAnalyticsEndpointContext,
+      "microservice.services.notification-queue.host" -> ExternalServicesConfiguration.Host,
+      "microservice.services.notification-queue.port" -> ExternalServicesConfiguration.Port,
+      "microservice.services.notification-queue.context" -> ExternalServicesConfiguration.NotificationQueueContext,
+      "auditing.enabled" -> false,
+      "mongodb.uri" -> "mongodb://localhost:27017/customs-notification"
     )).build()
 
   "PushNotificationServiceConnector" should {
