@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import org.joda.time.Duration
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.repo.LockOwnerId
 
@@ -23,11 +24,10 @@ import scala.concurrent.Future
 
 trait ClientWorker {
 
-  def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Unit]
+  def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Unit]
 }
 
 //TODO MC to be removed after CDD-1613
 class DummyClientWorker extends ClientWorker {
-  override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Unit] = Future.successful(())
+  override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Unit] = Future.successful(())
 }
-

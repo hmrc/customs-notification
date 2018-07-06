@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import java.math.MathContext
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.{Inject, Singleton}
 
@@ -26,19 +27,15 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.http.HeaderCarrier
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.DurationDouble
+import scala.concurrent.duration.{DurationDouble, FiniteDuration}
+import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
 
 case class PushProcessingException(msg: String) extends RuntimeException(msg)
-case class PullProcessingException(msg: String) extends RuntimeException(msg)
 
 /*
 TODO:
-- refreshDuration -
-Assumptions:
-- "Still Locked" - my interpretation is that lock refresh has not failed
 Questions
 - I still have concerns with blocking code inside a FUTURE
 - I think if we have many concurrent CSIDs then with blocking code inside a FUTURE we may exhaust thread pool
@@ -58,18 +55,20 @@ class ClientWorkerImpl @Inject()(
                                   logger: NotificationLogger
                                 ) extends ClientWorker {
 
-  private val extendLockDuration =  org.joda.time.Duration.millis(1200)//org.joda.time.Duration.millis(config.pushNotificationConfig.lockRefreshDurationInMilliseconds)
-  private val refreshDuration = 800 milliseconds //Duration(config.pushNotificationConfig.lockRefreshDurationInMilliseconds, TimeUnit.MILLISECONDS)
-  private val awaitApiCallDuration = 1 second
+  private val awaitApiCallDuration = 120 second
 
-  override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId): Future[Unit] = {
+  override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
     //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
     //however looking at api-subscription-fields service I do not think it is required so keep new HeaderCarrier() for now
     implicit val hc = HeaderCarrier()
     implicit val refreshLockFailed: AtomicBoolean = new AtomicBoolean(false)
+    val refreshDuration = ninetyPercentOf(lockDuration)
     val timer = actorSystem.scheduler.schedule(initialDelay = refreshDuration, interval = refreshDuration, new Runnable {
       override def run() = {
-        refreshLock(csid, lockOwnerId)
+        refreshLock(csid, lockOwnerId, lockDuration).recover{
+          case NonFatal(e) =>
+            logger.error("error refreshing lock in timer")
+        }
       }
     })
 
@@ -77,7 +76,6 @@ class ClientWorkerImpl @Inject()(
     val eventuallyProcess = process(csid, lockOwnerId)
     eventuallyProcess.onComplete { _ => // always cancel timer ie for both Success and Failure cases
       logger.debug(s"about to cancel timer")
-
       val cancelled = timer.cancel()
       logger.debug(s"timer cancelled=$cancelled, timer.isCancelled=${timer.isCancelled}")
     }
@@ -85,8 +83,13 @@ class ClientWorkerImpl @Inject()(
     eventuallyProcess
   }
 
-  private def refreshLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
-    lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, extendLockDuration).map{ refreshedOk =>
+  private def ninetyPercentOf(lockDuration: org.joda.time.Duration): FiniteDuration = {
+    val ninetyPercentOfMillis: Long = BigDecimal(lockDuration.getMillis * 0.9, new MathContext(2)).toLong
+    ninetyPercentOfMillis milliseconds
+  }
+
+  private def refreshLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
+    lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, lockDuration).map{ refreshedOk =>
       if (!refreshedOk) {
         val ex = new IllegalStateException("Unable to refresh lock")
         throw ex
@@ -135,14 +138,14 @@ class ClientWorkerImpl @Inject()(
 
       val maybeDeclarantCallbackData = blockingMaybeDeclarantDetails(cn)
 
-      maybeDeclarantCallbackData.fold(throw new PushProcessingException("Declarant details not found")){ declarantCallbackData =>
+      maybeDeclarantCallbackData.fold(throw PushProcessingException("Declarant details not found")){ declarantCallbackData =>
         if (declarantCallbackData.callbackUrl.isEmpty) {
-          throw new PushProcessingException("callbackUrl is empty")
+          throw PushProcessingException("callbackUrl is empty")
         } else {
           if (push.send(declarantCallbackData, cn)) {
             blockingDeleteNotification(cn)
           } else {
-            throw new PushProcessingException("Push of notification failed")
+            throw PushProcessingException("Push of notification failed")
           }
         }
       }
@@ -156,10 +159,9 @@ class ClientWorkerImpl @Inject()(
   private def blockingDeleteNotification(cn: ClientNotification)(implicit hc: HeaderCarrier): Unit = {
     Await.result(
       repo.delete(cn).recover{
-        case NonFatal(e) => {
+        case NonFatal(e) =>
           // we can't do anything other than log delete error
           logger.error("error deleting notification")
-        }
       },
       awaitApiCallDuration)
   }

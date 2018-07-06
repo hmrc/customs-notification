@@ -41,9 +41,11 @@ import scala.concurrent.Future
 class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterAll {
 
   private val actorSystem = ActorSystem("TestActorSystem")
+  private val lockDuration = org.joda.time.Duration.millis(1000)
+  private val ninetyPercentOfLockDuration = 900
   private val oneAndAHalfSecondsProcessingDelay = 1500
   private val fiveSecondsProcessingDelay = 5000
-  private val lockRefreshDurationInMilliseconds = 800
+
 
   trait SetUp {
 
@@ -109,13 +111,13 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockClientNotificationRepo.delete(ameq(ClientNotificationOne)))
           .thenReturn(Future.successful(()))
 
-        val actual = await(clientWorkerWithProcessingDelay(fiveSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId))
+        val actual = await(clientWorkerWithProcessingDelay(fiveSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
         actual shouldBe (())
         eventually{
           verify(mockPushClientNotificationService).send(ameq(DeclarantCallbackDataOne), ameq(ClientNotificationOne))
           verify(mockClientNotificationRepo).delete(ameq(ClientNotificationOne))
-          val expectedLockRefreshCount = fiveSecondsProcessingDelay / lockRefreshDurationInMilliseconds
+          val expectedLockRefreshCount: Int = fiveSecondsProcessingDelay / ninetyPercentOfLockDuration
           verify(mockLockRepo, times(expectedLockRefreshCount)).tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])
         }
       }
@@ -130,7 +132,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(false))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
-        val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId))
+        val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
         actual shouldBe (())
         eventually {
