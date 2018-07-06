@@ -30,6 +30,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationDouble, FiniteDuration}
 import scala.concurrent.{Await, Future}
+import scala.language.postfixOps
 import scala.util.control.NonFatal
 
 /*
@@ -44,7 +45,6 @@ Questions
  */
 @Singleton
 class ClientWorkerImpl @Inject()(
-                                  //TODO: pass in serviceConfig
                                   actorSystem: ActorSystem,
                                   repo: ClientNotificationRepo,
                                   callbackDetailsConnector: ApiSubscriptionFieldsConnector,
@@ -65,7 +65,7 @@ class ClientWorkerImpl @Inject()(
     implicit val refreshLockFailed: AtomicBoolean = new AtomicBoolean(false)
     val refreshDuration = ninetyPercentOf(lockDuration)
     val timer = actorSystem.scheduler.schedule(initialDelay = refreshDuration, interval = refreshDuration, new Runnable {
-      override def run() = {
+      override def run(): Unit = {
         refreshLock(csid, lockOwnerId, lockDuration).recover{
           case NonFatal(e) =>
             logger.error("error refreshing lock in timer")
