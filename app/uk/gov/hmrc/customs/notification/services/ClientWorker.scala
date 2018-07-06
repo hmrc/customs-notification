@@ -25,6 +25,7 @@ import com.google.inject.ImplementedBy
 import org.joda.time.Duration
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId}
+import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.http.HeaderCarrier
@@ -85,7 +86,7 @@ class ClientWorkerImpl @Inject()(
     // cleanup timer
     val eventuallyProcess = process(csid, lockOwnerId)
     eventuallyProcess.onComplete { _ => // always cancel timer ie for both Success and Failure cases
-      logger.debug(s"about to cancel timer")
+      logger.debug("about to cancel timer")
       val cancelled = timer.cancel()
       logger.debug(s"timer cancelled=$cancelled, timer.isCancelled=${timer.isCancelled}")
     }
@@ -101,7 +102,7 @@ class ClientWorkerImpl @Inject()(
   private def refreshLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
     lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, lockDuration).map{ refreshedOk =>
       if (!refreshedOk) {
-        val ex = new IllegalStateException("Unable to refresh lock")
+        val ex = new IllegalStateException(s"[clientSubscriptionId=$csid] Unable to refresh lock")
         throw ex
       }
     }.recover{
@@ -114,28 +115,28 @@ class ClientWorkerImpl @Inject()(
 
   private def releaseLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier): Future[Unit] = {
     lockRepo.release(csid, lockOwnerId).map { _ =>
-      logger.info("released lock")
+      logger.info(s"[clientSubscriptionId=$csid][lockOwnerId=${lockOwnerId.id}] released lock")
     }.recover {
-      case NonFatal(e) =>
-        val msg = "error releasing lock"
+      case NonFatal(_) =>
+        val msg = s"[clientSubscriptionId=$csid][lockOwnerId=${lockOwnerId.id}] error releasing lock"
         logger.error(msg) //TODO: extend logging API so that we can log an error on a throwable
     }
   }
 
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
 
-    logger.info(s"About to push notifications")
+    logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
 
     repo.fetch(csid).map{ clientNotifications =>
       blockingInnerPushLoop(clientNotifications)
     }.flatMap {_ =>
-      logger.info("Push successful")
+      logger.info(s"[clientSubscriptionId=$csid] Push successful")
       releaseLock(csid, lockOwnerId)
     }.recover{
       case PushProcessingException(msg) =>
         enqueueNotificationsOnPullQueue(csid, lockOwnerId)
       case NonFatal(e) =>
-        logger.error(s"error pushing notifications: ${e.getMessage}")
+        logger.error(s"[clientSubscriptionId=$csid] error pushing notifications: ${e.getMessage}")
         releaseLock(csid, lockOwnerId)
     }
   }
@@ -143,19 +144,19 @@ class ClientWorkerImpl @Inject()(
   private def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
-        throw new IllegalStateException("quiting pull processing - error refreshing lock")
+        throw new IllegalStateException("quitting pull processing - error refreshing lock")
       }
 
       val maybeDeclarantCallbackData = blockingMaybeDeclarantDetails(cn)
 
-      maybeDeclarantCallbackData.fold(throw PushProcessingException("Declarant details not found")){ declarantCallbackData =>
+      maybeDeclarantCallbackData.fold(throw PushProcessingException(s"[clientSubscriptionId=${cn.csid}] Declarant details not found")){ declarantCallbackData =>
         if (declarantCallbackData.callbackUrl.isEmpty) {
-          throw PushProcessingException("callbackUrl is empty")
+          throw PushProcessingException(s"[clientSubscriptionId=${cn.csid}] callbackUrl is empty")
         } else {
           if (push.send(declarantCallbackData, cn)) {
             blockingDeleteNotification(cn)
           } else {
-            throw PushProcessingException("Push of notification failed")
+            throw PushProcessingException(s"[clientSubscriptionId=${cn.csid}] Push of notification failed")
           }
         }
       }
@@ -171,23 +172,23 @@ class ClientWorkerImpl @Inject()(
       repo.delete(cn).recover{
         case NonFatal(e) =>
           // we can't do anything other than log delete error
-          logger.error("error deleting notification")
+          logger.error(s"${logMsgPrefix(cn)} error deleting notification")
       },
       awaitApiCallDuration)
   }
 
 
   private def enqueueNotificationsOnPullQueue(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean) = {
-    logger.info(s"About to enqueue notifications to pull queue")
+    logger.info(s"[clientSubscriptionId=$csid] About to enqueue notifications to pull queue")
 
     repo.fetch(csid).map{ clientNotifications =>
       blockingInnerPullLoop(clientNotifications)
     }.map{ _ =>
-      logger.info("enqueue to pull queue successful")
+      logger.info(s"[clientSubscriptionId=$csid] enqueue to pull queue successful")
       releaseLock(csid, lockOwnerId)
     }.recover{
-      case NonFatal(e) =>
-        logger.error("error enqueuing notifications to pull queue")
+      case NonFatal(_) =>
+        logger.error(s"[clientSubscriptionId=$csid] error enqueuing notifications to pull queue")
         releaseLock(csid, lockOwnerId)
     }
   }
@@ -195,7 +196,7 @@ class ClientWorkerImpl @Inject()(
   private def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
-        throw new IllegalStateException("quiting pull processing - error refreshing lock")
+        throw new IllegalStateException(s"[clientSubscriptionId=${cn.csid}] quitting pull processing - error refreshing lock")
       }
 
       if (pull.send(cn)) {

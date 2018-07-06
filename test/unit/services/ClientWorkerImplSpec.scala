@@ -108,7 +108,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         eventually {
           verify(mockCancelable).cancel()
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
-          verifyLogInfo("Push successful")
+          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Push successful")
         }
       }
 
@@ -127,7 +127,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         eventually {
           verify(mockCancelable).cancel()
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
-          verifyLogInfo("Push successful")
+          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Push successful")
         }
       }
 
@@ -177,7 +177,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
         actual shouldBe (())
         eventually {
-          verifyLogError("error pushing notifications: Emulated service failure.")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error pushing notifications: Emulated service failure.")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verifyZeroInteractions(mockPullClientNotificationService)
           verify(mockCancelable).cancel()
@@ -196,7 +196,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
         actual shouldBe (())
         eventually {
-          verifyLogError("error pushing notifications: Emulated service failure.")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error pushing notifications: Emulated service failure.")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verifyZeroInteractions(mockPullClientNotificationService)
           verify(mockCancelable).cancel()
@@ -216,8 +216,8 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         actual shouldBe (())
         eventually {
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
-          verifyLogError("error pushing notifications: Emulated service failure.")
-          verifyLogError("error releasing lock")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error pushing notifications: Emulated service failure.")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231][lockOwnerId=eaca01f9-ec3b-4ede-b263-61b626dde231] error releasing lock")
           verify(mockCancelable).cancel()
         }
       }
@@ -234,7 +234,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
         actual shouldBe (())
         eventually {
-          verifyLogInfo("About to enqueue notifications to pull queue")
+          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] About to enqueue notifications to pull queue")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verify(mockCancelable).cancel()
         }

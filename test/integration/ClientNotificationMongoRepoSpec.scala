@@ -173,7 +173,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.delete(clientNotificationToDelete))
 
       collectionSize shouldBe 1
-      logVerifier("debug", s"deleting clientNotification with objectId: ${clientNotificationToDelete.id}")
+      logVerifier("debug", s"[conversationId=638b405b-9f04-418a-b648-ce565b111b7b][clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with objectId: ${clientNotificationToDelete.id.stringify}")
     }
 
     "collection should be same size when deleting non-existent record" in {

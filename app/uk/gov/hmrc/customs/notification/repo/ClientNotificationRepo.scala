@@ -18,12 +18,14 @@ package uk.gov.hmrc.customs.notification.repo
 
 import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
+
 import play.api.libs.json.Json
 import reactivemongo.api.Cursor
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId}
+import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.ReactiveRepository
@@ -71,8 +73,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   )
 
   override def save(clientNotification: ClientNotification): Future[Boolean] = {
-    println(clientNotification)
-    notificationLogger.debug(s"saving clientNotification: $clientNotification")
+    notificationLogger.debug(s"${logMsgPrefix(clientNotification)} saving clientNotification: $clientNotification")
 
     lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
 
@@ -99,7 +100,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   }
 
   override def delete(clientNotification: ClientNotification): Future[Unit] = {
-    notificationLogger.debug(s"deleting clientNotification with objectId: ${clientNotification.id}")
+    notificationLogger.debug(s"${logMsgPrefix(clientNotification)} deleting clientNotification with objectId: ${clientNotification.id.stringify}")
 
     val selector = Json.obj("_id" -> clientNotification.id)
     lazy val errorMsg = s"Could not delete entity for selector: $selector"
