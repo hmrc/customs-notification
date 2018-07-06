@@ -135,7 +135,7 @@ class ClientWorkerImpl @Inject()(
       case PushProcessingException(msg) =>
         enqueueNotificationsOnPullQueue(csid, lockOwnerId)
       case NonFatal(e) =>
-        logger.error("error pushing notifications")
+        logger.error(s"error pushing notifications: ${e.getMessage}")
         releaseLock(csid, lockOwnerId)
     }
   }

@@ -177,7 +177,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
         actual shouldBe (())
         eventually {
-          verifyLogError("error pushing notifications")
+          verifyLogError("error pushing notifications: Emulated service failure.")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verifyZeroInteractions(mockPullClientNotificationService)
           verify(mockCancelable).cancel()
@@ -196,7 +196,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
         actual shouldBe (())
         eventually {
-          verifyLogError("error pushing notifications")
+          verifyLogError("error pushing notifications: Emulated service failure.")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verifyZeroInteractions(mockPullClientNotificationService)
           verify(mockCancelable).cancel()
@@ -207,6 +207,8 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)))
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier]))
+          .thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.failed(emulatedServiceFailure))
 
         val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
@@ -214,7 +216,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         actual shouldBe (())
         eventually {
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
-          verifyLogError("error pushing notifications")
+          verifyLogError("error pushing notifications: Emulated service failure.")
           verifyLogError("error releasing lock")
           verify(mockCancelable).cancel()
         }
@@ -223,15 +225,16 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "exit push processing loop early if push returns false" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List()))
+          .thenReturn(Future.successful(List(ClientNotificationOne)))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
-        when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
+        when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(false)
 
         val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
-          verifyLogError("error pushing notifications")
+          verifyLogInfo("About to enqueue notifications to pull queue")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verify(mockCancelable).cancel()
         }

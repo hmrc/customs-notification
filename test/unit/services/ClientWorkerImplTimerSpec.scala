@@ -41,7 +41,8 @@ import scala.concurrent.Future
 class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterAll {
 
   private val actorSystem = ActorSystem("TestActorSystem")
-  private val lockDuration = org.joda.time.Duration.millis(1000)
+  private val oneThousand = 1000
+  private val lockDuration = org.joda.time.Duration.millis(oneThousand)
   private val ninetyPercentOfLockDuration = 900
   private val oneAndAHalfSecondsProcessingDelay = 1500
   private val fiveSecondsProcessingDelay = 5000
@@ -125,10 +126,9 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     }
 
     "In unhappy path" should {
-      "exit push inner loop processing and release lock when lock refresh failure detected" in new SetUp {
-
+      "exit push inner loop processing and release lock when lock refresh returns false" in new SetUp {
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.failed(emulatedServiceFailure))
+          .thenReturn(Future.successful(List(ClientNotificationOne)))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(false))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
@@ -136,7 +136,22 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
         actual shouldBe (())
         eventually {
-          verifyLogError("error pushing notifications")
+          verifyLogError("error pushing notifications: quiting pull processing - error refreshing lock")
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+        }
+      }
+
+      "log an error when refresh lock throws an exception" in new SetUp {
+        when(mockClientNotificationRepo.fetch(CsidOne))
+          .thenReturn(Future.successful(List(ClientNotificationOne)))
+        when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.failed(emulatedServiceFailure))
+        when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+
+        val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
+
+        actual shouldBe (())
+        eventually {
+          verifyLogError("error pushing notifications: quiting pull processing - error refreshing lock")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }
