@@ -180,7 +180,7 @@ trait NotificationQueueService extends WireMockRunner {
 
     val allRequestsMade = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.body.authHeaderToken))
+//      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.body.authHeaderToken))
       .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
       .withHeader(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, equalTo(request.body.conversationId))
       .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(fieldsId))
