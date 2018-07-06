@@ -32,11 +32,10 @@ import scala.concurrent.Future
 trait NotificationDispatcher {
 
   def process(csids: Set[ClientSubscriptionId]): Future[Unit]
-
 }
 
 @Singleton
-class NotificationDispatcherImpl @Inject()(lockRepo: LockRepo, logger: NotificationLogger) extends NotificationDispatcher {
+class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker, lockRepo: LockRepo, logger: NotificationLogger) extends NotificationDispatcher {
 
   private val duration = Duration.standardMinutes(2) //TODO MC this should be configurable property (Avinder will make this change)
 
@@ -50,7 +49,7 @@ class NotificationDispatcherImpl @Inject()(lockRepo: LockRepo, logger: Notificat
           lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, duration).flatMap {
             case true =>
               logger.debugWithoutRequestContext(s"sending $csid to worker")
-              new DummyClientWorker().processNotificationsFor(csid, lockOwnerId, duration)
+              clientWorker.processNotificationsFor(csid, lockOwnerId, duration)
             case false => Future.successful(())
           }
       }
