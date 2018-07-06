@@ -34,7 +34,7 @@ class PushNotificationRequestService @Inject()(apiSubscriptionFieldsConnector: A
       case Some(badgeId) => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId))
     }
 
-    PushNotificationRequest(metaData.clientId.id.toString,
+    PushNotificationRequest(metaData.clientId.toString(),
       PushNotificationRequestBody(
         clientData.callbackUrl,
         clientData.securityToken,

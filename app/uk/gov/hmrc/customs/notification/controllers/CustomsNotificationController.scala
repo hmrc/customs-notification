@@ -69,7 +69,7 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier) = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
-    callbackDetailsConnector.getClientData(md.clientId.id.toString).flatMap {
+    callbackDetailsConnector.getClientData(md.clientId.toString()).flatMap {
 
       case Some(callbackData) =>
         customsNotificationService.handleNotification(xml, callbackData, md).recover{
