@@ -67,7 +67,7 @@ class ClientWorkerImpl @Inject()(
 
   private case class PushProcessingException(msg: String) extends RuntimeException(msg)
 
-  private val awaitApiCallDuration = 120 second
+  private val awaitApiCallDuration = 120 second //TODO: do we want to extract this to config?
 
   override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
     //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
@@ -125,14 +125,20 @@ class ClientWorkerImpl @Inject()(
     Await.result(f, awaitApiCallDuration)
   }
 
-  private def blockingFetch(csid: ClientSubscriptionId): Seq[ClientNotification] = {
-    Await.result(repo.fetch(csid), awaitApiCallDuration)
+  private def blockingFetch(csid: ClientSubscriptionId)(implicit hc: HeaderCarrier): Seq[ClientNotification] = {
+    try {
+      Await.result(repo.fetch(csid), awaitApiCallDuration)
+    }
+    catch {
+      case NonFatal(e) =>
+        logger.error(s"[clientSubscriptionId=$csid] error fetching notifications: ${e.getMessage}")
+        Seq.empty[ClientNotification]
+    }
   }
 
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
     Future{
       blockingProcessLoop(csid, lockOwnerId)
-      logger.info(s"[clientSubscriptionId=$csid] Push successful")
       blockingReleaseLock(csid, lockOwnerId)
     }
   }
@@ -141,21 +147,32 @@ class ClientWorkerImpl @Inject()(
 
     logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
 
-      try {
-        val seq = blockingFetch(csid)
-        if (seq.nonEmpty) {
-          blockingPushProcessing(seq)
-          blockingProcessLoop(csid, lockOwnerId) //TODO: replace recursion
+      var continue = true
+      var counter = 0
+      while (continue) {
+        try {
+          counter += 1
+          if (counter % 1000 == 0) {
+            logger.info(s"processing notification record number $counter")
+          }
+          val seq = blockingFetch(csid)
+          if (seq.isEmpty) {
+            continue = false // the only way to exit loop is if blockingFetch returns empty list or there is a FATAL exception
+          }
+          else {
+            blockingInnerPushLoop(seq)
+            logger.info(s"[clientSubscriptionId=$csid] Push successful")
+          }
+        } catch {
+          case PushProcessingException(_) =>
+            blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
+          case NonFatal(e) =>
+            logger.error(s"[clientSubscriptionId=$csid] error pushing notifications: ${e.getMessage}")
         }
-      } catch {
-        case PushProcessingException(msg) =>
-          blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
-        case NonFatal(e) =>
-          logger.error(s"[clientSubscriptionId=$csid] error pushing notifications: ${e.getMessage}")
       }
   }
 
-  private def blockingPushProcessing(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  private def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
         throw new IllegalStateException("quitting pull processing - error refreshing lock")
