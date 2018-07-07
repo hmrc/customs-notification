@@ -16,8 +16,6 @@
 
 package unit.services
 
-import java.util.UUID
-
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._
@@ -34,7 +32,6 @@ import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import util.TestData
 import util.TestData._
 
 import scala.concurrent.Future
@@ -53,7 +50,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val mockNotificationLogger = mock[NotificationLogger]
   private val validCallbackData = DeclarantCallbackData("callbackUrl", "securityToken")
   private val callbackDataWithEmptyCallbackUrl = DeclarantCallbackData("", "securityToken")
-  private val requestMetaData = RequestMetaData(TestData.validFieldsId, validConversationIdUUID, Some(badgeIdValue))
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeIdValue))
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
@@ -61,7 +58,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val badgeIdHeader: (String, String) = hc.headers.filter(a => a._1 == "X-Badge-Identifier").head
   private val expectedHeaders = Seq(Header(badgeIdHeader._1, badgeIdHeader._2))
   private val notification = Notification(conversationId, expectedHeaders, pushNotificationRequest.body.xmlPayload, contentType)
-  private val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(pushNotificationRequest.clientSubscriptionId))
   private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
   private val mockPullService = mock[PullClientNotificationService]
 

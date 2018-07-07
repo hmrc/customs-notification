@@ -16,8 +16,6 @@
 
 package unit.controllers
 
-import java.util.UUID
-
 import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
@@ -72,7 +70,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val emulatedServiceFailureMessage = "Emulated service failure"
 
-  private val expectedRequestMetaData = RequestMetaData(validFieldsId, UUID.fromString(validConversationId), Some(badgeId))
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
 
   private val eventualTrue = Future.successful(true)
 
