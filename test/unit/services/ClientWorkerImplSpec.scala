@@ -39,24 +39,23 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
-
   private val oneThousand = 1000
   private val lockDuration = org.joda.time.Duration.millis(oneThousand)
 
-  trait SetUp {
-    val mockActorSystem = mock[ActorSystem]
-    val mockScheduler = mock[Scheduler]
-    val mockCancelable = mock[Cancellable]
+  private trait SetUp {
+    private[ClientWorkerImplSpec] val mockActorSystem = mock[ActorSystem]
+    private[ClientWorkerImplSpec] val mockScheduler = mock[Scheduler]
+    private[ClientWorkerImplSpec] val mockCancelable = mock[Cancellable]
 
-    val mockClientNotificationRepo = mock[ClientNotificationRepo]
-    val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
-    val mockPullClientNotificationService = mock[PullClientNotificationService]
-    val mockPushClientNotificationService = mock[PushClientNotificationService]
-    val mockLockRepo = mock[LockRepo]
-    val mockLogger = mock[NotificationLogger]
-    val mockHttpResponse = mock[HttpResponse]
+    private[ClientWorkerImplSpec] val mockClientNotificationRepo = mock[ClientNotificationRepo]
+    private[ClientWorkerImplSpec] val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
+    private[ClientWorkerImplSpec] val mockPullClientNotificationService = mock[PullClientNotificationService]
+    private[ClientWorkerImplSpec] val mockPushClientNotificationService = mock[PushClientNotificationService]
+    private[ClientWorkerImplSpec] val mockLockRepo = mock[LockRepo]
+    private[ClientWorkerImplSpec] val mockLogger = mock[NotificationLogger]
+    private[ClientWorkerImplSpec] val mockHttpResponse = mock[HttpResponse]
 
-    lazy val clientWorker = new ClientWorkerImpl(
+    private[ClientWorkerImplSpec] lazy val clientWorker = new ClientWorkerImpl(
       mockActorSystem,
       mockClientNotificationRepo,
       mockApiSubscriptionFieldsConnector,
@@ -94,7 +93,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "push notifications when there are no errors" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List()))
+          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
@@ -102,7 +101,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         when(mockClientNotificationRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.successful(()))
         when(mockClientNotificationRepo.delete(ameq(ClientNotificationTwo))).thenReturn(Future.successful(()))
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
@@ -115,13 +114,13 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "push notifications even when there are errors deleting the notification after a successful push" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List()))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
         when(mockClientNotificationRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.failed((emulatedServiceFailure)))
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
@@ -134,11 +133,11 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "exit push processing when fetch returns empty list" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List()), Future.successful(List()))
+          .thenReturn(Future.successful(List()))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.failed(emulatedServiceFailure))
         when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
@@ -150,13 +149,13 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "enqueue notification to pull queue when declarant details are not found" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)))
+          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
         when(mockPullClientNotificationService.send(ameq(ClientNotificationOne))).thenReturn(true)
         when(mockClientNotificationRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.successful(()))
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
@@ -174,11 +173,11 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           .thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error pushing notifications: Emulated service failure.")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error fetching notifications: Emulated service failure.")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verifyZeroInteractions(mockPullClientNotificationService)
           verify(mockCancelable).cancel()
@@ -188,12 +187,12 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "exit push processing and release lock when fetch of declarant details throws an exception" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier]))
           .thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
@@ -207,12 +206,12 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "log release lock error when release lock error fails on exit of push processing when fetch of declarant details throws an exception" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier]))
           .thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.failed(emulatedServiceFailure))
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
@@ -226,12 +225,12 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "exit push processing loop early if push returns false" in new SetUp {
         schedulerExpectations()
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(false)
 
-        val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {

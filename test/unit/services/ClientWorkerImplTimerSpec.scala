@@ -47,16 +47,15 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
   private val oneAndAHalfSecondsProcessingDelay = 1500
   private val fiveSecondsProcessingDelay = 5000
 
+  private trait SetUp {
 
-  trait SetUp {
-
-    val mockClientNotificationRepo = mock[ClientNotificationRepo]
-    val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
-    val mockPullClientNotificationService = mock[PullClientNotificationService]
-    val mockPushClientNotificationService = mock[PushClientNotificationService]
-    val mockLockRepo = mock[LockRepo]
-    val mockLogger = mock[NotificationLogger]
-    val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
+    private[ClientWorkerImplTimerSpec] val mockClientNotificationRepo = mock[ClientNotificationRepo]
+    private[ClientWorkerImplTimerSpec] val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
+    private[ClientWorkerImplTimerSpec] val mockPullClientNotificationService = mock[PullClientNotificationService]
+    private[ClientWorkerImplTimerSpec] val mockPushClientNotificationService = mock[PushClientNotificationService]
+    private[ClientWorkerImplTimerSpec] val mockLockRepo = mock[LockRepo]
+    private[ClientWorkerImplTimerSpec] val mockLogger = mock[NotificationLogger]
+    private[ClientWorkerImplTimerSpec] val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
 
 
     def clientWorkerWithProcessingDelay(delayMilliseconds: Int): ClientWorkerImpl = {
@@ -80,7 +79,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
       clientWorker
     }
 
-    implicit val implicitHc = HeaderCarrier()
+    private[ClientWorkerImplTimerSpec] implicit val implicitHc = HeaderCarrier()
 
     def eqLockOwnerId(id: LockOwnerId): LockOwnerId = ameq[String](id.id).asInstanceOf[LockOwnerId]
     def eqClientSubscriptionId(id: ClientSubscriptionId): ClientSubscriptionId = ameq[UUID](id.id).asInstanceOf[ClientSubscriptionId]
@@ -104,7 +103,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
       "refresh timer when elapsed time > time delay duration" in new SetUp {
 
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List()))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId) , any[org.joda.time.Duration])).thenReturn(Future.successful(true))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
@@ -112,7 +111,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockClientNotificationRepo.delete(ameq(ClientNotificationOne)))
           .thenReturn(Future.successful(()))
 
-        val actual = await(clientWorkerWithProcessingDelay(fiveSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
+        private val actual = await(clientWorkerWithProcessingDelay(fiveSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
         actual shouldBe (())
         eventually{
@@ -128,11 +127,11 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     "In unhappy path" should {
       "exit push inner loop processing and release lock when lock refresh returns false" in new SetUp {
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(false))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
-        val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
+        private val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
         actual shouldBe (())
         eventually {
@@ -143,11 +142,11 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
       "log an error when refresh lock throws an exception" in new SetUp {
         when(mockClientNotificationRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
-        val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
+        private val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
         actual shouldBe (())
         eventually {
