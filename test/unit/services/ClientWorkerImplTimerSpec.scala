@@ -119,13 +119,14 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
           verify(mockClientNotificationRepo).delete(ameq(ClientNotificationOne))
           val expectedLockRefreshCount: Int = fiveSecondsProcessingDelay / ninetyPercentOfLockDuration
           verify(mockLockRepo, times(expectedLockRefreshCount)).tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }
 
     }
 
     "In unhappy path" should {
-      "exit push inner loop processing and release lock when lock refresh returns false" in new SetUp {
+      "exit push inner loop processing when lock refresh returns false" in new SetUp {
         when(mockClientNotificationRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(false))

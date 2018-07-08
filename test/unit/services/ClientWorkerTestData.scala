@@ -40,6 +40,7 @@ object ClientWorkerTestData {
   val ClientNotificationOne = ClientNotification(CsidOne, NotificationOne, Some(TimeStampOne))
   val ClientNotificationTwo = ClientNotification(CsidOne, NotificationTwo, Some(TimeStampTwo))
   val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
+  val DeclarantCallbackDataOneWithEmptyUrl = DeclarantCallbackDataOne.copy(callbackUrl = "")
   val DeclarantCallbackDataTwo = DeclarantCallbackData("URL2", "SECURITY_TOKEN2")
   val pnrOne = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", ConversationIdOne.id.toString, Headers, PayloadOne))
   val pnrTwo = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody("URL2", "SECURITY_TOKEN2", ConversationIdTwo.id.toString, Headers, PayloadTwo))

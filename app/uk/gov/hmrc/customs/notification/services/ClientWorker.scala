@@ -77,10 +77,7 @@ class ClientWorkerImpl @Inject()(
     val refreshDuration = ninetyPercentOf(lockDuration)
     val timer = actorSystem.scheduler.schedule(initialDelay = refreshDuration, interval = refreshDuration, new Runnable {
       override def run(): Unit = {
-        refreshLock(csid, lockOwnerId, lockDuration).recover{
-          case NonFatal(e) =>
-            logger.error("error refreshing lock in timer")
-        }
+        refreshLock(csid, lockOwnerId, lockDuration)
       }
     })
 
@@ -109,7 +106,7 @@ class ClientWorkerImpl @Inject()(
     }.recover{
       case NonFatal(e) =>
         refreshLockFailed.set(true)
-        val msg = e.getMessage
+        val msg = "error refreshing lock in timer: " + e.getMessage
         logger.error(msg) //TODO: extend logging API so that we can log an error on a throwable
     }
   }
@@ -138,12 +135,12 @@ class ClientWorkerImpl @Inject()(
 
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
     Future{
-      blockingProcessLoop(csid, lockOwnerId)
+      blockingOuterProcessLoop(csid, lockOwnerId)
       blockingReleaseLock(csid, lockOwnerId)
     }
   }
 
-  private def blockingProcessLoop(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  private def blockingOuterProcessLoop(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
 
     logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
 
