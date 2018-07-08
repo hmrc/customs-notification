@@ -114,6 +114,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           ordered.verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           ordered.verify(mockCancelable).cancel()
           verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Push successful")
+          verifyZeroInteractions(mockPull)
         }
       }
 
@@ -133,6 +134,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Push successful")
           verify(mockCancelable).cancel()
+          verifyZeroInteractions(mockPull)
         }
       }
 
@@ -149,6 +151,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         eventually {
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verify(mockCancelable).cancel()
+          verifyZeroInteractions(mockPull)
         }
       }
 
@@ -214,7 +217,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         eventually {
           verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error fetching notifications: Emulated service failure.")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
-          verifyZeroInteractions(mockPull)
+          verifyZeroInteractions(mockPush)
           verify(mockCancelable).cancel()
         }
       }
@@ -233,7 +236,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         eventually {
           verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error pushing notifications: Emulated service failure.")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
-          verifyZeroInteractions(mockPull)
+          verifyZeroInteractions(mockPush)
           verify(mockCancelable).cancel()
         }
       }
