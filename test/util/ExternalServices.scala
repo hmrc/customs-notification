@@ -44,6 +44,8 @@ trait PushNotificationService extends WireMockRunner {
     )
   }
 
+  def allCallsMadeToClientsPushService() = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
+
   def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
@@ -78,7 +80,8 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
        |}
        |""".stripMargin
 
-  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData: DeclarantCallbackData = callbackData): Unit = setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, testCallbackData)
+  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData: DeclarantCallbackData = callbackData): Unit =
+    setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, testCallbackData)
 
 
   def setupApiSubscriptionFieldsServiceToReturn(status: Int, fieldsId: String, fields: DeclarantCallbackData): Unit =
@@ -133,6 +136,8 @@ trait NotificationQueueService extends WireMockRunner {
       willReturn aResponse()
       .withStatus(status))
   }
+
+  def allCallsMadeToPullQ() = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
   def setupNotificationQueueServiceToReturn(status: Int,
                                             request: PushNotificationRequest,
