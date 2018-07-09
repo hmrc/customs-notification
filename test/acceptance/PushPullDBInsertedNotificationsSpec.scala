@@ -17,7 +17,7 @@
 package acceptance
 
 import java.util.UUID
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.joda.time.DateTime
@@ -35,7 +35,7 @@ import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.repo.MongoDbProvider
+import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, MongoDbProvider}
 import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
@@ -44,7 +44,6 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.{JavaConversions, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 import scala.util.Random
 import scala.xml.NodeSeq
 
@@ -60,6 +59,10 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
   private val googleAnalyticsClientId: String = "555"
   private val googleAnalyticsEventValue = "10"
 
+  private val totalNotificationsToBeSent = 100
+  private val numberOfClientsToTest = 10
+
+  val notificationRepo = app.injector.instanceOf[ClientNotificationRepo]
   val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = app.injector.instanceOf[MongoDbProvider].mongo,
@@ -87,23 +90,19 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
   override protected def beforeEach(): Unit = {
     resetMockServer()
     await(repo.drop)
-
     setupPushNotificationServiceToReturn()
+    runNotificationQueueService()
     setupGoogleAnalyticsEndpoint()
-    //    runNotificationQueueService(CREATED)
-    //    repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-    //      Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")))
-
   }
 
   override protected def afterAll() {
     stopMockServer()
   }
 
-  private def createRandomCSIDAlongWithRandomPushEnabledFlag(numbers: Int, ids: mutable.Set[(UUID, Boolean)]): mutable.Set[(UUID, Boolean)] = {
+  private def createPoolOfPushOrPullEnabledClientCSIDs(numbers: Int, ids: mutable.Set[(UUID, Boolean)]): mutable.Set[(UUID, Boolean)] = {
     if (numbers > 0) {
       ids.add(UUID.randomUUID(), Random.nextBoolean())
-      createRandomCSIDAlongWithRandomPushEnabledFlag(numbers - 1, ids)
+      createPoolOfPushOrPullEnabledClientCSIDs(numbers - 1, ids)
     }
     ids
   }
@@ -124,11 +123,21 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
 
   }
 
-  private def makeACallToAPIAndMakeSureItReturns202(requestToAPI: FakeRequest[AnyContentAsXml]) = {
+  private def callAPIAndMakeSureItReturns202(requestToAPI: FakeRequest[AnyContentAsXml]) = {
     val result: Option[Future[Result]] = route(app, requestToAPI)
 
     status(result.value) shouldBe ACCEPTED
 
+  }
+
+  private val makeAPICall: ExpectedCall => Unit = expectedCall => callAPIAndMakeSureItReturns202(fakeRequestToAPI(expectedCall))
+
+  private def insertIntoDB: ExpectedCall => Unit = { expectedCall =>
+    val headers: Seq[Header] = expectedCall.maybeBadgeId.fold(Seq[Header]())(badgeId => Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId)))
+
+    notificationRepo.save(
+      ClientNotification(ClientSubscriptionId(expectedCall.csid),
+          Notification(ConversationId(expectedCall.conversationId), headers, expectedCall.xml.toString(), MimeTypes.XML)))
   }
 
   case class ExpectedCall(csid: UUID, conversationId: UUID, callbackData: DeclarantCallbackData, maybeBadgeId: Option[String], xml: NodeSeq)
@@ -137,85 +146,109 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
 
     scenario("correctly") {
 
-      val totalNotificationsToBeSent = 100
 
-      val startTime = DateTime.now()
-      val numberOfClientsToTest = 10
+      val poolOfPushOrPullEnabledClientCSIDs: List[(UUID, Boolean)] = createPoolOfPushOrPullEnabledClientCSIDs(numberOfClientsToTest, mutable.Set()).toList
 
       val expectedPushNotificationsByCSID: mutable.Map[UUID, ListBuffer[ExpectedCall]] = mutable.Map()
       val expectedPullNotificationsByCSID: mutable.Map[UUID, ListBuffer[ExpectedCall]] = mutable.Map()
-      val csidsWithPushEnabledFlag: List[(UUID, Boolean)] = createRandomCSIDAlongWithRandomPushEnabledFlag(numberOfClientsToTest, mutable.Set()).toList
-      var totalPushRequestsExpected = 0
-      var totalPullRequestsExpected = 0
 
+      val expectedPushedNotificationsCounter = new AtomicInteger(0)
+      val expectedPullNotificationsCounter = new AtomicInteger(0)
+      val notificationsInsertedIntoDB = new AtomicInteger(0)
+
+
+      val startTime = DateTime.now()
       for (a <- 1 to totalNotificationsToBeSent) {
 
-        val chosenRandomCSID = csidsWithPushEnabledFlag(Random.nextInt(numberOfClientsToTest))
-        val shouldThisNotificationBePushed = chosenRandomCSID._2
+        val (csid,csidIsPushEnabled)  = poolOfPushOrPullEnabledClientCSIDs(Random.nextInt(numberOfClientsToTest))
 
-        if (shouldThisNotificationBePushed) {
-          makeCallToApiWithPushEnabled(expectedPushNotificationsByCSID, chosenRandomCSID)
-          totalPushRequestsExpected += 1
+        val insertNotificationInDB = false//Random.nextBoolean()
+        val processor: ExpectedCall => Unit = if(insertNotificationInDB) insertIntoDB else makeAPICall
+
+        if (csidIsPushEnabled) {
+          setUpValidCallbackAndMakeRandomReq(csid, processor).map { expectedCall =>
+              addExpectedCallTo(expectedPushNotificationsByCSID, expectedCall)
+            expectedPushedNotificationsCounter.getAndAdd(1)
+            if(insertNotificationInDB) notificationsInsertedIntoDB.getAndAdd(1)
+          }
         } else {
-          makeCallToAPIWithPushDisabled(expectedPullNotificationsByCSID, chosenRandomCSID)
-          totalPullRequestsExpected += 1
+          setUpEmptyCallbackAndMakeRandomReq(csid, processor).map { expectedCall =>
+            addExpectedCallTo(expectedPullNotificationsByCSID, expectedCall)
+            expectedPullNotificationsCounter.getAndAdd(1)
+            if(insertNotificationInDB) notificationsInsertedIntoDB.getAndAdd(1)
+          }
         }
       }
 
-      Then(s"totalPushRequestsExpected = $totalPushRequestsExpected, totalPullRequestsExpected = $totalPullRequestsExpected")
-      eventually(allCallsMadeToClientsPushService().size() should be(totalPushRequestsExpected))
-      eventually(allCallsMadeToPullQ().size()) should be(totalPullRequestsExpected)
-      val sentNotificationFinishedAt = DateTime.now()
-      val allPushedNotificationsByCSID = allSuccessfullyPushedNotificationsByCSID()
-      expectedPushNotificationsByCSID.size shouldBe allPushedNotificationsByCSID.size
+      Then(s"totalExpectedPushedNotifications = $expectedPushedNotificationsCounter, totalExpectedPushedNotifications = $expectedPullNotificationsCounter, ")
 
-      expectedPushNotificationsByCSID.foreach[Unit] { expectedClientRecord: (UUID, ListBuffer[ExpectedCall]) =>
-        val expectedRequestsThisCSID = expectedClientRecord._2.toList
-        val actualRequestsMadeForThisCSID = allPushedNotificationsByCSID.get(expectedClientRecord._1).get.toList
+      eventually(actualCallsMadeToClientsPushService().size() should be(expectedPushedNotificationsCounter.get()))
+      eventually(actualCallsMadeToPullQ().size() should be(expectedPullNotificationsCounter.get()))
 
-        makeSureActualNotificationsRcvdWereAsExpected(expectedRequestsThisCSID, actualRequestsMadeForThisCSID)
+      val notificationProcessingCompletionTime = DateTime.now() //by now, all requests have been processed
 
-        Then(s"client ${expectedClientRecord._1} made total ${actualRequestsMadeForThisCSID.size} calls, expected were ${expectedRequestsThisCSID.size}")
-      }
+      actualCallsReceivedAtClientPushServiceAreSameAs(expectedPushNotificationsByCSID)
+      actualCallsReceivedAtPullQAreSameAs(expectedPullNotificationsByCSID)
 
-      val allPullNotificationsByCSID = allSuccessfullySentToPullNotificationsByCSID()
-      expectedPullNotificationsByCSID.size shouldBe allPullNotificationsByCSID.size
-
-      expectedPullNotificationsByCSID.foreach[Unit] { expectedClientRecord: (UUID, ListBuffer[ExpectedCall]) =>
-        val expectedRequestsMadeForThisCSID = expectedClientRecord._2.toList
-        val actualRequestsMadeForThisCSID = allPullNotificationsByCSID.get(expectedClientRecord._1).get.toList
-
-        makeSureActualPullQRequestMadeWereAsExpected(expectedRequestsMadeForThisCSID, actualRequestsMadeForThisCSID)
-
-        Then(s"client ${expectedClientRecord._1} made total ${actualRequestsMadeForThisCSID.size} calls, expected were ${expectedRequestsMadeForThisCSID.size}")
-      }
-
-      val totalTimeTaken = Duration(DateTime.now().getMillis - startTime.getMillis, TimeUnit.MILLISECONDS)
-      val totalNotificationProcessed = totalPushRequestsExpected + totalPullRequestsExpected
-      val notificationProcessingTimeInMillis = sentNotificationFinishedAt.getMillis - startTime.getMillis
+      val totalNotificationProcessed = expectedPushedNotificationsCounter.get() + expectedPullNotificationsCounter.get()
+      val notificationProcessingTimeInMillis = notificationProcessingCompletionTime.getMillis - startTime.getMillis
       val notificationsProcessedInOneSecond = (totalNotificationProcessed.toFloat/notificationProcessingTimeInMillis) * 1000
-      Then(s"Total push request were $totalPushRequestsExpected, pull requests were $totalPullRequestsExpected, totalTimeTaken = $notificationProcessingTimeInMillis, notificationsPerSecond=$notificationsProcessedInOneSecond")
+
+      Then(s"totalRequestsProcessed = $totalNotificationProcessed, " +
+        s"Pushed notifications = $expectedPushedNotificationsCounter, " +
+        s"PullQ notifications = $expectedPullNotificationsCounter, " +
+        s"totalTimeTaken = $notificationProcessingTimeInMillis millis, " +
+        s"notificationsPerSecond=$notificationsProcessedInOneSecond, "+
+        s"notificationsInsertedIntoDB= $notificationsInsertedIntoDB")
+
 //      notificationsProcessedInOneSecond shouldBe > (70f)
     }
   }
 
-  def makeCallToAPIWithPushDisabled(expectedPullNotificationsByCSID: mutable.Map[UUID, ListBuffer[ExpectedCall]], chosenRandomCSID: (UUID, Boolean)): Future[Unit] = {
-    Future.successful {
-      val expectedCall = createARandomExpectedCallFor(chosenRandomCSID._1)
-      startApiSubscriptionFieldsService(expectedCall.csid.toString, DeclarantCallbackData("", ""))
-      runNotificationQueueService(CREATED)
-      makeACallToAPIAndMakeSureItReturns202(fakeRequestToAPI(expectedCall))
-      addExpectedCallTo(expectedPullNotificationsByCSID, expectedCall)
+  def actualCallsReceivedAtPullQAreSameAs(expectedPullNotificationsByCSID: mutable.Map[UUID, ListBuffer[ExpectedCall]]): Unit = {
+    val allPullNotificationsByCSID = allSuccessfullySentToPullNotificationsByCSID()
+    expectedPullNotificationsByCSID.size shouldBe allPullNotificationsByCSID.size
+
+    expectedPullNotificationsByCSID.foreach[Unit] { expectedClientRecord: (UUID, ListBuffer[ExpectedCall]) =>
+      val expectedRequestsMadeForThisCSID = expectedClientRecord._2.toList
+      val actualRequestsMadeForThisCSID = allPullNotificationsByCSID.get(expectedClientRecord._1).get.toList
+
+      Then(s"client ${expectedClientRecord._1} made total ${actualRequestsMadeForThisCSID.size} calls, expected were ${expectedRequestsMadeForThisCSID.size}")
+
+      makeSureActualPullQRequestMadeWereAsExpected(expectedRequestsMadeForThisCSID, actualRequestsMadeForThisCSID)
     }
   }
 
-  def makeCallToApiWithPushEnabled(expectedPushNotificationsByCSID: mutable.Map[UUID, ListBuffer[ExpectedCall]], chosenRandomCSID: (UUID, Boolean)): Future[Unit] = {
+  def actualCallsReceivedAtClientPushServiceAreSameAs(expectedPushNotificationsByCSID: mutable.Map[UUID, ListBuffer[ExpectedCall]]): Unit = {
+    val allPushedNotificationsByCSID = allSuccessfullyPushedNotificationsByCSID()
+
+    expectedPushNotificationsByCSID.size shouldBe allPushedNotificationsByCSID.size
+
+    expectedPushNotificationsByCSID.foreach[Unit] { expectedClientRecord: (UUID, ListBuffer[ExpectedCall]) =>
+      val expectedRequestsThisCSID = expectedClientRecord._2.toList
+      val actualRequestsMadeForThisCSID = allPushedNotificationsByCSID.get(expectedClientRecord._1).get.toList
+
+      makeSureActualNotificationsRcvdWereAsExpected(expectedRequestsThisCSID, actualRequestsMadeForThisCSID)
+
+      Then(s"client ${expectedClientRecord._1} made total ${actualRequestsMadeForThisCSID.size} calls, expected were ${expectedRequestsThisCSID.size}")
+    }
+  }
+
+  def setUpEmptyCallbackAndMakeRandomReq(csid: UUID, callAPIOrInsertInDB: (ExpectedCall => Unit)): Future[ExpectedCall] = {
     Future.successful {
-      val expectedCall = createARandomExpectedCallFor(chosenRandomCSID._1)
+      val expectedCall = createARandomExpectedCallFor(csid)
+      startApiSubscriptionFieldsService(expectedCall.csid.toString, DeclarantCallbackData("", ""))
+      callAPIOrInsertInDB(expectedCall)
+      expectedCall
+    }
+  }
+
+  def setUpValidCallbackAndMakeRandomReq(csid: UUID, callAPIOrInsertInDB: (ExpectedCall => Unit)): Future[ExpectedCall] = {
+    Future.successful {
+      val expectedCall = createARandomExpectedCallFor(csid)
       startApiSubscriptionFieldsService(expectedCall.csid.toString, expectedCall.callbackData)
-      setupPushNotificationServiceToReturn()
-      makeACallToAPIAndMakeSureItReturns202(fakeRequestToAPI(expectedCall))
-      addExpectedCallTo(expectedPushNotificationsByCSID, expectedCall)
+      callAPIOrInsertInDB(expectedCall)
+      expectedCall
     }
   }
 
@@ -280,7 +313,7 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
     def allSuccessfullyPushedNotificationsByCSID(): mutable.Map[UUID, ListBuffer[LoggedRequest]] = {
       val allPushedCallsByCSID = mutable.Map[UUID, ListBuffer[LoggedRequest]]()
 
-      JavaConversions.asScalaBuffer(allCallsMadeToClientsPushService()).foreach { loggedRequest =>
+      JavaConversions.asScalaBuffer(actualCallsMadeToClientsPushService()).foreach { loggedRequest =>
         val authToken = Json.parse(loggedRequest.getBodyAsString).as[JsObject].value.get("authHeaderToken").get.toString()
         val csid = UUID.fromString(authToken.substring(6, 42))
 
@@ -292,7 +325,7 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
     def allSuccessfullySentToPullNotificationsByCSID(): mutable.Map[UUID, ListBuffer[LoggedRequest]] = {
       val notificationsByCSID = mutable.Map[UUID, ListBuffer[LoggedRequest]]()
 
-      JavaConversions.asScalaBuffer(allCallsMadeToPullQ()).foreach { loggedRequest =>
+      JavaConversions.asScalaBuffer(actualCallsMadeToPullQ()).foreach { loggedRequest =>
         val csid = UUID.fromString(loggedRequest.getHeader(CustomHeaderNames.SUBSCRIPTION_FIELDS_ID_HEADER_NAME))
         notificationsByCSID.get(csid).fold[Unit](notificationsByCSID += (csid -> ListBuffer(loggedRequest)))(_ += loggedRequest)
       }
@@ -307,7 +340,7 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
       ExpectedCall(chosenRandomCSID, conversationId, callbackData, maybeBadgeId, notificationXML)
     }
 
-    def addExpectedCallTo(pushExpectation: mutable.Map[UUID, ListBuffer[ExpectedCall]], expectedCall: ExpectedCall): Unit = {
-      pushExpectation.get(expectedCall.csid).fold[Unit](pushExpectation += (expectedCall.csid -> ListBuffer(expectedCall)))(_ += expectedCall)
+    def addExpectedCallTo(expectedCallsForCSIDs: mutable.Map[UUID, ListBuffer[ExpectedCall]], expectedCall: ExpectedCall): Unit = {
+      expectedCallsForCSIDs.get(expectedCall.csid).fold[Unit](expectedCallsForCSIDs += (expectedCall.csid -> ListBuffer(expectedCall)))(_ += expectedCall)
     }
   }

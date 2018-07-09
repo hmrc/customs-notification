@@ -44,7 +44,7 @@ trait PushNotificationService extends WireMockRunner {
     )
   }
 
-  def allCallsMadeToClientsPushService() = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
+  def actualCallsMadeToClientsPushService() = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
   def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
@@ -137,7 +137,7 @@ trait NotificationQueueService extends WireMockRunner {
       .withStatus(status))
   }
 
-  def allCallsMadeToPullQ() = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
+  def actualCallsMadeToPullQ() = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
   def setupNotificationQueueServiceToReturn(status: Int,
                                             request: PushNotificationRequest,
