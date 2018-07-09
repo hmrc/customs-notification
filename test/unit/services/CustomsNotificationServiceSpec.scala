@@ -108,6 +108,16 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       verifyZeroInteractions(mockNotificationDispatcher)
       verifyZeroInteractions(mockPullService)
     }
+
+    "fails when was unable to save notification to repository due to unexpected exception" in {
+      when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.failed(new RuntimeException("save gone wrong")))
+
+      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
+
+      await(result) shouldBe false
+      verifyZeroInteractions(mockNotificationDispatcher)
+      verifyZeroInteractions(mockPullService)
+    }
   }
 
   private def verifyGAReceivedEvent() = {
