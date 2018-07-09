@@ -36,7 +36,9 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, MongoDbProvider}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import util.TestData._
 import util._
 
@@ -78,6 +80,7 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
       //      ("push.polling.delay.duration.milliseconds" -> 2) +
       ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
 
+  private val httpClient = app.injector.instanceOf[HttpClient]
 
   private def callWasMadeToGoogleAnalyticsWith: (String, String) => Boolean =
     aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId, googleAnalyticsClientId, googleAnalyticsEventValue) _
@@ -130,7 +133,19 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
 
   }
 
+  private def callRemoteAPIAndMakeSureItReturns202(requestToAPI: FakeRequest[AnyContentAsXml]) = {
+
+    implicit val hc = HeaderCarrier()
+    val body = requestToAPI.body.asXml.get.toString()
+    val headers = requestToAPI.headers.headers
+    val result: HttpResponse = await(httpClient.POSTString("http://192.168.160.60:9821/customs-notification/notify", body, headers))
+
+    result.status shouldBe ACCEPTED
+
+  }
+
   private val makeAPICall: ExpectedCall => Unit = expectedCall => callAPIAndMakeSureItReturns202(fakeRequestToAPI(expectedCall))
+  private val makeRemoteAPICall: ExpectedCall => Unit = expectedCall => callRemoteAPIAndMakeSureItReturns202(fakeRequestToAPI(expectedCall))
 
   private def insertIntoDB: ExpectedCall => Unit = { expectedCall =>
     val headers: Seq[Header] = expectedCall.maybeBadgeId.fold(Seq[Header]())(badgeId => Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId)))
