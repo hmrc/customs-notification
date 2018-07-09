@@ -67,7 +67,8 @@ class ClientWorkerImpl @Inject()(
 
   private case class PushProcessingException(msg: String) extends RuntimeException(msg)
 
-  private val awaitApiCallDuration = 120 second //TODO: do we want to extract this to config?
+  // TODO: read this value from HTTP VERBS config and add 10%
+  private val awaitApiCallDuration = 25 second
 
   override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
     //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
