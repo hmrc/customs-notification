@@ -17,12 +17,11 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-
 import play.api.http.MimeTypes
-import play.mvc.Http.HeaderNames.{AUTHORIZATION, CONTENT_TYPE, USER_AGENT}
+import play.mvc.Http.HeaderNames.{CONTENT_TYPE, USER_AGENT}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_BADGE_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, PushNotificationRequest}
+import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
@@ -64,34 +63,4 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: Notificatio
           Future.failed(e)
       }
   }
-
-  //TODO: handle POST failure scenario after Trade Test
-  def enqueue(request: PushNotificationRequest): Future[HttpResponse] = {
-    implicit val hc: HeaderCarrier = HeaderCarrier() // Note we do not propagate HeaderCarrier values
-    val url = configServices.notificationQueueConfig.url
-    val maybeBadgeId: Option[String] = Map(request.body.outboundCallHeaders.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
-
-    val headers: Seq[(String, String)] = Seq(
-      (CONTENT_TYPE, MimeTypes.XML),
-      (AUTHORIZATION, request.body.authHeaderToken),
-      (USER_AGENT, "Customs Declaration Service"),
-      (CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, request.body.conversationId),
-      (CustomHeaderNames.SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.clientSubscriptionId)
-
-    ) ++ maybeBadgeId.fold(empty[(String, String)]) { x: String => Some((X_BADGE_ID_HEADER_NAME, x)) }
-
-
-    logger.debug(s"Attempting to send notification to queue\npayload=\n${request.body.xmlPayload}", headers)
-
-    http.POSTString[HttpResponse](url, request.body.xmlPayload, headers)
-      .recoverWith {
-        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
-      }
-      .recoverWith {
-        case e: Throwable =>
-          logger.error(s"Call to notification queue failed. url=$url")
-          Future.failed(e)
-      }
-  }
-
 }
