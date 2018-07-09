@@ -145,7 +145,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         actual shouldBe (())
         eventually {
           verifyLogError("error refreshing lock in timer: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Unable to refresh lock")
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting pull processing - error refreshing lock")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting push processing - error refreshing lock")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }
@@ -181,7 +181,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
         actual shouldBe (())
         eventually {
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting pull processing - error refreshing lock")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting push processing - error refreshing lock")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }

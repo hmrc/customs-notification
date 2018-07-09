@@ -172,7 +172,7 @@ class ClientWorkerImpl @Inject()(
   protected def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
-        throw new IllegalStateException("quitting pull processing - error refreshing lock")
+        throw new IllegalStateException("quitting push processing - error refreshing lock")
       }
 
       val maybeDeclarantCallbackData = blockingMaybeDeclarantDetails(cn)
