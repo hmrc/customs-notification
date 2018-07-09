@@ -22,10 +22,14 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.test.Helpers._
-import uk.gov.hmrc.mongo.MongoSpecSupport
+import reactivemongo.bson.BSONObjectID
+import uk.gov.hmrc.customs.notification.domain.ClientNotification
+import uk.gov.hmrc.customs.notification.repo.MongoDbProvider
+import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 import scala.xml.Utility.trim
@@ -43,6 +47,12 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   private val googleAnalyticsClientId: String = "555"
   private val googleAnalyticsEventValue = "10"
 
+  val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
+    collectionName = "notifications",
+    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
+    domainFormat = ClientNotification.clientNotificationJF) {
+  }
+
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
       ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
@@ -55,12 +65,14 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
 
   override protected def beforeAll() {
+    await(repo.drop)
     startMockServer()
     setupPushNotificationServiceToReturn()
   }
 
   override protected def afterAll() {
     stopMockServer()
+    await(repo.drop)
   }
 
   override protected def afterEach(): Unit = {

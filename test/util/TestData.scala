@@ -71,7 +71,9 @@ object TestData {
 
   def clientNotification(withBadgeId: Boolean = true): ClientNotification = {
 
-    val headers: Seq[Header] = if(withBadgeId) { Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))} else Seq[Header]()
+    val headers: Seq[Header] = if (withBadgeId) {
+      Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))
+    } else Seq[Header]()
 
     ClientNotification(
       csid = clientSubscriptionId,
@@ -85,16 +87,19 @@ object TestData {
   }
 
   def createPushNotificationRequestPayload(outboundUrl: String = callbackData.callbackUrl, securityToken: String = callbackData.securityToken,
-                                           badgeId: String = badgeId, notificationPayload: NodeSeq = ValidXML,
+                                           mayBeBadgeId: Option[String] = Some(badgeId), notificationPayload: NodeSeq = ValidXML,
                                            conversationId: String = validConversationId): JsValue = Json.parse(
     s"""
        |{
        |   "url": "$outboundUrl",
        |   "conversationId": "$conversationId",
        |   "authHeaderToken": "$securityToken",
-       |   "outboundCallHeaders": [{"name": "X-Badge-Identifier", "value": "$badgeId"}],
-       |   "xmlPayload": "${notificationPayload.toString()}"
-       |}
+       |      "outboundCallHeaders": [""".stripMargin
+      + mayBeBadgeId.fold("")(badge => s"""  {"name": "X-Badge-Identifier", "value": "$badge"}   """) +
+      s"""
+         |],
+         |   "xmlPayload": "${notificationPayload.toString()}"
+         |}
     """.stripMargin)
 
   def pushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
