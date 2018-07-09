@@ -28,7 +28,7 @@ import util.ExternalServicesConfiguration
 trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneAppPerSuite
    with BeforeAndAfterAll with BeforeAndAfterEach with Eventually {
 
-  private val Wait = 1
+  private val Wait = 5
 
   override implicit def patienceConfig: PatienceConfig = super.patienceConfig.copy(timeout = Span(Wait, Seconds))
 
