@@ -26,7 +26,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.customs.notification.services.{ClientWorkerImpl, PullClientNotificationService, PushClientNotificationService}
@@ -36,6 +36,7 @@ import unit.services.ClientWorkerTestData._
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
+import scala.collection.immutable.Seq
 import scala.concurrent.Future
 
 class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterAll {
@@ -49,22 +50,22 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
   private trait SetUp {
 
-    private[ClientWorkerImplTimerSpec] val mockClientNotificationRepo = mock[ClientNotificationRepo]
+    private[ClientWorkerImplTimerSpec] val mockRepo = mock[ClientNotificationRepo]
     private[ClientWorkerImplTimerSpec] val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
-    private[ClientWorkerImplTimerSpec] val mockPullClientNotificationService = mock[PullClientNotificationService]
-    private[ClientWorkerImplTimerSpec] val mockPushClientNotificationService = mock[PushClientNotificationService]
+    private[ClientWorkerImplTimerSpec] val mockPull = mock[PullClientNotificationService]
+    private[ClientWorkerImplTimerSpec] val mockPush = mock[PushClientNotificationService]
     private[ClientWorkerImplTimerSpec] val mockLockRepo = mock[LockRepo]
     private[ClientWorkerImplTimerSpec] val mockLogger = mock[NotificationLogger]
     private[ClientWorkerImplTimerSpec] val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
 
 
-    def clientWorkerWithProcessingDelay(delayMilliseconds: Int): ClientWorkerImpl = {
+    def clientWorkerWithProcessingDelay(delayMilliseconds: Int, innerPullLoopDelayMilliseconds: Int = 0): ClientWorkerImpl = {
       lazy val clientWorker = new ClientWorkerImpl(
         actorSystem,
-        mockClientNotificationRepo,
+        mockRepo,
         mockApiSubscriptionFieldsConnector,
-        mockPushClientNotificationService,
-        mockPullClientNotificationService,
+        mockPush,
+        mockPull,
         mockLockRepo,
         mockLogger
       )
@@ -75,6 +76,13 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
           }
           super.process(csid, lockOwnerId)(hc, refreshLockFailed)
         }
+        override protected def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+          scala.concurrent.blocking {
+            Thread.sleep(innerPullLoopDelayMilliseconds)
+          }
+          super.blockingInnerPullLoop(clientNotifications)(hc, refreshLockFailed)
+        }
+
       }
       clientWorker
     }
@@ -102,21 +110,21 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     "In happy path" should {
       "refresh timer when elapsed time > time delay duration" in new SetUp {
 
-        when(mockClientNotificationRepo.fetch(CsidOne))
+        when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId) , any[org.joda.time.Duration])).thenReturn(Future.successful(true))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
-        when(mockPushClientNotificationService.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
-        when(mockClientNotificationRepo.delete(ameq(ClientNotificationOne)))
+        when(mockPush.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
+        when(mockRepo.delete(ameq(ClientNotificationOne)))
           .thenReturn(Future.successful(()))
 
         private val actual = await(clientWorkerWithProcessingDelay(fiveSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
         actual shouldBe (())
         eventually{
-          verify(mockPushClientNotificationService).send(ameq(DeclarantCallbackDataOne), ameq(ClientNotificationOne))
-          verify(mockClientNotificationRepo).delete(ameq(ClientNotificationOne))
+          verify(mockPush).send(ameq(DeclarantCallbackDataOne), ameq(ClientNotificationOne))
+          verify(mockRepo).delete(ameq(ClientNotificationOne))
           val expectedLockRefreshCount: Int = fiveSecondsProcessingDelay / ninetyPercentOfLockDuration
           verify(mockLockRepo, times(expectedLockRefreshCount)).tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
@@ -127,7 +135,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
     "In unhappy path" should {
       "exit push inner loop processing when lock refresh returns false" in new SetUp {
-        when(mockClientNotificationRepo.fetch(CsidOne))
+        when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(false))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
@@ -136,13 +144,35 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
         actual shouldBe (())
         eventually {
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error pushing notifications: quitting pull processing - error refreshing lock")
+          verifyLogError("error refreshing lock in timer: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Unable to refresh lock")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting pull processing - error refreshing lock")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }
 
+      "exit pull inner loop processing when lock refresh returns false" in new SetUp {
+        when(mockRepo.fetch(CsidOne))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
+        when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(true), Future.successful(true), Future.successful(false))
+        when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+
+        private val actual = await(clientWorkerWithProcessingDelay(
+          oneAndAHalfSecondsProcessingDelay, oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
+
+        actual shouldBe (())
+        eventually {
+          verifyLogError("error refreshing lock in timer: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Unable to refresh lock")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error enqueuing notifications to pull queue: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] quitting pull processing - error refreshing lock")
+          verifyZeroInteractions(mockPush)
+          verifyZeroInteractions(mockPull)
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+        }
+      }
+
+
       "log an error when refresh lock throws an exception" in new SetUp {
-        when(mockClientNotificationRepo.fetch(CsidOne))
+        when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
@@ -151,7 +181,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
         actual shouldBe (())
         eventually {
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error pushing notifications: quitting pull processing - error refreshing lock")
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting pull processing - error refreshing lock")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }

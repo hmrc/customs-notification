@@ -164,12 +164,12 @@ class ClientWorkerImpl @Inject()(
           case PushProcessingException(_) =>
             blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
           case NonFatal(e) =>
-            logger.error(s"[clientSubscriptionId=$csid] error pushing notifications: ${e.getMessage}")
+            logger.error(s"[clientSubscriptionId=$csid] error processing notifications: ${e.getMessage}")
         }
       }
   }
 
-  private def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  protected def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
         throw new IllegalStateException("quitting pull processing - error refreshing lock")
@@ -213,18 +213,18 @@ class ClientWorkerImpl @Inject()(
       blockingInnerPullLoop(blockingFetch(csid))
       logger.info(s"[clientSubscriptionId=$csid] enqueue to pull queue successful")
     } catch {
-      case NonFatal(_) =>
-        logger.error(s"[clientSubscriptionId=$csid] error enqueuing notifications to pull queue")
+      case NonFatal(e) =>
+        val msg = s"[clientSubscriptionId=$csid] error enqueuing notifications to pull queue: ${e.getMessage}"
+        logger.error(msg)
     }
 
   }
 
-  private def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  protected def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
         throw new IllegalStateException(s"[clientSubscriptionId=${cn.csid}] quitting pull processing - error refreshing lock")
       }
-
       if (pull.send(cn)) {
         blockingDeleteNotification(cn)
       }
