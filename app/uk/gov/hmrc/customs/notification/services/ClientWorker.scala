@@ -68,7 +68,6 @@ class ClientWorkerImpl @Inject()(
   private case class PushProcessingException(msg: String) extends RuntimeException(msg)
 
   // TODO: read this value from HTTP VERBS config and add 10%
-  // se https://confluence.tools.tax.service.gov.uk/pages/viewpage.action?spaceKey=TEC&postingDay=2016%2F7%2F21&title=Timeouts+on+MDTP
   private val awaitApiCallDuration = 25 second
 
   override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
