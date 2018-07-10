@@ -19,7 +19,7 @@ package util
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
-import util.ExternalServicesConfig._
+import util.ExternalServicesConfiguration._
 
 trait WireMockRunner {
 

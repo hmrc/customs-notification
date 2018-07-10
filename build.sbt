@@ -8,7 +8,7 @@ import uk.gov.hmrc.DefaultBuildSettings.{addTestReportOption, defaultSettings, s
 import uk.gov.hmrc.PublishingSettings._
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
-import language.postfixOps
+import scala.language.postfixOps
 
 name := "customs-notification"
 
@@ -110,10 +110,10 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
 
 scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 
-val compileDependencies = Seq(bootstrapPlay25, xmlResolver, customsApiCommon)
+val compileDependencies = Seq(bootstrapPlay25, xmlResolver, customsApiCommon, playReactiveMongo, mongoLock)
 
 val testDependencies = Seq(hmrcTest, scalaTest, pegDown,
-  scalaTestPlusPlay, wireMock, mockito, customsApiCommonTests)
+  scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
 
 unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
 

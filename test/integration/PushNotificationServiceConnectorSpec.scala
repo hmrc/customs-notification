@@ -22,17 +22,17 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.connectors.PublicNotificationServiceConnector
+import uk.gov.hmrc.customs.notification.connectors.PushNotificationServiceConnector
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.logging.Authorization
-import util.ExternalServicesConfig.{Host, Port}
+import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ExternalServicesConfig, PublicNotificationService, RequestHeaders}
+import util.{ExternalServicesConfiguration, PushNotificationService, RequestHeaders}
 
-class PublicNotificationServiceConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
-  with BeforeAndAfterAll with PublicNotificationService {
+class PushNotificationServiceConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
+  with BeforeAndAfterAll with PushNotificationService {
 
-  private lazy val connector = app.injector.instanceOf[PublicNotificationServiceConnector]
+  private lazy val connector = app.injector.instanceOf[PushNotificationServiceConnector]
 
   val incomingBearerToken = "some_client's_bearer_token"
   val incomingAuthToken = s"Bearer $incomingBearerToken"
@@ -57,44 +57,44 @@ class PublicNotificationServiceConnectorSpec extends IntegrationTestSpec with Gu
       "auditing.enabled" -> false,
       "microservice.services.public-notification.host" -> Host,
       "microservice.services.public-notification.port" -> Port,
-      "microservice.services.public-notification.context" -> ExternalServicesConfig.PublicNotificationServiceContext
+      "microservice.services.public-notification.context" -> ExternalServicesConfiguration.PushNotificationServiceContext
     )).build()
 
-  "PublicNotificationServiceConnector" should {
+  "PushNotificationServiceConnector" should {
 
     "make a correct request" in {
-      setupPublicNotificationServiceToReturn(NO_CONTENT)
+      setupPushNotificationServiceToReturn(NO_CONTENT)
 
-      await(connector.send(publicNotificationRequest))
+      await(connector.send(pushNotificationRequest))
 
-      verifyPublicNotificationServiceWasCalledWith(publicNotificationRequest)
+      verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
     }
 
     "return a failed future with wrapped HttpVerb NotFoundException when external service returns 404" in {
-      setupPublicNotificationServiceToReturn(NOT_FOUND)
+      setupPushNotificationServiceToReturn(NOT_FOUND)
 
-      val caught = intercept[RuntimeException](await(connector.send(publicNotificationRequest)))
+      val caught = intercept[RuntimeException](await(connector.send(pushNotificationRequest)))
 
       caught.getCause.getClass shouldBe classOf[NotFoundException]
     }
 
     "return a failed future with wrapped HttpVerbs BadRequestException when external service returns 400" in {
-      setupPublicNotificationServiceToReturn(BAD_REQUEST)
+      setupPushNotificationServiceToReturn(BAD_REQUEST)
 
-      val caught = intercept[RuntimeException](await(connector.send(publicNotificationRequest)))
+      val caught = intercept[RuntimeException](await(connector.send(pushNotificationRequest)))
 
       caught.getCause.getClass shouldBe classOf[BadRequestException]
     }
 
     "return a failed future with Upstream5xxResponse when external service returns 500" in {
-      setupPublicNotificationServiceToReturn(INTERNAL_SERVER_ERROR)
+      setupPushNotificationServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      intercept[Upstream5xxResponse](await(connector.send(publicNotificationRequest)))
+      intercept[Upstream5xxResponse](await(connector.send(pushNotificationRequest)))
     }
 
     "return a failed future with wrapped HttpVerbs BadRequestException when it fails to connect the external service" in
       withoutWireMockServer {
-        val caught = intercept[RuntimeException](await(connector.send(publicNotificationRequest)))
+        val caught = intercept[RuntimeException](await(connector.send(pushNotificationRequest)))
 
         caught.getCause.getClass shouldBe classOf[BadGatewayException]
       }

@@ -26,7 +26,7 @@ import play.api.mvc.AnyContentAsXml
 import play.api.test.FakeRequest
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
-import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header, PublicNotificationRequest, PublicNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.domain._
 import util.RequestHeaders._
 import util.TestData._
 
@@ -36,9 +36,11 @@ object TestData {
 
   val validConversationId: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
   val validConversationIdUUID = UUID.fromString(validConversationId)
+  val conversationId = ConversationId(validConversationIdUUID)
   val invalidConversationId: String = "I-am-not-a-valid-uuid"
 
   val validFieldsId = "ffff01f9-ec3b-4ede-b263-61b626dde232"
+  val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(validFieldsId))
   val invalidFieldsId = "I-am-not-a-valid-type-4-uuid"
 
   val basicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
@@ -64,30 +66,50 @@ object TestData {
   val badgeId = "ABCDEF1234"
   val userAgent = "Customs Declaration Service"
 
-  lazy val somePublicNotificationRequest: Option[PublicNotificationRequest] = Some(publicNotificationRequest)
-  lazy val publicNotificationRequest: PublicNotificationRequest = publicNotificationRequest(ValidXML)
+  lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
+  lazy val pushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML)
+
+  def clientNotification(withBadgeId: Boolean = true): ClientNotification = {
+
+    val headers: Seq[Header] = if (withBadgeId) {
+      Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))
+    } else Seq[Header]()
+
+    ClientNotification(
+      csid = clientSubscriptionId,
+      Notification(
+        conversationId = conversationId,
+        headers = headers,
+        payload = ValidXML.toString(),
+        contentType = MimeTypes.XML
+      )
+    )
+  }
 
   def createPushNotificationRequestPayload(outboundUrl: String = callbackData.callbackUrl, securityToken: String = callbackData.securityToken,
-                                           badgeId: String = badgeId, notificationPayload: NodeSeq = ValidXML,
+                                           mayBeBadgeId: Option[String] = Some(badgeId), notificationPayload: NodeSeq = ValidXML,
                                            conversationId: String = validConversationId): JsValue = Json.parse(
     s"""
        |{
        |   "url": "$outboundUrl",
        |   "conversationId": "$conversationId",
        |   "authHeaderToken": "$securityToken",
-       |   "outboundCallHeaders": [{"name": "X-Badge-Identifier", "value": "$badgeId"}],
-       |   "xmlPayload": "${notificationPayload.toString()}"
-       |}
+       |      "outboundCallHeaders": [""".stripMargin
+      + mayBeBadgeId.fold("")(badge => s"""  {"name": "X-Badge-Identifier", "value": "$badge"}   """) +
+      s"""
+         |],
+         |   "xmlPayload": "${notificationPayload.toString()}"
+         |}
     """.stripMargin)
 
-  def publicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
-    val body = PublicNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
-    PublicNotificationRequest(validFieldsId, body)
+  def pushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
+    val body = PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    PushNotificationRequest(validFieldsId, body)
   }
 
-  def failedPublicNotificationRequest(xml: NodeSeq): PublicNotificationRequest = {
-    val body = PublicNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
-    PublicNotificationRequest(validFieldsId, body)
+  def failedPushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
+    val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    PushNotificationRequest(validFieldsId, body)
   }
 
   val ValidXML: Elem = <Foo>Bar</Foo>

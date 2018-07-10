@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 
 trait GoogleAnalyticsSenderService extends WireMockRunner {
 
-  private val googleAnalyticsEndpointPath = urlMatching(ExternalServicesConfig.GoogleAnalyticsEndpointContext)
+  private val googleAnalyticsEndpointPath = urlMatching(ExternalServicesConfiguration.GoogleAnalyticsEndpointContext)
 
   def setupGoogleAnalyticsEndpoint(statusToReturn: Int = ACCEPTED): Unit =
     stubFor(post(googleAnalyticsEndpointPath) willReturn aResponse().withStatus(statusToReturn))

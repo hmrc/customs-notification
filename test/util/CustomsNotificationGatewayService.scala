@@ -21,35 +21,35 @@ import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder
 import play.api.http.{HeaderNames, MimeTypes}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.domain.PublicNotificationRequest
+import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest
 
 import scala.collection.JavaConverters._
 
 trait CustomsNotificationGatewayService extends WireMockRunner {
 
-  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfig.PublicNotificationServiceContext)
-  private val googleAnalyticsEndpointPath = urlMatching(ExternalServicesConfig.GoogleAnalyticsEndpointContext)
+  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
+  private val googleAnalyticsEndpointPath = urlMatching(ExternalServicesConfiguration.GoogleAnalyticsEndpointContext)
 
   def setupGoogleAnalyticsEndpoint(): Unit =
     stubFor(post(googleAnalyticsEndpointPath) willReturn aResponse().withStatus(ACCEPTED))
 
 
-  def setupPublicNotificationServiceToReturn(status: Int = NO_CONTENT): Unit =
+  def setupPushNotificationServiceToReturn(status: Int = NO_CONTENT): Unit =
     stubFor(post(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       willReturn aResponse()
       .withStatus(status))
 
-  def verifyPublicNotificationServiceWasCalledWith(publicNotificationRequest: PublicNotificationRequest) {
+  def verifyPushNotificationServiceWasCalledWith(pushNotificationRequest: PushNotificationRequest) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
-      .withRequestBody(equalToJson(Json.toJson(publicNotificationRequest.body).toString()))
+      .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest.body).toString()))
     )
   }
 
-  def verifyPublicNotificationServiceWasCalledWith(expectedPayload: JsValue) {
+  def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))

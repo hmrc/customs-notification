@@ -22,9 +22,14 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.test.Helpers._
+import reactivemongo.bson.BSONObjectID
+import uk.gov.hmrc.customs.notification.domain.ClientNotification
+import uk.gov.hmrc.customs.notification.repo.MongoDbProvider
+import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 import scala.xml.Utility.trim
@@ -33,13 +38,20 @@ import scala.xml.XML.loadString
 class CustomsNotificationSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
-  with PublicNotificationService
-  with GoogleAnalyticsSenderService {
+  with PushNotificationService
+  with GoogleAnalyticsSenderService
+  with MongoSpecSupport {
 
   private val endpoint = "/customs-notification/notify"
-  private val googleAnalyticsTrackingId: String = "UA-43414424-2"
+  private val googleAnalyticsTrackingId: String = "UA-12345678-2"
   private val googleAnalyticsClientId: String = "555"
   private val googleAnalyticsEventValue = "10"
+
+  val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
+    collectionName = "notifications",
+    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
+    domainFormat = ClientNotification.clientNotificationJF) {
+  }
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
@@ -53,22 +65,24 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
 
   override protected def beforeAll() {
+    await(repo.drop)
     startMockServer()
-    setupPublicNotificationServiceToReturn()
+    setupPushNotificationServiceToReturn()
   }
 
   override protected def afterAll() {
     stopMockServer()
+    await(repo.drop)
   }
 
   override protected def afterEach(): Unit = {
     resetMockServer()
   }
 
-  feature("Ensure call to public notification service is made when request is valid") {
+  feature("Ensure call to push notification service is made when request is valid") {
 
     scenario("DMS/MDG submits a valid request") {
-      startApiSubscriptionFieldsService(validFieldsId,callbackData)
+      startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupGoogleAnalyticsEndpoint()
 
       Given("the API is available")
@@ -85,22 +99,11 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
-
-      And("the notification gateway service was called correctly")
-      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
-      eventually(verifyNotificationQueueServiceWasNotCalled())
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
-
-      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
-        s"[ConversationId=$validConversationId] A notification received for delivery") shouldBe true
-
-      callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
-        s"[ConversationId=$validConversationId] A notification has been pushed successfully") shouldBe true
     }
 
     scenario("DMS/MDG submits a valid request with incorrect callback details used") {
       startApiSubscriptionFieldsService(validFieldsId,callbackData)
-      setupPublicNotificationServiceToReturn(404)
+      setupPushNotificationServiceToReturn(NOT_FOUND)
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
@@ -118,19 +121,6 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
-
-      And("the notification gateway service was called correctly")
-      eventually(verifyPublicNotificationServiceWasCalledWith(createPushNotificationRequestPayload()))
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(3))
-
-      callWasMadeToGoogleAnalyticsWith("notificationRequestReceived",
-        s"[ConversationId=$validConversationId] A notification received for delivery") shouldBe true
-
-      callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
-        s"[ConversationId=$validConversationId] A notification Push request failed") shouldBe true
-
-      callWasMadeToGoogleAnalyticsWith("notificationLeftToBePulled",
-        s"[ConversationId=$validConversationId] A notification has been left to be pulled") shouldBe true
     }
 
   }

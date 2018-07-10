@@ -21,7 +21,6 @@ import org.mockito.Mockito._
 import org.mockito.{ArgumentCaptor, ArgumentMatchers}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.mockito.MockitoSugar
-import play.api.Configuration
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json, Writes}
@@ -47,7 +46,7 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
   private val mockConfigService = mock[ConfigService]
 
   private val url = "the-url"
-  private val gaTrackingId: String = "UA-43414424-2"
+  private val gaTrackingId: String = "UA-12345678-2"
   private val gaClientId: String = "555"
   private val gaEventValue = "10"
   private val eventName: String = "event-name"
