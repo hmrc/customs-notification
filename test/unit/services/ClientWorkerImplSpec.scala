@@ -64,7 +64,9 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       mockPull,
       mockLockRepo,
       mockLogger
-    )
+    ) {
+      override protected val loopIncrementToLog: Int = 2
+    }
 
     def schedulerExpectations(): Unit = {
       when(mockActorSystem.scheduler).thenReturn(mockScheduler)
@@ -114,6 +116,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           ordered.verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           ordered.verify(mockCancelable).cancel()
           verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Push successful")
+          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] processing notification record number 2")
           verifyZeroInteractions(mockPull)
         }
       }
@@ -155,7 +158,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         }
       }
 
-      "enqueue notification to pull queue when declarant details are not found" in new SetUp {
+      "enqueue all two notification to pull queue when declarant details are not found for first" in new SetUp {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(Nil))
@@ -173,6 +176,31 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         eventually {
           verifyZeroInteractions(mockPush)
           ordered.verify(mockPull).send(ameq(ClientNotificationOne))
+          ordered.verify(mockRepo).delete(ClientNotificationOne)
+          ordered.verify(mockPull).send(ameq(ClientNotificationTwo))
+          ordered.verify(mockRepo).delete(ClientNotificationTwo)
+          ordered.verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+          ordered.verify(mockCancelable).cancel()
+        }
+      }
+
+      "enqueue second of two notification to pull queue when declarant details are not found for second" in new SetUp {
+        schedulerExpectations()
+        when(mockRepo.fetch(CsidOne))
+          .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List(ClientNotificationTwo)), Future.successful(Nil))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)), Future.successful(None))
+        when(mockPush.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
+        when(mockPull.send(ameq(ClientNotificationTwo))).thenReturn(true)
+        when(mockRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.successful(()))
+        when(mockRepo.delete(ameq(ClientNotificationTwo))).thenReturn(Future.successful(()))
+        when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+        val ordered = Mockito.inOrder(mockPush, mockRepo, mockPull, mockRepo, mockLockRepo, mockCancelable)
+
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+
+        actual shouldBe (())
+        eventually {
+          ordered.verify(mockPush).send(ameq(DeclarantCallbackDataOne), ameq(ClientNotificationOne))
           ordered.verify(mockRepo).delete(ClientNotificationOne)
           ordered.verify(mockPull).send(ameq(ClientNotificationTwo))
           ordered.verify(mockRepo).delete(ClientNotificationTwo)
@@ -205,6 +233,25 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
     }
 
     "for unhappy path" should {
+      "exit out processing loop when there is a fatal exception, then release lock and cancel timer" in new SetUp {
+        schedulerExpectations()
+        when(mockRepo.fetch(CsidOne))
+          .thenReturn(Future.failed(new VirtualMachineError{}))
+        when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+
+        actual shouldBe (())
+        eventually {
+          verify(mockRepo).fetch(CsidOne)
+          verifyZeroInteractions(mockDeclarantDetails)
+          verifyZeroInteractions(mockPush)
+          verifyZeroInteractions(mockPull)
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+          verify(mockCancelable).cancel()
+        }
+      }
+
       "exit push processing and release lock when fetch of notifications throws an exception" in new SetUp {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))

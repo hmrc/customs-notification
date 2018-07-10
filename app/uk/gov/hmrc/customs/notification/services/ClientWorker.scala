@@ -70,6 +70,8 @@ class ClientWorkerImpl @Inject()(
   // TODO: read this value from HTTP VERBS config and add 10%
   private val awaitApiCallDuration = 25 second
 
+  protected val loopIncrementToLog = 1000
+
   override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
     //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
     //however looking at api-subscription-fields service I do not think it is required so keep new HeaderCarrier() for now
@@ -150,8 +152,8 @@ class ClientWorkerImpl @Inject()(
       while (continue) {
         try {
           counter += 1
-          if (counter % 1000 == 0) {
-            logger.info(s"processing notification record number $counter")
+          if (counter % loopIncrementToLog == 0) {
+            logger.info(s"[clientSubscriptionId=$csid] processing notification record number $counter")
           }
           val seq = blockingFetch(csid)
           if (seq.isEmpty) {
