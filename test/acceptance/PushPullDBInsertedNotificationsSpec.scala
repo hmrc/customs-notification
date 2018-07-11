@@ -20,10 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.joda.time.DateTime
 import org.scalatest.{Matchers, OptionValues}
-import play.api.Application
 import play.api.http.HeaderNames.{ACCEPT => _, CONTENT_TYPE => _}
 import play.api.http.MimeTypes
-import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc.AnyContentAsXml
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
@@ -65,7 +63,7 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
   private val totalNotificationsToBeSent = 100
   private val numberOfClientsToTest = 10
 
-  val notificationRepo = app.injector.instanceOf[ClientNotificationMongoRepo]
+  private val notificationRepo = app.injector.instanceOf[ClientNotificationMongoRepo]
 
   private val httpClient = app.injector.instanceOf[HttpClient]
 
