@@ -20,41 +20,35 @@ import java.util.UUID
 
 import com.github.tomakehurst.wiremock.http.HttpHeader
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
-import org.scalatest.Matchers
 import play.api.libs.json.{JsObject, Json}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.domain.DeclarantCallbackData
 import util.{NotificationQueueService, PushNotificationService}
 
-import scala.collection.{JavaConversions, mutable}
 import scala.collection.mutable.ListBuffer
+import scala.collection.{JavaConversions, mutable}
 import scala.xml.NodeSeq
 
-case class Client(csid: UUID, isPushEnabled: Boolean, callbackData: DeclarantCallbackData)
-
-case class ExpectedCall(client: Client, conversationId: UUID, maybeBadgeId: Option[String], xml: NodeSeq)
-
-case class ActualHeaderSent(name: String, value: List[String])
-
-case class ActualCallMade(headers: List[ActualHeaderSent], payload: String)
 
 
-trait StubForPushService extends PushNotificationService {
+trait StubForPushService extends PushServiceStub {
+  self: PushNotificationService =>
 
-  def numberOfActualCallsMadeToPushService(): Int = actualCallsMadeToClientsPushService().size
+  override def numberOfActualCallsMadeToPushService(): Int = actualCallsMadeToClientsPushService().size
 
-  def allSuccessfullyPushedCallsByCSID(): mutable.Map[UUID, ListBuffer[ActualCallMade]] = {
+  override def allSuccessfullyPushedCallsByCSID(): Map[UUID, List[ActualCallMade]] = {
     val allPushedCallsByCSID = mutable.Map[UUID, ListBuffer[ActualCallMade]]()
 
     JavaConversions.asScalaBuffer(actualCallsMadeToClientsPushService()).foreach { loggedRequest =>
       val authToken = Json.parse(loggedRequest.getBodyAsString).as[JsObject].value.get("authHeaderToken").get.toString()
 
+      // 6 & 42 constants are based on the badgeId creation in PushPullDBInsertionTestDataFeeder.createARandomExpectedCallFor
       val csid = UUID.fromString(authToken.substring(6, 42))
       val actualCallMade = convertToActualCallMade(loggedRequest)
 
       allPushedCallsByCSID.get(csid).fold[Unit](allPushedCallsByCSID += (csid -> ListBuffer(actualCallMade)))(_ += actualCallMade)
     }
-    allPushedCallsByCSID
+    allPushedCallsByCSID.map(x => (x._1, x._2.toList)).toMap
   }
 
   private def convertToActualCallMade(lr: LoggedRequest) = {
@@ -66,10 +60,12 @@ trait StubForPushService extends PushNotificationService {
 
 }
 
-trait StubForPullService extends NotificationQueueService with Matchers {
-  def numberOfActualCallsMadeToPullQ(): Int = actualCallsMadeToPullQ().size
+trait StubForPullService extends PullQStub {
+  self: NotificationQueueService =>
 
-  def allPullQReceivedCallsByByCSID(): mutable.Map[UUID, ListBuffer[ActualCallMade]] = {
+  override def numberOfActualCallsMadeToPullQ(): Int = actualCallsMadeToPullQ().size
+
+  override def allPullQReceivedCallsByByCSID(): Map[UUID, List[ActualCallMade]] = {
     val notificationsByCSID = mutable.Map[UUID, ListBuffer[ActualCallMade]]()
 
     JavaConversions.asScalaBuffer(actualCallsMadeToPullQ()).foreach { loggedRequest =>
@@ -77,7 +73,7 @@ trait StubForPullService extends NotificationQueueService with Matchers {
       val acm = convertToActualCallMade(loggedRequest)
       notificationsByCSID.get(csid).fold[Unit](notificationsByCSID += (csid -> ListBuffer(acm)))(_ += acm)
     }
-    notificationsByCSID
+    notificationsByCSID.map(x => (x._1, x._2.toList)).toMap
   }
 
   private def convertToActualCallMade(lr: LoggedRequest) = {
