@@ -234,7 +234,7 @@ trait NotificationQueueService extends WireMockRunner {
 object ExternalServicesConfiguration {
   val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "11111").toInt
   val Host = "localhost"
-  val PushNotificationServiceContext = "/make-post-call"
+  val PushNotificationServiceContext = "/notify-customs-declarant"
   val GoogleAnalyticsEndpointContext = "/google-analytics"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"

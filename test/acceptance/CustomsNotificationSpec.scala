@@ -67,7 +67,6 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   override protected def beforeAll() {
     await(repo.drop)
     startMockServer()
-    setupPushNotificationServiceToReturn()
   }
 
   override protected def afterAll() {
@@ -79,10 +78,17 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     resetMockServer()
   }
 
+  override protected def beforeEach(): Unit = {
+    startApiSubscriptionFieldsService(validFieldsId,callbackData)
+    setupApiSubscriptionFieldsServiceToReturn(NOT_FOUND, someFieldsId)
+    setupPushNotificationServiceToReturn()
+    setupGoogleAnalyticsEndpoint()
+  }
+
+
   feature("Ensure call to push notification service is made when request is valid") {
 
     scenario("DMS/MDG submits a valid request") {
-      startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupGoogleAnalyticsEndpoint()
 
       Given("the API is available")
@@ -102,7 +108,6 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     }
 
     scenario("DMS/MDG submits a valid request with incorrect callback details used") {
-      startApiSubscriptionFieldsService(validFieldsId,callbackData)
       setupPushNotificationServiceToReturn(NOT_FOUND)
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
@@ -122,7 +127,6 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
     }
-
   }
 
   private val table =
@@ -161,10 +165,9 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     }
 
     scenario("DMS/MDG submits a request with clientId that can not be found") {
-      setupApiSubscriptionFieldsServiceToReturn(NOT_FOUND, validFieldsId)
 
       Given("the API is available")
-      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+      val request = ValidRequestWithClientIdAbsentInDatabase.copyFakeRequest(method = POST, uri = endpoint)
 
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)
