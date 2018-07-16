@@ -16,8 +16,6 @@
 
 package acceptance
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import org.joda.time.DateTime
 import org.scalatest.{Matchers, OptionValues}
 import play.api.http.HeaderNames.{ACCEPT => _, CONTENT_TYPE => _}
@@ -35,7 +33,7 @@ import util._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
+class PushPullNotificationsSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService
   with GoogleAnalyticsSenderService
@@ -50,13 +48,6 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
   lazy val pushServiceStub = this
   lazy val pullQStub = this
   lazy val makeAPICall = makeLocalCall
-  override def insertIntoDB: (ExpectedCall => Unit) = { expectedCall =>
-    val headers: Seq[Header] = expectedCall.maybeBadgeId.fold(Seq[Header]())(badgeId => Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId)))
-
-    notificationRepo.save(
-      ClientNotification(ClientSubscriptionId(expectedCall.client.csid),
-        Notification(ConversationId(expectedCall.conversationId), headers, expectedCall.xml.toString(), MimeTypes.XML)))
-  }
   lazy val apiSubscriptionFieldsService = this
 
   private val endpoint = "/customs-notification/notify"
@@ -137,7 +128,6 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
 
       val expectedPushedNotificationsCounter = pushedNotificationExpectations.values.flatten.size
       val expectedPullNotificationsCounter = pullNotificationExpectations.values.flatten.size
-      val notificationsInsertedIntoDB = new AtomicInteger(0)
       When(s"totalExpectedPushedNotifications = $expectedPushedNotificationsCounter, totalExpectedPushedNotifications = $expectedPullNotificationsCounter")
 
       verifyActualNotificationsAreSameAs(pushedNotificationExpectations, pullNotificationExpectations)
@@ -150,8 +140,7 @@ class PushPullDBInsertedNotificationsSpec extends AcceptanceTestSpec
       And(s"PullQ notifications = $expectedPullNotificationsCounter")
       And(s"totalTimeTakenToProcessRequests = $notificationProcessingTimeInMillis millis")
       And(s"notificationsPerSecond=$notificationsProcessedInOneSecond")
-      And(s"notificationsInsertedIntoDB= $notificationsInsertedIntoDB")
-      And(s"totalTimeToTest= ${DateTime.now().getMillis - startTime.getMillis}")
+      And(s"totalTimeToTest= ${DateTime.now().getMillis - startTime.getMillis} millis")
 
       //      notificationsProcessedInOneSecond shouldBe > (70f)
     }
