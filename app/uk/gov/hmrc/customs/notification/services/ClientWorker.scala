@@ -66,6 +66,7 @@ class ClientWorkerImpl @Inject()(
                                 ) extends ClientWorker {
 
   private case class PushProcessingException(msg: String) extends RuntimeException(msg)
+  private case class PullProcessingException(msg: String) extends RuntimeException(msg)
 
   // TODO: read this value from HTTP VERBS config and add 10%
   private val awaitApiCallDuration = 25 second
@@ -230,6 +231,8 @@ class ClientWorkerImpl @Inject()(
       }
       if (pull.send(cn)) {
         blockingDeleteNotification(cn)
+      } else {
+        throw PullProcessingException("pull queue unavailable")
       }
     }
   }

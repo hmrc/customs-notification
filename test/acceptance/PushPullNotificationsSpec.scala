@@ -115,7 +115,7 @@ class PushPullNotificationsSpec extends AcceptanceTestSpec
   }
 
 
-  feature("Ensure call to Push Pull are mode") {
+  feature("Ensure calls to Push Pull are made") {
 
     scenario(s"correctly with $numberOfClientsToTest clients and $totalNotificationsToBeSent requests") {
 
