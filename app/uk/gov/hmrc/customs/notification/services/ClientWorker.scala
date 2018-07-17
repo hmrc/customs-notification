@@ -139,8 +139,10 @@ class ClientWorkerImpl @Inject()(
 
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
     Future{
-      blockingOuterProcessLoop(csid, lockOwnerId)
-      blockingReleaseLock(csid, lockOwnerId)
+      scala.concurrent.blocking {
+        blockingOuterProcessLoop(csid, lockOwnerId)
+        blockingReleaseLock(csid, lockOwnerId)
+      }
     }
   }
 
@@ -232,6 +234,8 @@ class ClientWorkerImpl @Inject()(
       if (pull.send(cn)) {
         blockingDeleteNotification(cn)
       } else {
+        //when both customs-notification-gateway and api-notification-queue are down this exception will guarantee that notifications
+        //are sent in order to the notification queue when it comes back up
         throw PullProcessingException("pull queue unavailable")
       }
     }
