@@ -26,7 +26,7 @@ import util.ApiSubscriptionFieldsService
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.util.Random
 import scala.xml.NodeSeq
 
@@ -38,43 +38,47 @@ trait PushPullDBInsertionTestDataFeeder extends Matchers with Eventually {
 
   def makeAPICall: (ExpectedCall => Unit)
 
-  def insertIntoDB: (ExpectedCall => Unit)
-
   def apiSubscriptionFieldsService: ApiSubscriptionFieldsService
 
   def insertTestData(totalNotificationsToBeSent: Int,
-                     numberOfClientsToTest: Int
-                    ): (Map[Client, List[ExpectedCall]], Map[Client, List[ExpectedCall]]) = {
+                     numberOfClientsToTest: Int): (Map[Client, List[ExpectedCall]], Map[Client, List[ExpectedCall]]) = {
 
-    val expectedPushNotificationsByCSID: mutable.Map[Client, ListBuffer[ExpectedCall]] = mutable.Map()
-    val expectedPullNotificationsByCSID: mutable.Map[Client, ListBuffer[ExpectedCall]] = mutable.Map()
+    val expectedPushNotificationsByClient: mutable.Map[Client, ListBuffer[ExpectedCall]] = mutable.Map()
+    val expectedPullNotificationsByClient: mutable.Map[Client, ListBuffer[ExpectedCall]] = mutable.Map()
 
-    val poolOfPushOrPullEnabledClientCSIDs: List[Client] = createPoolOfPushEnabledDisabledClients(numberOfClientsToTest, mutable.Set())(apiSubscriptionFieldsService).toList
+    val poolOfPushOrPullEnabledClients: List[Client] = createPoolOfPushEnabledDisabledClients(numberOfClientsToTest, mutable.Set())(apiSubscriptionFieldsService).toList
 
-    for (a <- 1 to totalNotificationsToBeSent) {
+    val futureListOfExpectedCalls = makeCallsInSequenceForAllClients(
+      randomlySelectedClients(totalNotificationsToBeSent, poolOfPushOrPullEnabledClients))(sendNotificationToCustomsNotificationFor)
 
-      val client = poolOfPushOrPullEnabledClientCSIDs(Random.nextInt(numberOfClientsToTest))
-
-      val insertNotificationInDB = false //Random.nextBoolean()
-      val processor: ExpectedCall => Unit = if (insertNotificationInDB) insertIntoDB else makeAPICall
-
-      if (client.isPushEnabled) {
-        fireOffRandomRequest(client, processor).map { expectedCall =>
-          addExpectedCallTo(expectedPushNotificationsByCSID, expectedCall)
-        }
-      } else {
-        fireOffRandomRequest(client, processor).map { expectedCall =>
-          addExpectedCallTo(expectedPullNotificationsByCSID, expectedCall)
-        }
-      }
+    futureListOfExpectedCalls.map { listOfExpectedCalls =>
+      listOfExpectedCalls.foreach(successfullyMadeCall =>
+        addExpectedCallToPullOrPullExpectedCollection(successfullyMadeCall, expectedPushNotificationsByClient, expectedPullNotificationsByClient)
+      )
     }
 
-    //wait until all requests are made i.e. all above Futures are completed
-    eventually(expectedPushNotificationsByCSID.values.flatten.size + expectedPullNotificationsByCSID.values.flatten.size should be(totalNotificationsToBeSent))
+    //Wait until all requests are processed by the service i.e. all above Futures are completed.
+    //If this starts failing then increase the PatienceConfig.
+    eventually(expectedPushNotificationsByClient.values.flatten.size + expectedPullNotificationsByClient.values.flatten.size should be(totalNotificationsToBeSent))
 
-    (convertToMutableMap(expectedPushNotificationsByCSID), convertToMutableMap(expectedPullNotificationsByCSID))
+    (convertToMutableMap(expectedPushNotificationsByClient), convertToMutableMap(expectedPullNotificationsByClient))
   }
 
+  private def randomlySelectedClients(totalNotificationsToBeSent: Int, poolOfPushOrPullEnabledClientCSIDs: List[Client]): Seq[Client] = {
+    val randomlySelectedClient = ListBuffer[Client]()
+    for (a <- 1 to totalNotificationsToBeSent) {
+      randomlySelectedClient += poolOfPushOrPullEnabledClientCSIDs(Random.nextInt(poolOfPushOrPullEnabledClientCSIDs.size))
+    }
+    randomlySelectedClient
+  }
+
+  private def addExpectedCallToPullOrPullExpectedCollection(expectedCall: ExpectedCall, expectedPushNotificationsByClient: mutable.Map[Client, ListBuffer[ExpectedCall]], expectedPullNotificationsByClient: mutable.Map[Client, ListBuffer[ExpectedCall]]): Unit = {
+    if (expectedCall.client.isPushEnabled) {
+      addExpectedCallTo(expectedPushNotificationsByClient, expectedCall)
+    } else {
+      addExpectedCallTo(expectedPullNotificationsByClient, expectedCall)
+    }
+  }
 
   private def convertToMutableMap(mutableMap: mutable.Map[Client, ListBuffer[ExpectedCall]]) =
     mutableMap.map(x => (x._1, x._2.toList)).toMap
@@ -96,10 +100,10 @@ trait PushPullDBInsertionTestDataFeeder extends Matchers with Eventually {
     clients
   }
 
-  private def fireOffRandomRequest(client: Client, callAPIOrInsertInDB: (ExpectedCall => Unit)): Future[ExpectedCall] = {
+  private def sendNotificationToCustomsNotificationFor(client: Client): Future[ExpectedCall] = {
     Future.successful {
       val expectedCall = createARandomExpectedCallFor(client)
-      callAPIOrInsertInDB(expectedCall)
+      makeAPICall(expectedCall)
       expectedCall
     }
   }
@@ -115,4 +119,12 @@ trait PushPullDBInsertionTestDataFeeder extends Matchers with Eventually {
     expectedCallsForCSIDs.get(expectedCall.client).fold[Unit](expectedCallsForCSIDs += (expectedCall.client -> ListBuffer(expectedCall)))(_ += expectedCall)
   }
 
+  private def makeCallsInSequenceForAllClients(iter: Iterable[Client])(fn: Client => Future[ExpectedCall]): Future[List[ExpectedCall]] =
+    iter.foldLeft(Future(List.empty[ExpectedCall])) {
+      (previousFuture, next) =>
+        for {
+          previousResults <- previousFuture
+          next <- fn(next)
+        } yield previousResults :+ next
+    }
 }
