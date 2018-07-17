@@ -193,7 +193,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client1Notification3))
 
       collectionSize shouldBe 4
-      val clientNotifications = await(repository.collection.find(selector(validClientSubscriptionId1)).cursor[ClientNotification]().collect[List](Int.MaxValue, Cursor.FailOnError[List[ClientNotification]]()))
+      val clientNotifications = await(repository.fetch(validClientSubscriptionId1))
       clientNotifications.size shouldBe 3
       clientNotifications.head.notification.payload shouldBe payload1
       clientNotifications(1).notification.payload shouldBe payload2

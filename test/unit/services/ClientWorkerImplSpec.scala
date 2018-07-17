@@ -324,6 +324,25 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           verify(mockCancelable).cancel()
         }
       }
+
+      "exit pull processing loop early if pull returns false" in new SetUp {
+        schedulerExpectations()
+        when(mockRepo.fetch(CsidOne))
+          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
+        when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
+        when(mockPush.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(false)
+        when(mockPull.send(ameq(ClientNotificationOne))).thenReturn(false)
+
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+
+        actual shouldBe (())
+        eventually {
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error enqueuing notifications to pull queue: pull queue unavailable")
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+          verify(mockCancelable).cancel()
+        }
+      }
     }
   }
 
