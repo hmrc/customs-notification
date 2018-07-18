@@ -68,7 +68,7 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
     Index(
       key = Seq("csid" -> IndexType.Ascending, "timeReceived" -> IndexType.Descending),
       name = Some("csid-timeReceived-Index"),
-      unique = true
+      unique = false
     )
   )
 
