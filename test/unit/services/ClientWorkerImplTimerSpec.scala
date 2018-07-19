@@ -44,7 +44,6 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
   private val actorSystem = ActorSystem("TestActorSystem")
   private val oneThousand = 1000
   private val lockDuration = org.joda.time.Duration.millis(oneThousand)
-  private val ninetyPercentOfLockDuration = 900
   private val oneAndAHalfSecondsProcessingDelay = 1500
   private val fiveSecondsProcessingDelay = 5000
 
@@ -59,7 +58,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     private[ClientWorkerImplTimerSpec] val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
 
 
-    def clientWorkerWithProcessingDelay(delayMilliseconds: Int, innerPullLoopDelayMilliseconds: Int = 0): ClientWorkerImpl = {
+    def clientWorkerWithProcessingDelay(outerProcessingDelayMilliseconds: Int, innerPullLoopDelayMilliseconds: Int = 0): ClientWorkerImpl = {
       lazy val clientWorker = new ClientWorkerImpl(
         actorSystem,
         mockRepo,
@@ -72,7 +71,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
       {
         override protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
           scala.concurrent.blocking {
-            Thread.sleep(delayMilliseconds)
+            Thread.sleep(outerProcessingDelayMilliseconds)
           }
           super.process(csid, lockOwnerId)(hc, refreshLockFailed)
         }
@@ -146,7 +145,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         actual shouldBe (())
         eventually {
           verifyLogError("error refreshing lock in timer: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Unable to refresh lock")
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting push processing - error refreshing lock")
+          verifyLogError("Fatal error - exiting processing: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error refreshing lock during push processing")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }
@@ -159,12 +158,13 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
         private val actual = await(clientWorkerWithProcessingDelay(
-          oneAndAHalfSecondsProcessingDelay, oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
+          outerProcessingDelayMilliseconds = oneAndAHalfSecondsProcessingDelay,
+          innerPullLoopDelayMilliseconds = oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
         actual shouldBe (())
         eventually {
           verifyLogError("error refreshing lock in timer: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Unable to refresh lock")
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error enqueuing notifications to pull queue: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] quitting pull processing - error refreshing lock")
+          verifyLogError("Fatal error - exiting processing: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error refreshing lock during pull processing")
           verifyZeroInteractions(mockPush)
           verifyZeroInteractions(mockPull)
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
@@ -172,9 +172,9 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
       }
 
 
-      "log an error when refresh lock throws an exception" in new SetUp {
+      "exit outer loop and log an error when refresh lock throws an exception during push processing" in new SetUp {
         when(mockRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
+          .thenReturn(Future.successful(List(ClientNotificationOne)))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
 
@@ -182,7 +182,29 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
         actual shouldBe (())
         eventually {
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: quitting push processing - error refreshing lock")
+          verifyZeroInteractions(mockPush)
+          verifyZeroInteractions(mockPull)
+          verifyLogError(s"Fatal error - exiting processing: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error refreshing lock during push processing")
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+        }
+      }
+
+      "exit outer loop and log an error when refresh lock throws an exception during pull processing" in new SetUp {
+        when(mockRepo.fetch(CsidOne))
+          .thenReturn(Future.successful(List(ClientNotificationOne)))
+        when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(true), Future.failed(emulatedServiceFailure))
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
+        when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+
+        private val actual = await(clientWorkerWithProcessingDelay(
+          outerProcessingDelayMilliseconds = oneAndAHalfSecondsProcessingDelay,
+          innerPullLoopDelayMilliseconds = oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
+
+        actual shouldBe (())
+        eventually {
+          verifyZeroInteractions(mockPush)
+          verifyZeroInteractions(mockPull)
+          verifyLogError("Fatal error - exiting processing: [clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error refreshing lock during pull processing")
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
         }
       }

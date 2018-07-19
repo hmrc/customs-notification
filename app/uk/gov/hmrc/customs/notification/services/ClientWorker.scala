@@ -35,7 +35,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationDouble, FiniteDuration}
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
-import scala.util.control.NonFatal
+import scala.util.control.{ControlThrowable, NonFatal}
 
 @ImplementedBy(classOf[ClientWorkerImpl])
 trait ClientWorker {
@@ -67,6 +67,8 @@ class ClientWorkerImpl @Inject()(
 
   private case class PushProcessingException(msg: String) extends RuntimeException(msg)
   private case class PullProcessingException(msg: String) extends RuntimeException(msg)
+  // ControlThrowable is a marker trait that ensures this is treated as a Fatal exception
+  private case class ExitOuterLoopException(msg: String) extends RuntimeException(msg) with ControlThrowable
 
   // TODO: read this value from HTTP VERBS config and add 10%
   private val awaitApiCallDuration = 25 second
@@ -152,33 +154,39 @@ class ClientWorkerImpl @Inject()(
 
       var continue = true
       var counter = 0
-      while (continue) {
-        try {
-          counter += 1
-          if (counter % loopIncrementToLog == 0) {
-            logger.info(s"[clientSubscriptionId=$csid] processing notification record number $counter")
+      try {
+        while (continue) {
+          try {
+            counter += 1
+            if (counter % loopIncrementToLog == 0) {
+              logger.info(s"[clientSubscriptionId=$csid] processing notification record number $counter")
+            }
+            val seq = blockingFetch(csid)
+            if (seq.isEmpty) {
+              continue = false // the only way to exit loop is if blockingFetch returns empty list or there is a FATAL exception
+            }
+            else {
+              blockingInnerPushLoop(seq)
+              logger.info(s"[clientSubscriptionId=$csid] Push successful")
+            }
+          } catch {
+            case PushProcessingException(_) =>
+              blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
+            case NonFatal(e) =>
+              logger.error(s"[clientSubscriptionId=$csid] error processing notifications: ${e.getMessage}")
           }
-          val seq = blockingFetch(csid)
-          if (seq.isEmpty) {
-            continue = false // the only way to exit loop is if blockingFetch returns empty list or there is a FATAL exception
-          }
-          else {
-            blockingInnerPushLoop(seq)
-            logger.info(s"[clientSubscriptionId=$csid] Push successful")
-          }
-        } catch {
-          case PushProcessingException(_) =>
-            blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
-          case NonFatal(e) =>
-            logger.error(s"[clientSubscriptionId=$csid] error processing notifications: ${e.getMessage}")
         }
+      } catch {
+        case ExitOuterLoopException(msg) =>
+          logger.error(s"Fatal error - exiting processing: $msg")
       }
+
   }
 
   protected def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
-        throw new IllegalStateException("quitting push processing - error refreshing lock")
+        throw ExitOuterLoopException(s"[clientSubscriptionId=${cn.csid}] error refreshing lock during push processing")
       }
 
       val maybeDeclarantCallbackData = blockingMaybeDeclarantDetails(cn)
@@ -198,7 +206,12 @@ class ClientWorkerImpl @Inject()(
   }
 
   private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier) = {
-    Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)
+    try {
+      Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)
+    } catch {
+      case NonFatal(e) =>
+        throw ExitOuterLoopException(s"Error getting declarant details: ${e.getMessage}")
+    }
   }
 
   private def blockingDeleteNotification(cn: ClientNotification)(implicit hc: HeaderCarrier): Unit = {
@@ -229,7 +242,7 @@ class ClientWorkerImpl @Inject()(
   protected def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
-        throw new IllegalStateException(s"[clientSubscriptionId=${cn.csid}] quitting pull processing - error refreshing lock")
+        throw ExitOuterLoopException(s"[clientSubscriptionId=${cn.csid}] error refreshing lock during pull processing")
       }
       if (pull.send(cn)) {
         blockingDeleteNotification(cn)
