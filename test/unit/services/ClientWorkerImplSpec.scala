@@ -272,7 +272,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       "exit push processing and release lock when fetch of declarant details throws an exception" in new SetUp {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
+          .thenReturn(Future.successful(List(ClientNotificationOne)))
         when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier]))
           .thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
@@ -281,29 +281,31 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
 
         actual shouldBe (())
         eventually {
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: Emulated service failure.")
-          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+          verifyLogError("Fatal error - exiting processing: Error getting declarant details: Emulated service failure.")
           verifyZeroInteractions(mockPush)
+          verifyZeroInteractions(mockPull)
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verify(mockCancelable).cancel()
         }
       }
 
-      "log release lock error when release lock error fails on exit of push processing when fetch of declarant details throws an exception" in new SetUp {
+      "log release lock error when release lock error fails on exit of push processing when fetch throws a fatal exception" in new SetUp {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
-          .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier]))
-          .thenReturn(Future.failed(emulatedServiceFailure))
+          .thenReturn(Future.failed(new VirtualMachineError{}))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.failed(emulatedServiceFailure))
 
         private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
 
         actual shouldBe (())
         eventually {
+          verify(mockRepo).fetch(CsidOne)
+          verifyZeroInteractions(mockDeclarantDetails)
+          verifyZeroInteractions(mockPush)
+          verifyZeroInteractions(mockPull)
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] error processing notifications: Emulated service failure.")
-          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231][lockOwnerId=eaca01f9-ec3b-4ede-b263-61b626dde231] error releasing lock")
           verify(mockCancelable).cancel()
+          verifyLogError("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231][lockOwnerId=eaca01f9-ec3b-4ede-b263-61b626dde231] error releasing lock")
         }
       }
 
