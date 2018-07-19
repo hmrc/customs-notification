@@ -44,7 +44,6 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
   private val actorSystem = ActorSystem("TestActorSystem")
   private val oneThousand = 1000
   private val lockDuration = org.joda.time.Duration.millis(oneThousand)
-  private val ninetyPercentOfLockDuration = 900
   private val oneAndAHalfSecondsProcessingDelay = 1500
   private val fiveSecondsProcessingDelay = 5000
 
