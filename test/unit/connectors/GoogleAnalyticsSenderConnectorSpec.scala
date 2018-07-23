@@ -33,7 +33,7 @@ import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.test.UnitSpec
-import util.MockitoPassByNameHelper.PassByNameVerifier
+import unit.repo.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
 import scala.concurrent.{ExecutionContext, Future}

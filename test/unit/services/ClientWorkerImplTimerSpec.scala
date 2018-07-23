@@ -32,8 +32,8 @@ import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerI
 import uk.gov.hmrc.customs.notification.services.{ClientWorkerImpl, PullClientNotificationService, PushClientNotificationService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
+import unit.repo.MockitoPassByNameHelper.PassByNameVerifier
 import unit.services.ClientWorkerTestData._
-import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
 import scala.collection.immutable.Seq

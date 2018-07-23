@@ -20,7 +20,6 @@ import java.util.UUID
 
 import org.joda.time.{DateTime, DateTimeZone, Seconds}
 import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
@@ -35,7 +34,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.lock.LockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
-import util.MockitoPassByNameHelper.PassByNameVerifier
+import unit.repo.MockitoPassByNameHelper.PassByNameVerifier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -72,7 +71,6 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1)
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
 
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
   private val timeoutInSeconds = 2
@@ -88,7 +86,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     override val repo: LockRepository = lockRepository
   }
 
-  private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
+  private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockNotificationLogger)
 
   override def beforeEach() {
     await(repository.drop)
@@ -117,7 +115,6 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   "repository" should {
     "successfully save a single notification" in {
-      when(mockErrorHandler.handleSaveError(any(), any(), any())).thenReturn(true)
       val saveResult = await(repository.save(client1Notification1))
       saveResult shouldBe true
       collectionSize shouldBe 1
