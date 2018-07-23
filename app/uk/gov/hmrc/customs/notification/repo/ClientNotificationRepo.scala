@@ -71,21 +71,18 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
     )
   )
 
-  //TODO MC revisit
   override def save(clientNotification: ClientNotification): Future[Boolean] = {
     notificationLogger.debug(s"${logMsgPrefix(clientNotification)} saving clientNotification: $clientNotification")
-    lazy val exceptionMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
+    lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
 
     val selector = Json.obj("_id" -> clientNotification.id)
     val update = Json.obj("$currentDate" -> Json.obj("timeReceived" -> true), "$set" -> clientNotification)
-    collection.update(selector, update, upsert = true).map {
-      case wr: WriteResult if wr.writeConcernError.isEmpty && databaseAltered(wr) =>
-        true
-      case wr: WriteResult =>
-        val errMsg = wr.writeConcernError.fold(".") { a => s" $a" }
-        val message = s"$exceptionMsg$errMsg"
-        notificationLogger.error(message)
+    collection.update(selector, update, upsert = true).map { wr =>
+      val maybeErrorMessage = maybeGetErrorMessage(wr, errorMsg)
+      maybeErrorMessage.fold(true) { msg =>
+        notificationLogger.error(msg)
         false
+      }
     }
   }
 

@@ -55,14 +55,14 @@ class ClientNotificationMongoRepoSpec extends UnitSpec with MockitoSugar with Mo
         updateReturns(0)
 
         await(repository.save(clientNotification)) shouldBe false
-        logVerifier("error", s"Client Notification not saved for clientSubscriptionId ${uuid.toString}.")
+        logVerifier("error", s"Client Notification not saved for clientSubscriptionId ${uuid.toString}")
       }
 
       "return false if there is a database error" in new Setup {
         private val writeConcernError = Some(WriteConcernError(1, "ERROR"))
         updateReturns(0, writeConcernError)
         await(repository.save(clientNotification)) shouldBe false
-        logVerifier("error", s"Client Notification not saved for clientSubscriptionId ${uuid.toString} WriteConcernError(1,ERROR)")
+        logVerifier("error", s"Client Notification not saved for clientSubscriptionId ${uuid.toString}. WriteConcernError(1,ERROR)")
       }
 
 
