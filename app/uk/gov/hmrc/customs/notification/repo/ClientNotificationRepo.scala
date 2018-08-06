@@ -18,9 +18,8 @@ package uk.gov.hmrc.customs.notification.repo
 
 import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
-
 import play.api.libs.json.Json
-import reactivemongo.api.Cursor
+import reactivemongo.api.{Cursor, ReadPreference}
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
