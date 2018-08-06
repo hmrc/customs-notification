@@ -20,6 +20,7 @@ import java.util.UUID
 
 import org.joda.time.{DateTime, DateTimeZone, Seconds}
 import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -38,6 +39,8 @@ import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class ClientNotificationMongoRepoSpec extends UnitSpec
   with BeforeAndAfterAll
@@ -77,6 +80,12 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
   private val timeoutInSeconds = 2
   private val duration = org.joda.time.Duration.standardSeconds(timeoutInSeconds)
+  private val five = 5
+  private val pushConfigWithMaxFiveRecords = PushNotificationConfig(
+    pollingDelay = 1 second,
+    lockDuration = org.joda.time.Duration.ZERO,
+    maxRecordsToFetch = five
+  )
 
   private val mongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
@@ -88,11 +97,23 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     override val repo: LockRepository = lockRepository
   }
 
-  private val repository = new ClientNotificationMongoRepo(mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
+  private def configWithMaxRecords(maxRecords: Int = five): CustomsNotificationConfig = {
+    val config = new CustomsNotificationConfig{
+      override def maybeBasicAuthToken: Option[String] = None
+      override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
+      override def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig = mock[GoogleAnalyticsSenderConfig]
+      override def pushNotificationConfig: PushNotificationConfig = pushConfigWithMaxFiveRecords.copy(maxRecordsToFetch = maxRecords)
+    }
+    config
+  }
+
+  private val repository = new ClientNotificationMongoRepo(configWithMaxRecords(five), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
+  private val repositoryWithOneMaxRecord = new ClientNotificationMongoRepo(configWithMaxRecords(1), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
 
   override def beforeEach() {
     await(repository.drop)
     await(lockRepository.drop)
+    Mockito.reset(mockErrorHandler, mockNotificationLogger)
   }
 
   override def afterAll() {
@@ -141,17 +162,29 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       clientNotifications.head.id should not be None
     }
 
-    "fetch by clientSubscriptionId should return a single record when found" in {
+    "fetch by clientSubscriptionId should return a two records when not limited by max records to fetch" in {
       await(repository.save(client1Notification1))
       await(repository.save(client1Notification2))
       await(repository.save(client2Notification1))
 
-      val clientNotification = await(repository.fetch(validClientSubscriptionId1))
+      val clientNotifications = await(repository.fetch(validClientSubscriptionId1))
 
-      clientNotification.head.id should not be None
-      clientNotification.head.notification shouldBe client1Notification1.notification
+      clientNotifications.size shouldBe 2
+      clientNotifications.head.notification shouldBe client1Notification1.notification
+      clientNotifications(1).notification shouldBe client1Notification2.notification
 
       logVerifier("debug", "fetching clientNotification(s) with csid: eaca01f9-ec3b-4ede-b263-61b626dde232")
+    }
+
+    "fetch by clientSubscriptionId should return a one record when limited by one max record to fetch" in {
+      await(repository.save(client1Notification1))
+      await(repository.save(client1Notification2))
+      await(repository.save(client2Notification1))
+
+      val clientNotifications = await(repositoryWithOneMaxRecord.fetch(validClientSubscriptionId1))
+
+      clientNotifications.size shouldBe 1
+      clientNotifications.head.notification shouldBe client1Notification1.notification
     }
 
     "return empty List when not found" in {

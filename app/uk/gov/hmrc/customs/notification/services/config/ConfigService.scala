@@ -70,9 +70,12 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
       configValidationNel.root.int("push.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
     val pushLockDurationNel: ValidationNel[String, org.joda.time.Duration] =
       configValidationNel.root.int("push.lock.duration.milliseconds").map(millis => org.joda.time.Duration.millis(millis))
+    val maxFetchRecordsNel: ValidationNel[String, Int] =
+      configValidationNel.root.int("push.fetch.maxRecords")
     val pushNotificationConfig: ValidationNel[String, PushNotificationConfig] = (
       pollingDelayNel |@|
-        pushLockDurationNel
+        pushLockDurationNel |@|
+        maxFetchRecordsNel
       )(PushNotificationConfig.apply)
 
 

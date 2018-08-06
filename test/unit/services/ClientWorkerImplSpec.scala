@@ -116,7 +116,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           ordered.verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           ordered.verify(mockCancelable).cancel()
           verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Push successful")
-          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] processing notification record number 2")
+          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] processing notification record number 2, logging every 2 records")
           verifyZeroInteractions(mockPull)
         }
       }
@@ -155,6 +155,25 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           verify(mockCancelable).cancel()
           verifyZeroInteractions(mockPull)
+        }
+      }
+
+      "exit push processing when fetch returns same size of list twice in a row, when declarant details not found and pull queue fails" in new SetUp {
+        schedulerExpectations()
+        when(mockRepo.fetch(CsidOne))
+          .thenReturn(Future.successful(List(ClientNotificationOne)))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)), Future.successful(None))
+        when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+        when(mockPush.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(false)
+        when(mockPull.send(ameq(ClientNotificationOne))).thenReturn(false)
+
+        private val actual = await( clientWorker.processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration) )
+
+        actual shouldBe (())
+        eventually {
+          verify(mockPull).send(ameq(ClientNotificationOne))
+          verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
+          verify(mockCancelable).cancel()
         }
       }
 

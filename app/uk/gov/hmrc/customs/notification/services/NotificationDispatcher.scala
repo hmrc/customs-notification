@@ -20,10 +20,9 @@ import java.util.UUID
 import javax.inject.{Inject, Singleton}
 
 import com.google.inject.ImplementedBy
-import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
-import uk.gov.hmrc.customs.notification.services.config.ConfigService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -37,7 +36,7 @@ trait NotificationDispatcher {
 @Singleton
 class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker,
                                            lockRepo: LockRepo,
-                                           configService: ConfigService,
+                                           configService: CustomsNotificationConfig,
                                            logger: NotificationLogger) extends NotificationDispatcher {
 
   private val duration = configService.pushNotificationConfig.lockDuration
