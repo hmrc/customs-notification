@@ -17,13 +17,13 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
+
 import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.{CONTENT_TYPE, USER_AGENT}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_BADGE_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.ClientNotification
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -32,7 +32,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class NotificationQueueConnector @Inject()(http: HttpClient, logger: NotificationLogger, configServices: ConfigService) {
+class NotificationQueueConnector @Inject()(http: HttpClient, logger: NotificationLogger, configServices: CustomsNotificationConfig) {
 
   //TODO: handle POST failure scenario after Trade Test
   def enqueue(request: ClientNotification): Future[HttpResponse] = {

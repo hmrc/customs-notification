@@ -16,14 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
+
+import com.google.inject.ImplementedBy
 import play.api.libs.json.Json
-import reactivemongo.api.{Cursor, ReadPreference}
+import reactivemongo.api.Cursor
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
@@ -45,7 +46,8 @@ trait ClientNotificationRepo {
 }
 
 @Singleton
-class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
+class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationConfig,
+                                            mongoDbProvider: MongoDbProvider,
                                             lockRepo: LockRepo,
                                             errorHandler: ClientNotificationRepositoryErrorHandler,
                                             notificationLogger: NotificationLogger)
@@ -84,11 +86,11 @@ class ClientNotificationMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   }
 
   override def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]] = {
-    notificationLogger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString}")
+    notificationLogger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString} and with max records=${configService.pushNotificationConfig.maxRecordsToFetch}")
 
     val selector = Json.obj("csid" -> csid.id)
     val sortOrder = Json.obj("timeReceived" -> 1)
-    collection.find(selector).sort(sortOrder).cursor().collect[List](Int.MaxValue, Cursor.FailOnError[List[ClientNotification]]())
+    collection.find(selector).sort(sortOrder).cursor().collect[List](maxDocs = configService.pushNotificationConfig.maxRecordsToFetch, Cursor.FailOnError[List[ClientNotification]]())
   }
 
   override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = {

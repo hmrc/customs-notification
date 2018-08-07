@@ -43,6 +43,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |
       |push.polling.delay.duration.milliseconds = 5000
       |push.lock.duration.milliseconds = 1000
+      |push.fetch.maxRecords = 50
       |
       |  microservice {
       |    services {
@@ -70,6 +71,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |
       |push.polling.delay.duration.milliseconds = 5000
       |push.lock.duration.milliseconds = 1000
+      |push.fetch.maxRecords = 50
       |
       |  microservice {
       |    services {
@@ -130,7 +132,8 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |Could not find config key 'googleAnalytics.clientId'
       |Could not find config key 'googleAnalytics.eventValue'
       |Could not find config key 'push.polling.delay.duration.milliseconds'
-      |Could not find config key 'push.lock.duration.milliseconds'""".stripMargin
+      |Could not find config key 'push.lock.duration.milliseconds'
+      |Could not find config key 'push.fetch.maxRecords'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 
