@@ -16,17 +16,18 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import akka.actor.ActorSystem
 import javax.inject._
+
+import akka.actor.ActorSystem
+import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.config.ConfigService
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 
 @Singleton
-class NotificationPollingService @Inject() (config: ConfigService,
+class NotificationPollingService @Inject() (config: CustomsNotificationConfig,
                                             actorSystem: ActorSystem,
                                             clientNotificationRepo: ClientNotificationRepo,
                                             notificationDispatcher: NotificationDispatcher)(implicit executionContext: ExecutionContext) {

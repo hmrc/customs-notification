@@ -16,15 +16,19 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
+import com.google.inject.ImplementedBy
+import uk.gov.hmrc.customs.notification.services.config.ConfigService
+
 import scala.concurrent.duration.FiniteDuration
 
 case class NotificationQueueConfig(url: String)
 
 case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClientId: String, gaEventValue: String)
 
-case class PushNotificationConfig(pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration)
+case class PushNotificationConfig(pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration, maxRecordsToFetch: Int)
 
 // TODO: pull up all other service config into here
+@ImplementedBy(classOf[ConfigService])
 trait CustomsNotificationConfig {
   def maybeBasicAuthToken: Option[String]
 

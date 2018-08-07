@@ -73,7 +73,7 @@ class ClientWorkerImpl @Inject()(
   // TODO: read this value from HTTP VERBS config and add 10%
   private val awaitApiCallDuration = 25 second
 
-  protected val loopIncrementToLog = 1000
+  protected val loopIncrementToLog = 10
 
   override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
     //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
@@ -154,16 +154,29 @@ class ClientWorkerImpl @Inject()(
 
       var continue = true
       var counter = 0
+      var maybeCurrentRecord: Option[ClientNotification] = None
+      var maybePreviousRecord: Option[ClientNotification] = None
       try {
         while (continue) {
           try {
             counter += 1
             if (counter % loopIncrementToLog == 0) {
-              logger.info(s"[clientSubscriptionId=$csid] processing notification record number $counter")
+              val msg = s"[clientSubscriptionId=$csid] processing notification record number $counter, logging every $loopIncrementToLog records"
+              logger.info(msg)
             }
             val seq = blockingFetch(csid)
+            maybePreviousRecord = maybeCurrentRecord
+            maybeCurrentRecord = seq.headOption
+            // the only way to exit loop is:
+            // 1. if blockingFetch returns empty list or there is a FATAL exception
+            // 2. maybeCurrentRecord == maybePreviousRecord (implies we are not making progress) so end this loop/worker. After the polling interval we will try again. Polling interval will hopefully allow us to reclaim resources via Garbage Collection
+            // 3. there is a FATAL exception
             if (seq.isEmpty) {
-              continue = false // the only way to exit loop is if blockingFetch returns empty list or there is a FATAL exception
+              logger.info(s"[clientSubscriptionId=$csid] fetch returned zero records so exiting")
+              continue = false
+            } else if (maybeCurrentRecord == maybePreviousRecord) {
+              logger.info(s"[clientSubscriptionId=$csid] not making progress processing records so exiting")
+              continue = false
             }
             else {
               blockingInnerPushLoop(seq)

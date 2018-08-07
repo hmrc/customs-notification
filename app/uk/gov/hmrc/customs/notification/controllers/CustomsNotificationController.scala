@@ -17,17 +17,16 @@
 package uk.gov.hmrc.customs.notification.controllers
 
 import java.util.UUID
-
 import javax.inject.{Inject, Singleton}
+
 import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, ConversationId}
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, ConversationId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
-import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
@@ -41,7 +40,7 @@ case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: Conve
 class CustomsNotificationController @Inject()(logger: NotificationLogger,
                                               customsNotificationService: CustomsNotificationService,
                                               callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                              configService: ConfigService)
+                                              configService: CustomsNotificationConfig)
   extends BaseController with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
