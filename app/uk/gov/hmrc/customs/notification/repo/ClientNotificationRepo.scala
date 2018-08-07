@@ -86,7 +86,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   }
 
   override def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]] = {
-    notificationLogger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString}")
+    notificationLogger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString} and with max records=${configService.pushNotificationConfig.maxRecordsToFetch}")
 
     val selector = Json.obj("csid" -> csid.id)
     val sortOrder = Json.obj("timeReceived" -> 1)

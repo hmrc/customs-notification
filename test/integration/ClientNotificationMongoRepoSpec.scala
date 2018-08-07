@@ -173,7 +173,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       clientNotifications.head.notification shouldBe client1Notification1.notification
       clientNotifications(1).notification shouldBe client1Notification2.notification
 
-      logVerifier("debug", "fetching clientNotification(s) with csid: eaca01f9-ec3b-4ede-b263-61b626dde232")
+      logVerifier("debug", "fetching clientNotification(s) with csid: eaca01f9-ec3b-4ede-b263-61b626dde232 and with max records=5")
     }
 
     "fetch by clientSubscriptionId should return a one record when limited by one max record to fetch" in {
