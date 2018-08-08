@@ -44,7 +44,7 @@ class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker,
   def process(csids: Set[ClientSubscriptionId]): Future[Unit] = {
     logger.debugWithoutRequestContext(s"received $csids and about to process them")
 
-    Future.successful {
+    Future {
       csids.foreach {
         csid =>
           val lockOwnerId = LockOwnerId(UUID.randomUUID().toString)
