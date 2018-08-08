@@ -10,7 +10,6 @@ The objective of the this endpoint is as below:
 
 3. Notify the CDS Client with the given payload by calling notification gateway service with the payload
 
-
 ## HTTP return codes
 
 | HTTP Status   | Code Error scenario                                                                              |
