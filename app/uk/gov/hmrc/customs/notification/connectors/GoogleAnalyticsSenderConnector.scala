@@ -16,14 +16,11 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import javax.inject.Singleton
-
 import com.google.inject.Inject
-import play.api.Configuration
+import javax.inject.Singleton
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.libs.json.Json.parse
-import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HeaderCarrier
@@ -53,14 +50,18 @@ class GoogleAnalyticsSenderConnector @Inject()(http: HttpClient,
   }
 
   def send(eventName: String, message: String)(implicit hc: HeaderCarrier): Future[Unit] = {
-
-    http.POST(gaSenderConfigs.url, payload(eventName, message), outboundHeaders)
-      .map { _ =>
-        logger.debug(s"Successfully sent GA event to ${gaSenderConfigs.url}, eventName= $eventName, eventLabel= $message, trackingId= ${gaSenderConfigs.gaTrackingId}")
-        ()
-      }.recover {
-      case ex: Throwable =>
-        logger.error(s"Call to GoogleAnalytics sender service failed. POST url= ${gaSenderConfigs.url}, eventName= $eventName, eventLabel= $message, reason= ${ex.getMessage}")
+    if (gaSenderConfigs.gaEnabled) {
+      http.POST(gaSenderConfigs.url, payload(eventName, message), outboundHeaders)
+        .map { _ =>
+          logger.debug(s"Successfully sent GA event to ${gaSenderConfigs.url}, eventName= $eventName, eventLabel= $message, trackingId= ${gaSenderConfigs.gaTrackingId}")
+          ()
+        }.recover {
+        case ex: Throwable =>
+          logger.error(s"Call to GoogleAnalytics sender service failed. POST url= ${gaSenderConfigs.url}, eventName= $eventName, eventLabel= $message, reason= ${ex.getMessage}")
+      }
+    } else {
+      logger.debug("Google analytics Sending Disabled in config")
+      Future.successful((): Unit)
     }
   }
 }

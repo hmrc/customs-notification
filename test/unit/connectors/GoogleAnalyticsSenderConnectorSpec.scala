@@ -49,6 +49,7 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
   private val gaTrackingId: String = "UA-12345678-2"
   private val gaClientId: String = "555"
   private val gaEventValue = "10"
+  private val gaEnabled = true
   private val eventName: String = "event-name"
   private val eventLabel: String = "event-label"
 
@@ -64,14 +65,14 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
 
   override def beforeEach(): Unit = {
     reset(mockConfigService, mockCdsLogger, mockHttpClient)
-    when(mockConfigService.googleAnalyticsSenderConfig).thenReturn(GoogleAnalyticsSenderConfig(url, gaTrackingId, gaClientId, gaEventValue))
+    when(mockConfigService.googleAnalyticsSenderConfig).thenReturn(GoogleAnalyticsSenderConfig(url, gaTrackingId, gaClientId, gaEventValue, gaEnabled))
     when(mockHttpClient.POST(any[String](), any[JsValue](), any[Seq[(String, String)]]())(any[Writes[JsValue]](), any[HttpReads[HttpResponse]](), meq(hc), any[ExecutionContext]()))
       .thenReturn(Future.successful(mock[HttpResponse]))
   }
 
   private val emulatedHttpVerbsException = new RuntimeException("Something has gone wrong....")
 
-  "GoogleAnalyticsSenderConnector" should {
+  "GoogleAnalyticsSenderConnector when enabled" should {
 
     "POST valid payload" in {
       await(connector.send(eventName, eventLabel))
@@ -106,10 +107,35 @@ class GoogleAnalyticsSenderConnectorSpec extends UnitSpec with MockitoSugar with
 
       await(connector.send(eventName, eventLabel))
 
+      verify(mockHttpClient, times(1)).POST(any(), any(), any())(any(), any(), any(), any())
+
       PassByNameVerifier(notificationLogger, "error")
         .withByNameParam(s"Call to GoogleAnalytics sender service failed. POST url= $url, eventName= $eventName, eventLabel= $eventLabel, reason= ${emulatedHttpVerbsException.getMessage}")
         .withParamMatcher(meq(hc))
         .verify()
+
+
     }
+  }
+
+  "GoogleAnalyticsSenderConnector when disabled" should {
+    "not call Post when disabled" in {
+      when(mockConfigService.googleAnalyticsSenderConfig).thenReturn(GoogleAnalyticsSenderConfig(url, gaTrackingId, gaClientId, gaEventValue, gaEnabled = false))
+
+      val disabledConnector = new GoogleAnalyticsSenderConnector(
+        mockHttpClient,
+        notificationLogger,
+        mockConfigService
+      )
+
+      await(disabledConnector.send(eventName, eventLabel))
+
+      verifyNoMoreInteractions(mockHttpClient)
+      PassByNameVerifier(notificationLogger, "debug")
+        .withByNameParam(s"Google analytics Sending Disabled in config")
+        .withParamMatcher(meq(hc))
+        .verify()
+    }
+
   }
 }

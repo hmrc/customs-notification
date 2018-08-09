@@ -61,9 +61,10 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
     val gaTrackingId = root.string("googleAnalytics.trackingId")
     val gaClientId = root.string("googleAnalytics.clientId")
     val gaEventValue = root.string("googleAnalytics.eventValue")
+    val gaEnabled= root.boolean("googleAnalytics.enabled")
 
     val validatedGoogleAnalyticsSenderConfigNel: ValidationNel[String, GoogleAnalyticsSenderConfig] = (
-      gaSenderUrl |@| gaTrackingId |@| gaClientId |@| gaEventValue
+      gaSenderUrl |@| gaTrackingId |@| gaClientId |@| gaEventValue |@| gaEnabled
       ) (GoogleAnalyticsSenderConfig.apply)
 
     val pollingDelayNel: ValidationNel[String, FiniteDuration] =

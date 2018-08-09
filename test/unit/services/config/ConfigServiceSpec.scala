@@ -19,7 +19,7 @@ package unit.services.config
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Matchers
 import org.scalatest.mockito.MockitoSugar
-import play.api.{Configuration, Environment}
+import play.api.{Configuration, Environment, Mode}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidationNelAdaptor, ServicesConfig}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{GoogleAnalyticsSenderConfig, NotificationQueueConfig}
@@ -40,6 +40,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |googleAnalytics.trackingId = UA-11111-1
       |googleAnalytics.clientId = 555
       |googleAnalytics.eventValue = 10
+      |googleAnalytics.enabled = false
       |
       |push.polling.delay.duration.milliseconds = 5000
       |push.lock.duration.milliseconds = 1000
@@ -68,6 +69,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |googleAnalytics.trackingId = UA-11111-1
       |googleAnalytics.clientId = 555
       |googleAnalytics.eventValue = 10
+      |googleAnalytics.enabled = false
       |
       |push.polling.delay.duration.milliseconds = 5000
       |push.lock.duration.milliseconds = 1000
@@ -93,7 +95,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val emptyAppConfig: Config = ConfigFactory.parseString("")
 
   private def testServicesConfig(configuration: Configuration) = new ServicesConfig(configuration, mock[Environment]) {
-    override val mode = play.api.Mode.Test
+    override val mode: Mode.Value = play.api.Mode.Test
   }
 
   private val validServicesConfig = new Configuration(validAppConfig)
@@ -103,13 +105,14 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val mockCdsLogger = mock[CdsLogger]
 
   "ConfigService" should {
+    val THOUSAND = 1000
     "return config as object model when configuration is valid" in {
       val actual = configService(validServicesConfig)
 
       actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
-      actual.googleAnalyticsSenderConfig shouldBe GoogleAnalyticsSenderConfig("http://localhost2:9822/send-google-analytics", "UA-11111-1", "555", "10")
-      actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(1000)
+      actual.googleAnalyticsSenderConfig shouldBe GoogleAnalyticsSenderConfig("http://localhost2:9822/send-google-analytics", "UA-11111-1", "555", "10", gaEnabled = false)
+      actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
     }
 
@@ -118,7 +121,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
       actual.maybeBasicAuthToken shouldBe None
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
-      actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(1000)
+      actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
     }
 
@@ -131,6 +134,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |Could not find config key 'googleAnalytics.trackingId'
       |Could not find config key 'googleAnalytics.clientId'
       |Could not find config key 'googleAnalytics.eventValue'
+      |Could not find config key 'googleAnalytics.enabled'
       |Could not find config key 'push.polling.delay.duration.milliseconds'
       |Could not find config key 'push.lock.duration.milliseconds'
       |Could not find config key 'push.fetch.maxRecords'""".stripMargin
