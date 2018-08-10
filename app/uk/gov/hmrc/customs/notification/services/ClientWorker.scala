@@ -125,12 +125,16 @@ class ClientWorkerImpl @Inject()(
         val msg = s"[clientSubscriptionId=$csid][lockOwnerId=${lockOwnerId.id}] error releasing lock"
         logger.error(msg) //TODO: extend logging API so that we can log an error on a throwable
     }
-    Await.result(f, awaitApiCallDuration)
+    scala.concurrent.blocking {
+      Await.result(f, awaitApiCallDuration)
+    }
   }
 
   private def blockingFetch(csid: ClientSubscriptionId)(implicit hc: HeaderCarrier): Seq[ClientNotification] = {
     try {
-      Await.result(repo.fetch(csid), awaitApiCallDuration)
+      scala.concurrent.blocking {
+        Await.result(repo.fetch(csid), awaitApiCallDuration)
+      }
     }
     catch {
       case NonFatal(e) =>
@@ -141,10 +145,8 @@ class ClientWorkerImpl @Inject()(
 
   protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
     Future{
-      scala.concurrent.blocking {
-        blockingOuterProcessLoop(csid, lockOwnerId)
-        blockingReleaseLock(csid, lockOwnerId)
-      }
+      blockingOuterProcessLoop(csid, lockOwnerId)
+      blockingReleaseLock(csid, lockOwnerId)
     }
   }
 
@@ -220,7 +222,9 @@ class ClientWorkerImpl @Inject()(
 
   private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier) = {
     try {
-      Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)
+      scala.concurrent.blocking {
+        Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)
+      }
     } catch {
       case NonFatal(e) =>
         throw ExitOuterLoopException(s"Error getting declarant details: ${e.getMessage}")
@@ -228,13 +232,15 @@ class ClientWorkerImpl @Inject()(
   }
 
   private def blockingDeleteNotification(cn: ClientNotification)(implicit hc: HeaderCarrier): Unit = {
-    Await.result(
-      repo.delete(cn).recover{
-        case NonFatal(e) =>
-          // we can't do anything other than log delete error
-          logger.error(s"${logMsgPrefix(cn)} error deleting notification")
-      },
-      awaitApiCallDuration)
+    scala.concurrent.blocking {
+      Await.result(
+        repo.delete(cn).recover {
+          case NonFatal(e) =>
+            // we can't do anything other than log delete error
+            logger.error(s"${logMsgPrefix(cn)} error deleting notification")
+        },
+        awaitApiCallDuration)
+    }
   }
 
 
