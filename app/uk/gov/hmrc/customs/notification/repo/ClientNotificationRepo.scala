@@ -94,10 +94,23 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   }
 
   override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = {
+    notificationLogger.debug("fetching Distinct Notification CSIDs Which are not locked")
     for {
-      csids <- collection.distinct[ClientSubscriptionId, Set]("csid")
-      lockedCsids <- lockRepo.lockedCSIds()
-    } yield csids diff lockedCsids
+      csIds <- fetchDistinctCsIdsFromSavedNotifications
+      lockedCsIds <- fetchCsIdsThatHaveLocks
+    } yield csIds diff lockedCsIds
+  }
+
+  private def fetchCsIdsThatHaveLocks = {
+    val lockedCSIds = lockRepo.lockedCSIds()
+    lockedCSIds.map(lockedCSIdSet => notificationLogger.debug(s"fetching CSIDs That are locked ${lockedCSIdSet.size}"))
+    lockedCSIds
+  }
+
+  private def fetchDistinctCsIdsFromSavedNotifications = {
+    val csIds = collection.distinct[ClientSubscriptionId, Set]("csid")
+    csIds.map(cdIdsSet => notificationLogger.debug(s"fetching Distinct CSIDs from Saved Notification count is ${cdIdsSet.size}"))
+    csIds
   }
 
   override def delete(clientNotification: ClientNotification): Future[Unit] = {
