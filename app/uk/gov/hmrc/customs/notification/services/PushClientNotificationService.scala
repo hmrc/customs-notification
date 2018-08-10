@@ -40,7 +40,9 @@ class PushClientNotificationService @Inject() (pushNotificationServiceConnector:
 
     val pushNotificationRequest = pushNotificationRequestFrom(declarantCallbackData, clientNotification)
 
-    val result = Await.ready(pushNotificationServiceConnector.send(pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
+    val result = scala.concurrent.blocking {
+      Await.ready(pushNotificationServiceConnector.send(pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
+    }
     if (result) {
       notificationLogger.debug(s"${logMsgPrefix(clientNotification)} Notification has been pushed")
       gaConnector.send("notificationPushRequestSuccess", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification has been pushed successfully")
