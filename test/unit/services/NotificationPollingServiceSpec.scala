@@ -23,6 +23,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, PushNotificationConfig}
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{NotificationDispatcher, NotificationPollingService}
@@ -31,13 +32,13 @@ import uk.gov.hmrc.play.test.UnitSpec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.duration.FiniteDuration
 
 class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
-  val clientNotificationRepoMock = mock[ClientNotificationRepo]
-  val notificationDispatcherMock = mock[NotificationDispatcher]
-  val configServiceMock = mock[ConfigService]
-
+  private val clientNotificationRepoMock = mock[ClientNotificationRepo]
+  private val notificationDispatcherMock = mock[NotificationDispatcher]
+  private val configServiceMock = mock[ConfigService]
+  private val mockLogger = mock[NotificationLogger]
+  private val SIX_THOUSAND = 6000
   val testActorSystem = ActorSystem("NotificationPollingService")
 
   "NotificationPollingService" should {
@@ -59,8 +60,10 @@ class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
       new NotificationPollingService(configServiceMock,
           testActorSystem,
           clientNotificationRepoMock,
-          notificationDispatcherMock)
-      Thread.sleep(6000)
+          notificationDispatcherMock,
+        mockLogger)
+
+      Thread.sleep(SIX_THOUSAND)
       verify(notificationDispatcherMock, times(2)).process(argumentCapture.capture())
       argumentCapture.getAllValues should contain theSameElementsAs List(csIds, csIdsMinus1)
     }

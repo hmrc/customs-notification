@@ -42,7 +42,9 @@ class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker,
   private val duration = configService.pushNotificationConfig.lockDuration
 
   def process(csids: Set[ClientSubscriptionId]): Future[Unit] = {
-    logger.debugWithoutRequestContext(s"received $csids and about to process them")
+    if(csids.size > 0) {
+      logger.debugWithoutRequestContext(s"received $csids and about to process them")
+    }
 
     Future {
       csids.foreach {
@@ -52,7 +54,9 @@ class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker,
             case true =>
               logger.debugWithoutRequestContext(s"sending $csid to worker")
               clientWorker.processNotificationsFor(csid, lockOwnerId, duration)
-            case false => Future.successful(())
+            case false =>
+              logger.debugWithoutRequestContext(s"Unable to acquire or renew Lock for ${csid}")
+              Future.successful(())
           }
       }
     }
