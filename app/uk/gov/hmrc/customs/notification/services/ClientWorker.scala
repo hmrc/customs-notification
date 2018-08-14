@@ -72,8 +72,8 @@ class ClientWorkerImpl @Inject()(
 
   // TODO: read this value from HTTP VERBS config and add 10%
   private val awaitApiCallDuration = 25 second
-
-  protected val loopIncrementToLog = 10
+  private val awaitMongoCallDuration = 25 second
+  protected val loopIncrementToLog = 1
 
   override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
     //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
@@ -126,14 +126,14 @@ class ClientWorkerImpl @Inject()(
         logger.error(msg) //TODO: extend logging API so that we can log an error on a throwable
     }
     scala.concurrent.blocking {
-      Await.result(f, awaitApiCallDuration)
+      Await.result(f, awaitMongoCallDuration)
     }
   }
 
   private def blockingFetch(csid: ClientSubscriptionId)(implicit hc: HeaderCarrier): Seq[ClientNotification] = {
     try {
       scala.concurrent.blocking {
-        Await.result(repo.fetch(csid), awaitApiCallDuration)
+        Await.result(repo.fetch(csid), awaitMongoCallDuration)
       }
     }
     catch {
@@ -161,11 +161,6 @@ class ClientWorkerImpl @Inject()(
       try {
         while (continue) {
           try {
-            counter += 1
-            if (counter % loopIncrementToLog == 0) {
-              val msg = s"[clientSubscriptionId=$csid] processing notification record number $counter, logging every $loopIncrementToLog records"
-              logger.info(msg)
-            }
             val seq = blockingFetch(csid)
             maybePreviousRecord = maybeCurrentRecord
             maybeCurrentRecord = seq.headOption
@@ -181,6 +176,11 @@ class ClientWorkerImpl @Inject()(
               continue = false
             }
             else {
+              counter += 1
+              if (counter % loopIncrementToLog == 0) {
+                val msg = s"[clientSubscriptionId=$csid] processing notification record number $counter, logging every $loopIncrementToLog records"
+                logger.info(msg)
+              }
               blockingInnerPushLoop(seq)
               logger.info(s"[clientSubscriptionId=$csid] Push successful")
             }
@@ -239,7 +239,7 @@ class ClientWorkerImpl @Inject()(
             // we can't do anything other than log delete error
             logger.error(s"${logMsgPrefix(cn)} error deleting notification")
         },
-        awaitApiCallDuration)
+        awaitMongoCallDuration)
     }
   }
 
