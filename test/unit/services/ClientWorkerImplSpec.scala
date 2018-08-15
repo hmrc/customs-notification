@@ -64,9 +64,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
       mockPull,
       mockLockRepo,
       mockLogger
-    ) {
-      override protected val loopIncrementToLog: Int = 2
-    }
+    )
 
     def schedulerExpectations(): Unit = {
       when(mockActorSystem.scheduler).thenReturn(mockScheduler)
@@ -116,7 +114,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
           ordered.verify(mockLockRepo).release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))
           ordered.verify(mockCancelable).cancel()
           verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] Push successful")
-          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] processing notification record number 2, logging every 2 records")
+          verifyLogInfo("[clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde231] processing notification record number 1, logging every 1 records")
           verifyZeroInteractions(mockPull)
         }
       }
