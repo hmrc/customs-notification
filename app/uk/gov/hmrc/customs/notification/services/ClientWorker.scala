@@ -154,47 +154,47 @@ class ClientWorkerImpl @Inject()(
 
     logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
 
-      var continue = true
-      var counter = 0
-      var maybeCurrentRecord: Option[ClientNotification] = None
-      var maybePreviousRecord: Option[ClientNotification] = None
-      try {
-        while (continue) {
-          try {
-            val seq = blockingFetch(csid)
-            maybePreviousRecord = maybeCurrentRecord
-            maybeCurrentRecord = seq.headOption
-            // the only way to exit loop is:
-            // 1. if blockingFetch returns empty list or there is a FATAL exception
-            // 2. maybeCurrentRecord == maybePreviousRecord (implies we are not making progress) so end this loop/worker. After the polling interval we will try again. Polling interval will hopefully allow us to reclaim resources via Garbage Collection
-            // 3. there is a FATAL exception
-            if (seq.isEmpty) {
-              logger.info(s"[clientSubscriptionId=$csid] fetch returned zero records so exiting")
-              continue = false
-            } else if (maybeCurrentRecord == maybePreviousRecord) {
-              logger.info(s"[clientSubscriptionId=$csid] not making progress processing records so exiting")
-              continue = false
-            }
-            else {
-              counter += 1
-              if (counter % loopIncrementToLog == 0) {
-                val msg = s"[clientSubscriptionId=$csid] processing notification record number $counter, logging every $loopIncrementToLog records"
-                logger.info(msg)
-              }
-              blockingInnerPushLoop(seq)
-              logger.info(s"[clientSubscriptionId=$csid] Push successful")
-            }
-          } catch {
-            case PushProcessingException(_) =>
-              blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
-            case NonFatal(e) =>
-              logger.error(s"[clientSubscriptionId=$csid] error processing notifications: ${e.getMessage}")
+    var continue = true
+    var counter = 0
+    var maybeCurrentRecord: Option[ClientNotification] = None
+    var maybePreviousRecord: Option[ClientNotification] = None
+    try {
+      while (continue) {
+        try {
+          val seq = blockingFetch(csid)
+          maybePreviousRecord = maybeCurrentRecord
+          maybeCurrentRecord = seq.headOption
+          // the only way to exit loop is:
+          // 1. if blockingFetch returns empty list or there is a FATAL exception
+          // 2. maybeCurrentRecord == maybePreviousRecord (implies we are not making progress) so end this loop/worker. After the polling interval we will try again. Polling interval will hopefully allow us to reclaim resources via Garbage Collection
+          // 3. there is a FATAL exception
+          if (seq.isEmpty) {
+            logger.info(s"[clientSubscriptionId=$csid] fetch returned zero records so exiting")
+            continue = false
+          } else if (maybeCurrentRecord == maybePreviousRecord) {
+            logger.info(s"[clientSubscriptionId=$csid] not making progress processing records so exiting")
+            continue = false
           }
+          else {
+            counter += 1
+            if (loopIncrementToLog == 1 || counter % loopIncrementToLog == 0) {
+              val msg = s"[clientSubscriptionId=$csid] processing notification record number $counter, logging every $loopIncrementToLog records"
+              logger.info(msg)
+            }
+            blockingInnerPushLoop(seq)
+            logger.info(s"[clientSubscriptionId=$csid] Push successful")
+          }
+        } catch {
+          case PushProcessingException(_) =>
+            blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
+          case NonFatal(e) =>
+            logger.error(s"[clientSubscriptionId=$csid] error processing notifications: ${e.getMessage}")
         }
-      } catch {
-        case ExitOuterLoopException(msg) =>
-          logger.error(s"Fatal error - exiting processing: $msg")
       }
+    } catch {
+      case ExitOuterLoopException(msg) =>
+        logger.error(s"Fatal error - exiting processing: $msg")
+    }
 
   }
 
