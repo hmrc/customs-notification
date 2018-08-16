@@ -25,10 +25,8 @@ import play.api.mvc._
 import play.api.test.Helpers._
 import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPORTED_MEDIA_TYPE}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.UnauthorizedCode
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.DeclarantCallbackData
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
@@ -45,30 +43,20 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
   private val mockConfigService = mock[ConfigService]
-  private val mockCallbackDetailsConnector = mock[ApiSubscriptionFieldsConnector]
-  private val mockCallbackDetails = mock[DeclarantCallbackData]
-
 
   private def controller() = new CustomsNotificationController(
     mockNotificationLogger,
     mockCustomsNotificationService,
-    mockCallbackDetailsConnector,
     mockConfigService
   )
 
   private val wrongPayloadErrorResult = ErrorResponse.errorBadRequest("Request body does not contain well-formed XML.").XmlResult
-
-  private val internalServerError = ErrorResponse.errorInternalServerError("Internal Server Error").XmlResult
-
-  private def internalServerError(msg: String) = ErrorResponse.errorInternalServerError(msg).XmlResult
 
   private val clientIdMissingResult = ErrorResponse.errorBadRequest("The X-CDS-Client-ID header is missing").XmlResult
 
   private val conversationIdMissingResult = ErrorResponse.errorBadRequest("The X-Conversation-ID header is missing").XmlResult
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
-
-  private val emulatedServiceFailureMessage = "Emulated service failure"
 
   private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
 
@@ -77,51 +65,38 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val eventualFalse = Future.successful(false)
 
   override protected def beforeEach() {
-    reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService)
+    reset(mockNotificationLogger, mockCustomsNotificationService, mockConfigService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
-    when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier])).thenReturn(eventualTrue)
+    when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData))(any[HeaderCarrier])).thenReturn(eventualTrue)
   }
 
   "CustomsNotificationController" should {
 
     "respond with status 202 for valid request" in {
-      returnMockedCallbackDetailsForTheClientIdInRequest()
-
-      testSubmitResult(ValidRequest) { result =>
+     testSubmitResult(ValidRequest) { result =>
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData))(any[HeaderCarrier])
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData))(any[HeaderCarrier])
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
-      returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
       testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
-      returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(mockCallbackDetails), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
       testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED
-      }
-    }
-
-    "respond with 400 when declarant callback data not found by ApiSubscriptionFields service" in {
-      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Future.successful(None))
-
-      testSubmitResult(ValidRequest) { result =>
-        status(result) shouldBe BAD_REQUEST
-        await(result) shouldBe errorBadRequest("The X-CDS-Client-ID header value is invalid").XmlResult
       }
     }
 
@@ -181,20 +156,9 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       }
     }
 
-    "respond with 500 when unexpected failure happens" in {
-      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier]))
-        .thenReturn(Future.failed(emulatedServiceFailure))
-
-
-      testSubmitResult(ValidRequest) { result =>
-        status(result) shouldBe INTERNAL_SERVER_ERROR
-        await(result) shouldBe internalServerError
-      }
-    }
 
     "respond with status 500 when handle notification fails" in {
-      returnMockedCallbackDetailsForTheClientIdInRequest()
-      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
+      when(mockCustomsNotificationService.handleNotification(any(), any())(any()))
         .thenReturn(eventualFalse)
 
       testSubmitResult(ValidRequest) { result =>
@@ -202,21 +166,6 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       }
     }
 
-    "respond with status 500 when handle notification fails unexpectedly" in {
-      returnMockedCallbackDetailsForTheClientIdInRequest()
-      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
-        .thenThrow(emulatedServiceFailure)
-
-      testSubmitResult(ValidRequest) { result =>
-        status(result) shouldBe INTERNAL_SERVER_ERROR
-      }
-    }
-
-  }
-
-  private def returnMockedCallbackDetailsForTheClientIdInRequest() = {
-    when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).
-      thenReturn(Future.successful(Some(mockCallbackDetails)))
   }
 
   private def testSubmitResult(request: Request[AnyContent])(test: Future[Result] => Unit) {

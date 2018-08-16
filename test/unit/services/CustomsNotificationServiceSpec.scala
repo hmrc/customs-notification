@@ -48,8 +48,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val validCallbackData = DeclarantCallbackData("callbackUrl", "securityToken")
-  private val callbackDataWithEmptyCallbackUrl = DeclarantCallbackData("", "securityToken")
   private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeIdValue))
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
@@ -80,7 +78,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   "CustomsNotificationService" should {
 
     "first try to Push the notification" in {
-      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
+      val result = customsNotificationService.handleNotification(ValidXML, requestMetaData)
       await(result) shouldBe true
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
       eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
@@ -88,21 +86,10 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       verifyZeroInteractions(mockPullService)
     }
 
-    "enqueue notification to be pulled when subscription fields callbackUrl is empty" in {
-      when(mockPullService.sendAsync(any())).thenReturn(Future.successful((true)))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
-
-      await(customsNotificationService.handleNotification(ValidXML, callbackDataWithEmptyCallbackUrl, requestMetaData))
-
-      verify(mockPullService).sendAsync(refEq(clientNotification, "timeReceived", "id"))
-
-      verifyGAReceivedEvent()
-    }
-
     "fails when was unable to save notification to repository" in {
       when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(false))
 
-      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
+      val result = customsNotificationService.handleNotification(ValidXML, requestMetaData)
 
       await(result) shouldBe false
       verifyZeroInteractions(mockNotificationDispatcher)
@@ -112,7 +99,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     "fails when was unable to save notification to repository due to unexpected exception" in {
       when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.failed(new RuntimeException("save gone wrong")))
 
-      val result = customsNotificationService.handleNotification(ValidXML, validCallbackData, requestMetaData)
+      val result = customsNotificationService.handleNotification(ValidXML, requestMetaData)
 
       await(result) shouldBe false
       verifyZeroInteractions(mockNotificationDispatcher)

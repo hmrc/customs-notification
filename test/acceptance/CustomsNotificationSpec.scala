@@ -164,25 +164,6 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       }
     }
 
-    scenario("DMS/MDG submits a request with clientId that can not be found") {
-
-      Given("the API is available")
-      val request = ValidRequestWithClientIdAbsentInDatabase.copyFakeRequest(method = POST, uri = endpoint)
-
-      When("a POST request with data is sent to the API")
-      val result: Option[Future[Result]] = route(app = app, request)
-
-      Then("a response with a 400 status is received")
-      result shouldBe 'defined
-      val resultFuture: Future[Result] = result.value
-
-      status(resultFuture) shouldBe BAD_REQUEST
-
-      And("the response body is for client id not found")
-      val s = contentAsString(resultFuture)
-      trim(loadString(s)) shouldBe trim(errorResponseForClientIdNotFound)
-    }
-
   }
 
 }
