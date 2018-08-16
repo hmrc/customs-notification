@@ -72,12 +72,16 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
 
       case Some(callbackData) =>
         customsNotificationService.handleNotification(xml, callbackData, md).recover{
-          case _: Throwable => ErrorInternalServerError.XmlResult
+          case e: Throwable =>
+            logger.error("error handling notification: " + e.getMessage)
+            ErrorInternalServerError.XmlResult
         }.map {
           case true =>
             logger.info("Notification processed successfully")
             Results.Accepted
-          case false => ErrorInternalServerError.XmlResult
+          case false =>
+            logger.error("error handling notification")
+            ErrorInternalServerError.XmlResult
         }
 
       case None =>

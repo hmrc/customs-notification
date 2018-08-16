@@ -45,12 +45,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None)
 
-    if (callbackDetails.callbackUrl.isEmpty) {
-      logger.info("Notification will be enqueued as callbackUrl is empty")
-      pullClientNotificationService.sendAsync(clientNotification)
-    } else {
-      saveNotificationToDatabaseAndCallDispatcher(clientNotification)
-    }
+    saveNotificationToDatabaseAndCallDispatcher(clientNotification)
   }
 
   private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification)(implicit hc: HeaderCarrier): Future[Boolean] = {

@@ -88,17 +88,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       verifyZeroInteractions(mockPullService)
     }
 
-    "enqueue notification to be pulled when subscription fields callbackUrl is empty" in {
-      when(mockPullService.sendAsync(any())).thenReturn(Future.successful((true)))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
-
-      await(customsNotificationService.handleNotification(ValidXML, callbackDataWithEmptyCallbackUrl, requestMetaData))
-
-      verify(mockPullService).sendAsync(refEq(clientNotification, "timeReceived", "id"))
-
-      verifyGAReceivedEvent()
-    }
-
     "fails when was unable to save notification to repository" in {
       when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(false))
 
