@@ -19,7 +19,8 @@ package uk.gov.hmrc.customs.notification.repo
 import javax.inject.{Inject, Singleton}
 
 import com.google.inject.ImplementedBy
-import play.api.libs.json.Json
+import org.joda.time.{DateTime, DateTimeZone}
+import play.api.libs.json.{JsNumber, Json}
 import reactivemongo.api.Cursor
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
@@ -43,6 +44,8 @@ trait ClientNotificationRepo {
   def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]]
 
   def delete(clientNotification: ClientNotification): Future[Unit]
+
+  def failedPushNotificationsExist(): Future[Boolean]
 }
 
 @Singleton
@@ -121,4 +124,19 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
     collection.remove(selector).map(errorHandler.handleDeleteError(_, errorMsg))
   }
 
+  override def failedPushNotificationsExist(): Future[Boolean] = {
+
+    val millisAgo = configService.pullExcludeConfig.notificationsOlderMillis + configService.pushNotificationConfig.pollingDelay.toMillis.toInt
+    val csIds = configService.pullExcludeConfig.csIdsToExclude
+    val olderThan = DateTime.now(DateTimeZone.UTC).minusMillis(millisAgo)
+
+    notificationLogger.debug(s"finding clientSubscriptionIds $csIds olderThan $olderThan")
+    val selector = Json.obj("csid" -> Json.obj("$in" -> csIds), "timeReceived" -> Json.obj("$lt" -> Json.obj("$date" -> JsNumber(olderThan.getMillis))))
+
+    collection.find(selector).one[ClientNotification].map {
+      case Some(_) => true
+      case None => false
+    }
+
+  }
 }

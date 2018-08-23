@@ -82,10 +82,14 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val duration = org.joda.time.Duration.standardSeconds(timeoutInSeconds)
   private val five = 5
   private val pushConfigWithMaxFiveRecords = PushNotificationConfig(
-    pollingDelay = 1 second,
+    pollingDelay = 0 second,
     lockDuration = org.joda.time.Duration.ZERO,
     maxRecordsToFetch = five
   )
+
+  private val TenThousand = 10000
+  private val pullExcludeConfigZeroMillis = PullExcludeConfig(pullExcludeEnabled = true, emailAddresses = Seq("some.address@domain.com"),
+    notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"))
 
   private val mongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
@@ -97,18 +101,20 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     override val repo: LockRepository = lockRepository
   }
 
-  private def configWithMaxRecords(maxRecords: Int = five): CustomsNotificationConfig = {
+  private def configWithMaxRecords(maxRecords: Int = five, notificationsOlder: Int = 0): CustomsNotificationConfig = {
     val config = new CustomsNotificationConfig{
       override def maybeBasicAuthToken: Option[String] = None
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
       override def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig = mock[GoogleAnalyticsSenderConfig]
       override def pushNotificationConfig: PushNotificationConfig = pushConfigWithMaxFiveRecords.copy(maxRecordsToFetch = maxRecords)
+      override def pullExcludeConfig: PullExcludeConfig = pullExcludeConfigZeroMillis.copy(notificationsOlderMillis = notificationsOlder)
     }
     config
   }
 
   private val repository = new ClientNotificationMongoRepo(configWithMaxRecords(five), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
   private val repositoryWithOneMaxRecord = new ClientNotificationMongoRepo(configWithMaxRecords(1), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
+  private val repositoryWithLongWait = new ClientNotificationMongoRepo(configWithMaxRecords(five, TenThousand), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
 
   override def beforeEach() {
     await(repository.drop)
@@ -245,6 +251,32 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
       unlockedNotifications.size shouldBe 1
       unlockedNotifications.head shouldBe validClientSubscriptionId2
+    }
+
+    "return true if notification exists" in {
+      await(repository.save(client1Notification1))
+      await(repository.save(client2Notification1))
+
+      val exists = await(repository.failedPushNotificationsExist())
+
+      exists shouldBe true
+    }
+
+    "return false if no notifications exist" in {
+      await(repository.save(client2Notification1))
+
+      val exists = await(repository.failedPushNotificationsExist())
+
+      exists shouldBe false
+    }
+
+    "return true if notifications exists but are too young" in {
+      await(repository.save(client1Notification1))
+      await(repository.save(client2Notification1))
+
+      val exists = await(repositoryWithLongWait.failedPushNotificationsExist())
+
+      exists shouldBe false
     }
 
   }
