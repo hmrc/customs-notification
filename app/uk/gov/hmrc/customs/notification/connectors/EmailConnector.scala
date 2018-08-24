@@ -18,7 +18,6 @@ package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
 
-import play.api.Logger
 import play.api.libs.json.Json
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, SendEmailRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -36,10 +35,10 @@ class EmailConnector @Inject()(http: HttpClient, logger: NotificationLogger, con
 
   def send(sendEmailRequest: SendEmailRequest): Future[Unit] = {
 
-    logger.info(s"sending failed push notifications warnings email: ${Json.toJson(sendEmailRequest)}")
+    logger.debug(s"sending failed push notifications warnings email: ${Json.toJson(sendEmailRequest)}")
 
     http.POST[SendEmailRequest, HttpResponse](s"$emailUrl", sendEmailRequest).map { response =>
-      Logger.debug(s"response status from email service was ${response.status}")
+      logger.debug(s"response status from email service was ${response.status}")
     }
     .recover {
       case e: Throwable =>

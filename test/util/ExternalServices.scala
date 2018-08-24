@@ -125,8 +125,8 @@ trait EmailService extends WireMockRunner {
 
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.EmailServiceContext)
 
-  def runEmailService(): Unit = {
-    stubFor(post(urlMatchingRequestPath).willReturn(aResponse().withStatus(ACCEPTED)))
+  def setupEmailServiceToReturn(status: Int): Unit = {
+    stubFor(post(urlMatchingRequestPath).willReturn(aResponse().withStatus(status)))
   }
 
   def verifyEmailServiceWasCalled(): Unit = {

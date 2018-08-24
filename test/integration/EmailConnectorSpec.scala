@@ -21,10 +21,10 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.test.Helpers.ACCEPTED
 import uk.gov.hmrc.customs.notification.connectors.EmailConnector
 import uk.gov.hmrc.customs.notification.domain.{Email, SendEmailRequest}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import util.EmailService
 import util.ExternalServicesConfiguration.{Host, Port}
 
@@ -53,8 +53,6 @@ class EmailConnectorSpec extends IntegrationTestSpec
     )).build()
 
   trait Setup {
-    val mockHttpClient: HttpClient = mock[HttpClient]
-
     val sendEmailRequest = SendEmailRequest(List(Email("some-email@address.com")), "some-template-id",
       Map("parameters" -> "some-parameter"), force = false)
 
@@ -64,11 +62,12 @@ class EmailConnectorSpec extends IntegrationTestSpec
 
   "EmailConnector" should {
     "successfully email" in new Setup {
-//      stubFor(post(urlEqualTo("/hmrc/email")).willReturn(aResponse().withStatus(ACCEPTED)))
+      setupEmailServiceToReturn(ACCEPTED)
 
       await(connector.send(sendEmailRequest))
 
       verifyEmailServiceWasCalled()
     }
+
   }
 }
