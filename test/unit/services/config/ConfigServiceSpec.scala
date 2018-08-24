@@ -47,7 +47,8 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.fetch.maxRecords = 50
       |
       |pull.exclude.enabled = true
-      |pull.exclude.email.address = ["some.address@domain.com", "another.address@domain.com"]
+      |pull.exclude.email.addresses = ["some.address@domain.com", "another.address@domain.com"]
+      |pull.exclude.email.delay.duration.minutes = 30
       |pull.exclude.older.milliseconds = 5000
       |pull.exclude.csIds = [eaca01f9-ec3b-4ede-b263-61b626dde232, eaca01f9-ec3b-4ede-b263-61b626dde233]
       |
@@ -62,6 +63,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |       host = localhost2
       |       port = 9822
       |       context = /send-google-analytics
+      |      }
+      |      email {
+      |        host = localhost
+      |        port = 8300
+      |        context = /hmrc/email
       |      }
       |    }
       |  }
@@ -82,6 +88,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |
       |pull.exclude.enabled = true
       |pull.exclude.older.milliseconds = 5000
+      |pull.exclude.email.delay.duration.minutes = 30
       |
       |  microservice {
       |    services {
@@ -94,6 +101,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |       host = localhost2
       |       port = 9822
       |       context = /send-google-analytics
+      |      }
+      |      email {
+      |        host = localhost
+      |        port = 8300
+      |        context = /hmrc/email
       |      }
       |    }
       |  }
@@ -124,6 +136,8 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
       actual.pullExcludeConfig.csIdsToExclude shouldBe Seq("eaca01f9-ec3b-4ede-b263-61b626dde232", "eaca01f9-ec3b-4ede-b263-61b626dde233")
       actual.pullExcludeConfig.emailAddresses shouldBe Seq("some.address@domain.com", "another.address@domain.com")
+      actual.pullExcludeConfig.emailUrl shouldBe "http://localhost:8300/hmrc/email"
+      actual.pullExcludeConfig.pollingDelay shouldBe (30 minutes)
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -150,7 +164,10 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |Could not find config key 'push.lock.duration.milliseconds'
       |Could not find config key 'push.fetch.maxRecords'
       |Could not find config key 'pull.exclude.enabled'
-      |Could not find config key 'pull.exclude.older.milliseconds'""".stripMargin
+      |Could not find config key 'pull.exclude.older.milliseconds'
+      |Could not find config email.host
+      |Service configuration not found for key: email.context
+      |Could not find config key 'pull.exclude.email.delay.duration.minutes'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 

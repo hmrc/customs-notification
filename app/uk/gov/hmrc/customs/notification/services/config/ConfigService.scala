@@ -57,16 +57,14 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
     val notificationQueueConfigNel: ValidationNel[String, NotificationQueueConfig] =
       configValidationNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)
 
-
     val gaSenderUrl = configValidationNel.service("google-analytics-sender").serviceUrl
     val gaTrackingId = root.string("googleAnalytics.trackingId")
     val gaClientId = root.string("googleAnalytics.clientId")
     val gaEventValue = root.string("googleAnalytics.eventValue")
     val gaEnabled= root.boolean("googleAnalytics.enabled")
-
     val validatedGoogleAnalyticsSenderConfigNel: ValidationNel[String, GoogleAnalyticsSenderConfig] = (
       gaSenderUrl |@| gaTrackingId |@| gaClientId |@| gaEventValue |@| gaEnabled
-      ) (GoogleAnalyticsSenderConfig.apply)
+      )(GoogleAnalyticsSenderConfig.apply)
 
     val pollingDelayNel: ValidationNel[String, FiniteDuration] =
       root.int("push.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
@@ -80,17 +78,26 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
         maxFetchRecordsNel
       )(PushNotificationConfig.apply)
 
-    val notificationsOlderMillis: ValidationNel[String, Int] =
+    val pullExcludeConfigCurried = (PullExcludeConfig.apply _).curried
+    val emailUrlNel = configValidationNel.service("email").serviceUrl
+    val notificationsOlderMillisNel: ValidationNel[String, Int] =
       root.int("pull.exclude.older.milliseconds")
-    val csIdsToExclude: ValidationNel[String, Seq[String]] =
+    val csIdsToExcludeNel: ValidationNel[String, Seq[String]] =
       root.stringSeq("pull.exclude.csIds")
-    val pullExcludeEnabled: ValidationNel[String, Boolean] =
+    val pullExcludeEnabledNel: ValidationNel[String, Boolean] =
       root.boolean("pull.exclude.enabled")
-    val emailAddresses: ValidationNel[String, Seq[String]] =
-      root.stringSeq("pull.exclude.email.address")
-    val pullExcludeConfig: ValidationNel[String, PullExcludeConfig] = (
-      pullExcludeEnabled |@| emailAddresses |@| notificationsOlderMillis |@| csIdsToExclude
-      )(PullExcludeConfig.apply)
+    val emailAddressesNel: ValidationNel[String, Seq[String]] =
+      root.stringSeq("pull.exclude.email.addresses")
+    val pullExcludePollingDelayNel: ValidationNel[String, FiniteDuration] =
+      root.int("pull.exclude.email.delay.duration.minutes").map(millis => Duration(millis, TimeUnit.MINUTES))
+    //Alternate building of config due to limit of 6 when using |@|.
+    //Not broken out into 2 separate case classes as also hits 6 limit when creating validatedConfig.
+    val pullExcludeConfig: Validation[NonEmptyList[String], PullExcludeConfig] = pullExcludePollingDelayNel <*>
+      (emailUrlNel <*>
+        (csIdsToExcludeNel <*>
+          (notificationsOlderMillisNel <*>
+            (emailAddressesNel <*>
+              (pullExcludeEnabledNel map pullExcludeConfigCurried)))))
 
     val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
       (authTokenInternalNel |@|
@@ -98,12 +105,12 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
         validatedGoogleAnalyticsSenderConfigNel |@|
         pushNotificationConfig |@|
         pullExcludeConfig
-        ) (CustomsNotificationConfigImpl.apply)
+        )(CustomsNotificationConfigImpl.apply)
 
-    /*
-     * the fold below is also similar to how we handle the error/success cases for Play2 forms - again the underlying
-     * FP principles are the same.
-     */
+      /*
+       * the fold below is also similar to how we handle the error/success cases for Play2 forms - again the underlying
+       * FP principles are the same.
+       */
 
     validatedConfig.fold({
       nel => // error case exposes nel (a NotEmptyList)

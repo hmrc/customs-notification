@@ -17,10 +17,11 @@
 package uk.gov.hmrc.customs.notification.modules
 
 import com.google.inject.AbstractModule
-import uk.gov.hmrc.customs.notification.services.NotificationPollingService
+import uk.gov.hmrc.customs.notification.services.FailedPushEmailPollingService
 
-class NotificationPollingModule extends AbstractModule {
+class FailedPushEmailPollingModule extends AbstractModule {
   override def configure(): Unit = {
-    bind(classOf[NotificationPollingService]).asEagerSingleton()
+    bind(classOf[FailedPushEmailPollingService]).asEagerSingleton()
   }
 }
+

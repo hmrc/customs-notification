@@ -89,7 +89,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   private val TenThousand = 10000
   private val pullExcludeConfigZeroMillis = PullExcludeConfig(pullExcludeEnabled = true, emailAddresses = Seq("some.address@domain.com"),
-    notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"))
+    notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"), "some-email-url", 0 minutes)
 
   private val mongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo

@@ -16,11 +16,9 @@
 
 package util
 
-import java.util.UUID
-
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.scalatest.Matchers
+import play.api.http.Status.ACCEPTED
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
@@ -28,11 +26,6 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PushNotificationRequest}
 import util.TestData._
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConversions, mutable}
-
-
 
 trait PushNotificationService extends WireMockRunner {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
@@ -127,6 +120,20 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
   }
 
 }
+
+trait EmailService extends WireMockRunner {
+
+  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.EmailServiceContext)
+
+  def runEmailService(): Unit = {
+    stubFor(post(urlMatchingRequestPath).willReturn(aResponse().withStatus(ACCEPTED)))
+  }
+
+  def verifyEmailServiceWasCalled(): Unit = {
+    verify(1, postRequestedFor(urlMatchingRequestPath))
+  }
+}
+
 
 trait NotificationQueueService extends WireMockRunner {
   self: Matchers =>
@@ -238,4 +245,5 @@ object ExternalServicesConfiguration {
   val GoogleAnalyticsEndpointContext = "/google-analytics"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"
+  val EmailServiceContext = "/hmrc/email"
 }
