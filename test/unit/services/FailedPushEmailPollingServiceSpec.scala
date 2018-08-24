@@ -44,6 +44,7 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
     val mockNotificationLogger = mock[NotificationLogger]
     val mockPullExcludeConfig = mock[PullExcludeConfig]
     val testActorSystem = ActorSystem("FailedPushEmailPollingService")
+    val mockActorSystem = mock[ActorSystem]
 
     val year = 2017
     val monthOfYear = 7
@@ -64,6 +65,7 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
   "FailedPushEmailPollingService" should {
     "send an email" in new Setup {
       when(mockClientNotificationRepo.failedPushNotificationsExist()).thenReturn(Future.successful(true))
+      when(mockPullExcludeConfig.pullExcludeEnabled).thenReturn(true)
       val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, mockNotificationLogger)
       val emailRequestCaptor: ArgumentCaptor[SendEmailRequest] = ArgumentCaptor.forClass(classOf[SendEmailRequest])
 
@@ -78,12 +80,20 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
     }
 
     "not send an email when no notifications failed to push" in new Setup {
+      when(mockPullExcludeConfig.pullExcludeEnabled).thenReturn(true)
       when(mockClientNotificationRepo.failedPushNotificationsExist()).thenReturn(Future.successful(false))
       val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, mockNotificationLogger)
 
       //TODO investigate a way of not requiring sleep
       Thread.sleep(1000)
       verify(mockEmailConnector, never()).send(any[SendEmailRequest]())
+    }
+
+    "not run when poller is disabled" in new Setup {
+      when(mockPullExcludeConfig.pullExcludeEnabled).thenReturn(false)
+      val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, mockNotificationLogger)
+
+      verify(mockActorSystem, never()).scheduler
     }
   }
 }

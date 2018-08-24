@@ -25,6 +25,7 @@ import uk.gov.hmrc.customs.notification.repo.LockOwnerId
 object ClientWorkerTestData {
   val CsidOne = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde231"))
   val CsidTwo = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde232"))
+  val CsidThree = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde233"))
   val ConversationIdOne = ConversationId(UUID.fromString("caca01f9-ec3b-4ede-b263-61b626dde231"))
   val ConversationIdTwo = ConversationId(UUID.fromString("caca01f9-ec3b-4ede-b263-61b626dde232"))
   val CsidOneLockOwnerId = LockOwnerId(CsidOne.id.toString)

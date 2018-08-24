@@ -38,22 +38,24 @@ class FailedPushEmailPollingService @Inject()(clientNotificationRepo: ClientNoti
                                               logger: NotificationLogger)(implicit executionContext: ExecutionContext){
 
   private val emailAddresses: List[Email] = configService.pullExcludeConfig.emailAddresses.map { address => Email(address) }.toList
+  private val pullExcludeEnabled = configService.pullExcludeConfig.pullExcludeEnabled
   private val templateId = "customs_push_notifications_warning"
   private val delay = configService.pullExcludeConfig.pollingDelay
   private implicit val hc = HeaderCarrier()
 
-  actorSystem.scheduler.schedule(0.seconds, delay) {
+  if (pullExcludeEnabled) {
+    actorSystem.scheduler.schedule(0.seconds, delay) {
 
-    logger.debug(s"running push notifications warning email scheduler with delay of $delay")
-    clientNotificationRepo.failedPushNotificationsExist().map {
-      case true =>
-        val now = DateTime.now(DateTimeZone.UTC).toString(ISODateTimeFormat.dateTime())
-        val sendEmailRequest = SendEmailRequest(emailAddresses, templateId, Map("timestamp" -> now), force = false)
-        logger.debug(s"sending push notifications warning email with timestamp $now")
-        emailConnector.send(sendEmailRequest)
-      case false =>
-        logger.info(s"No push notifications warning email sent")
+      logger.debug(s"running push notifications warning email scheduler with delay of $delay")
+      clientNotificationRepo.failedPushNotificationsExist().map {
+        case true =>
+          val now = DateTime.now(DateTimeZone.UTC).toString(ISODateTimeFormat.dateTime())
+          val sendEmailRequest = SendEmailRequest(emailAddresses, templateId, Map("timestamp" -> now), force = false)
+          logger.debug(s"sending push notifications warning email with timestamp $now")
+          emailConnector.send(sendEmailRequest)
+        case false =>
+          logger.info(s"No push notifications warning email sent")
+      }
     }
   }
-
 }
