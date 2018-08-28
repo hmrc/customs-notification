@@ -30,7 +30,7 @@ case class PushNotificationConfig(pollingDelay: FiniteDuration, lockDuration: or
 //TODO consider making csIds ClientSubscriptionId type
 case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddresses: Seq[String],
                              notificationsOlderMillis: Int, csIdsToExclude: Seq[String], emailUrl: String,
-                             pollingDelay: FiniteDuration)
+                             pollingDelay: FiniteDuration, pollingInterval: FiniteDuration)
 
 // TODO: pull up all other service config into here
 @ImplementedBy(classOf[ConfigService])

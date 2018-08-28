@@ -28,7 +28,6 @@ import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 
 @Singleton
 class FailedPushEmailPollingService @Inject()(clientNotificationRepo: ClientNotificationRepo,
@@ -40,13 +39,14 @@ class FailedPushEmailPollingService @Inject()(clientNotificationRepo: ClientNoti
   private val emailAddresses: List[Email] = configService.pullExcludeConfig.emailAddresses.map { address => Email(address) }.toList
   private val pullExcludeEnabled = configService.pullExcludeConfig.pullExcludeEnabled
   private val templateId = "customs_push_notifications_warning"
+  private val interval = configService.pullExcludeConfig.pollingInterval
   private val delay = configService.pullExcludeConfig.pollingDelay
   private implicit val hc = HeaderCarrier()
 
   if (pullExcludeEnabled) {
-    actorSystem.scheduler.schedule(0.seconds, delay) {
+    actorSystem.scheduler.schedule(delay, interval) {
 
-      logger.debug(s"running push notifications warning email scheduler with delay of $delay")
+      logger.debug(s"running push notifications warning email scheduler with an initial delay of $delay and an interval of $interval")
       clientNotificationRepo.failedPushNotificationsExist().map {
         case true =>
           val now = DateTime.now(DateTimeZone.UTC).toString(ISODateTimeFormat.dateTime())

@@ -19,6 +19,7 @@ package util
 import java.util.UUID
 
 import com.typesafe.config.{Config, ConfigFactory}
+import org.joda.time.{DateTime, DateTimeZone}
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json}
@@ -70,11 +71,46 @@ object TestData {
   lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
   lazy val pushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML)
 
+
+  val Year = 2017
+  val MonthOfYear = 7
+  val DayOfMonth = 4
+  val HourOfDay = 13
+  val MinuteOfHour = 45
+  val TimeReceived = new DateTime(Year, MonthOfYear, DayOfMonth, HourOfDay, MinuteOfHour, DateTimeZone.UTC)
+
+  val validClientSubscriptionId1String: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
+  val validClientSubscriptionId1UUID = UUID.fromString(validClientSubscriptionId1String)
+  val validClientSubscriptionId1 = ClientSubscriptionId(validClientSubscriptionId1UUID)
+
+  val validClientSubscriptionId2String: String = "eaca01f9-ec3b-4ede-b263-61b626dde233"
+  val validClientSubscriptionId2UUID = UUID.fromString(validClientSubscriptionId2String)
+  val validClientSubscriptionId2 = ClientSubscriptionId(validClientSubscriptionId2UUID)
+
+  val payload1 = "<foo1></foo1>"
+  val payload2 = "<foo2></foo2>"
+  val payload3 = "<foo3></foo3>"
+
+  val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
+  val notification1 = Notification(conversationId, headers, payload1, CustomMimeType.XmlCharsetUtf8)
+  val notification2 = Notification(conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
+  val notification3 = Notification(conversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
+
+  val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1)
+  val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2)
+  val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3)
+  val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1)
+
+  val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceived))
+  val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceived))
+
   def clientNotification(withBadgeId: Boolean = true): ClientNotification = {
 
     val headers: Seq[Header] = if (withBadgeId) {
       Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))
-    } else Seq[Header]()
+    } else {
+      Seq[Header]()
+    }
 
     ClientNotification(
       csid = clientSubscriptionId,

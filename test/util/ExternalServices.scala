@@ -18,7 +18,7 @@ package util
 
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.Matchers
-import play.api.http.Status.ACCEPTED
+import org.scalatest.concurrent.Eventually
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
@@ -26,6 +26,9 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PushNotificationRequest}
 import util.TestData._
+import java.util
+
+import com.github.tomakehurst.wiremock.verification.LoggedRequest
 
 trait PushNotificationService extends WireMockRunner {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
@@ -45,7 +48,7 @@ trait PushNotificationService extends WireMockRunner {
     )
   }
 
-  def actualCallsMadeToClientsPushService() = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
+  def actualCallsMadeToClientsPushService(): util.List[LoggedRequest] = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
   def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
@@ -121,7 +124,7 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
 
 }
 
-trait EmailService extends WireMockRunner {
+trait EmailService extends WireMockRunner with Eventually {
 
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.EmailServiceContext)
 
@@ -130,7 +133,7 @@ trait EmailService extends WireMockRunner {
   }
 
   def verifyEmailServiceWasCalled(): Unit = {
-    verify(1, postRequestedFor(urlMatchingRequestPath))
+    eventually(verify(1, postRequestedFor(urlMatchingRequestPath)))
   }
 }
 
@@ -152,7 +155,7 @@ trait NotificationQueueService extends WireMockRunner {
       .withStatus(status))
   }
 
-  def actualCallsMadeToPullQ() = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
+  def actualCallsMadeToPullQ(): util.List[LoggedRequest] = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
   def setupNotificationQueueServiceToReturn(status: Int,
                                             request: PushNotificationRequest,

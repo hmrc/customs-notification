@@ -16,8 +16,6 @@
 
 package integration
 
-import java.util.UUID
-
 import org.joda.time.{DateTime, DateTimeZone, Seconds}
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito
@@ -28,7 +26,6 @@ import play.api.libs.json.Json
 import reactivemongo.api.{Cursor, DB}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
-import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo._
@@ -37,6 +34,7 @@ import uk.gov.hmrc.lock.LockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
+import util.TestData._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -47,32 +45,6 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   with BeforeAndAfterEach
   with MockitoSugar
   with MongoSpecSupport  { self =>
-
-  private val validClientSubscriptionId1String: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
-  private val validClientSubscriptionId1UUID = UUID.fromString(validClientSubscriptionId1String)
-  private val validClientSubscriptionId1 = ClientSubscriptionId(validClientSubscriptionId1UUID)
-
-  private val validClientSubscriptionId2String: String = "eaca01f9-ec3b-4ede-b263-61b626dde233"
-  private val validClientSubscriptionId2UUID = UUID.fromString(validClientSubscriptionId2String)
-  private val validClientSubscriptionId2 = ClientSubscriptionId(validClientSubscriptionId2UUID)
-
-  private val validConversationIdString: String = "638b405b-9f04-418a-b648-ce565b111b7b"
-  private val validConversationIdStringUUID = UUID.fromString(validConversationIdString)
-  private val validConversationId = ConversationId(validConversationIdStringUUID)
-
-  private val payload1 = "<foo1></foo1>"
-  private val payload2 = "<foo2></foo2>"
-  private val payload3 = "<foo3></foo3>"
-
-  private val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
-  private val notification1 = Notification(validConversationId, headers, payload1, CustomMimeType.XmlCharsetUtf8)
-  private val notification2 = Notification(validConversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
-  private val notification3 = Notification(validConversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
-
-  private val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1)
-  private val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2)
-  private val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3)
-  private val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1)
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
@@ -89,7 +61,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   private val TenThousand = 10000
   private val pullExcludeConfigZeroMillis = PullExcludeConfig(pullExcludeEnabled = true, emailAddresses = Seq("some.address@domain.com"),
-    notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"), "some-email-url", 0 minutes)
+    notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"), "some-email-url", 0 seconds, 0 minutes)
 
   private val mongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
@@ -212,7 +184,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.delete(clientNotificationToDelete))
 
       collectionSize shouldBe 1
-      logVerifier("debug", s"[conversationId=638b405b-9f04-418a-b648-ce565b111b7b][clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with objectId: ${clientNotificationToDelete.id.stringify}")
+      logVerifier("debug", s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with objectId: ${clientNotificationToDelete.id.stringify}")
     }
 
     "collection should be same size when deleting non-existent record" in {

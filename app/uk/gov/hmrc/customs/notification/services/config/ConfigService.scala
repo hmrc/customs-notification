@@ -89,15 +89,18 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
     val emailAddressesNel: ValidationNel[String, Seq[String]] =
       root.stringSeq("pull.exclude.email.addresses")
     val pullExcludePollingDelayNel: ValidationNel[String, FiniteDuration] =
-      root.int("pull.exclude.email.delay.duration.minutes").map(millis => Duration(millis, TimeUnit.MINUTES))
+      root.int("pull.exclude.email.delay.duration.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+    val pullExcludePollingIntervalNel: ValidationNel[String, FiniteDuration] =
+      root.int("pull.exclude.email.interval.duration.minutes").map(minutes => Duration(minutes, TimeUnit.MINUTES))
     //Alternate building of config due to limit of 6 when using |@|.
     //Not broken out into 2 separate case classes as also hits 6 limit when creating validatedConfig.
-    val pullExcludeConfig: Validation[NonEmptyList[String], PullExcludeConfig] = pullExcludePollingDelayNel <*>
-      (emailUrlNel <*>
-        (csIdsToExcludeNel <*>
-          (notificationsOlderMillisNel <*>
-            (emailAddressesNel <*>
-              (pullExcludeEnabledNel map pullExcludeConfigCurried)))))
+    val pullExcludeConfig: Validation[NonEmptyList[String], PullExcludeConfig] = pullExcludePollingIntervalNel <*>
+      (pullExcludePollingDelayNel <*>
+        (emailUrlNel <*>
+          (csIdsToExcludeNel <*>
+            (notificationsOlderMillisNel <*>
+              (emailAddressesNel <*>
+                  (pullExcludeEnabledNel map pullExcludeConfigCurried))))))
 
     val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
       (authTokenInternalNel |@|

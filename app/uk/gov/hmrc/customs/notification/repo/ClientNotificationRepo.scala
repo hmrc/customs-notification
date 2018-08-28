@@ -130,7 +130,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
     val csIds = configService.pullExcludeConfig.csIdsToExclude
     val olderThan = DateTime.now(DateTimeZone.UTC).minusMillis(millisAgo)
 
-    notificationLogger.debug(s"finding clientSubscriptionIds $csIds olderThan $olderThan")
+    notificationLogger.debug(s"finding clientSubscriptionIds $csIds older than $olderThan")
     val selector = Json.obj("csid" -> Json.obj("$in" -> csIds), "timeReceived" -> Json.obj("$lt" -> Json.obj("$date" -> JsNumber(olderThan.getMillis))))
 
     collection.find(selector).one[ClientNotification].map {
