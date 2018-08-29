@@ -32,7 +32,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
-case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[String])
+case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[String], mayBeEoriNumber: Option[String])
 
 @Singleton
 class CustomsNotificationController @Inject()(logger: NotificationLogger,
@@ -59,7 +59,8 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     // headers have been validated so safe to do a naked get except badgeId which is optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
-      headers.get(X_BADGE_ID_HEADER_NAME))
+      headers.get(X_BADGE_ID_HEADER_NAME),
+      headers.get(X_EORI_ID_HEADER_NAME))
   }
 
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier) = {

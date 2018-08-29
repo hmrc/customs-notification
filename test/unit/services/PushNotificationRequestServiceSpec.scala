@@ -33,30 +33,34 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
-  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
+  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId), Some(eoriNumber))
 
   "PushNotificationRequestService" should {
 
     "return valid request when badgeId is provided" in {
-      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
-      service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId))
+      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId), None)
+      service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId), None)
     }
 
     "request does not contain badgeId header when it is not provided" in {
-      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None)
-      service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None)
+      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None, None)
+      service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None, None)
     }
 
     "request does not contain badgeId header when it is provided as empty value" in {
-      val metaDataWithEmptyBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(""))
-      service.createRequest(ValidXML, callbackData, metaDataWithEmptyBadgeId) shouldBe expectedRequest(None)
+      val metaDataWithEmptyBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(""), None)
+      service.createRequest(ValidXML, callbackData, metaDataWithEmptyBadgeId) shouldBe expectedRequest(None, None)
     }
 
+    "return valid request when eoriNumber is provided" in {
+      val metaDataWithSomeEoriNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(eoriNumber))
+      service.createRequest(ValidXML, callbackData, metaDataWithSomeEoriNumber) shouldBe expectedRequest(None, Some(eoriNumber))
+    }
   }
 
-  private def expectedRequest(expectedBadgeId: Option[String]) = {
-    val expectedHeaders: Seq[Header] = expectedBadgeId.fold(Seq[Header]())(badgeId => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)))
-
+  private def expectedRequest(expectedBadgeId: Option[String], expectedEoriNumber: Option[String]) = {
+    val expectedHeaders: Seq[Header] = expectedBadgeId.fold(Seq[Header]())(badgeId => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId))) ++
+      expectedEoriNumber.fold(Seq[Header]())(eoriNumber => Seq(Header(X_EORI_ID_HEADER_NAME, eoriNumber)))
     PushNotificationRequest(validFieldsId,
       PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
   }

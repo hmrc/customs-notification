@@ -58,7 +58,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId))
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeId), Some(eoriNumber))
 
   private val eventualTrue = Future.successful(true)
 
@@ -82,18 +82,18 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
       testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))(any[HeaderCarrier])
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
       testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>
         status(result) shouldBe ACCEPTED

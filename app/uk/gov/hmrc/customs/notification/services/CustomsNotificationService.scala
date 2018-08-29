@@ -24,6 +24,7 @@ import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
+import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -41,7 +42,15 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
 
-    val headers = metaData.mayBeBadgeId.fold(Seq.empty[Header])(id => Seq(Header(X_BADGE_ID_HEADER_NAME, id)))
+    def extractBadgeIdHeader: Seq[Header] = {
+      metaData.mayBeBadgeId.fold(Seq.empty[Header])(id => Seq(Header(X_BADGE_ID_HEADER_NAME, id)))
+    }
+
+    def extractEoriNumber: Seq[Header] = {
+      metaData.mayBeEoriNumber.fold(Seq.empty[Header])(id => Seq(Header(X_EORI_ID_HEADER_NAME, id)))
+    }
+
+    val headers: Seq[Header] = extractBadgeIdHeader ++ extractEoriNumber
 
     val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None)
 
