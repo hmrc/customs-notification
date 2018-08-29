@@ -26,7 +26,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig, PullExcludeConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.customs.notification.services.{ClientWorkerImpl, PullClientNotificationService, PushClientNotificationService}
@@ -55,7 +55,8 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     private[ClientWorkerImplTimerSpec] val mockPush = mock[PushClientNotificationService]
     private[ClientWorkerImplTimerSpec] val mockLockRepo = mock[LockRepo]
     private[ClientWorkerImplTimerSpec] val mockLogger = mock[NotificationLogger]
-    private[ClientWorkerImplTimerSpec] val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
+    private[ClientWorkerImplTimerSpec] val mockPullExcludeConfig = mock[PullExcludeConfig]
+    private[ClientWorkerImplTimerSpec] val mockConfig = mock[CustomsNotificationConfig]
 
 
     def clientWorkerWithProcessingDelay(outerProcessingDelayMilliseconds: Int, innerPullLoopDelayMilliseconds: Int = 0): ClientWorkerImpl = {
@@ -66,7 +67,8 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         mockPush,
         mockPull,
         mockLockRepo,
-        mockLogger
+        mockLogger,
+        mockConfig
       )
       {
         override protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
@@ -117,6 +119,8 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockPush.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne)))
           .thenReturn(Future.successful(()))
+        when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
+        when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidThree.toString()))
 
         private val actual = await(clientWorkerWithProcessingDelay(fiveSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
@@ -139,6 +143,8 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(false))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+        when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
+        when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidThree.toString()))
 
         private val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
@@ -156,6 +162,8 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(true), Future.successful(true), Future.successful(false))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+        when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
+        when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidThree.toString()))
 
         private val actual = await(clientWorkerWithProcessingDelay(
           outerProcessingDelayMilliseconds = oneAndAHalfSecondsProcessingDelay,
@@ -177,6 +185,8 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
           .thenReturn(Future.successful(List(ClientNotificationOne)))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+        when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
+        when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidThree.toString()))
 
         private val actual = await(clientWorkerWithProcessingDelay(oneAndAHalfSecondsProcessingDelay).processNotificationsFor(CsidOne, CsidOneLockOwnerId, lockDuration))
 
@@ -195,6 +205,8 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(true), Future.failed(emulatedServiceFailure))
         when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
+        when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
+        when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidThree.toString()))
 
         private val actual = await(clientWorkerWithProcessingDelay(
           outerProcessingDelayMilliseconds = oneAndAHalfSecondsProcessingDelay,

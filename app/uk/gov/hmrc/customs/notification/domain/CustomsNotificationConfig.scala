@@ -27,6 +27,10 @@ case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClie
 
 case class PushNotificationConfig(pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration, maxRecordsToFetch: Int)
 
+case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddresses: Seq[String],
+                             notificationsOlderMillis: Int, csIdsToExclude: Seq[String], emailUrl: String,
+                             pollingDelay: FiniteDuration, pollingInterval: FiniteDuration)
+
 // TODO: pull up all other service config into here
 @ImplementedBy(classOf[ConfigService])
 trait CustomsNotificationConfig {
@@ -37,4 +41,6 @@ trait CustomsNotificationConfig {
   def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig
 
   def pushNotificationConfig: PushNotificationConfig
+
+  def pullExcludeConfig: PullExcludeConfig
 }

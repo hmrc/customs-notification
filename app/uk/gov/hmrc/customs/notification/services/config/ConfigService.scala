@@ -21,7 +21,7 @@ import javax.inject.{Inject, Singleton}
 
 import uk.gov.hmrc.customs.api.common.config.ConfigValidationNelAdaptor
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, GoogleAnalyticsSenderConfig, NotificationQueueConfig, PushNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scalaz._
@@ -44,7 +44,8 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
   private case class CustomsNotificationConfigImpl(maybeBasicAuthToken: Option[String],
                                                    notificationQueueConfig: NotificationQueueConfig,
                                                    googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig,
-                                                   pushNotificationConfig: PushNotificationConfig) extends CustomsNotificationConfig
+                                                   pushNotificationConfig: PushNotificationConfig,
+                                                   pullExcludeConfig: PullExcludeConfig) extends CustomsNotificationConfig
 
   private val root = configValidationNel.root
 
@@ -56,41 +57,63 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
     val notificationQueueConfigNel: ValidationNel[String, NotificationQueueConfig] =
       configValidationNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)
 
-
     val gaSenderUrl = configValidationNel.service("google-analytics-sender").serviceUrl
     val gaTrackingId = root.string("googleAnalytics.trackingId")
     val gaClientId = root.string("googleAnalytics.clientId")
     val gaEventValue = root.string("googleAnalytics.eventValue")
     val gaEnabled= root.boolean("googleAnalytics.enabled")
-
     val validatedGoogleAnalyticsSenderConfigNel: ValidationNel[String, GoogleAnalyticsSenderConfig] = (
       gaSenderUrl |@| gaTrackingId |@| gaClientId |@| gaEventValue |@| gaEnabled
-      ) (GoogleAnalyticsSenderConfig.apply)
+      )(GoogleAnalyticsSenderConfig.apply)
 
     val pollingDelayNel: ValidationNel[String, FiniteDuration] =
-      configValidationNel.root.int("push.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+      root.int("push.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
     val pushLockDurationNel: ValidationNel[String, org.joda.time.Duration] =
-      configValidationNel.root.int("push.lock.duration.milliseconds").map(millis => org.joda.time.Duration.millis(millis))
+      root.int("push.lock.duration.milliseconds").map(millis => org.joda.time.Duration.millis(millis))
     val maxFetchRecordsNel: ValidationNel[String, Int] =
-      configValidationNel.root.int("push.fetch.maxRecords")
+      root.int("push.fetch.maxRecords")
     val pushNotificationConfig: ValidationNel[String, PushNotificationConfig] = (
       pollingDelayNel |@|
         pushLockDurationNel |@|
         maxFetchRecordsNel
       )(PushNotificationConfig.apply)
 
+    val pullExcludeConfigCurried = (PullExcludeConfig.apply _).curried
+    val emailUrlNel = configValidationNel.service("email").serviceUrl
+    val notificationsOlderMillisNel: ValidationNel[String, Int] =
+      root.int("pull.exclude.older.milliseconds")
+    val csIdsToExcludeNel: ValidationNel[String, Seq[String]] =
+      root.stringSeq("pull.exclude.csIds")
+    val pullExcludeEnabledNel: ValidationNel[String, Boolean] =
+      root.boolean("pull.exclude.enabled")
+    val emailAddressesNel: ValidationNel[String, Seq[String]] =
+      root.stringSeq("pull.exclude.email.addresses")
+    val pullExcludePollingDelayNel: ValidationNel[String, FiniteDuration] =
+      root.int("pull.exclude.email.delay.duration.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+    val pullExcludePollingIntervalNel: ValidationNel[String, FiniteDuration] =
+      root.int("pull.exclude.email.interval.duration.minutes").map(minutes => Duration(minutes, TimeUnit.MINUTES))
+    //Alternate building of config due to limit of 6 when using |@|.
+    //Not broken out into 2 separate case classes as also hits 6 limit when creating validatedConfig.
+    val pullExcludeConfig: Validation[NonEmptyList[String], PullExcludeConfig] = pullExcludePollingIntervalNel <*>
+      (pullExcludePollingDelayNel <*>
+        (emailUrlNel <*>
+          (csIdsToExcludeNel <*>
+            (notificationsOlderMillisNel <*>
+              (emailAddressesNel <*>
+                  (pullExcludeEnabledNel map pullExcludeConfigCurried))))))
 
     val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
       (authTokenInternalNel |@|
         notificationQueueConfigNel |@|
         validatedGoogleAnalyticsSenderConfigNel |@|
-        pushNotificationConfig
-        ) (CustomsNotificationConfigImpl.apply)
+        pushNotificationConfig |@|
+        pullExcludeConfig
+        )(CustomsNotificationConfigImpl.apply)
 
-    /*
-     * the fold below is also similar to how we handle the error/success cases for Play2 forms - again the underlying
-     * FP principles are the same.
-     */
+      /*
+       * the fold below is also similar to how we handle the error/success cases for Play2 forms - again the underlying
+       * FP principles are the same.
+       */
 
     validatedConfig.fold({
       nel => // error case exposes nel (a NotEmptyList)
@@ -110,4 +133,7 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
   override val googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig = config.googleAnalyticsSenderConfig
 
   override val pushNotificationConfig: PushNotificationConfig = config.pushNotificationConfig
+
+  override val pullExcludeConfig: PullExcludeConfig = config.pullExcludeConfig
+
 }

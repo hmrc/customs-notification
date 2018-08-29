@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.modules
+package uk.gov.hmrc.customs.notification.domain
 
-import com.google.inject.AbstractModule
-import uk.gov.hmrc.customs.notification.services.NotificationPollingService
+import play.api.libs.json.Json
 
-class NotificationPollingModule extends AbstractModule {
-  override def configure(): Unit = {
-    bind(classOf[NotificationPollingService]).asEagerSingleton()
-  }
+case class SendEmailRequest(to: List[Email],
+                            templateId: String,
+                            parameters: Map[String, String],
+                            force: Boolean)
+
+object SendEmailRequest {
+  implicit val SendEmailRequestJF = Json.format[SendEmailRequest]
 }
