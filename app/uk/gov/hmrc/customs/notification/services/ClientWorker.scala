@@ -17,6 +17,7 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.math.MathContext
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.{Inject, Singleton}
 
@@ -24,7 +25,7 @@ import akka.actor.ActorSystem
 import com.google.inject.ImplementedBy
 import org.joda.time.Duration
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
@@ -62,7 +63,8 @@ class ClientWorkerImpl @Inject()(
                                   push: PushClientNotificationService,
                                   pull: PullClientNotificationService,
                                   lockRepo: LockRepo,
-                                  logger: NotificationLogger
+                                  logger: NotificationLogger,
+                                  configService: CustomsNotificationConfig
                                 ) extends ClientWorker {
 
   private case class PushProcessingException(msg: String) extends RuntimeException(msg)
@@ -74,8 +76,10 @@ class ClientWorkerImpl @Inject()(
   private val awaitApiCallDuration = 25 second
   private val awaitMongoCallDuration = 25 second
   protected val loopIncrementToLog = 1
+  private val csidsNeverSentToPull = configService.pullExcludeConfig.csIdsToExclude.map{ id => ClientSubscriptionId(UUID.fromString(id))}
+  private val pullExcludeEnabled = configService.pullExcludeConfig.pullExcludeEnabled
 
-  override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration): Future[Unit] = {
+  override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Unit] = {
     //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
     //however looking at api-subscription-fields service I do not think it is required so keep new HeaderCarrier() for now
     implicit val hc = HeaderCarrier()
@@ -98,12 +102,12 @@ class ClientWorkerImpl @Inject()(
     eventuallyProcess
   }
 
-  private def ninetyPercentOf(lockDuration: org.joda.time.Duration): FiniteDuration = {
+  private def ninetyPercentOf(lockDuration: Duration): FiniteDuration = {
     val ninetyPercentOfMillis: Long = BigDecimal(lockDuration.getMillis * 0.9, new MathContext(2)).toLong
     ninetyPercentOfMillis milliseconds
   }
 
-  private def refreshLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: org.joda.time.Duration)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
+  private def refreshLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
     lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, lockDuration).map{ refreshedOk =>
       if (!refreshedOk) {
         val ex = new IllegalStateException(s"[clientSubscriptionId=$csid] Unable to refresh lock")
@@ -150,6 +154,19 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
+  /**
+    * The only way to exit this loop is:
+    * <ol>
+    * <li>if blockingFetch returns empty list or there is a FATAL exception
+    * <li>maybeCurrentRecord == maybePreviousRecord (implies we are not making progress) so end this loop/worker. After the polling interval we will try again. Polling interval will hopefully allow us to reclaim resources via Garbage Collection
+    * <li>there is a FATAL exception
+    * <li>the push notification fails and its csid belongs to a configured collection of csids are not sent to the pull queue
+    * </ol>
+    * @param csid
+    * @param lockOwnerId
+    * @param hc
+    * @param refreshLockFailed
+    */
   private def blockingOuterProcessLoop(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
 
     logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
@@ -164,10 +181,6 @@ class ClientWorkerImpl @Inject()(
           val seq = blockingFetch(csid)
           maybePreviousRecord = maybeCurrentRecord
           maybeCurrentRecord = seq.headOption
-          // the only way to exit loop is:
-          // 1. if blockingFetch returns empty list or there is a FATAL exception
-          // 2. maybeCurrentRecord == maybePreviousRecord (implies we are not making progress) so end this loop/worker. After the polling interval we will try again. Polling interval will hopefully allow us to reclaim resources via Garbage Collection
-          // 3. there is a FATAL exception
           if (seq.isEmpty) {
             logger.info(s"[clientSubscriptionId=$csid] fetch returned zero records so exiting")
             continue = false
@@ -186,7 +199,12 @@ class ClientWorkerImpl @Inject()(
           }
         } catch {
           case PushProcessingException(_) =>
-            blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
+            if (pullExcludeEnabled && csidsNeverSentToPull.contains(csid)) {
+              logger.info(s"[clientSubscriptionId=$csid] failed push and was not sent to pull queue")
+              continue = false
+            } else {
+              blockingEnqueueNotificationsOnPullQueue(csid, lockOwnerId)
+            }
           case NonFatal(e) =>
             logger.error(s"[clientSubscriptionId=$csid] error processing notifications: ${e.getMessage}")
         }

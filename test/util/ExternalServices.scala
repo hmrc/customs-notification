@@ -16,11 +16,9 @@
 
 package util
 
-import java.util.UUID
-
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.scalatest.Matchers
+import org.scalatest.concurrent.Eventually
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
@@ -28,11 +26,9 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PushNotificationRequest}
 import util.TestData._
+import java.util
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConversions, mutable}
-
-
+import com.github.tomakehurst.wiremock.verification.LoggedRequest
 
 trait PushNotificationService extends WireMockRunner {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
@@ -52,7 +48,7 @@ trait PushNotificationService extends WireMockRunner {
     )
   }
 
-  def actualCallsMadeToClientsPushService() = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
+  def actualCallsMadeToClientsPushService(): util.List[LoggedRequest] = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
   def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue) {
     verify(1, postRequestedFor(urlMatchingRequestPath)
@@ -128,6 +124,20 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
 
 }
 
+trait EmailService extends WireMockRunner with Eventually {
+
+  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.EmailServiceContext)
+
+  def setupEmailServiceToReturn(status: Int): Unit = {
+    stubFor(post(urlMatchingRequestPath).willReturn(aResponse().withStatus(status)))
+  }
+
+  def verifyEmailServiceWasCalled(): Unit = {
+    eventually(verify(1, postRequestedFor(urlMatchingRequestPath)))
+  }
+}
+
+
 trait NotificationQueueService extends WireMockRunner {
   self: Matchers =>
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.NotificationQueueContext)
@@ -145,7 +155,7 @@ trait NotificationQueueService extends WireMockRunner {
       .withStatus(status))
   }
 
-  def actualCallsMadeToPullQ() = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
+  def actualCallsMadeToPullQ(): util.List[LoggedRequest] = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
   def setupNotificationQueueServiceToReturn(status: Int,
                                             request: PushNotificationRequest,
@@ -238,4 +248,5 @@ object ExternalServicesConfiguration {
   val GoogleAnalyticsEndpointContext = "/google-analytics"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"
+  val EmailServiceContext = "/hmrc/email"
 }

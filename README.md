@@ -36,22 +36,22 @@ The objective of the this endpoint is as below:
 ### Body
 The body of the request will contain the XML payload. 
 
-# Configuring `Authorization` header check
+## Configuring `Authorization` header check
 
 To configure the service to accept requests only with specific value in `Authorization` header with `Basic` authentication scheme, the configuration key `auth.token.internal` should be defined with required value.
 
-## Example
+### Example
 Accept only requests having the header `Authorization: Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=`
 
     auth.token.internal = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
 
-# Switching service endpoints
+## Switching service endpoints
 
 Dynamic switching of service endpoints has been implemented for connectors. To configure dynamic
 switching of the endpoint there must be a corresponding section in the application config file
 (see example below). This should contain the endpoint config details.
 
-## Example
+### Example
 The service `api-subscription-fields` has a `default` configuration and a `stub` configuration. Note
 that `default` configuration is declared directly inside the `api-subscription-fields` section.
 
@@ -110,6 +110,11 @@ that `default` configuration is declared directly inside the `api-subscription-f
     }
 
 
-### License
+## Scheduled Email
+A warning email is sent when the scheduler finds notifications for configurable clientIds (`pull.exclude.csIds`) in the database that are more than `pull.exclude.older.milliseconds` plus `push.polling.delay.duration.milliseconds` old.
+The check is currently configured (`pull.exclude.email.interval.duration.minutes`) to run every 30 minutes. The set of email "to" addresses are configured with `pull.exclude.email.addresses`.
+
+
+## License
 
 This code is open source software licensed under the [Apache 2.0 License]("http://www.apache.org/licenses/LICENSE-2.0.html").

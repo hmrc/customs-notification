@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.modules
+package uk.gov.hmrc.customs.notification.domain
 
-import com.google.inject.AbstractModule
-import uk.gov.hmrc.customs.notification.services.NotificationPollingService
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
 
-class NotificationPollingModule extends AbstractModule {
-  override def configure(): Unit = {
-    bind(classOf[NotificationPollingService]).asEagerSingleton()
-  }
+case class Email(value: String) extends AnyVal
+
+object Email {
+  implicit val format: Format[Email] = implicitly[Format[String]].inmap(Email(_), _.value)
 }
