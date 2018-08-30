@@ -21,6 +21,8 @@ import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
+import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, ConversationId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -37,6 +39,7 @@ case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: Conve
 @Singleton
 class CustomsNotificationController @Inject()(logger: NotificationLogger,
                                               customsNotificationService: CustomsNotificationService,
+                                              callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                               configService: CustomsNotificationConfig)
   extends BaseController with HeaderValidator {
 
@@ -65,20 +68,27 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier) = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
-    customsNotificationService.handleNotification(xml, md)
-    .recover{
-      case e: Throwable =>
-        logger.error("error handling notification: " + e.getMessage)
-        ErrorInternalServerError.XmlResult
-    }.map {
-      case true =>
-        logger.info("Notification processed successfully")
-        Results.Accepted
-      case false =>
-        logger.error("error handling notification")
-        ErrorInternalServerError.XmlResult
-    }
+    callbackDetailsConnector.getClientData(md.clientId.toString()).flatMap {
 
+      case Some(_) =>
+        customsNotificationService.handleNotification(xml, md).recover{
+          case _: Throwable => ErrorInternalServerError.XmlResult
+        }.map {
+          case true =>
+            logger.info("Notification processed successfully")
+            Results.Accepted
+          case false => ErrorInternalServerError.XmlResult
+        }
+
+      case None =>
+        logger.error("Declarant data not found")
+        Future.successful(ErrorCdsClientIdNotFound.XmlResult)
+
+    }.recover {
+      case ex: Throwable =>
+        notificationLogger.error("Failed to fetch Declarant data " + ex.getMessage)
+        errorInternalServerError("Internal Server Error").XmlResult
+    }
   }
 
 }
