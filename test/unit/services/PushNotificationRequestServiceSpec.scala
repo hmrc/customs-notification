@@ -42,14 +42,19 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
       service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId), None)
     }
 
-    "request does not contain badgeId header when it is not provided" in {
+    "request does not contain badgeId header when it is provided as empty value" in {
+      val metaDataWithEmptyBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(""), None)
+      service.createRequest(ValidXML, callbackData, metaDataWithEmptyBadgeId) shouldBe expectedRequest(None, None)
+    }
+
+    "request does not contain badgeId or eoriNumber headers when not provided" in {
       val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None, None)
       service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None, None)
     }
 
-    "request does not contain badgeId header when it is provided as empty value" in {
-      val metaDataWithEmptyBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(""), None)
-      service.createRequest(ValidXML, callbackData, metaDataWithEmptyBadgeId) shouldBe expectedRequest(None, None)
+    "request does not contain eoriNumber header when it is provided as empty value" in {
+      val metaDataWithEmptyEoriNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(""))
+      service.createRequest(ValidXML, callbackData, metaDataWithEmptyEoriNumber) shouldBe expectedRequest(None, None)
     }
 
     "return valid request when eoriNumber is provided" in {
