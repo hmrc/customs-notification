@@ -29,15 +29,7 @@ class PushNotificationRequestService @Inject()(apiSubscriptionFieldsConnector: A
 
   def createRequest(notificationXML: NodeSeq, clientData: DeclarantCallbackData, metaData: RequestMetaData): PushNotificationRequest = {
 
-    def extractHeader(maybeValue: Option[String], headerName: String) = {
-      maybeValue match {
-        case x if x.isEmpty || x.get.isEmpty => Seq()
-        case Some(headerValue) => Seq(Header(headerName, headerValue))
-      }
-    }
-
-    val outboundCallHeaders: Seq[Header] = extractHeader(metaData.mayBeBadgeId, X_BADGE_ID_HEADER_NAME) ++
-                                            extractHeader(metaData.mayBeEoriNumber, X_EORI_ID_HEADER_NAME)
+    val outboundCallHeaders: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber).toSeq
 
     PushNotificationRequest(metaData.clientId.toString(),
       PushNotificationRequestBody(

@@ -49,7 +49,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(badgeIdValue), Some(eoriNumber))
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)))
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
