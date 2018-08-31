@@ -26,21 +26,23 @@ import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
+import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.PullClientNotificationService
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
+import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
-import scala.concurrent.Future;
+import scala.concurrent.Future
 
 class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach {
 
   private val mockPullConnector = mock[NotificationQueueConnector]
   private val mockLogger = mock[CdsLogger]
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
-  private val service = new PullClientNotificationService(mockPullConnector, mockLogger, mockGAConnector)
-  private val mockNotification = mock[ClientNotification]
-  private implicit val hc = mock[HeaderCarrier]
+  private val mockClientNotificationRepo = mock[ClientNotificationRepo]
+  private val service = new PullClientNotificationService(mockPullConnector, mockClientNotificationRepo, mockLogger, mockGAConnector)
+  private implicit val hc: HeaderCarrier = mock[HeaderCarrier]
   private val someNotification = clientNotification()
 
   override protected def beforeEach(): Unit = {
@@ -50,6 +52,7 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       .thenReturn(Future.successful(mock[HttpResponse]))
 
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
+    when(mockClientNotificationRepo.delete(any[ClientNotification])).thenReturn(Future.successful(()))
 
   }
 
@@ -81,6 +84,34 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
         .thenReturn(Future.failed(new RuntimeException("something went wrong")))
 
       await(service.sendAsync(someNotification)) should be(false)
+      verify(mockClientNotificationRepo, never()).delete(any[ClientNotification])
+
+      andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
+    }
+
+    "return async False when the request to Pull Service is not successful and failure is caused by bad csid" in {
+      when(mockPullConnector.enqueue(any[ClientNotification]))
+        .thenReturn(Future.failed(new RuntimeException(new BadRequestException("X-Client-ID required."))))
+
+      await(service.sendAsync(someNotification)) should be(false)
+      verify(mockClientNotificationRepo, atLeastOnce()).delete(any[ClientNotification])
+      PassByNameVerifier(mockLogger, "info")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with invalid csid after failed pull queue submission")
+        .verify()
+
+      andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
+    }
+
+    "return async False when the request to Pull Service is not successful and failure is caused by bad csid and delete fails" in {
+      when(mockPullConnector.enqueue(any[ClientNotification]))
+        .thenReturn(Future.failed(new RuntimeException(new BadRequestException("X-Client-ID required."))))
+      when(mockClientNotificationRepo.delete(any())).thenReturn(Future.failed(new RuntimeException("something bad happened")))
+
+      await(service.sendAsync(someNotification)) should be(false)
+      verify(mockClientNotificationRepo, atLeastOnce()).delete(any[ClientNotification])
+      PassByNameVerifier(mockLogger, "info")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with invalid csid after failed pull queue submission")
+        .verify()
 
       andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
     }

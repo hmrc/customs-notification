@@ -23,15 +23,18 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
+import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.util.control.NonFatal
 
 
 @Singleton
 class PullClientNotificationService @Inject() (notificationQueueConnector: NotificationQueueConnector,
+                                               clientNotificationRepo: ClientNotificationRepo,
                                                logger: CdsLogger,
                                                gaConnector: GoogleAnalyticsSenderConnector) {
 
@@ -56,9 +59,20 @@ class PullClientNotificationService @Inject() (notificationQueueConnector: Notif
     }
       .recover {
         case t: Throwable =>
-          gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${clientNotification.notification.conversationId}] A notification Pull request failed")
           logger.error(logMsgPrefix(clientNotification) + "Failed to pass the notification to PULL service", t)
+          if (t.getCause.isInstanceOf[BadRequestException] && t.getMessage.contains("X-Client-ID required")) {
+            logger.info(logMsgPrefix(clientNotification) + " deleting clientNotification with invalid csid after failed pull queue submission")
+            deleteNotification(clientNotification)
+          }
+          gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${clientNotification.notification.conversationId}] A notification Pull request failed")
           false
       }
+  }
+
+  private def deleteNotification(clientNotification: ClientNotification): Unit = {
+    clientNotificationRepo.delete(clientNotification).recover {
+      case NonFatal(_) =>
+        logger.error(s"${logMsgPrefix(clientNotification)} error deleting notification")
+    }
   }
 }
