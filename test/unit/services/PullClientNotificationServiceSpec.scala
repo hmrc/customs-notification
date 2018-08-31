@@ -42,7 +42,7 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val service = new PullClientNotificationService(mockPullConnector, mockClientNotificationRepo, mockLogger, mockGAConnector)
-  private implicit val hc = mock[HeaderCarrier]
+  private implicit val hc: HeaderCarrier = mock[HeaderCarrier]
   private val someNotification = clientNotification()
 
   override protected def beforeEach(): Unit = {
@@ -92,6 +92,20 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
     "return async False when the request to Pull Service is not successful and failure is caused by bad csid" in {
       when(mockPullConnector.enqueue(any[ClientNotification]))
         .thenReturn(Future.failed(new RuntimeException(new BadRequestException("X-Client-ID required."))))
+
+      await(service.sendAsync(someNotification)) should be(false)
+      verify(mockClientNotificationRepo, atLeastOnce()).delete(any[ClientNotification])
+      PassByNameVerifier(mockLogger, "info")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with invalid csid after failed pull queue submission")
+        .verify()
+
+      andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
+    }
+
+    "return async False when the request to Pull Service is not successful and failure is caused by bad csid and delete fails" in {
+      when(mockPullConnector.enqueue(any[ClientNotification]))
+        .thenReturn(Future.failed(new RuntimeException(new BadRequestException("X-Client-ID required."))))
+      when(mockClientNotificationRepo.delete(any())).thenReturn(Future.failed(new RuntimeException("something bad happened")))
 
       await(service.sendAsync(someNotification)) should be(false)
       verify(mockClientNotificationRepo, atLeastOnce()).delete(any[ClientNotification])

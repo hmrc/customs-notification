@@ -41,7 +41,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
 
-    val headers = metaData.mayBeBadgeId.fold(Seq.empty[Header])(id => Seq(Header(X_BADGE_ID_HEADER_NAME, id)))
+    val headers: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber).toSeq
 
     val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None)
 

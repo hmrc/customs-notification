@@ -36,7 +36,7 @@ import scala.xml.{Elem, NodeSeq}
 object TestData {
 
   val validConversationId: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
-  val validConversationIdUUID = UUID.fromString(validConversationId)
+  val validConversationIdUUID: UUID = UUID.fromString(validConversationId)
   val conversationId = ConversationId(validConversationIdUUID)
   val invalidConversationId: String = "I-am-not-a-valid-uuid"
 
@@ -66,6 +66,7 @@ object TestData {
   val debugMsg = "DEBUG"
 
   val badgeId = "ABCDEF1234"
+  val eoriNumber = "IAMEORI"
   val userAgent = "Customs Declaration Service"
 
   lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
@@ -152,7 +153,7 @@ object TestData {
   val ValidXML: Elem = <Foo>Bar</Foo>
 
   lazy val ValidRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val ValidRequestWithClientIdAbsentInDatabase: FakeRequest[AnyContentAsXml] = FakeRequest()
@@ -262,6 +263,8 @@ object RequestHeaders {
 
   lazy val X_BADGE_ID_HEADER: (String, String) = X_BADGE_ID_HEADER_NAME -> badgeId
 
+  lazy val X_EORI_ID_HEADER: (String, String) = X_EORI_ID_HEADER_NAME -> eoriNumber
+
   lazy val CONTENT_TYPE_HEADER: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8
 
   lazy val CONTENT_TYPE_HEADER_LOWERCASE: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8.toLowerCase
@@ -284,7 +287,8 @@ object RequestHeaders {
     CONTENT_TYPE_HEADER,
     ACCEPT_HEADER,
     BASIC_AUTH_HEADER,
-    X_BADGE_ID_HEADER
+    X_BADGE_ID_HEADER,
+    X_EORI_ID_HEADER
   )
 
   val LoggingHeaders = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER)

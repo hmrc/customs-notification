@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_BADGE_ID_HEADER_NAME
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_EORI_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header, PushNotificationRequest, PushNotificationRequestBody}
 
@@ -29,10 +29,7 @@ class PushNotificationRequestService @Inject()(apiSubscriptionFieldsConnector: A
 
   def createRequest(notificationXML: NodeSeq, clientData: DeclarantCallbackData, metaData: RequestMetaData): PushNotificationRequest = {
 
-    val outboundCallHeaders: Seq[Header] = metaData.mayBeBadgeId match {
-      case x if x.isEmpty || x.get.isEmpty => Seq()
-      case Some(badgeId) => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId))
-    }
+    val outboundCallHeaders: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber).toSeq
 
     PushNotificationRequest(metaData.clientId.toString(),
       PushNotificationRequestBody(
