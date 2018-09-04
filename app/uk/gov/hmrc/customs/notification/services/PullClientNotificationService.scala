@@ -23,18 +23,15 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
-import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier}
+import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.control.NonFatal
 
 
 @Singleton
 class PullClientNotificationService @Inject() (notificationQueueConnector: NotificationQueueConnector,
-                                               clientNotificationRepo: ClientNotificationRepo,
                                                logger: CdsLogger,
                                                gaConnector: GoogleAnalyticsSenderConnector) {
 
@@ -50,29 +47,18 @@ class PullClientNotificationService @Inject() (notificationQueueConnector: Notif
     }
   }
 
-
-  def sendAsync(clientNotification: ClientNotification): Future[Boolean] = {
+  private def sendAsync(clientNotification: ClientNotification): Future[Boolean] = {
     notificationQueueConnector.enqueue(clientNotification).map { _ =>
       gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${clientNotification.notification.conversationId}] A notification has been left to be pulled")
       logger.info(logMsgPrefix(clientNotification) + "Notification has been passed on to PULL service")
       true
     }
-      .recover {
-        case t: Throwable =>
-          logger.error(logMsgPrefix(clientNotification) + "Failed to pass the notification to PULL service", t)
-          if (t.getCause.isInstanceOf[BadRequestException] && t.getMessage.contains("X-Client-ID required")) {
-            logger.info(logMsgPrefix(clientNotification) + " deleting clientNotification with invalid csid after failed pull queue submission")
-            deleteNotification(clientNotification)
-          }
-          gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${clientNotification.notification.conversationId}] A notification Pull request failed")
-          false
-      }
-  }
-
-  private def deleteNotification(clientNotification: ClientNotification): Unit = {
-    clientNotificationRepo.delete(clientNotification).recover {
-      case NonFatal(_) =>
-        logger.error(s"${logMsgPrefix(clientNotification)} error deleting notification")
+    .recover {
+      case t: Throwable =>
+        logger.error(logMsgPrefix(clientNotification) + "Failed to pass the notification to PULL service", t)
+        gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${clientNotification.notification.conversationId}] A notification Pull request failed")
+        false
     }
   }
+
 }
