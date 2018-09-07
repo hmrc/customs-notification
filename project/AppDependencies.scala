@@ -7,13 +7,11 @@ object AppDependencies {
   private val scalatestplusVersion = "2.0.1"
   private val mockitoVersion = "2.18.3"
   private val pegdownVersion = "1.6.0"
-  private val wireMockVersion = "2.17.0"
-  private val customsApiCommonVersion = "1.27.0"
+  private val wireMockVersion = "2.18.0"
+  private val customsApiCommonVersion = "1.28.0"
   private val playReactivemongoVersion = "6.2.0"
   private val mongoLockVersion = "5.1.0"
   private val testScope = "test,it"
-
-  val xmlResolver = "xml-resolver" % "xml-resolver" % "1.2"
 
   val playReactiveMongo = "uk.gov.hmrc" %% "play-reactivemongo" % playReactivemongoVersion
 
