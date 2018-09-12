@@ -27,7 +27,7 @@ case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClie
 
 case class PushNotificationConfig(pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration, maxRecordsToFetch: Int)
 
-case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddresses: Seq[String],
+case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddress: String,
                              notificationsOlderMillis: Int, csIdsToExclude: Seq[String], emailUrl: String,
                              pollingDelay: FiniteDuration, pollingInterval: FiniteDuration)
 

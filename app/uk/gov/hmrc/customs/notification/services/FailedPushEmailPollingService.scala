@@ -36,7 +36,7 @@ class FailedPushEmailPollingService @Inject()(clientNotificationRepo: ClientNoti
                                               configService: CustomsNotificationConfig,
                                               logger: NotificationLogger)(implicit executionContext: ExecutionContext){
 
-  private val emailAddresses: List[Email] = configService.pullExcludeConfig.emailAddresses.map { address => Email(address) }.toList
+  private val emailAddress: List[Email] = List(Email(configService.pullExcludeConfig.emailAddress))
   private val pullExcludeEnabled = configService.pullExcludeConfig.pullExcludeEnabled
   private val templateId = "customs_push_notifications_warning"
   private val interval = configService.pullExcludeConfig.pollingInterval
@@ -50,8 +50,8 @@ class FailedPushEmailPollingService @Inject()(clientNotificationRepo: ClientNoti
       clientNotificationRepo.failedPushNotificationsExist().map {
         case true =>
           val now = DateTime.now(DateTimeZone.UTC).toString(ISODateTimeFormat.dateTime())
-          val sendEmailRequest = SendEmailRequest(emailAddresses, templateId, Map("timestamp" -> now), force = false)
-          logger.debug(s"sending push notifications warning email with timestamp $now")
+          val sendEmailRequest = SendEmailRequest(emailAddress, templateId, Map("timestamp" -> now), force = false)
+          logger.debug(s"sending push notifications warning email with email address ${emailAddress.head.value} and timestamp $now")
           emailConnector.send(sendEmailRequest)
         case false =>
           logger.info(s"No push notifications warning email sent")

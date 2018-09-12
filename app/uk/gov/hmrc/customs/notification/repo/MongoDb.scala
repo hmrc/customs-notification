@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.repo
 import javax.inject.Singleton
 
 import com.google.inject.{ImplementedBy, Inject}
-import play.modules.reactivemongo.{MongoDbConnection, ReactiveMongoComponent}
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.DB
 
 @ImplementedBy(classOf[MongoDb])
