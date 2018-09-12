@@ -47,11 +47,13 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.fetch.maxRecords = 50
       |
       |pull.exclude.enabled = true
-      |pull.exclude.email.addresses = ["some.address@domain.com", "another.address@domain.com"]
+      |pull.exclude.email.addresses.0 = some.address"@"domain.com
+      |pull.exclude.email.addresses.1 = another.address"@"domain.com
       |pull.exclude.email.delay.duration.seconds = 1
       |pull.exclude.email.interval.duration.minutes = 30
       |pull.exclude.older.milliseconds = 5000
-      |pull.exclude.csIds = [eaca01f9-ec3b-4ede-b263-61b626dde232, eaca01f9-ec3b-4ede-b263-61b626dde233]
+      |pull.exclude.csIds.0 = eaca01f9-ec3b-4ede-b263-61b626dde232
+      |pull.exclude.csIds.1 = eaca01f9-ec3b-4ede-b263-61b626dde233
       |
       |  microservice {
       |    services {
