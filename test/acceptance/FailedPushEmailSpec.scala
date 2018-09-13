@@ -49,7 +49,7 @@ class FailedPushEmailSpec  extends AcceptanceTestSpec
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     "push.polling.delay.duration.milliseconds" -> 100,
     "pull.exclude.enabled" -> true,
-    "pull.exclude.email.addresses" -> Seq("some.address@domain.com"),
+    "pull.exclude.email.address" -> "some.address@domain.com",
     "pull.exclude.email.delay.duration.seconds" -> 3,
     "pull.exclude.email.interval.duration.minutes" -> 30,
     "pull.exclude.older.milliseconds" -> 50,

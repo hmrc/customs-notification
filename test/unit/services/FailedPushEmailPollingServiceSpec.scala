@@ -58,7 +58,7 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
     val sendEmailRequest = SendEmailRequest(List(Email("some-email@address.com")),
       "customs_push_notifications_warning", Map("timestamp" -> "some-timestamp"), force = false)
     when(mockCustomsNotificationConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
-    when(mockPullExcludeConfig.emailAddresses).thenReturn(Seq("some-email@address.com"))
+    when(mockPullExcludeConfig.emailAddress).thenReturn("some-email@address.com")
     when(mockPullExcludeConfig.pollingInterval).thenReturn(1 minute)
     when(mockPullExcludeConfig.pollingDelay).thenReturn(0 seconds)
   }

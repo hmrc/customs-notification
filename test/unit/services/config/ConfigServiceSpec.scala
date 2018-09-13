@@ -47,8 +47,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.fetch.maxRecords = 50
       |
       |pull.exclude.enabled = true
-      |pull.exclude.email.addresses.0 = some.address"@"domain.com
-      |pull.exclude.email.addresses.1 = another.address"@"domain.com
+      |pull.exclude.email.address = "some.address@domain.com"
       |pull.exclude.email.delay.duration.seconds = 1
       |pull.exclude.email.interval.duration.minutes = 30
       |pull.exclude.older.milliseconds = 5000
@@ -90,6 +89,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.fetch.maxRecords = 50
       |
       |pull.exclude.enabled = true
+      |pull.exclude.email.address = "some.address@domain.com"
       |pull.exclude.older.milliseconds = 5000
       |pull.exclude.email.delay.duration.seconds = 1
       |pull.exclude.email.interval.duration.minutes = 30
@@ -139,7 +139,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
       actual.pullExcludeConfig.csIdsToExclude shouldBe Seq("eaca01f9-ec3b-4ede-b263-61b626dde232", "eaca01f9-ec3b-4ede-b263-61b626dde233")
-      actual.pullExcludeConfig.emailAddresses shouldBe Seq("some.address@domain.com", "another.address@domain.com")
+      actual.pullExcludeConfig.emailAddress shouldBe "some.address@domain.com"
       actual.pullExcludeConfig.emailUrl shouldBe "http://localhost:8300/hmrc/email"
       actual.pullExcludeConfig.pollingInterval shouldBe (30 minutes)
     }
@@ -168,6 +168,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |Could not find config key 'push.lock.duration.milliseconds'
       |Could not find config key 'push.fetch.maxRecords'
       |Could not find config key 'pull.exclude.enabled'
+      |Could not find config key 'pull.exclude.email.address'
       |Could not find config key 'pull.exclude.older.milliseconds'
       |Could not find config email.host
       |Service configuration not found for key: email.context

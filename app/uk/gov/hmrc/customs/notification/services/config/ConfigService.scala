@@ -86,8 +86,8 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
       root.stringSeq("pull.exclude.csIds")
     val pullExcludeEnabledNel: ValidationNel[String, Boolean] =
       root.boolean("pull.exclude.enabled")
-    val emailAddressesNel: ValidationNel[String, Seq[String]] =
-      root.stringSeq("pull.exclude.email.addresses")
+    val emailAddressNel: ValidationNel[String, String] =
+      root.string("pull.exclude.email.address")
     val pullExcludePollingDelayNel: ValidationNel[String, FiniteDuration] =
       root.int("pull.exclude.email.delay.duration.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
     val pullExcludePollingIntervalNel: ValidationNel[String, FiniteDuration] =
@@ -99,7 +99,7 @@ class ConfigService @Inject()(configValidationNel: ConfigValidationNelAdaptor, l
         (emailUrlNel <*>
           (csIdsToExcludeNel <*>
             (notificationsOlderMillisNel <*>
-              (emailAddressesNel <*>
+              (emailAddressNel <*>
                   (pullExcludeEnabledNel map pullExcludeConfigCurried))))))
 
     val validatedConfig: ValidationNel[String, CustomsNotificationConfig] =
