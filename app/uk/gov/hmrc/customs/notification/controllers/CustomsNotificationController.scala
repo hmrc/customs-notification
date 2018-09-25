@@ -63,7 +63,7 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
       findHeaderValue(X_BADGE_ID_HEADER_NAME, headers), findHeaderValue(X_EORI_ID_HEADER_NAME, headers),
-      findHeaderValue(X_CORRELATION_ID, headers))
+      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, headers))
   }
 
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier) = {

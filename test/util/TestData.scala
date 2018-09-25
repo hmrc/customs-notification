@@ -278,7 +278,7 @@ object RequestHeaders {
 
   lazy val X_EORI_ID_HEADER: (String, String) = X_EORI_ID_HEADER_NAME -> eoriNumber
 
-  lazy val X_CORRELATION_ID_HEADER: (String, String) = X_CORRELATION_ID -> correlationId
+  lazy val X_CORRELATION_ID_HEADER: (String, String) = X_CORRELATION_ID_HEADER_NAME -> correlationId
 
   lazy val CONTENT_TYPE_HEADER: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8
 

@@ -22,14 +22,16 @@ import play.api.http.HeaderNames._
 import play.api.mvc.Results._
 import play.api.mvc.{Action, AnyContent}
 import play.api.test.FakeRequest
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid}
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, errorBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.HeaderValidator
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.play.test.UnitSpec
 import util.RequestHeaders._
 import util.TestData.basicAuthTokenValue
+
+import scala.util.Random
 
 class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPropertyChecks {
 
@@ -60,8 +62,9 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
       ("return ErrorConversationIdInvalid result for conversationId header invalid", withAuthTokenConfigured, ValidHeaders + X_CONVERSATION_ID_INVALID, ErrorConversationIdInvalid.XmlResult),
       ("return ErrorUnauthorized result for Authorization header missing", withAuthTokenConfigured, ValidHeaders - AUTHORIZATION, ErrorUnauthorized.XmlResult),
       ("return ErrorUnauthorized result for Authorization header invalid", withAuthTokenConfigured, ValidHeaders + BASIC_AUTH_HEADER_INVALID, ErrorUnauthorized.XmlResult),
-      ("return ErrorAcceptHeaderInvalid result for all headers missing", withAuthTokenConfigured, NoHeaders, ErrorAcceptHeaderInvalid.XmlResult)
-    )
+      ("return ErrorAcceptHeaderInvalid result for all headers missing", withAuthTokenConfigured, NoHeaders, ErrorAcceptHeaderInvalid.XmlResult),
+      ("return Bad Request if correlation id is provided but invalid", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.alphanumeric.take(40).mkString("")), errorBadRequest("Bad request").XmlResult),
+      ("return OK if correlation id is provided and valid", withAuthTokenConfigured, ValidHeaders + X_CORRELATION_ID_HEADER, Ok))
 
   private def requestWithHeaders(headers: Map[String, String]) =
     FakeRequest().withHeaders(headers.toSeq: _*)
@@ -69,6 +72,7 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
   "HeaderValidatorAction" should {
     forAll(headersTable) { (description, action, headers, response) =>
       s"$description" in {
+
         await(action.apply(requestWithHeaders(headers))) shouldBe response
       }
     }
