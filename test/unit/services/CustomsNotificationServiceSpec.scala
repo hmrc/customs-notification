@@ -46,17 +46,19 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
     X_BADGE_ID_HEADER_NAME -> badgeIdValue,
     X_EORI_ID_HEADER_NAME -> eoriNumber,
-    X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId))
+    X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId,
+    X_CORRELATION_ID_HEADER_NAME -> correlationId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)))
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)))
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
   private val contentType = "application/xml"
   private val badgeIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_BADGE_ID_HEADER_NAME).head
   private val eoriIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_EORI_ID_HEADER_NAME).head
-  private val expectedHeaders = Seq(Header(badgeIdHeader._1, badgeIdHeader._2), Header(eoriIdHeader._1, eoriIdHeader._2))
+  private val correlationIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_CORRELATION_ID_HEADER_NAME).head
+  private val expectedHeaders = Seq(Header(badgeIdHeader._1, badgeIdHeader._2), Header(eoriIdHeader._1, eoriIdHeader._2), Header(correlationIdHeader._1, correlationIdHeader._2))
   private val notification = Notification(conversationId, expectedHeaders, pushNotificationRequest.body.xmlPayload, contentType)
   private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
   private val mockPullService = mock[PullClientNotificationService]

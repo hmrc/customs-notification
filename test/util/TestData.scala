@@ -68,6 +68,7 @@ object TestData {
   val badgeId = "ABCDEF1234"
   val eoriNumber = "IAMEORI"
   val userAgent = "Customs Declaration Service"
+  val correlationId = "CORRID2234"
 
   lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
   lazy val pushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML)
@@ -156,6 +157,10 @@ object TestData {
     .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER)
     .withXmlBody(ValidXML)
 
+  lazy val ValidRequestWithCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER, X_CORRELATION_ID_HEADER)
+    .withXmlBody(ValidXML)
+
   lazy val ValidRequestWithClientIdAbsentInDatabase: FakeRequest[AnyContentAsXml] = FakeRequest()
     .withHeaders(X_ABSENT_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER)
     .withXmlBody(ValidXML)
@@ -170,6 +175,14 @@ object TestData {
 
   lazy val InvalidAuthorizationHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
     .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, RequestHeaders.BASIC_AUTH_HEADER_INVALID)
+    .withXmlBody(ValidXML)
+
+  lazy val InvalidAuthorizationHeaderRequestWithCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, RequestHeaders.BASIC_AUTH_HEADER_INVALID, X_CORRELATION_ID_HEADER)
+    .withXmlBody(ValidXML)
+
+  lazy val MissingAuthorizationHeaderRequestWithCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, X_CONVERSATION_ID_HEADER, X_CORRELATION_ID_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val MissingAuthorizationHeaderRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
@@ -264,6 +277,8 @@ object RequestHeaders {
   lazy val X_BADGE_ID_HEADER: (String, String) = X_BADGE_ID_HEADER_NAME -> badgeId
 
   lazy val X_EORI_ID_HEADER: (String, String) = X_EORI_ID_HEADER_NAME -> eoriNumber
+
+  lazy val X_CORRELATION_ID_HEADER: (String, String) = X_CORRELATION_ID_HEADER_NAME -> correlationId
 
   lazy val CONTENT_TYPE_HEADER: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8
 

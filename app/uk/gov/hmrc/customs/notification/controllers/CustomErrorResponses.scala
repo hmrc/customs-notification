@@ -47,6 +47,8 @@ object CustomHeaderNames {
   val X_BADGE_ID_HEADER_NAME : String = "X-Badge-Identifier"
 
   val X_EORI_ID_HEADER_NAME : String = "X-Eori-Identifier"
+
+  val X_CORRELATION_ID_HEADER_NAME: String = "X-Correlation-ID"
 }
 
 object CustomMimeType {
