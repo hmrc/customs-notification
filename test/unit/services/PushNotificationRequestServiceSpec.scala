@@ -33,22 +33,22 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
-  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)))
+  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), None)
 
   "PushNotificationRequestService" should {
 
     "return valid request when badgeId is provided" in {
-      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), None)
+      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), None, None)
       service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId), None)
     }
 
     "request does not contain badgeId or eoriNumber headers when not provided" in {
-      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None, None)
+      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None, None, None)
       service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None, None)
     }
 
     "return valid request when eoriNumber is provided" in {
-      val metaDataWithSomeEoriNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)))
+      val metaDataWithSomeEoriNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), None)
       service.createRequest(ValidXML, callbackData, metaDataWithSomeEoriNumber) shouldBe expectedRequest(None, Some(eoriNumber))
     }
   }

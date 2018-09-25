@@ -23,7 +23,6 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHead
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.Future
 
@@ -35,9 +34,10 @@ trait HeaderValidator {
 
   private val basicAuthTokenScheme = "Basic "
 
+//TODO MC x correlation id
   def validateHeaders(maybeBasicAuthToken: Option[String]): ActionBuilder[Request] = new ActionBuilder[Request] {
 
-    def invokeBlock[A](request: Request[A], block: (Request[A]) => Future[Result]): Future[Result] = {
+    def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
       implicit val headers: Headers = request.headers
       val logMessage = "Received notification"
       notificationLogger.debug(logMessage, headers.headers)

@@ -27,7 +27,7 @@ import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPOR
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_EORI_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID, X_EORI_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -69,9 +69,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
 
-  private val emulatedServiceFailureMessage = "Emulated service failure"
-
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)))
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID, correlationId)))
 
   private val eventualTrue = Future.successful(true)
 
@@ -88,7 +86,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 202 for valid request" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
 
-      testSubmitResult(ValidRequest) { result =>
+      testSubmitResult(ValidRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
 
@@ -100,7 +98,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
       when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
-      testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
+      testSubmitResult(MissingAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
 
@@ -112,7 +110,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
       when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))(any[HeaderCarrier])).thenReturn(eventualTrue)
 
-      testSubmitResult(InvalidAuthorizationHeaderRequest) { result =>
+      testSubmitResult(InvalidAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
     }
@@ -120,7 +118,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with 400 when declarant callback data not found by ApiSubscriptionFields service" in {
       when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Future.successful(None))
 
-      testSubmitResult(ValidRequest) { result =>
+      testSubmitResult(ValidRequestWithCorrelationId) { result =>
         status(result) shouldBe BAD_REQUEST
         await(result) shouldBe errorBadRequest("The X-CDS-Client-ID header value is invalid").XmlResult
       }
@@ -155,7 +153,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "respond with status 401 for missing Authorization" in {
-      testSubmitResult(MissingAuthorizationHeaderRequest) { result =>
+      testSubmitResult(MissingAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe UNAUTHORIZED
         await(result) shouldBe unauthorizedResult
       }
