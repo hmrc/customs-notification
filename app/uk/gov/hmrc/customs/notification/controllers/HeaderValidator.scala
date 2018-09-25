@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.controllers
 import play.api.http.HeaderNames._
 import play.api.mvc.{ActionBuilder, Headers, Request, Result}
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, errorBadRequest}
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -56,7 +56,7 @@ trait HeaderValidator {
       } else if (!hasAuth(maybeBasicAuthToken)) {
         Future.successful(ErrorUnauthorized.XmlResult)
       } else if(!correlationIdIsValidIfPresent) {
-        Future.successful(errorBadRequest("Bad request").XmlResult)
+        Future.successful(ErrorGenericBadRequest.XmlResult)
       }
       else {
         block(request)

@@ -22,7 +22,7 @@ import play.api.http.HeaderNames._
 import play.api.mvc.Results._
 import play.api.mvc.{Action, AnyContent}
 import play.api.test.FakeRequest
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, errorBadRequest}
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.HeaderValidator
@@ -63,7 +63,7 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
       ("return ErrorUnauthorized result for Authorization header missing", withAuthTokenConfigured, ValidHeaders - AUTHORIZATION, ErrorUnauthorized.XmlResult),
       ("return ErrorUnauthorized result for Authorization header invalid", withAuthTokenConfigured, ValidHeaders + BASIC_AUTH_HEADER_INVALID, ErrorUnauthorized.XmlResult),
       ("return ErrorAcceptHeaderInvalid result for all headers missing", withAuthTokenConfigured, NoHeaders, ErrorAcceptHeaderInvalid.XmlResult),
-      ("return Bad Request if correlation id is provided but invalid", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.alphanumeric.take(40).mkString("")), errorBadRequest("Bad request").XmlResult),
+      ("return Bad Request if correlation id is provided but invalid", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.alphanumeric.take(40).mkString("")), ErrorGenericBadRequest.XmlResult),
       ("return OK if correlation id is provided and valid", withAuthTokenConfigured, ValidHeaders + X_CORRELATION_ID_HEADER, Ok))
 
   private def requestWithHeaders(headers: Map[String, String]) =
