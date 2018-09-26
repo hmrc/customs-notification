@@ -81,6 +81,27 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAp
       verifyPullQueueServiceWasCalledWith(notificationWithoutBadgeId)
     }
 
+    "make a correct request with correlationId header" in {
+      val notificationWithCorrelationId = clientNotification(withCorrelationId = true)
+
+      setupPullQueueServiceToReturn(CREATED, notificationWithCorrelationId)
+
+      await(postToQueue(notificationWithCorrelationId))
+
+      verifyPullQueueServiceWasCalledWith(notificationWithCorrelationId)
+    }
+
+    "make a correct request when correlationId is not provided" in {
+      val notificationWithoutCorrelationId = clientNotification(withCorrelationId = false)
+
+      setupPullQueueServiceToReturn(CREATED, notificationWithoutCorrelationId)
+
+      await(postToQueue(clientNotification(withCorrelationId = false)))
+
+      verifyPullQueueServiceWasCalledWith(notificationWithoutCorrelationId)
+    }
+
+
     "return a failed future with wrapped HttpVerb NotFoundException when external service returns 404" in {
       setupPullQueueServiceToReturn(NOT_FOUND, clientNotification())
 

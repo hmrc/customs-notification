@@ -106,19 +106,25 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceived))
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceived))
 
-  def clientNotification(withBadgeId: Boolean = true): ClientNotification = {
+  def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true): ClientNotification = {
 
-    val headers: Seq[Header] = if (withBadgeId) {
+    val initialHeaders: Seq[Header] = if (withBadgeId) {
       Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))
     } else {
       Seq[Header]()
+    }
+
+    val finalHeaders = if(withCorrelationId) {
+      initialHeaders :+ Header(X_CORRELATION_ID_HEADER_NAME, correlationId)
+    } else {
+      initialHeaders
     }
 
     ClientNotification(
       csid = clientSubscriptionId,
       Notification(
         conversationId = conversationId,
-        headers = headers,
+        headers = finalHeaders,
         payload = ValidXML.toString(),
         contentType = MimeTypes.XML
       )
