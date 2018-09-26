@@ -86,7 +86,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 202 for valid request" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
 
-      testSubmitResult(ValidRequestWithCorrelationId) { result =>
+      testSubmitResult(ValidRequestWithMixedCaseCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
 
@@ -118,7 +118,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with 400 when declarant callback data not found by ApiSubscriptionFields service" in {
       when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier])).thenReturn(Future.successful(None))
 
-      testSubmitResult(ValidRequestWithCorrelationId) { result =>
+      testSubmitResult(ValidRequestWithMixedCaseCorrelationId) { result =>
         status(result) shouldBe BAD_REQUEST
         await(result) shouldBe errorBadRequest("The X-CDS-Client-ID header value is invalid").XmlResult
       }

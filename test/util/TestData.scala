@@ -157,8 +157,8 @@ object TestData {
     .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER)
     .withXmlBody(ValidXML)
 
-  lazy val ValidRequestWithCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER, X_CORRELATION_ID_HEADER)
+  lazy val ValidRequestWithMixedCaseCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER, "X-coRRelaTion-iD" -> correlationId)
     .withXmlBody(ValidXML)
 
   lazy val ValidRequestWithClientIdAbsentInDatabase: FakeRequest[AnyContentAsXml] = FakeRequest()
