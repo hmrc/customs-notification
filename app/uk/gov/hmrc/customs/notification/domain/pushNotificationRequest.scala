@@ -60,15 +60,15 @@ object ConversationId {
 
 case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String) {
 
-  private lazy val _headers = Headers(headers.map { h => h.name -> h.value }: _*)
+  private lazy val caseInsensitiveHeaders = Headers(headers.map { h => h.name -> h.value }: _*)
 
-  def getHeader(name: String): Option[Header] = _headers.get(name).map(Header(name, _))
+  def getHeader(name: String): Option[Header] = caseInsensitiveHeaders.get(name).map(Header(name, _))
 
   def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h => h.name -> h.value }
 }
 
 object Notification {
-  implicit val notificationJF: OFormat[Notification] = Json.format[Notification]
+  implicit val notificationJF: Format[Notification] = Json.format[Notification]
 }
 
 case class ClientSubscriptionId(id: UUID) extends AnyVal {
