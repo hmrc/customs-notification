@@ -57,7 +57,14 @@ object ConversationId {
   }
 }
 
-case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String)
+case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String) {
+  def getHeader(name: String): Option[Header] = headers.find(_.name.toLowerCase == name.toLowerCase)
+
+  def getHeaderValue(headerName: String): Option[String] = getHeader(headerName).map(_.value)
+
+  def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h: Header => h.name -> h.value }
+}
+
 object Notification {
   implicit val notificationJF = Json.format[Notification]
 }

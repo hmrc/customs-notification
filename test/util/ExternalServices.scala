@@ -145,12 +145,16 @@ trait NotificationQueueService extends WireMockRunner {
     extractBadgeIdHeaderValue(request.body.outboundCallHeaders)
 
 
+  private def extractHeader(headers: Seq[Header], name: String) = {
+    headers.find(_.name.toLowerCase == name.toLowerCase).map(_.value)
+  }
+
   private def extractBadgeIdHeaderValue(headers: Seq[Header]) =
-    Map(headers.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
+    extractHeader(headers, X_BADGE_ID_HEADER_NAME)
 
 
   private def extractCorrelationIdHeaderValue(headers: Seq[Header]) =
-    Map(headers.map(x => x.name -> x.value): _*).get(X_CORRELATION_ID_HEADER_NAME)
+    extractHeader(headers, X_CORRELATION_ID_HEADER_NAME)
 
 
   def runNotificationQueueService(status: Int = CREATED): Unit = {

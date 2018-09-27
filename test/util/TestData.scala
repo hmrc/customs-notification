@@ -106,18 +106,17 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceived))
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceived))
 
+  lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
+
   def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true): ClientNotification = {
 
-    val initialHeaders: Seq[Header] = if (withBadgeId) {
-      Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))
-    } else {
-      Seq[Header]()
-    }
+    lazy val correlationIdHeader = Header("x-cOrRelaTion-iD", correlationId)
 
-    val finalHeaders = if(withCorrelationId) {
-      initialHeaders :+ Header(X_CORRELATION_ID_HEADER_NAME, correlationId)
-    } else {
-      initialHeaders
+    val finalHeaders = (withBadgeId, withCorrelationId) match {
+      case (true, true) => Seq[Header](badgeIdHeader, correlationIdHeader)
+      case (true, false) => Seq[Header](badgeIdHeader)
+      case (false, true) => Seq[Header](correlationIdHeader)
+      case _ => Seq.empty[Header]
     }
 
     ClientNotification(
@@ -148,12 +147,12 @@ object TestData {
     """.stripMargin)
 
   def pushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    val body = PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 
   def failedPushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 
