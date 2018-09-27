@@ -59,12 +59,11 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
   }
 
   private def requestMetaData(headers: Headers): RequestMetaData = {
-    // headers have been validated so safe to do a naked get except badgeId & eori which are optional
-    val lowerCaseHeaders = headers.headers.map { hdr =>  (hdr._1.toLowerCase, hdr._2) }
+    // headers have been validated so safe to do a naked get except badgeId, eori and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
-      findHeaderValue(X_BADGE_ID_HEADER_NAME, lowerCaseHeaders), findHeaderValue(X_EORI_ID_HEADER_NAME, lowerCaseHeaders),
-      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, lowerCaseHeaders))
+      findHeaderValue(X_BADGE_ID_HEADER_NAME, headers), findHeaderValue(X_EORI_ID_HEADER_NAME, headers),
+      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, headers))
   }
 
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {
@@ -93,10 +92,7 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     }
   }
 
-  private def findHeaderValue(headerName: String, lowerCaseHeaders: Seq[(String, String)]): Option[Header] = {
-    val lowerCaseHeaderName = headerName.toLowerCase()
-    lowerCaseHeaders.collectFirst {
-      case (`lowerCaseHeaderName`, headerValue) => Header(headerName, headerValue)
-    }
+  private def findHeaderValue(headerName: String, headers: Headers): Option[Header] = {
+    headers.get(headerName).map(Header(headerName, _))
   }
 }
