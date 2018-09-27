@@ -20,6 +20,7 @@ import java.util.UUID
 
 import play.api.libs.json.Format._
 import play.api.libs.json.{Format, Json, OFormat, _}
+import play.api.mvc.Headers
 
 case class Header(name: String, value: String)
 
@@ -45,12 +46,12 @@ case class PushNotificationRequest(
                                     )
 
 case class ConversationId(id: UUID) extends AnyVal {
-  override def toString(): String = id.toString
+  override def toString: String = id.toString
 }
 object ConversationId {
-  implicit val conversationIdJF = new Format[ConversationId] {
+  implicit val conversationIdJF: Format[ConversationId] = new Format[ConversationId] {
     def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
-    def reads(json: JsValue) = json match {
+    def reads(json: JsValue): JsResult[ConversationId] = json match {
       case JsNull => JsError()
       case _ => JsSuccess(ConversationId(json.as[UUID]))
     }
@@ -58,24 +59,25 @@ object ConversationId {
 }
 
 case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String) {
-  def getHeader(name: String): Option[Header] = headers.find(_.name.toLowerCase == name.toLowerCase)
 
-  def getHeaderValue(headerName: String): Option[String] = getHeader(headerName).map(_.value)
+  private lazy val caseInsensitiveHeaders = Headers(headers.map { h => h.name -> h.value }: _*)
 
-  def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h: Header => h.name -> h.value }
+  def getHeader(name: String): Option[Header] = caseInsensitiveHeaders.get(name).map(Header(name, _))
+
+  def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h => h.name -> h.value }
 }
 
 object Notification {
-  implicit val notificationJF = Json.format[Notification]
+  implicit val notificationJF: Format[Notification] = Json.format[Notification]
 }
 
 case class ClientSubscriptionId(id: UUID) extends AnyVal {
-  override def toString(): String = id.toString
+  override def toString: String = id.toString
 }
 object ClientSubscriptionId {
-  implicit val clientSubscriptionIdJF = new Format[ClientSubscriptionId] {
+  implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] = new Format[ClientSubscriptionId] {
     def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
-    def reads(json: JsValue) = json match {
+    def reads(json: JsValue): JsResult[ClientSubscriptionId] = json match {
       case JsNull => JsError()
       case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
     }
