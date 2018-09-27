@@ -17,17 +17,14 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-
 import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.{CONTENT_TYPE, USER_AGENT}
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_BADGE_ID_HEADER_NAME
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.Option.empty
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -39,15 +36,15 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: Notificatio
 
     implicit val hc: HeaderCarrier = HeaderCarrier() // Note we do not propagate HeaderCarrier values
     val url = configServices.notificationQueueConfig.url
-    val maybeBadgeId: Option[String] = Map(request.notification.headers.map(x => x.name -> x.value): _*).get(X_BADGE_ID_HEADER_NAME)
+    val maybeBadgeId: Option[(String, String)] = request.notification.getHeaderAsTuple(X_BADGE_ID_HEADER_NAME)
+    val maybeCorrelationId: Option[(String, String)] = request.notification.getHeaderAsTuple(X_CORRELATION_ID_HEADER_NAME)
 
     val headers: Seq[(String, String)] = Seq(
       (CONTENT_TYPE, MimeTypes.XML),
       (USER_AGENT, "Customs Declaration Service"),
-      (CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, request.notification.conversationId.toString),
-      (CustomHeaderNames.SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString)
-
-    ) ++ maybeBadgeId.fold(empty[(String, String)]) { x: String => Some((X_BADGE_ID_HEADER_NAME, x)) }
+      (X_CONVERSATION_ID_HEADER_NAME, request.notification.conversationId.toString()),
+      (SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString())
+    ) ++ extract(maybeBadgeId) ++ extract(maybeCorrelationId)
 
     val notification = request.notification
 
@@ -63,4 +60,6 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: Notificatio
           Future.failed(e)
       }
   }
+
+  private def extract(maybeValue: Option[(String, String)]) = maybeValue.fold(Seq.empty[(String, String)])(Seq(_))
 }

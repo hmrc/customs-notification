@@ -106,19 +106,24 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceived))
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceived))
 
-  def clientNotification(withBadgeId: Boolean = true): ClientNotification = {
+  lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
 
-    val headers: Seq[Header] = if (withBadgeId) {
-      Seq[Header](Header(X_BADGE_ID_HEADER_NAME, badgeId))
-    } else {
-      Seq[Header]()
+  def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true): ClientNotification = {
+
+    lazy val correlationIdHeader = Header("x-cOrRelaTion-iD", correlationId)
+
+    val finalHeaders = (withBadgeId, withCorrelationId) match {
+      case (true, true) => Seq[Header](badgeIdHeader, correlationIdHeader)
+      case (true, false) => Seq[Header](badgeIdHeader)
+      case (false, true) => Seq[Header](correlationIdHeader)
+      case _ => Seq.empty[Header]
     }
 
     ClientNotification(
       csid = clientSubscriptionId,
       Notification(
         conversationId = conversationId,
-        headers = headers,
+        headers = finalHeaders,
         payload = ValidXML.toString(),
         contentType = MimeTypes.XML
       )
@@ -142,12 +147,12 @@ object TestData {
     """.stripMargin)
 
   def pushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    val body = PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 
   def failedPushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId)), xml.toString())
+    val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 
@@ -157,8 +162,8 @@ object TestData {
     .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER)
     .withXmlBody(ValidXML)
 
-  lazy val ValidRequestWithCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER, X_CORRELATION_ID_HEADER)
+  lazy val ValidRequestWithMixedCaseCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER, "X-coRRelaTion-iD" -> correlationId)
     .withXmlBody(ValidXML)
 
   lazy val ValidRequestWithClientIdAbsentInDatabase: FakeRequest[AnyContentAsXml] = FakeRequest()
