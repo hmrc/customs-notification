@@ -1,7 +1,5 @@
 # customs-notification
 
- [ ![Download](https://api.bintray.com/packages/hmrc/releases/customs-notification/images/download.svg) ](https://bintray.com/hmrc/releases/customs-notification/_latestVersion)
-
 The objective of the this endpoint is as below: 
 
 1. Receive an update from CDS Backend System (Messaging) regarding a declaration that a CDS Client made earlier using Customs Declarations API
