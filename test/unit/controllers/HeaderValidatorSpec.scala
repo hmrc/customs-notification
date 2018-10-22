@@ -63,7 +63,8 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
       ("return ErrorUnauthorized result for Authorization header missing", withAuthTokenConfigured, ValidHeaders - AUTHORIZATION, ErrorUnauthorized.XmlResult),
       ("return ErrorUnauthorized result for Authorization header invalid", withAuthTokenConfigured, ValidHeaders + BASIC_AUTH_HEADER_INVALID, ErrorUnauthorized.XmlResult),
       ("return ErrorAcceptHeaderInvalid result for all headers missing", withAuthTokenConfigured, NoHeaders, ErrorAcceptHeaderInvalid.XmlResult),
-      ("return Bad Request if correlation id is provided but invalid", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.alphanumeric.take(40).mkString("")), ErrorGenericBadRequest.XmlResult),
+      ("return Bad Request if correlation id is provided but too long", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.alphanumeric.take(40).mkString("")), ErrorGenericBadRequest.XmlResult),
+      ("return Bad Request if correlation id is provided but with invalid characters", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> "abc-au!c"), ErrorGenericBadRequest.XmlResult),
       ("return OK if correlation id is provided and valid", withAuthTokenConfigured, ValidHeaders + X_CORRELATION_ID_HEADER, Ok))
 
   private def requestWithHeaders(headers: Map[String, String]) =

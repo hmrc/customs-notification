@@ -32,6 +32,8 @@ trait HeaderValidator {
 
   private val uuidRegex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
+  private val correlationIdRegex = "^[0-9A-Za-z]{1,36}$"
+
   private val basicAuthTokenScheme = "Basic "
 
   def validateHeaders(maybeBasicAuthToken: Option[String]): ActionBuilder[Request] = new ActionBuilder[Request] {
@@ -103,7 +105,7 @@ trait HeaderValidator {
 
   private def correlationIdIsValidIfPresent(implicit h: Headers) = {
     val result = h.get(X_CORRELATION_ID_HEADER_NAME).forall { cid =>
-      val correct = cid.length < 37
+      val correct = cid.matches(correlationIdRegex)
       logValidationResult(X_CORRELATION_ID_HEADER_NAME, correct)
       correct
     }
