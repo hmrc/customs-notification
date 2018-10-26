@@ -72,7 +72,7 @@ object LoggingHelper {
 
   private def findHeaderValue(headerName: String, headers: SeqOfHeader): Option[String] = {
     headers.collectFirst{
-      case (`headerName`, headerValue) => headerValue
+        case header if header._1.equalsIgnoreCase(headerName) => header._2
     }
   }
 

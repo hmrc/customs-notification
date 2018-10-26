@@ -19,7 +19,7 @@ package unit.logging
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import util.RequestHeaders.{LoggingHeaders, LoggingHeadersWithAuth}
+import util.RequestHeaders.{LoggingHeaders, LoggingHeadersWithAuth, LoggingHeadersMixedCase}
 import util.TestData._
 
 class LoggingHelperSpec extends UnitSpec {
@@ -42,6 +42,10 @@ class LoggingHelperSpec extends UnitSpec {
 
     "format INFO with headers" in {
       LoggingHelper.formatInfo(infoMsg, LoggingHeaders) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $infoMsg"
+    }
+
+    "format INFO with headers one mixed case" in {
+      LoggingHelper.formatInfo(infoMsg, LoggingHeadersMixedCase) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $infoMsg"
     }
 
     "format DEBUG with HeaderCarrier" in {

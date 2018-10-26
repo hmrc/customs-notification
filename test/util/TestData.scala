@@ -271,6 +271,8 @@ object RequestHeaders {
 
   lazy val X_CDS_CLIENT_ID_HEADER: (String, String) = X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId
 
+  lazy val X_CDS_CLIENT_ID_HEADER_MixedCase: (String, String) = "X-CdS-ClIenT-iD" -> validFieldsId
+
   lazy val X_ABSENT_CDS_CLIENT_ID_HEADER: (String, String) = X_CDS_CLIENT_ID_HEADER_NAME -> someFieldsId
 
   lazy val X_CDS_CLIENT_ID_INVALID: (String, String) = X_CDS_CLIENT_ID_HEADER_NAME -> invalidFieldsId
@@ -312,6 +314,7 @@ object RequestHeaders {
   )
 
   val LoggingHeaders = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER)
+  val LoggingHeadersMixedCase: Seq[(String, String)] = Seq(X_CDS_CLIENT_ID_HEADER_MixedCase, X_CONVERSATION_ID_HEADER)
   val LoggingHeadersWithAuth = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, BASIC_AUTH_HEADER)
   val LoggingHeadersWithAuthOverwritten = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, BASIC_AUTH_HEADER_OVERWRITTEN)
 
