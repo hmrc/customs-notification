@@ -32,7 +32,7 @@ trait HeaderValidator {
 
   private val uuidRegex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
-  private val correlationIdRegex = "^[0-9A-Za-z]{1,36}$"
+  private val correlationIdRegex = "^.{1,36}$"
 
   private val basicAuthTokenScheme = "Basic "
 
