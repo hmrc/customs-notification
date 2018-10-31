@@ -20,7 +20,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Matchers
 import org.scalatest.mockito.MockitoSugar
 import play.api.{Configuration, Environment, Mode}
-import uk.gov.hmrc.customs.api.common.config.{ConfigValidationNelAdaptor, ServicesConfig}
+import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, ServicesConfig}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{GoogleAnalyticsSenderConfig, NotificationQueueConfig}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
@@ -182,6 +182,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   }
 
   private def configService(conf: Configuration) =
-    new ConfigService(new ConfigValidationNelAdaptor(testServicesConfig(conf), conf), mockCdsLogger)
+    new ConfigService(new ConfigValidatedNelAdaptor(testServicesConfig(conf), conf), mockCdsLogger)
 
 }
