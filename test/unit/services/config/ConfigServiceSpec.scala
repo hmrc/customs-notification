@@ -71,6 +71,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |        port = 8300
       |        context = /hmrc/email
       |      }
+      |      customs-notification-metrics {
+      |        host = localhost
+      |        port = 9827
+      |        context = /log-times
+      |      }
       |    }
       |  }
       |}
@@ -110,6 +115,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |        host = localhost
       |        port = 8300
       |        context = /hmrc/email
+      |      }
+      |      customs-notification-metrics {
+      |        host = localhost
+      |        port = 9827
+      |        context = /log-times
       |      }
       |    }
       |  }
@@ -173,7 +183,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |Could not find config email.host
       |Service configuration not found for key: email.context
       |Could not find config key 'pull.exclude.email.delay.duration.seconds'
-      |Could not find config key 'pull.exclude.email.interval.duration.minutes'""".stripMargin
+      |Could not find config key 'pull.exclude.email.interval.duration.minutes'
+      |Could not find config customs-notification-metrics.host
+      |Service configuration not found for key: customs-notification-metrics.context""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 
