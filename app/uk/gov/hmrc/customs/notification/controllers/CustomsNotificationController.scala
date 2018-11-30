@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
+import java.time.ZonedDateTime
 import java.util.UUID
 
 import javax.inject.{Inject, Singleton}
@@ -26,7 +27,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCd
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, ConversationId, CustomsNotificationConfig, Header}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
@@ -34,13 +35,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
-case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header])
+case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header], startTime: ZonedDateTime)
 
 @Singleton
 class CustomsNotificationController @Inject()(logger: NotificationLogger,
                                               customsNotificationService: CustomsNotificationService,
                                               callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                              configService: CustomsNotificationConfig)
+                                              configService: CustomsNotificationConfig,
+                                              dateTimeService: DateTimeService)
   extends BaseController with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
@@ -63,7 +65,8 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
       findHeaderValue(X_BADGE_ID_HEADER_NAME, headers), findHeaderValue(X_EORI_ID_HEADER_NAME, headers),
-      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, headers))
+      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, headers),
+      dateTimeService.zonedDateTimeUtc)
   }
 
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {

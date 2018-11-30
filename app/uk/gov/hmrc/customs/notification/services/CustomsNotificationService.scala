@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
-import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
+import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -34,7 +34,9 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            gaConnector: GoogleAnalyticsSenderConnector,
                                            clientNotificationRepo: ClientNotificationRepo,
                                            notificationDispatcher: NotificationDispatcher,
-                                           pullClientNotificationService: PullClientNotificationService
+                                           pullClientNotificationService: PullClientNotificationService,
+                                           metricsConnector: CustomsNotificationMetricsConnector,
+                                           dateTimeService: DateTimeService
                                           ) {
 
   def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
@@ -44,14 +46,15 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None)
 
-    saveNotificationToDatabaseAndCallDispatcher(clientNotification)
+    saveNotificationToDatabaseAndCallDispatcher(clientNotification, metaData)
   }
 
-  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
 
     clientNotificationRepo.save(clientNotification).map {
       case true =>
         notificationDispatcher.process(Set(clientNotification.csid))
+        metricsConnector.post(CustomsNotificationMetricsRequest("NOTIFICATION", metaData.conversationId, metaData.startTime, dateTimeService.zonedDateTimeUtc))
         true
       case false => logger.error("Dispatcher failed to process the notification")
         false

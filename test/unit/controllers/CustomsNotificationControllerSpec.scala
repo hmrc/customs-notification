@@ -31,7 +31,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_I
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
@@ -48,13 +48,15 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val mockConfigService = mock[ConfigService]
   private val mockCallbackDetailsConnector = mock[ApiSubscriptionFieldsConnector]
   private val mockCallbackDetails = mock[DeclarantCallbackData]
+  private val mockDateTimeService = mock[DateTimeService](RETURNS_SELF)
 
 
   private def controller() = new CustomsNotificationController(
     mockNotificationLogger,
     mockCustomsNotificationService,
     mockCallbackDetailsConnector,
-    mockConfigService
+    mockConfigService,
+    mockDateTimeService
   )
 
   private val wrongPayloadErrorResult = ErrorResponse.errorBadRequest("Request body does not contain well-formed XML.").XmlResult
@@ -69,7 +71,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)))
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), mockDateTimeService.zonedDateTimeUtc)
 
   private val eventualTrue = Future.successful(true)
 
