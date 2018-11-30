@@ -47,15 +47,6 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService {
     stopMockServer()
   }
 
-//  ,
-
-//  override implicit lazy val app: Application =
-//    GuiceApplicationBuilder().configure(Map(
-//      "auditing.consumer.baseUri.host" -> Host,
-//      "auditing.consumer.baseUri.port" -> Port,
-//      "auditing.enabled" -> false
-//    )).build()
-
   override implicit lazy val app: Application = GuiceApplicationBuilder().configure(Map(
     "microservice.services.customs-notification-metrics.host" -> Host,
     "microservice.services.customs-notification-metrics.port" -> Port,
@@ -68,10 +59,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService {
       setupCustomsNotificationMetricsServiceToReturn()
 
       val response: Unit = await(sendValidRequest())
-
       response shouldBe ()
-      verifyFileTransmissionServiceWasCalledWith(ValidCustomsNotificationMetricsRequest)
-
     }
 
     "return a failed future when external service returns 404" in {

@@ -17,12 +17,12 @@
 package unit.domain
 
 import play.api.libs.json.{JsValue, Json}
-import uk.gov.hmrc.customs.notification.domain.CustomsNotificationMetricsRequest
+import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
 import uk.gov.hmrc.play.test.UnitSpec
 import util.CustomsNotificationMetricsTestData.{EventEnd, EventStart}
 import util.TestData.conversationId
 
-class CustomsNotificationMetricsRequestSpec extends UnitSpec {
+class CustomsNotificationsMetricsRequestSpec extends UnitSpec {
 
 
   private val expectedJson: JsValue = Json.parse("""
@@ -36,7 +36,7 @@ class CustomsNotificationMetricsRequestSpec extends UnitSpec {
 
   "CustomsDeclarationsMetricsRequest model" should {
     "serialise to Json" in {
-      val request = CustomsNotificationMetricsRequest("NOTIFICATION", conversationId, EventStart, EventEnd)
+      val request = CustomsNotificationsMetricsRequest("NOTIFICATION", conversationId, EventStart, EventEnd)
       val actualJson: JsValue = Json.toJson(request)
 
       actualJson shouldBe expectedJson

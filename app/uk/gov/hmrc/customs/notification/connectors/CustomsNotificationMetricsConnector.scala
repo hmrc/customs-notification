@@ -20,7 +20,7 @@ import javax.inject.{Inject, Singleton}
 import play.mvc.Http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.mvc.Http.MimeTypes.JSON
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, CustomsNotificationMetricsRequest}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, CustomsNotificationsMetricsRequest}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -36,14 +36,14 @@ class CustomsNotificationMetricsConnector @Inject()(http: HttpClient,
     extraHeaders = Seq(ACCEPT -> JSON, CONTENT_TYPE -> JSON)
   )
 
-  def post[A](request: CustomsNotificationMetricsRequest): Future[Unit] = {
+  def post[A](request: CustomsNotificationsMetricsRequest): Future[Unit] = {
     post(request, config.notificationMetricsConfig.baseUrl)
   }
 
-  private def post[A](request: CustomsNotificationMetricsRequest, url: String): Future[Unit] = {
+  private def post[A](request: CustomsNotificationsMetricsRequest, url: String): Future[Unit] = {
 
     logger.debug(s"Sending request to customs notification metrics service. Url: $url Payload: ${request.toString}")
-    http.POST[CustomsNotificationMetricsRequest, HttpResponse](url, request).map{ _ =>
+    http.POST[CustomsNotificationsMetricsRequest, HttpResponse](url, request).map{ _ =>
       logger.debug(s"[conversationId=${request.conversationId}]: customs notification metrics sent successfully")
       ()
     }.recoverWith {

@@ -16,12 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import java.time.{Clock, ZoneId, ZonedDateTime}
-
-import org.joda.time.{DateTime, DateTimeZone}
+import java.time.{ZoneId, ZonedDateTime}
 
 class DateTimeService {
   val UtcZoneId = ZoneId.of("UTC")
-  def nowUtc(): DateTime = new DateTime(Clock.systemUTC().instant().toEpochMilli, DateTimeZone.UTC)
   def zonedDateTimeUtc: ZonedDateTime = ZonedDateTime.now(UtcZoneId)
 }

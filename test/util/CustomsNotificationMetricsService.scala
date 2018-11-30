@@ -20,9 +20,6 @@ import com.github.tomakehurst.wiremock.client.WireMock._
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.http.Status.OK
-import play.api.libs.json.Json
-import play.api.test.Helpers.JSON
-import uk.gov.hmrc.customs.notification.domain.CustomsNotificationMetricsRequest
 
 trait CustomsNotificationMetricsService extends WireMockRunner {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.CustomsNotificationMetricsContext)
@@ -43,16 +40,6 @@ trait CustomsNotificationMetricsService extends WireMockRunner {
 
   def verifyCustomsNotificationMetricsServiceWasNotCalled() {
     verify(0, postRequestedFor(urlMatchingRequestPath)
-    )
-  }
-
-  def verifyFileTransmissionServiceWasCalledWith(request: CustomsNotificationMetricsRequest) {
-    verify(
-      1,
-      postRequestedFor(urlMatchingRequestPath)
-        .withHeader(ACCEPT, equalTo(JSON))
-        .withHeader(CONTENT_TYPE, equalTo(JSON))
-        .withRequestBody(equalToJson(Json.toJson(request).toString))
     )
   }
 

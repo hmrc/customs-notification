@@ -16,6 +16,8 @@
 
 package unit.services
 
+import java.time.ZonedDateTime
+
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._
@@ -50,8 +52,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     X_CORRELATION_ID_HEADER_NAME -> correlationId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val dateTimeService = new DateTimeService
-  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), dateTimeService.zonedDateTimeUtc)
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), ZonedDateTime.now())
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
@@ -63,16 +64,13 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val notification = Notification(conversationId, expectedHeaders, pushNotificationRequest.body.xmlPayload, contentType)
   private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
   private val mockPullService = mock[PullClientNotificationService]
-  private val mockCustomsNotificationMetricsConnector = mock[CustomsNotificationMetricsConnector]
 
-  private val customsNotificationService = new CustomsNotificationService(
+   private val customsNotificationService = new CustomsNotificationService(
     mockNotificationLogger,
     mockGAConnector,
     mockClientNotificationRepo,
     mockNotificationDispatcher,
-    mockPullService,
-    mockCustomsNotificationMetricsConnector,
-    dateTimeService
+    mockPullService
   )
 
 
@@ -91,7 +89,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
       eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
       verifyGAReceivedEvent()
-      verifyMetricEvent()
       verifyZeroInteractions(mockPullService)
     }
 
@@ -103,7 +100,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       await(result) shouldBe false
       verifyZeroInteractions(mockNotificationDispatcher)
       verifyZeroInteractions(mockPullService)
-      verifyZeroInteractions(mockCustomsNotificationMetricsConnector)
     }
 
     "fails when was unable to save notification to repository due to unexpected exception" in {
@@ -114,18 +110,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       await(result) shouldBe false
       verifyZeroInteractions(mockNotificationDispatcher)
       verifyZeroInteractions(mockPullService)
-      verifyZeroInteractions(mockCustomsNotificationMetricsConnector)
     }
-  }
-
-  private def verifyMetricEvent(): Unit = {
-
-    val metricEventCaptor: ArgumentCaptor[CustomsNotificationMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationMetricsRequest])
-    eventually(verify(mockCustomsNotificationMetricsConnector, times(1)).post(metricEventCaptor.capture()))
-
-    metricEventCaptor.getValue.conversationId shouldBe requestMetaData.conversationId
-    assert(metricEventCaptor.getValue.eventStart.isBefore(metricEventCaptor.getValue.eventEnd))
-
   }
 
   private def verifyGAReceivedEvent() = {

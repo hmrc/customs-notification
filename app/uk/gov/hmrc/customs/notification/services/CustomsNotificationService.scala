@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
+import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -34,10 +34,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            gaConnector: GoogleAnalyticsSenderConnector,
                                            clientNotificationRepo: ClientNotificationRepo,
                                            notificationDispatcher: NotificationDispatcher,
-                                           pullClientNotificationService: PullClientNotificationService,
-                                           metricsConnector: CustomsNotificationMetricsConnector,
-                                           dateTimeService: DateTimeService
-                                          ) {
+                                           pullClientNotificationService: PullClientNotificationService) {
 
   def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
@@ -54,7 +51,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     clientNotificationRepo.save(clientNotification).map {
       case true =>
         notificationDispatcher.process(Set(clientNotification.csid))
-        metricsConnector.post(CustomsNotificationMetricsRequest("NOTIFICATION", metaData.conversationId, metaData.startTime, dateTimeService.zonedDateTimeUtc))
         true
       case false => logger.error("Dispatcher failed to process the notification")
         false

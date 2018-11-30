@@ -18,7 +18,7 @@ package util
 
 import java.time.{ZoneId, ZonedDateTime}
 
-import uk.gov.hmrc.customs.notification.domain.CustomsNotificationMetricsRequest
+import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
 
 object CustomsNotificationMetricsTestData {
 
@@ -28,7 +28,7 @@ object CustomsNotificationMetricsTestData {
     59, 0, UtcZoneId)
   val EventEnd: ZonedDateTime = EventStart.plusSeconds(2)
 
-  val ValidCustomsNotificationMetricsRequest: CustomsNotificationMetricsRequest =
-    CustomsNotificationMetricsRequest("DECLARATION", TestData.conversationId, EventStart, EventEnd)
+  val ValidCustomsNotificationMetricsRequest: CustomsNotificationsMetricsRequest =
+    CustomsNotificationsMetricsRequest("NOTIFICATION", TestData.conversationId, EventStart, EventEnd)
 
 }
