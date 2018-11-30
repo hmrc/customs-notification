@@ -58,12 +58,12 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     lockDuration = org.joda.time.Duration.ZERO,
     maxRecordsToFetch = five
   )
-
+  private val metricsConfig: NotificationMetricsConfig = NotificationMetricsConfig("http://abc.com")
   private val TenThousand = 10000
   private val pullExcludeConfigZeroMillis = PullExcludeConfig(pullExcludeEnabled = true, emailAddress = "some.address@domain.com",
     notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"), "some-email-url", 0 seconds, 0 minutes)
 
-  private val mongoDbProvider = new MongoDbProvider {
+  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider {
     override val mongo: () => DB = self.mongo
   }
 
@@ -80,6 +80,8 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       override def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig = mock[GoogleAnalyticsSenderConfig]
       override def pushNotificationConfig: PushNotificationConfig = pushConfigWithMaxFiveRecords.copy(maxRecordsToFetch = maxRecords)
       override def pullExcludeConfig: PullExcludeConfig = pullExcludeConfigZeroMillis.copy(notificationsOlderMillis = notificationsOlder)
+
+      override def notificationMetricsConfig: NotificationMetricsConfig = metricsConfig
     }
     config
   }
@@ -107,7 +109,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     Json.obj("csid" -> clientSubscriptionId.id)
   }
 
-  private def logVerifier(logLevel: String, logText: String) = {
+  private def logVerifier(logLevel: String, logText: String): Unit = {
     PassByNameVerifier(mockNotificationLogger, logLevel)
       .withByNameParam(logText)
       .withParamMatcher(any[HeaderCarrier])

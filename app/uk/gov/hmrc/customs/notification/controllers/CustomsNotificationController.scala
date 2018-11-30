@@ -16,17 +16,18 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
+import java.time.ZonedDateTime
 import java.util.UUID
 
 import javax.inject.{Inject, Singleton}
 import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, CustomsNotificationMetricsConnector}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, ConversationId, CustomsNotificationConfig, Header}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
@@ -34,36 +35,42 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
-case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header])
+case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header], startTime: ZonedDateTime)
 
 @Singleton
 class CustomsNotificationController @Inject()(logger: NotificationLogger,
                                               customsNotificationService: CustomsNotificationService,
                                               callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                              configService: CustomsNotificationConfig)
+                                              configService: CustomsNotificationConfig,
+                                              dateTimeService: DateTimeService,
+                                              metricsConnector: CustomsNotificationMetricsConnector)
   extends BaseController with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
   private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private lazy val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
 
-  def submit(): Action[AnyContent] = validateHeaders(maybeBasicAuthToken) async {
-    implicit request =>
-      request.body.asXml match {
-        case Some(xml) =>
-          process(xml, requestMetaData(request.headers))
-        case None =>
-          notificationLogger.error(xmlValidationErrorMessage)
-          Future.successful(errorBadRequest(xmlValidationErrorMessage).XmlResult)
-      }
+  def submit(): Action[AnyContent] = {
+    val startTime = dateTimeService.zonedDateTimeUtc
+    validateHeaders(maybeBasicAuthToken) async {
+      implicit request =>
+        request.body.asXml match {
+          case Some(xml) =>
+            process(xml, requestMetaData(request.headers, startTime))
+          case None =>
+            notificationLogger.error(xmlValidationErrorMessage)
+            Future.successful(errorBadRequest(xmlValidationErrorMessage).XmlResult)
+        }
+    }
   }
 
-  private def requestMetaData(headers: Headers): RequestMetaData = {
+  private def requestMetaData(headers: Headers, startTime: ZonedDateTime): RequestMetaData = {
     // headers have been validated so safe to do a naked get except badgeId, eori and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
       findHeaderValue(X_BADGE_ID_HEADER_NAME, headers), findHeaderValue(X_EORI_ID_HEADER_NAME, headers),
-      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, headers))
+      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, headers),
+      startTime)
   }
 
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {
@@ -77,6 +84,8 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
         }.map {
           case true =>
             logger.info("Notification processed successfully")
+            metricsConnector.post(CustomsNotificationsMetricsRequest(
+                "NOTIFICATION", md.conversationId, md.startTime, dateTimeService.zonedDateTimeUtc))
             Results.Accepted
           case false => ErrorInternalServerError.XmlResult
         }

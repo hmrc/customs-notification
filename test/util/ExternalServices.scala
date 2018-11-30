@@ -262,4 +262,5 @@ object ExternalServicesConfiguration {
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"
   val EmailServiceContext = "/hmrc/email"
+  val CustomsNotificationMetricsContext = "/log-times"
 }

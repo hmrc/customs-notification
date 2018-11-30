@@ -16,22 +16,24 @@
 
 package unit.controllers
 
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers}
+import org.scalatest.concurrent.Eventually
 import play.api.libs.json.{JsObject, JsString}
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPORTED_MEDIA_TYPE}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, CustomsNotificationMetricsConnector}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_EORI_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, DeclarantCallbackData, Header}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
@@ -48,13 +50,17 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val mockConfigService = mock[ConfigService]
   private val mockCallbackDetailsConnector = mock[ApiSubscriptionFieldsConnector]
   private val mockCallbackDetails = mock[DeclarantCallbackData]
+  private val mockDateTimeService = mock[DateTimeService]
+  private val mockCustomsNotificationsMetricsConnector = mock[CustomsNotificationMetricsConnector]
 
 
   private def controller() = new CustomsNotificationController(
     mockNotificationLogger,
     mockCustomsNotificationService,
     mockCallbackDetailsConnector,
-    mockConfigService
+    mockConfigService,
+    mockDateTimeService,
+    mockCustomsNotificationsMetricsConnector
   )
 
   private val wrongPayloadErrorResult = ErrorResponse.errorBadRequest("Request body does not contain well-formed XML.").XmlResult
@@ -69,14 +75,14 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)))
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), mockDateTimeService.zonedDateTimeUtc)
 
   private val eventualTrue = Future.successful(true)
 
   private val eventualFalse = Future.successful(false)
 
   override protected def beforeEach() {
-    reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService)
+    reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
     when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData))(any[HeaderCarrier])).thenReturn(eventualTrue)
   }
@@ -85,12 +91,12 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 202 for valid request" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
-
+      when(mockCustomsNotificationsMetricsConnector.post(any[CustomsNotificationsMetricsRequest])).thenReturn(Future.successful(()))
       testSubmitResult(ValidRequestWithMixedCaseCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
-
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML),  meq(expectedRequestMetaData))(any[HeaderCarrier])
+        verifyMetricsConnector
+        verify(mockCustomsNotificationService).handleNotification(meq(ValidXML),  meq(expectedRequestMetaData))(any[HeaderCarrier])
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
@@ -221,5 +227,13 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private def testSubmitResult(request: Request[AnyContent])(test: Future[Result] => Unit) {
     val result = controller().submit().apply(request)
     test(result)
+  }
+
+  def verifyMetricsConnector(): Unit = {
+    val metricsRequestCaptor: ArgumentCaptor[CustomsNotificationsMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationsMetricsRequest])
+    Eventually.eventually(verify(mockCustomsNotificationsMetricsConnector, times(1)).post(metricsRequestCaptor.capture()))
+    val metricsRequest = metricsRequestCaptor.getValue
+    metricsRequest.conversationId shouldBe expectedRequestMetaData.conversationId
+    ()
   }
 }

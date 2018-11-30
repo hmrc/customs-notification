@@ -16,6 +16,8 @@
 
 package unit.services
 
+import java.time.ZonedDateTime
+
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._
@@ -23,13 +25,13 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
-import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
+import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, NotificationDispatcher, PullClientNotificationService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
@@ -50,7 +52,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     X_CORRELATION_ID_HEADER_NAME -> correlationId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)))
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), ZonedDateTime.now())
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
@@ -63,7 +65,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
   private val mockPullService = mock[PullClientNotificationService]
 
-  private val customsNotificationService = new CustomsNotificationService(
+   private val customsNotificationService = new CustomsNotificationService(
     mockNotificationLogger,
     mockGAConnector,
     mockClientNotificationRepo,

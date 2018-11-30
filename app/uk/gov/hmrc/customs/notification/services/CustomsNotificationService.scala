@@ -34,8 +34,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            gaConnector: GoogleAnalyticsSenderConnector,
                                            clientNotificationRepo: ClientNotificationRepo,
                                            notificationDispatcher: NotificationDispatcher,
-                                           pullClientNotificationService: PullClientNotificationService
-                                          ) {
+                                           pullClientNotificationService: PullClientNotificationService) {
 
   def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
@@ -44,10 +43,10 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None)
 
-    saveNotificationToDatabaseAndCallDispatcher(clientNotification)
+    saveNotificationToDatabaseAndCallDispatcher(clientNotification, metaData)
   }
 
-  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
 
     clientNotificationRepo.save(clientNotification).map {
       case true =>

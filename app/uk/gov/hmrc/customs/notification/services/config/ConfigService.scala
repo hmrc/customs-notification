@@ -43,7 +43,8 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
                                                    notificationQueueConfig: NotificationQueueConfig,
                                                    googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig,
                                                    pushNotificationConfig: PushNotificationConfig,
-                                                   pullExcludeConfig: PullExcludeConfig) extends CustomsNotificationConfig
+                                                   pullExcludeConfig: PullExcludeConfig,
+                                                   notificationMetricsConfig: NotificationMetricsConfig) extends CustomsNotificationConfig
 
   private val root = configValidatedNel.root
 
@@ -54,6 +55,9 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
     val notificationQueueConfigNel: CustomsValidatedNel[NotificationQueueConfig] =
       configValidatedNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)
+
+    val notificationMetricsConfigNel: CustomsValidatedNel[NotificationMetricsConfig] =
+      configValidatedNel.service("customs-notification-metrics").serviceUrl.map(NotificationMetricsConfig.apply)
 
     val gaSenderUrl = configValidatedNel.service("google-analytics-sender").serviceUrl
     val gaTrackingId = root.string("googleAnalytics.trackingId")
@@ -104,7 +108,8 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       notificationQueueConfigNel,
       validatedGoogleAnalyticsSenderConfigNel,
       pushNotificationConfig,
-      pullExcludeConfig
+      pullExcludeConfig,
+      notificationMetricsConfigNel
     ).mapN(CustomsNotificationConfigImpl)
 
       /*
@@ -132,5 +137,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
   override val pushNotificationConfig: PushNotificationConfig = config.pushNotificationConfig
 
   override val pullExcludeConfig: PullExcludeConfig = config.pullExcludeConfig
+
+  override val notificationMetricsConfig: NotificationMetricsConfig = config.notificationMetricsConfig
 
 }

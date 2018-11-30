@@ -16,6 +16,8 @@
 
 package unit.services
 
+import java.time.{ZoneId, ZonedDateTime}
+
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
@@ -31,24 +33,25 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
 
   private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
+  val testDate: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
-  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), None)
+  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), None, testDate)
 
   "PushNotificationRequestService" should {
 
     "return valid request when badgeId is provided" in {
-      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), None, None)
+      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), None, None, testDate)
       service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId), None)
     }
 
     "request does not contain badgeId or eoriNumber headers when not provided" in {
-      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None, None, None)
+      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None, None, None, testDate)
       service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None, None)
     }
 
     "return valid request when eoriNumber is provided" in {
-      val metaDataWithSomeEoriNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), None)
+      val metaDataWithSomeEoriNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), None, testDate)
       service.createRequest(ValidXML, callbackData, metaDataWithSomeEoriNumber) shouldBe expectedRequest(None, Some(eoriNumber))
     }
   }
