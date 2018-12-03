@@ -87,7 +87,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
       runNotificationQueueService(CREATED)
 
       repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")))
+        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
 
       And("the notification gateway service was called correctly")
       eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
@@ -105,7 +105,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
       runNotificationQueueService(CREATED)
 
       repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")))
+        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
 
       And("the notification gateway service was called correctly")
       eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))

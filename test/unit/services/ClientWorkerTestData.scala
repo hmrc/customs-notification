@@ -38,8 +38,9 @@ object ClientWorkerTestData {
   val TimeStampOne = DateTime.now
   private val oneThousand = 1000
   val TimeStampTwo = TimeStampOne.plus(oneThousand)
-  val ClientNotificationOne = ClientNotification(CsidOne, NotificationOne, Some(TimeStampOne))
-  val ClientNotificationTwo = ClientNotification(CsidOne, NotificationTwo, Some(TimeStampTwo))
+  val ClientNotificationOne = ClientNotification(CsidOne, NotificationOne, Some(TimeStampOne), None)
+  val ClientNotificationOneWithMetricsTime = ClientNotification(CsidOne, NotificationOne, Some(TimeStampOne), Some(TimeStampOne.minusSeconds(2)))
+  val ClientNotificationTwo = ClientNotification(CsidOne, NotificationTwo, Some(TimeStampTwo), None)
   val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
   val DeclarantCallbackDataOneWithEmptyUrl = DeclarantCallbackDataOne.copy(callbackUrl = "")
   val DeclarantCallbackDataTwo = DeclarantCallbackData("URL2", "SECURITY_TOKEN2")

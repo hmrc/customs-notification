@@ -25,13 +25,13 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
+import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, NotificationDispatcher, PullClientNotificationService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
@@ -52,7 +52,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     X_CORRELATION_ID_HEADER_NAME -> correlationId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), ZonedDateTime.now())
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), TimeReceivedZoned)
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
@@ -62,7 +62,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val correlationIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_CORRELATION_ID_HEADER_NAME).head
   private val expectedHeaders = Seq(Header(badgeIdHeader._1, badgeIdHeader._2), Header(eoriIdHeader._1, eoriIdHeader._2), Header(correlationIdHeader._1, correlationIdHeader._2))
   private val notification = Notification(conversationId, expectedHeaders, pushNotificationRequest.body.xmlPayload, contentType)
-  private val clientNotification = ClientNotification(clientSubscriptionId, notification, None)
+  private val clientNotification = ClientNotification(clientSubscriptionId, notification, None, Some(TimeReceivedDateTime))
   private val mockPullService = mock[PullClientNotificationService]
 
    private val customsNotificationService = new CustomsNotificationService(

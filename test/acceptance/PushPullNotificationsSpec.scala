@@ -29,6 +29,7 @@ import uk.gov.hmrc.customs.notification.repo.ClientNotificationMongoRepo
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import util.TestData.TimeReceivedDateTime
 import util._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -111,7 +112,7 @@ class PushPullNotificationsSpec extends AcceptanceTestSpec
 
     notificationRepo.save(
       ClientNotification(ClientSubscriptionId(expectedCall.client.csid),
-        Notification(ConversationId(expectedCall.conversationId), headers, expectedCall.xml.toString(), MimeTypes.XML)))
+        Notification(ConversationId(expectedCall.conversationId), headers, expectedCall.xml.toString(), MimeTypes.XML), Some(TimeReceivedDateTime), None))
   }
 
 

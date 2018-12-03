@@ -16,10 +16,10 @@
 
 package util
 
+import java.time.ZonedDateTime
 import java.util.UUID
 
 import com.typesafe.config.{Config, ConfigFactory}
-import org.joda.time.{DateTime, DateTimeZone}
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json}
@@ -28,6 +28,7 @@ import play.api.test.FakeRequest
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
 import uk.gov.hmrc.customs.notification.domain._
+import util.CustomsNotificationMetricsTestData.UtcZoneId
 import util.RequestHeaders._
 import util.TestData._
 
@@ -79,7 +80,13 @@ object TestData {
   val DayOfMonth = 4
   val HourOfDay = 13
   val MinuteOfHour = 45
-  val TimeReceived = new DateTime(Year, MonthOfYear, DayOfMonth, HourOfDay, MinuteOfHour, DateTimeZone.UTC)
+  val TimeReceivedZoned = ZonedDateTime.of(2016, 1, 30, 23, 46,
+    59, 0, UtcZoneId)
+  val TimeReceivedDateTime = DateTimeUtils.convertZonedDateTimeToDateTime(TimeReceivedZoned)
+
+  val MetricsStartTimeZoned = ZonedDateTime.of(2016, 1, 30, 23, 44,
+    59, 0, UtcZoneId)
+  val MetricsStartTimeDateTime = DateTimeUtils.convertZonedDateTimeToDateTime(TimeReceivedZoned)
 
   val validClientSubscriptionId1String: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
   val validClientSubscriptionId1UUID = UUID.fromString(validClientSubscriptionId1String)
@@ -98,13 +105,13 @@ object TestData {
   val notification2 = Notification(conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
   val notification3 = Notification(conversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
 
-  val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1)
-  val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2)
-  val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3)
-  val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1)
+  val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1, None, Some(TimeReceivedDateTime))
+  val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2, None, Some(TimeReceivedDateTime))
+  val client1Notification3 = ClientNotification(validClientSubscriptionId1, notification3, None, Some(TimeReceivedDateTime))
+  val client2Notification1 = ClientNotification(validClientSubscriptionId2, notification1, None, Some(TimeReceivedDateTime))
 
-  val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceived))
-  val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceived))
+  val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
+  val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
 
@@ -126,7 +133,9 @@ object TestData {
         headers = finalHeaders,
         payload = ValidXML.toString(),
         contentType = MimeTypes.XML
-      )
+      ),
+      None,
+      Some(TimeReceivedDateTime)
     )
   }
 

@@ -31,7 +31,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCod
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, CustomsNotificationMetricsConnector}
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_EORI_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, DeclarantCallbackData, Header}
+import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
@@ -59,8 +59,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     mockCustomsNotificationService,
     mockCallbackDetailsConnector,
     mockConfigService,
-    mockDateTimeService,
-    mockCustomsNotificationsMetricsConnector
+    mockDateTimeService
   )
 
   private val wrongPayloadErrorResult = ErrorResponse.errorBadRequest("Request body does not contain well-formed XML.").XmlResult
@@ -91,11 +90,10 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 202 for valid request" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
-      when(mockCustomsNotificationsMetricsConnector.post(any[CustomsNotificationsMetricsRequest])).thenReturn(Future.successful(()))
+
       testSubmitResult(ValidRequestWithMixedCaseCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
-        verifyMetricsConnector
         verify(mockCustomsNotificationService).handleNotification(meq(ValidXML),  meq(expectedRequestMetaData))(any[HeaderCarrier])
     }
 
@@ -229,11 +227,4 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     test(result)
   }
 
-  def verifyMetricsConnector(): Unit = {
-    val metricsRequestCaptor: ArgumentCaptor[CustomsNotificationsMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationsMetricsRequest])
-    Eventually.eventually(verify(mockCustomsNotificationsMetricsConnector, times(1)).post(metricsRequestCaptor.capture()))
-    val metricsRequest = metricsRequestCaptor.getValue
-    metricsRequest.conversationId shouldBe expectedRequestMetaData.conversationId
-    ()
-  }
 }
