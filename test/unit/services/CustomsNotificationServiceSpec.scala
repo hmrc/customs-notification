@@ -16,8 +16,6 @@
 
 package unit.services
 
-import java.time.ZonedDateTime
-
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
 import org.mockito.Mockito._

@@ -16,12 +16,10 @@
 
 package unit.controllers
 
-import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers}
-import org.scalatest.concurrent.Eventually
 import play.api.libs.json.{JsObject, JsString}
 import play.api.mvc._
 import play.api.test.Helpers._
@@ -33,8 +31,8 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_I
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
