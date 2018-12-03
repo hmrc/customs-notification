@@ -100,11 +100,11 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
     msgCaptor.getValue should be(expectedMessage)
   }
 
-    def verifyMetricsConnector(): Unit = {
-      val metricsRequestCaptor: ArgumentCaptor[CustomsNotificationsMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationsMetricsRequest])
-      Eventually.eventually(verify(mockCustomsNotificationsMetricsConnector, times(1)).post(metricsRequestCaptor.capture()))
-      val metricsRequest = metricsRequestCaptor.getValue
-      metricsRequest.conversationId.toString shouldBe ConversationIdOne.id.toString
-      ()
-    }
+  def verifyMetricsConnector(): Unit = {
+    val metricsRequestCaptor: ArgumentCaptor[CustomsNotificationsMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationsMetricsRequest])
+    Eventually.eventually(verify(mockCustomsNotificationsMetricsConnector, times(1)).post(metricsRequestCaptor.capture()))
+    val metricsRequest = metricsRequestCaptor.getValue
+    metricsRequest.conversationId.toString shouldBe ConversationIdOne.id.toString
+    ()
+  }
 }

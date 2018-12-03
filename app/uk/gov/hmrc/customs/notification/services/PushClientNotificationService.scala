@@ -45,7 +45,7 @@ class PushClientNotificationService @Inject() (pushNotificationServiceConnector:
 
     clientNotification.metricsStartDateTime.fold() { startTime =>
       metricsConnector.post(CustomsNotificationsMetricsRequest(
-        "NOTIFICATION", clientNotification.notification.conversationId,DateTimeUtils.convertDateTimeToZonedDateTime(startTime), dateTimeService.zonedDateTimeUtc))
+        "NOTIFICATION", clientNotification.notification.conversationId, DateTimeUtils.convertDateTimeToZonedDateTime(startTime), dateTimeService.zonedDateTimeUtc))
     }
 
     val result = scala.concurrent.blocking {

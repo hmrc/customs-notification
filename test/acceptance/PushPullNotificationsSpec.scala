@@ -112,7 +112,7 @@ class PushPullNotificationsSpec extends AcceptanceTestSpec
 
     notificationRepo.save(
       ClientNotification(ClientSubscriptionId(expectedCall.client.csid),
-        Notification(ConversationId(expectedCall.conversationId), headers, expectedCall.xml.toString(), MimeTypes.XML), Some(TimeReceivedDateTime), None))
+        Notification(ConversationId(expectedCall.conversationId), headers, expectedCall.xml.toString(), MimeTypes.XML), Some(TimeReceivedDateTime), metricsStartDateTime = None))
   }
 
 
