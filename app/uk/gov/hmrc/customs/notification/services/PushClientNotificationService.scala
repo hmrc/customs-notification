@@ -17,13 +17,14 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.util.concurrent.TimeUnit
-import javax.inject.{Inject, Singleton}
 
-import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, PushNotificationServiceConnector}
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, PushNotificationRequest, PushNotificationRequestBody}
+import javax.inject.{Inject, Singleton}
+import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
+import util.DateTimeUtils
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -32,13 +33,20 @@ import scala.concurrent.duration.Duration
 @Singleton
 class PushClientNotificationService @Inject() (pushNotificationServiceConnector: PushNotificationServiceConnector,
                                                gaConnector: GoogleAnalyticsSenderConnector,
-                                               notificationLogger: NotificationLogger) {
+                                               notificationLogger: NotificationLogger,
+                                               metricsConnector: CustomsNotificationMetricsConnector,
+                                               dateTimeService: DateTimeService) {
 
   private implicit val hc = HeaderCarrier()
 
   def send(declarantCallbackData: DeclarantCallbackData, clientNotification: ClientNotification): Boolean = {
 
     val pushNotificationRequest = pushNotificationRequestFrom(declarantCallbackData, clientNotification)
+
+    clientNotification.metricsStartDateTime.fold() { startTime =>
+      metricsConnector.post(CustomsNotificationsMetricsRequest(
+        "NOTIFICATION", clientNotification.notification.conversationId, DateTimeUtils.convertDateTimeToZonedDateTime(startTime), dateTimeService.zonedDateTimeUtc))
+    }
 
     val result = scala.concurrent.blocking {
       Await.ready(pushNotificationServiceConnector.send(pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess

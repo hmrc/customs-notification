@@ -59,7 +59,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService {
       setupCustomsNotificationMetricsServiceToReturn()
 
       val response: Unit = await(sendValidRequest())
-      response shouldBe ()
+      response shouldBe (())
     }
 
     "return a failed future when external service returns 404" in {

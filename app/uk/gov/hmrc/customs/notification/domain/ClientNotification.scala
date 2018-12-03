@@ -24,6 +24,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 case class ClientNotification(csid: ClientSubscriptionId,
                               notification: Notification,
                               timeReceived: Option[DateTime] = None,
+                              metricsStartDateTime: Option[DateTime] = None,
                               id: BSONObjectID = BSONObjectID.generate)
 
 object ClientNotification {

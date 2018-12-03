@@ -42,8 +42,7 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
                                               customsNotificationService: CustomsNotificationService,
                                               callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                               configService: CustomsNotificationConfig,
-                                              dateTimeService: DateTimeService,
-                                              metricsConnector: CustomsNotificationMetricsConnector)
+                                              dateTimeService: DateTimeService)
   extends BaseController with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
@@ -84,8 +83,6 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
         }.map {
           case true =>
             logger.info("Notification processed successfully")
-            metricsConnector.post(CustomsNotificationsMetricsRequest(
-                "NOTIFICATION", md.conversationId, md.startTime, dateTimeService.zonedDateTimeUtc))
             Results.Accepted
           case false => ErrorInternalServerError.XmlResult
         }
