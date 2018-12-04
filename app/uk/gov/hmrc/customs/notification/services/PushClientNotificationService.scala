@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
-import util.DateTimeUtils
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -37,6 +37,7 @@ class PushClientNotificationService @Inject() (pushNotificationServiceConnector:
                                                metricsConnector: CustomsNotificationMetricsConnector,
                                                dateTimeService: DateTimeService) {
 
+
   private implicit val hc = HeaderCarrier()
 
   def send(declarantCallbackData: DeclarantCallbackData, clientNotification: ClientNotification): Boolean = {
@@ -45,7 +46,7 @@ class PushClientNotificationService @Inject() (pushNotificationServiceConnector:
 
     clientNotification.metricsStartDateTime.fold() { startTime =>
       metricsConnector.post(CustomsNotificationsMetricsRequest(
-        "NOTIFICATION", clientNotification.notification.conversationId, DateTimeUtils.convertDateTimeToZonedDateTime(startTime), dateTimeService.zonedDateTimeUtc))
+        "NOTIFICATION", clientNotification.notification.conversationId, startTime.toZonedDateTime, dateTimeService.zonedDateTimeUtc))
     }
 
     val result = scala.concurrent.blocking {

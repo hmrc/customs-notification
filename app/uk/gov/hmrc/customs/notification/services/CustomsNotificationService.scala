@@ -24,7 +24,8 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.http.HeaderCarrier
-import util.DateTimeUtils
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -42,7 +43,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     val headers: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber ++ metaData.maybeCorrelationId).toSeq
 
-    val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None, Some(DateTimeUtils.convertZonedDateTimeToDateTime(metaData.startTime)))
+    val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML), None, Some(metaData.startTime.toDateTime))
 
     saveNotificationToDatabaseAndCallDispatcher(clientNotification, metaData)
   }
