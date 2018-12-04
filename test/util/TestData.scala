@@ -20,6 +20,7 @@ import java.time.ZonedDateTime
 import java.util.UUID
 
 import com.typesafe.config.{Config, ConfigFactory}
+import org.joda.time.DateTime
 import play.api.http.HeaderNames._
 import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json}
@@ -28,6 +29,7 @@ import play.api.test.FakeRequest
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import util.CustomsNotificationMetricsTestData.UtcZoneId
 import util.RequestHeaders._
 import util.TestData._
@@ -82,18 +84,18 @@ object TestData {
   val MinuteOfHour = 45
   val TimeReceivedZoned = ZonedDateTime.of(2016, 1, 30, 23, 46,
     59, 0, UtcZoneId)
-  val TimeReceivedDateTime = DateTimeUtils.convertZonedDateTimeToDateTime(TimeReceivedZoned)
+  val TimeReceivedDateTime = TimeReceivedZoned.toDateTime
 
   val MetricsStartTimeZoned = ZonedDateTime.of(2016, 1, 30, 23, 44,
     59, 0, UtcZoneId)
-  val MetricsStartTimeDateTime = DateTimeUtils.convertZonedDateTimeToDateTime(TimeReceivedZoned)
+  val MetricsStartTimeDateTime: DateTime = TimeReceivedZoned.toDateTime
 
   val validClientSubscriptionId1String: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
-  val validClientSubscriptionId1UUID = UUID.fromString(validClientSubscriptionId1String)
+  val validClientSubscriptionId1UUID: UUID = UUID.fromString(validClientSubscriptionId1String)
   val validClientSubscriptionId1 = ClientSubscriptionId(validClientSubscriptionId1UUID)
 
   val validClientSubscriptionId2String: String = "eaca01f9-ec3b-4ede-b263-61b626dde233"
-  val validClientSubscriptionId2UUID = UUID.fromString(validClientSubscriptionId2String)
+  val validClientSubscriptionId2UUID: UUID = UUID.fromString(validClientSubscriptionId2String)
   val validClientSubscriptionId2 = ClientSubscriptionId(validClientSubscriptionId2UUID)
 
   val payload1 = "<foo1></foo1>"
@@ -312,7 +314,7 @@ object RequestHeaders {
 
   lazy val BASIC_AUTH_HEADER_OVERWRITTEN: (String, String) = AUTHORIZATION -> overwrittenBasicAuthToken
 
-  lazy val ValidHeaders = Map(
+  lazy val ValidHeaders: Map[String, String] = Map(
     X_CDS_CLIENT_ID_HEADER,
     X_CONVERSATION_ID_HEADER,
     CONTENT_TYPE_HEADER,
@@ -322,10 +324,10 @@ object RequestHeaders {
     X_EORI_ID_HEADER
   )
 
-  val LoggingHeaders = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER)
+  val LoggingHeaders: Seq[(String, String)] = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER)
   val LoggingHeadersMixedCase: Seq[(String, String)] = Seq(X_CDS_CLIENT_ID_HEADER_MixedCase, X_CONVERSATION_ID_HEADER)
-  val LoggingHeadersWithAuth = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, BASIC_AUTH_HEADER)
-  val LoggingHeadersWithAuthOverwritten = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, BASIC_AUTH_HEADER_OVERWRITTEN)
+  val LoggingHeadersWithAuth: Seq[(String, String)] = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, BASIC_AUTH_HEADER)
+  val LoggingHeadersWithAuthOverwritten: Seq[(String, String)] = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, BASIC_AUTH_HEADER_OVERWRITTEN)
 
   val NoHeaders: Map[String, String] = Map[String, String]()
 }

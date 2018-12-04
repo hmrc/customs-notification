@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-package util
+package uk.gov.hmrc.customs.notification.util
 
 import java.time.ZonedDateTime
 
 import org.joda.time.{DateTime, DateTimeZone}
 
-object DateTimeUtils {
+object DateTimeHelpers {
 
-  def convertDateTimeToZonedDateTime(dateTime: DateTime): ZonedDateTime ={
-    import java.time.{Instant, ZoneId, ZonedDateTime}
-    val instant = Instant.ofEpochMilli(dateTime.getMillis)
-    ZonedDateTime.ofInstant(instant, ZoneId.of("UTC"))
+  implicit class DateTimeToZonedDateTimeOps(val dateTime: DateTime) extends AnyVal {
+      def toZonedDateTime: ZonedDateTime = {
+        import java.time.{Instant, ZoneId, ZonedDateTime}
+        val instant = Instant.ofEpochMilli(dateTime.getMillis)
+        ZonedDateTime.ofInstant(instant, ZoneId.of("UTC"))
+      }
   }
 
- def convertZonedDateTimeToDateTime(zonedDateTime: ZonedDateTime) : DateTime = {
-   val dateTimeZone = DateTimeZone.forID(zonedDateTime.getZone.getId)
-   new DateTime(zonedDateTime.toInstant.toEpochMilli, dateTimeZone)
- }
-
+  implicit class ZonedDateTimeToDateTimeOps(val zonedDateTime: ZonedDateTime) extends AnyVal {
+    def toDateTime: DateTime = {
+      val dateTimeZone = DateTimeZone.forID(zonedDateTime.getZone.getId)
+      new DateTime(zonedDateTime.toInstant.toEpochMilli, dateTimeZone)
+    }
+  }
 }
