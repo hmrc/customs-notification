@@ -26,10 +26,10 @@ import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsCon
 import uk.gov.hmrc.http._
 import util.CustomsNotificationMetricsTestData.ValidCustomsNotificationMetricsRequest
 import util.ExternalServicesConfiguration.{Host, Port}
-import util.{CustomsNotificationMetricsService, ExternalServicesConfiguration}
+import util.{AuditService, CustomsNotificationMetricsService, ExternalServicesConfiguration}
 
 class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
-with BeforeAndAfterAll with CustomsNotificationMetricsService {
+with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService {
 
   private lazy val connector = app.injector.instanceOf[CustomsNotificationMetricsConnector]
 
@@ -41,6 +41,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService {
 
   override protected def beforeEach() {
     resetMockServer()
+    setupAuditServiceToReturn()
   }
 
   override protected def afterAll() {
@@ -48,6 +49,9 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService {
   }
 
   override implicit lazy val app: Application = GuiceApplicationBuilder().configure(Map(
+    "auditing.consumer.baseUri.host" -> Host,
+    "auditing.consumer.baseUri.port" -> Port,
+    "auditing.enabled" -> true,
     "microservice.services.customs-notification-metrics.host" -> Host,
     "microservice.services.customs-notification-metrics.port" -> Port,
     "microservice.services.customs-notification-metrics.context" -> ExternalServicesConfiguration.CustomsNotificationMetricsContext
@@ -60,24 +64,28 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService {
 
       val response: Unit = await(sendValidRequest())
       response shouldBe (())
+      verifyAuditServiceWasNotCalled()
     }
 
     "return a failed future when external service returns 404" in {
       setupCustomsNotificationMetricsServiceToReturn(NOT_FOUND)
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[NotFoundException]
+      verifyAuditServiceWasNotCalled()
     }
 
     "return a failed future when external service returns 400" in {
       setupCustomsNotificationMetricsServiceToReturn(BAD_REQUEST)
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadRequestException]
+      verifyAuditServiceWasNotCalled()
     }
 
     "return a failed future when external service returns 500" in {
       setupCustomsNotificationMetricsServiceToReturn(INTERNAL_SERVER_ERROR)
 
       intercept[Upstream5xxResponse](await(sendValidRequest()))
+      verifyAuditServiceWasNotCalled()
     }
 
     "return a failed future when fail to connect the external service" in {

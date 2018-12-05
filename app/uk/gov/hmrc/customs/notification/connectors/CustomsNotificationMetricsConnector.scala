@@ -21,14 +21,14 @@ import play.mvc.Http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.mvc.Http.MimeTypes.JSON
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, CustomsNotificationsMetricsRequest}
+import uk.gov.hmrc.customs.notification.http.NoAuditHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class CustomsNotificationMetricsConnector @Inject()(http: HttpClient,
+class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
                                                     logger: CdsLogger,
                                                     config: CustomsNotificationConfig) {
 

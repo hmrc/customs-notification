@@ -16,7 +16,6 @@
 
 package util
 
-import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.Matchers
 import org.scalatest.concurrent.Eventually
 import play.api.http.{HeaderNames, MimeTypes, Status}
@@ -27,7 +26,9 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCal
 import util.TestData._
 import java.util
 
+import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
+import play.api.http.Status.OK
 
 trait PushNotificationService extends WireMockRunner {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
@@ -254,6 +255,21 @@ trait NotificationQueueService extends WireMockRunner {
 
 }
 
+
+trait AuditService extends WireMockRunner {
+  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.AuditContext)
+
+  def setupAuditServiceToReturn(status: Int = OK): Unit =
+    stubFor(post(urlMatchingRequestPath)
+      willReturn aResponse()
+      .withStatus(status))
+
+  def verifyAuditServiceWasNotCalled() {
+    verify(0, postRequestedFor(urlMatchingRequestPath))
+  }
+
+}
+
 object ExternalServicesConfiguration {
   val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "11111").toInt
   val Host = "localhost"
@@ -263,4 +279,5 @@ object ExternalServicesConfiguration {
   val NotificationQueueContext = "/queue"
   val EmailServiceContext = "/hmrc/email"
   val CustomsNotificationMetricsContext = "/log-times"
+  val AuditContext = "/write/audit.*"
 }
