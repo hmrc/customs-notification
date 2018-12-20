@@ -16,23 +16,37 @@
 
 package integration
 
+import com.google.inject.AbstractModule
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.inject.guice.{GuiceApplicationBuilder, GuiceableModule}
 import play.api.test.Helpers.{BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND}
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import uk.gov.hmrc.http._
 import util.CustomsNotificationMetricsTestData.ValidCustomsNotificationMetricsRequest
 import util.ExternalServicesConfiguration.{Host, Port}
+import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.{AuditService, CustomsNotificationMetricsService, ExternalServicesConfiguration}
+
+case class IntegrationTestModule(mockLogger: CdsLogger) extends AbstractModule {
+  def configure(): Unit = {
+    bind(classOf[CdsLogger]) toInstance mockLogger
+  }
+
+  def asGuiceableModule: GuiceableModule = GuiceableModule.guiceable(this)
+}
+
 
 class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
 with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService {
 
   private lazy val connector = app.injector.instanceOf[CustomsNotificationMetricsConnector]
-
+  private implicit val mockLogger: CdsLogger = mock[CdsLogger]
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   override protected def beforeAll() {
@@ -42,20 +56,22 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
   override protected def beforeEach() {
     resetMockServer()
     setupAuditServiceToReturn()
+    Mockito.reset(mockLogger)
   }
 
   override protected def afterAll() {
     stopMockServer()
   }
 
-  override implicit lazy val app: Application = GuiceApplicationBuilder().configure(Map(
-    "auditing.consumer.baseUri.host" -> Host,
-    "auditing.consumer.baseUri.port" -> Port,
-    "auditing.enabled" -> true,
-    "microservice.services.customs-notification-metrics.host" -> Host,
-    "microservice.services.customs-notification-metrics.port" -> Port,
-    "microservice.services.customs-notification-metrics.context" -> ExternalServicesConfiguration.CustomsNotificationMetricsContext
-  )).build()
+  override implicit lazy val app: Application =
+    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(mockLogger).asGuiceableModule)).configure(Map(
+      "auditing.consumer.baseUri.host" -> Host,
+      "auditing.consumer.baseUri.port" -> Port,
+      "auditing.enabled" -> true,
+      "microservice.services.customs-notification-metrics.host" -> Host,
+      "microservice.services.customs-notification-metrics.port" -> Port,
+      "microservice.services.customs-notification-metrics.context" -> ExternalServicesConfiguration.CustomsNotificationMetricsContext
+    )).build()
 
   "MetricsConnector" should {
 
@@ -72,6 +88,8 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[NotFoundException]
       verifyAuditServiceWasNotCalled()
+      //[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404", mockLogger)
     }
 
     "return a failed future when external service returns 400" in {
@@ -79,6 +97,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadRequestException]
       verifyAuditServiceWasNotCalled()
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=400", mockLogger)
     }
 
     "return a failed future when external service returns 500" in {
@@ -86,6 +105,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       intercept[Upstream5xxResponse](await(sendValidRequest()))
       verifyAuditServiceWasNotCalled()
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times", mockLogger)
     }
 
     "return a failed future when fail to connect the external service" in {
@@ -93,6 +113,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadGatewayException]
       startMockServer()
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=502", mockLogger)
     }
 
   }
@@ -100,4 +121,12 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
   private def sendValidRequest() = {
     connector.post(ValidCustomsNotificationMetricsRequest)
   }
+
+  private def verifyCdsLoggerWarn(message: String, logger: CdsLogger): Unit = {
+    PassByNameVerifier(logger, "warn")
+      .withByNameParam(message)
+      .withByNameParamMatcher(any[Throwable])
+      .verify()
+  }
+
 }

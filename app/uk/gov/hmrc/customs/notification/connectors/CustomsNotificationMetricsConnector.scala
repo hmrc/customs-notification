@@ -47,9 +47,11 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
       logger.debug(s"[conversationId=${request.conversationId}]: customs notification metrics sent successfully")
       ()
     }.recoverWith {
-      case httpError: HttpException => Future.failed(new RuntimeException(httpError))
+      case httpError: HttpException =>
+        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=$url httpError=${httpError.responseCode}", httpError)
+        Future.failed(new RuntimeException(httpError))
       case e: Throwable =>
-        logger.warn(s"Call to customs notification metrics service failed. url=$url")
+        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=$url", e)
         Future.failed(e)
     }
   }
