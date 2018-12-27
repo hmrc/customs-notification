@@ -22,12 +22,13 @@ import akka.actor.ActorSystem
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, PushNotificationConfig}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{NotificationDispatcher, NotificationPollingService}
 import uk.gov.hmrc.play.test.UnitSpec
+import unit.logging.StubNotificationLogger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -37,13 +38,13 @@ class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
   private val clientNotificationRepoMock = mock[ClientNotificationRepo]
   private val notificationDispatcherMock = mock[NotificationDispatcher]
   private val configServiceMock = mock[ConfigService]
-  private val mockLogger = mock[NotificationLogger]
+  private val logger = new StubNotificationLogger(mock[CdsLogger])
   private val SIX_THOUSAND = 6000
   val testActorSystem = ActorSystem("NotificationPollingService")
 
   "NotificationPollingService" should {
 
-    "should poll the database and pass the ids onto CSID Despatcher" in {
+    "should poll the database and pass the ids onto CSID Dispatcher" in {
 
       val csIds = Set(ClientSubscriptionId(randomUUID), ClientSubscriptionId(randomUUID), ClientSubscriptionId(randomUUID))
       val csIdsMinus1 = csIds.take(2)
@@ -61,7 +62,7 @@ class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
           testActorSystem,
           clientNotificationRepoMock,
           notificationDispatcherMock,
-        mockLogger)
+          logger)
 
       Thread.sleep(SIX_THOUSAND)
       verify(notificationDispatcherMock, times(2)).process(argumentCapture.capture())

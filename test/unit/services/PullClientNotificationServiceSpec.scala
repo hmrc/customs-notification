@@ -59,6 +59,9 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       service.send(someNotification) should be(true)
 
       andGAEventHasBeenSentWith("notificationLeftToBePulled", s"[ConversationId=${someNotification.notification.conversationId}] A notification has been left to be pulled")
+      PassByNameVerifier(mockLogger, "info")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Notification has been passed on to PULL service")
+        .verify()
     }
 
     "return sync False when the request to Pull Service is not successful" in {
