@@ -19,16 +19,17 @@ package unit.services
 import akka.actor.ActorSystem
 import org.joda.time.{DateTime, DateTimeZone}
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.{any, eq => ameq}
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.EmailConnector
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, Email, PullExcludeConfig, SendEmailRequest}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.FailedPushEmailPollingService
 import uk.gov.hmrc.play.test.UnitSpec
+import unit.logging.StubNotificationLogger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -41,7 +42,7 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
     val mockClientNotificationRepo = mock[ClientNotificationRepo]
     val mockEmailConnector = mock[EmailConnector]
     val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
-    val mockNotificationLogger = mock[NotificationLogger]
+    val notificationLogger = new StubNotificationLogger(mock[CdsLogger])
     val mockPullExcludeConfig = mock[PullExcludeConfig]
     val testActorSystem = ActorSystem("FailedPushEmailPollingService")
     val mockActorSystem = mock[ActorSystem]
@@ -67,7 +68,7 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
     "send an email" in new Setup {
       when(mockClientNotificationRepo.failedPushNotificationsExist()).thenReturn(Future.successful(true))
       when(mockPullExcludeConfig.pullExcludeEnabled).thenReturn(true)
-      val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, mockNotificationLogger)
+      val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, notificationLogger)
       val emailRequestCaptor: ArgumentCaptor[SendEmailRequest] = ArgumentCaptor.forClass(classOf[SendEmailRequest])
 
       //TODO investigate a way of not requiring sleep
@@ -83,7 +84,7 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
     "not send an email when no notifications failed to push" in new Setup {
       when(mockPullExcludeConfig.pullExcludeEnabled).thenReturn(true)
       when(mockClientNotificationRepo.failedPushNotificationsExist()).thenReturn(Future.successful(false))
-      val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, mockNotificationLogger)
+      val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, notificationLogger)
 
       //TODO investigate a way of not requiring sleep
       Thread.sleep(1000)
@@ -92,7 +93,7 @@ class FailedPushEmailPollingServiceSpec extends UnitSpec with MockitoSugar with 
 
     "not run when poller is disabled" in new Setup {
       when(mockPullExcludeConfig.pullExcludeEnabled).thenReturn(false)
-      val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, mockNotificationLogger)
+      val warningEmailService = new FailedPushEmailPollingService(mockClientNotificationRepo, mockEmailConnector, testActorSystem, mockCustomsNotificationConfig, notificationLogger)
 
       verify(mockActorSystem, never()).scheduler
     }

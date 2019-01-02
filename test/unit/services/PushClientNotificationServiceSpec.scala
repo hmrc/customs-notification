@@ -22,12 +22,13 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationServiceConnector}
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{DateTimeService, PushClientNotificationService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
+import unit.logging.StubNotificationLogger
 import unit.services.ClientWorkerTestData._
 import util.TestData.emulatedServiceFailure
 
@@ -37,15 +38,15 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
   private val mockPushNotificationServiceConnector = mock[PushNotificationServiceConnector]
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
-  private val mockNotificationLogger = mock[NotificationLogger]
+  private val notificationLogger = new StubNotificationLogger(mock[CdsLogger])
   private val mockCustomsNotificationsMetricsConnector = mock[CustomsNotificationMetricsConnector]
   private val mockDateTimeService = mock[DateTimeService]
   private implicit val hc = HeaderCarrier()
 
-  private val pushService = new PushClientNotificationService(mockPushNotificationServiceConnector, mockGAConnector, mockNotificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
+  private val pushService = new PushClientNotificationService(mockPushNotificationServiceConnector, mockGAConnector, notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
 
   override protected def beforeEach(): Unit = {
-    reset(mockPushNotificationServiceConnector, mockGAConnector, mockNotificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
+    reset(mockPushNotificationServiceConnector, mockGAConnector, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
 
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
   }
