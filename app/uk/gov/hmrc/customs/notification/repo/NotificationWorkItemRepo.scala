@@ -23,14 +23,17 @@ import org.joda.time.DateTime
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json.{Format, Reads, __}
 import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.api.indexes.{Index, IndexType}
+import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
-import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem.{WorkItem, WorkItemFieldNames, WorkItemRepository}
 
-class NotificationWorkItemRepo @Inject() (mongo: ReactiveMongoComponent, clock: Clock)
+class NotificationWorkItemRepo @Inject() (mongo: ReactiveMongoComponent,
+                                          clock: Clock,
+                                          customsNotificationConfig: CustomsNotificationConfig)
       extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         collectionName = "notifications-work-item",
         mongo = mongo.mongoConnector.db,
@@ -48,6 +51,15 @@ class NotificationWorkItemRepo @Inject() (mongo: ReactiveMongoComponent, clock: 
   override def now: DateTime = clock.nowAsJoda
 
   override def inProgressRetryAfterProperty: String = ???
+
+  override def indexes: Seq[Index] = super.indexes ++ Seq(
+    Index(
+      key = Seq("createdAt" -> IndexType.Descending),
+      name = Some("createdAt-ttl-Index"),
+      unique = false,
+      options = BSONDocument("expireAfterSeconds" -> BSONLong(customsNotificationConfig.pushNotificationConfig.ttlInSeconds.toLong))
+    )
+  )
 
 }
 
