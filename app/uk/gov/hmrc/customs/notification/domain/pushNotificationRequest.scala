@@ -23,27 +23,17 @@ import play.api.libs.json.{Format, Json, OFormat, _}
 import play.api.mvc.Headers
 
 case class Header(name: String, value: String)
-
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
 
-case class PushNotificationRequestBody(
-                                          url: String,
-                                          authHeaderToken: String,
-                                          conversationId: String,
-                                          outboundCallHeaders: Seq[Header],
-                                          xmlPayload: String
-                                        )
-
+case class PushNotificationRequestBody(url: String, authHeaderToken: String, conversationId: String,
+                                       outboundCallHeaders: Seq[Header], xmlPayload: String)
 object PushNotificationRequestBody {
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
 }
 
-case class PushNotificationRequest(
-                                      clientSubscriptionId: String,
-                                      body: PushNotificationRequestBody
-                                    )
+case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotificationRequestBody)
 
 case class ConversationId(id: UUID) extends AnyVal {
   override def toString: String = id.toString
@@ -66,7 +56,6 @@ case class Notification(conversationId: ConversationId, headers: Seq[Header], pa
 
   def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h => h.name -> h.value }
 }
-
 object Notification {
   implicit val notificationJF: Format[Notification] = Json.format[Notification]
 }
@@ -83,4 +72,3 @@ object ClientSubscriptionId {
     }
   }
 }
-

@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.modules
+package uk.gov.hmrc.customs.notification.domain
 
-import java.time.Clock
+import play.api.libs.json.Json
+import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
-import com.google.inject.AbstractModule
-import uk.gov.hmrc.customs.notification.services.NotificationPollingService
-
-class NotificationPollingModule extends AbstractModule {
-  override def configure(): Unit = {
-    bind(classOf[NotificationPollingService]).asEagerSingleton()
-    //TODO move this to another module
-    bind(classOf[Clock]).toInstance(Clock.systemUTC())
-  }
+//TODO change id to csid once json parser fixed
+case class NotificationWorkItem(id: ClientSubscriptionId,
+                                notification: Notification)
+object NotificationWorkItem {
+  implicit val dateFormats = ReactiveMongoFormats.dateTimeFormats
+  implicit val idFormat = reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
+  implicit val notificationWorkItemJF = ReactiveMongoFormats.mongoEntity(Json.format[NotificationWorkItem])
 }

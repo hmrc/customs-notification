@@ -16,7 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.util
 
-import java.time.ZonedDateTime
+import java.time.{Clock, ZonedDateTime}
+import java.util.TimeZone
 
 import org.joda.time.{DateTime, DateTimeZone}
 
@@ -36,4 +37,13 @@ object DateTimeHelpers {
       new DateTime(zonedDateTime.toInstant.toEpochMilli, dateTimeZone)
     }
   }
+
+  implicit class ClockJodaExtensions(clock: Clock) {
+    def nowAsJoda: DateTime = {
+      new DateTime(
+        clock.instant().toEpochMilli,
+        DateTimeZone.forTimeZone(TimeZone.getTimeZone(clock.getZone)))
+    }
+  }
+
 }
