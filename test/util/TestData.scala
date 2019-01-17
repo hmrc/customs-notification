@@ -26,10 +26,12 @@ import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.AnyContentAsXml
 import play.api.test.FakeRequest
+import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.{NotificationWorkItem, _}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.workitem.{ToDo, WorkItem}
 import util.CustomsNotificationMetricsTestData.UtcZoneId
 import util.RequestHeaders._
 import util.TestData._
@@ -114,6 +116,11 @@ object TestData {
 
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
+
+  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, notification1)
+  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, notification2)
+  val WorkItem1 = WorkItem(BSONObjectID.generate(), TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItem1)
+  val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
 

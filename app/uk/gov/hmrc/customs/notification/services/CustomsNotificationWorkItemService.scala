@@ -18,7 +18,6 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
-import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -45,19 +44,12 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
 
   private def saveNotificationToDatabaseAndPush(notificationWorkItem: NotificationWorkItem, declarantCallbackData: DeclarantCallbackData)(implicit hc: HeaderCarrier): Future[Boolean] = {
 
-    def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
-
-    def complete(id: BSONObjectID, status: ResultStatus): Future[Boolean] = {
-      notificationWorkItemRepo.complete(id, status)
-      Future.successful(if (status == Succeeded) true else false)
-    }
-
-    notificationWorkItemRepo.pushNew(notificationWorkItem, notificationWorkItemRepo.now, inProgress _).flatMap { workItem =>
+    notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
       pushClientNotificationWorkItemService.send(declarantCallbackData, workItem.item).flatMap { result =>
         if (result) {
-          complete(workItem.id, Succeeded)
+          notificationWorkItemRepo.markAsCompleted(workItem.id, Succeeded)
         } else {
-          complete(workItem.id, Failed)
+          notificationWorkItemRepo.markAsCompleted(workItem.id, Failed)
         }
       }.recover { //recover for failed send
         case t: Throwable =>

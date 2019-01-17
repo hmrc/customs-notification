@@ -22,21 +22,24 @@ import javax.inject.Inject
 import org.joda.time.DateTime
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json.{Format, Reads, __}
-import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
-import uk.gov.hmrc.workitem.{WorkItem, WorkItemFieldNames, WorkItemRepository}
+import uk.gov.hmrc.workitem._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
-class NotificationWorkItemRepo @Inject() (mongo: ReactiveMongoComponent,
+class NotificationWorkItemRepo @Inject() (mongoDbProvider: MongoDbProvider,
                                           clock: Clock,
-                                          customsNotificationConfig: CustomsNotificationConfig)
+                                          customsNotificationConfig: CustomsNotificationConfig,
+                                          logger: NotificationLogger)
       extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         collectionName = "notifications-work-item",
-        mongo = mongo.mongoConnector.db,
+        mongo = mongoDbProvider.mongo,
         itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) {
 
   override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
@@ -55,11 +58,22 @@ class NotificationWorkItemRepo @Inject() (mongo: ReactiveMongoComponent,
   override def indexes: Seq[Index] = super.indexes ++ Seq(
     Index(
       key = Seq("createdAt" -> IndexType.Descending),
-      name = Some("createdAt-ttl-Index"),
+      name = Some("createdAt-ttl-index"),
       unique = false,
       options = BSONDocument("expireAfterSeconds" -> BSONLong(customsNotificationConfig.pushNotificationConfig.ttlInSeconds.toLong))
     )
   )
+
+  def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]] = {
+    def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
+
+    pushNew(notificationWorkItem, now, inProgress _)
+  }
+
+  def markAsCompleted(id: BSONObjectID, status: ResultStatus): Future[Boolean] = {
+    complete(id, status)
+    Future.successful(if (status == Succeeded) true else false)
+  }
 
 }
 
@@ -72,8 +86,8 @@ object WorkItemFormat {
         nFormat))
 
   private def notificationFormat[T](implicit bsonIdFormat: Format[BSONObjectID],
-                              dateTimeFormat: Format[DateTime],
-                              tFormat: Format[T]): Format[WorkItem[T]] = {
+                                    dateTimeFormat: Format[DateTime],
+                                    nFormat: Format[T]): Format[WorkItem[T]] = {
     val reads = (
       (__ \ "id").read[BSONObjectID] and
         (__ \ "createdAt").read[DateTime] and
