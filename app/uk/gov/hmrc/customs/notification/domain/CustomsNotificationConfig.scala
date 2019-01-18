@@ -25,8 +25,9 @@ case class NotificationQueueConfig(url: String)
 
 case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClientId: String, gaEventValue: String, gaEnabled: Boolean)
 
-case class PushNotificationConfig(pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration, maxRecordsToFetch: Int)
+case class PushNotificationConfig(internalClientIds: Seq[String], pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration, maxRecordsToFetch: Int)
 
+/* TODO: remove this - it was introduced for DesCartes when we thought they had no PULL capability*/
 case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddress: String,
                              notificationsOlderMillis: Int, csIdsToExclude: Seq[String], emailUrl: String,
                              pollingDelay: FiniteDuration, pollingInterval: FiniteDuration)

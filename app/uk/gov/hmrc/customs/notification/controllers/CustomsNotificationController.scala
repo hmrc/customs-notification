@@ -35,7 +35,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
-case class RequestMetaData(clientId: ClientSubscriptionId, conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header], startTime: ZonedDateTime)
+case class RequestMetaData(clientId: ClientSubscriptionId /* TODO: rename as clientSubscriptionId */ , conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header], startTime: ZonedDateTime)
 
 @Singleton
 class CustomsNotificationController @Inject()(logger: NotificationLogger,

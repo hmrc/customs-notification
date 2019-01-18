@@ -25,6 +25,7 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest
 
 import scala.collection.JavaConverters._
 
+// TODO: delete - not used anywhere
 trait CustomsNotificationGatewayService extends WireMockRunner {
 
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)

@@ -16,10 +16,21 @@
 
 package integration
 
+import com.google.inject.AbstractModule
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Span}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import play.api.inject.guice.GuiceableModule
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.play.test.UnitSpec
+
+case class IntegrationTestModule(mockLogger: CdsLogger) extends AbstractModule {
+  def configure(): Unit = {
+    bind(classOf[CdsLogger]) toInstance mockLogger
+  }
+
+  def asGuiceableModule: GuiceableModule = GuiceableModule.guiceable(this)
+}
 
 trait IntegrationTestSpec extends UnitSpec
   with BeforeAndAfterEach with BeforeAndAfterAll with Eventually {

@@ -40,7 +40,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     (ACCEPT, MimeTypes.JSON)
   )
 
-  def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[DeclarantCallbackData]] = {
+  def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFieldsResponse]] = {
     logger.debug("calling api-subscription-fields service")
     callApiSubscriptionFields(fieldsId)(hc = hc.copy(extraHeaders = headers)) map { response =>
       logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
@@ -56,8 +56,8 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     }
   }
 
-  private def parseResponseAsModel(jsonResponse: String)(implicit hc: HeaderCarrier) = {
-    val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFieldsResponse].fields)
+  private def parseResponseAsModel(jsonResponse: String)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFieldsResponse] = {
+    val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFieldsResponse])
     logger.debug(s"api-subscription-fields service parsed response=$response")
     response
   }

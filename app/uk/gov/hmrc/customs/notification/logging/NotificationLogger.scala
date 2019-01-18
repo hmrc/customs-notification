@@ -23,6 +23,11 @@ import uk.gov.hmrc.customs.notification.logging.LoggingHelper.{formatDebug, form
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
 import uk.gov.hmrc.http.HeaderCarrier
 
+/*
+TODO: Logging framework needs to be refactored so that we pass in an implicit RequestMetaData/LoggingContext object down the call stack rather than SeqOfHeader
+RequestMetaData contains all the useful data we wish to log
+Current API is forcing us to create an implicit HeaderCarrier just so that we can log
+*/
 @Singleton
 class NotificationLogger @Inject()(logger: CdsLogger) {
 
