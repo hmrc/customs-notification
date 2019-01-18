@@ -51,11 +51,11 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
         } else {
           notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
         }
-        Future.successful(result)
+        Future.successful(true)
       }.recover {
         case t: Throwable =>
           logger.error(s"push failed for notification work item id: ${workItem.id} due to: ${t.getMessage}")
-          false
+          true
       }
     }.recover {
       case t: Throwable =>

@@ -77,21 +77,23 @@ class CustomsNotificationWorkItemController @Inject()(logger: NotificationLogger
 
       case Some(declarantCallbackData) =>
         customsWorkItemNotificationService.handleNotification(xml, requestMetaData, declarantCallbackData).recover{
-          case _: Throwable => ErrorInternalServerError.XmlResult
+          case t: Throwable =>
+            logger.error(s"Unable to handle notification due to ${t.getMessage}")
+            ErrorInternalServerError.XmlResult
         }.map {
           case true =>
-            logger.info("Notification processed successfully")
+            logger.info("Notification saved successfully and push attempted")
             Results.Accepted
-          case false => ErrorInternalServerError.XmlResult
+          case false =>
+            logger.error("Unable to handle notification")
+            ErrorInternalServerError.XmlResult
         }
-
       case None =>
         logger.error("Declarant data not found")
         Future.successful(ErrorCdsClientIdNotFound.XmlResult)
-
     }.recover {
       case ex: Throwable =>
-        notificationLogger.error("Failed to fetch Declarant data " + ex.getMessage)
+        logger.error("Failed to fetch Declarant data " + ex.getMessage)
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }
