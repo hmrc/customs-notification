@@ -22,6 +22,7 @@ import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.workitem._
 
@@ -35,14 +36,22 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
                                                    notificationDispatcher: NotificationDispatcher,
                                                    pushClientNotificationWorkItemService: PushClientNotificationWorkItemService) {
 
-  def handleNotification(xml: NodeSeq, metaData: RequestMetaData, declarantCallbackData: DeclarantCallbackData)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  def handleNotification(xml: NodeSeq,
+                         metaData: RequestMetaData,
+                         declarantCallbackData: DeclarantCallbackData)
+                        (implicit hc: HeaderCarrier): Future[Boolean] = {
+
     val headers: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber ++ metaData.maybeCorrelationId).toSeq
 
-    val notificationWorkItem = NotificationWorkItem(metaData.clientId, Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML))
+    val notificationWorkItem = NotificationWorkItem(metaData.clientId, Some(metaData.startTime.toDateTime),
+      Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML))
+
     saveNotificationToDatabaseAndPush(notificationWorkItem, declarantCallbackData)
   }
 
-  private def saveNotificationToDatabaseAndPush(notificationWorkItem: NotificationWorkItem, declarantCallbackData: DeclarantCallbackData)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  private def saveNotificationToDatabaseAndPush(notificationWorkItem: NotificationWorkItem,
+                                                declarantCallbackData: DeclarantCallbackData)
+                                               (implicit hc: HeaderCarrier): Future[Boolean] = {
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
       pushClientNotificationWorkItemService.send(declarantCallbackData, workItem.item).flatMap { result =>

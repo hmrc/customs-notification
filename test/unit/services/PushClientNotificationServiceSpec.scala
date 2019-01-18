@@ -57,7 +57,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       when(mockPushNotificationServiceConnector.send(pnrOne)).thenReturn(Future.successful(()))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
-      val result = await(pushService.send(DeclarantCallbackDataOne, ClientNotificationOneWithMetricsTime))
+      val result = pushService.send(DeclarantCallbackDataOne, ClientNotificationOneWithMetricsTime)
 
       verifyMetricsConnector()
 
@@ -70,7 +70,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       when(mockPushNotificationServiceConnector.send(pnrOne)).thenReturn(Future.successful(()))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
-      val result = await(pushService.send(DeclarantCallbackDataOne, ClientNotificationOne))
+      val result = pushService.send(DeclarantCallbackDataOne, ClientNotificationOne)
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
 
@@ -84,7 +84,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
-      val result = await(pushService.send(DeclarantCallbackDataOne, ClientNotificationOne))
+      val result = pushService.send(DeclarantCallbackDataOne, ClientNotificationOne)
       result shouldBe false
       andGAEventHasBeenSentWith("notificationPushRequestFailed", "[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] A notification Push request failed")
     }

@@ -20,10 +20,11 @@ import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationServiceWorkItemConnector}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
 
 @Singleton
 class PushClientNotificationWorkItemService @Inject()(pushNotificationServiceWorkItemConnector: PushNotificationServiceWorkItemConnector,
@@ -36,7 +37,17 @@ class PushClientNotificationWorkItemService @Inject()(pushNotificationServiceWor
 
   def send(declarantCallbackData: DeclarantCallbackData, notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
     val pushNotificationRequest = pushNotificationRequestFrom(declarantCallbackData, notificationWorkItem)
-    pushNotificationServiceWorkItemConnector.send(pushNotificationRequest)
+
+    notificationWorkItem.metricsStartDateTime.fold() { startTime =>
+      metricsConnector.post(CustomsNotificationsMetricsRequest(
+        "NOTIFICATION", notificationWorkItem.notification.conversationId, startTime.toZonedDateTime, dateTimeService.zonedDateTimeUtc))
+    }
+
+    pushNotificationServiceWorkItemConnector.send(pushNotificationRequest).recover {
+      case t: Throwable =>
+        notificationLogger.error(s"failed to push $pushNotificationRequest due to: ${t.getMessage}")
+        false
+    }
   }
 
   private def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData,

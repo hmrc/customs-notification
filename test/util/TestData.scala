@@ -117,10 +117,13 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, notification1)
-  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, notification2)
+  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, notification = notification1)
+  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, notification = notification2)
   val WorkItem1 = WorkItem(BSONObjectID.generate(), TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItem1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
+
+  val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
+  val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, headers, payload1))
 
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
 

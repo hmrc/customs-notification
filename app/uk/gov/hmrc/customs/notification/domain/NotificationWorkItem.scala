@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
+import org.joda.time.DateTime
 import play.api.libs.json.Json
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 //TODO change id to csid once json parser fixed
 case class NotificationWorkItem(id: ClientSubscriptionId,
+                                metricsStartDateTime: Option[DateTime] = None,
                                 notification: Notification)
 object NotificationWorkItem {
   implicit val dateFormats = ReactiveMongoFormats.dateTimeFormats
