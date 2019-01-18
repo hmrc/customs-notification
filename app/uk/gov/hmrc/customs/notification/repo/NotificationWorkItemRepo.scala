@@ -30,6 +30,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -65,16 +66,21 @@ class NotificationWorkItemRepo @Inject() (mongoDbProvider: MongoDbProvider,
   )
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]] = {
+    logger.debugWithoutRequestContext(s"saving a new notification work item in locked state $notificationWorkItem")
+
     def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
 
     pushNew(notificationWorkItem, now, inProgress _)
   }
 
-  def markAsCompleted(id: BSONObjectID, status: ResultStatus): Future[Boolean] = {
-    complete(id, status)
-    Future.successful(if (status == Succeeded) true else false)
+  def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit] = {
+    logger.debugWithoutRequestContext(s"setting completed status of $status for notification work item id: $id")
+    complete(id, status).map { result =>
+      //TODO should be error logging
+      if (!result) logger.debugWithoutRequestContext(s"unable to update status to $status when push $status for notification work item id: ${id.stringify}")
+      ()
+    }
   }
-
 }
 
 object WorkItemFormat {

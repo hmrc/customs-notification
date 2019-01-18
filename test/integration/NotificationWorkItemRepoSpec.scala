@@ -22,7 +22,6 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import play.api.libs.json.Json
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -86,10 +85,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     await(repository.collection.count())
   }
 
-  private def selector(clientSubscriptionId: ClientSubscriptionId) = {
-    Json.obj("_id" -> clientSubscriptionId.id)
-  }
-
   private def logVerifier(logLevel: String, logText: String): Unit = {
     PassByNameVerifier(mockNotificationLogger, logLevel)
       .withByNameParam(logText)
@@ -111,11 +106,21 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
       result.status shouldBe InProgress
 
-      val completedResult: Boolean = await(repository.markAsCompleted(result.id, Succeeded))
-      completedResult shouldBe true
+      await(repository.setCompletedStatus(result.id, Succeeded))
 
       val succeededItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       succeededItem.get.status shouldBe Succeeded
+    }
+
+    "update status of an item of work to Failed when failed to complete" in {
+      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+      result.status shouldBe InProgress
+
+      await(repository.setCompletedStatus(result.id, Failed))
+
+      val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
+      failedItem.get.status shouldBe Failed
+      failedItem.get.failureCount shouldBe 1
     }
   }
 }

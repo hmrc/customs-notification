@@ -47,32 +47,20 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
       pushClientNotificationWorkItemService.send(declarantCallbackData, workItem.item).flatMap { result =>
         if (result) {
-          notificationWorkItemRepo.markAsCompleted(workItem.id, Succeeded)
+          notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         } else {
-          notificationWorkItemRepo.markAsCompleted(workItem.id, Failed)
+          notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
         }
-      }.recover { //recover for failed send
+        Future.successful(result)
+      }.recover {
         case t: Throwable =>
-          logger.error(s"push failed ${t.getMessage}")
+          logger.error(s"push failed for notification work item id: ${workItem.id} due to: ${t.getMessage}")
           false
       }
-    }.recover { //recover for failed pushNew
+    }.recover {
       case t: Throwable =>
-        logger.error(s"saving workItem failed ${t.getMessage}")
+        logger.error(s"saving notification work item with csid: ${notificationWorkItem.id} and conversationId: ${notificationWorkItem.notification.conversationId} failed due to: ${t.getMessage}")
         false
     }
   }
-
-//    notificationWorkItemRepo.pushNew()save(clientNotification).map {
-//      case true =>
-//        notificationDispatcher.process(Set(clientNotification.csid))
-//        true
-//      case false => logger.error("Dispatcher failed to process the notification")
-//        false
-//    }.recover {
-//      case t: Throwable =>
-//        logger.error(s"Processing failed ${t.getMessage}")
-//        false
-//    }
-//  }
 }
