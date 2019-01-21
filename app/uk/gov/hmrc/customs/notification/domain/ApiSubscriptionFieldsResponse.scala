@@ -18,10 +18,8 @@ package uk.gov.hmrc.customs.notification.domain
 
 import play.api.libs.json.Json
 
+// TODO: rename to ApiSubscriptionFields
 case class ApiSubscriptionFieldsResponse(clientId: String,
-                                         apiContext: String,
-                                         apiVersion: String,
-                                         fieldsId: String,
                                          fields: DeclarantCallbackData)
 
 object ApiSubscriptionFieldsResponse {

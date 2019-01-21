@@ -23,6 +23,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFieldsResponse
 import uk.gov.hmrc.http.logging.Authorization
 import uk.gov.hmrc.http.{BadGatewayException, HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
 import util.ExternalServicesConfiguration.{Host, Port}
@@ -69,8 +70,9 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec with GuiceO
 
     "make a correct request and return correct data when external service responds with 200 (OK) and payload" in {
       startApiSubscriptionFieldsService(validFieldsId)
+      val expected = Some(ApiSubscriptionFieldsResponse("aThirdPartyApplicationId", callbackData))
 
-      await(connector.getClientData(validFieldsId)) shouldBe Some(callbackData)
+      await(connector.getClientData(validFieldsId)) shouldBe expected
 
       verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)
     }

@@ -35,19 +35,6 @@ object PushNotificationRequestBody {
 
 case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotificationRequestBody)
 
-case class ConversationId(id: UUID) extends AnyVal {
-  override def toString: String = id.toString
-}
-object ConversationId {
-  implicit val conversationIdJF: Format[ConversationId] = new Format[ConversationId] {
-    def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
-    def reads(json: JsValue): JsResult[ConversationId] = json match {
-      case JsNull => JsError()
-      case _ => JsSuccess(ConversationId(json.as[UUID]))
-    }
-  }
-}
-
 case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String) {
 
   private lazy val caseInsensitiveHeaders = Headers(headers.map { h => h.name -> h.value }: _*)

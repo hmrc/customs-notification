@@ -31,11 +31,11 @@ import util._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class NotificationResilienceSpec extends AcceptanceTestSpec
+class InternalNotificationResilienceSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService
-  with InternalPushNotificationService
   with PushNotificationService
+  with InternalPushNotificationService
   with GoogleAnalyticsSenderService
   with MongoSpecSupport {
 
@@ -43,12 +43,10 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
   private val googleAnalyticsClientId: String = "555"
   private val googleAnalyticsEventValue = "10"
 
-  val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
+  val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = app.injector.instanceOf[MongoDbProvider].mongo,
     domainFormat = ClientNotification.clientNotificationJF) {
-
-
   }
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
@@ -56,7 +54,9 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
       ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
       ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
       ("push.polling.delay.duration.milliseconds" -> 2) +
-      ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
+      ("googleAnalytics.eventValue" -> googleAnalyticsEventValue) +
+      ("push.internal.clientIds.0" -> "aThirdPartyApplicationId")
+  ).build()
 
 
   private def callWasMadeToGoogleAnalyticsWith: (String, String) => Boolean =
@@ -77,21 +77,20 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
   }
 
 
-  feature("Ensure call to customs notification gateway are made") {
+  feature("Ensure call to callback endpoint are made internally (ie bypass the gateway)") {
 
     scenario("when notifications are present in the database") {
-      startApiSubscriptionFieldsService(validFieldsId, callbackData)
-      setupPushNotificationServiceToReturn()
+      startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
+      setupInternalServiceToReturn()
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
       repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
+        Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
 
-      And("the notification gateway service was called correctly")
-      eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
-      eventually(verifyInternalServiceWasNotCalledWith(pushNotificationRequest))
-
+      And("the callback endpoint was called internally, bypassing the gateway")
+      eventually(verifyInternalServiceWasCalledWith(internalPushNotificationRequest))
+      eventually(verifyPushNotificationServiceWasNotCalled())
       eventually(verifyNotificationQueueServiceWasNotCalled())
       eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(1))
 
@@ -100,18 +99,18 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
     }
 
     scenario("when notifications are present in the database and push fails") {
-      startApiSubscriptionFieldsService(validFieldsId, callbackData)
-      setupPushNotificationServiceToReturn(404)
+      startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
+      setupInternalServiceToReturn(NOT_FOUND)
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
       repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
+        Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
 
-      And("the notification gateway service was called correctly")
-      eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
-      eventually(verifyInternalServiceWasNotCalledWith(pushNotificationRequest))
-      eventually(verifyNotificationQueueServiceWasCalledWith(pushNotificationRequest))
+      And("the callback endpoint was called internally, bypassing the gateway")
+      eventually(verifyInternalServiceWasCalledWith(internalPushNotificationRequest))
+      eventually(verifyPushNotificationServiceWasNotCalled())
+      eventually(verifyNotificationQueueServiceWasCalledWith(internalPushNotificationRequest))
 
       eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
 
@@ -122,4 +121,5 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
         s"[ConversationId=$validConversationId] A notification has been left to be pulled") shouldBe true
     }
   }
+
 }

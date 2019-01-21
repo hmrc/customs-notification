@@ -35,8 +35,8 @@ class PushClientNotificationWorkItemService @Inject()(pushNotificationServiceWor
 
   private implicit val hc = HeaderCarrier()
 
-  def send(declarantCallbackData: DeclarantCallbackData, notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
-    val pushNotificationRequest = pushNotificationRequestFrom(declarantCallbackData, notificationWorkItem)
+  def send(declarantCallbackData: ApiSubscriptionFieldsResponse, notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
+    val pushNotificationRequest = pushNotificationRequestFrom(declarantCallbackData.fields, notificationWorkItem)
 
     notificationWorkItem.metricsStartDateTime.fold() { startTime =>
       metricsConnector.post(CustomsNotificationsMetricsRequest(

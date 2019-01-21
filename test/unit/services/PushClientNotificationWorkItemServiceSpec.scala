@@ -57,7 +57,7 @@ class PushClientNotificationWorkItemServiceSpec extends UnitSpec with MockitoSug
     "return true and call metrics service when push is successful but no metrics start time exists" in {
       when(mockPushNotificationServiceWorkItemConnector.send(PushNotificationRequest1)).thenReturn(Future.successful(true))
 
-      val result = await(pushService.send(DeclarantCallbackDataOne, NotificationWorkItemWithMetricsTime1))
+      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1))
 
       verifyMetricsConnector()
 
@@ -68,7 +68,7 @@ class PushClientNotificationWorkItemServiceSpec extends UnitSpec with MockitoSug
     "return true and do not call metrics service when push is successful but no metrics start time exists" in {
       when(mockPushNotificationServiceWorkItemConnector.send(PushNotificationRequest1)).thenReturn(Future.successful(true))
 
-      val result = await(pushService.send(DeclarantCallbackDataOne, NotificationWorkItem1))
+      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItem1))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
 
@@ -80,7 +80,7 @@ class PushClientNotificationWorkItemServiceSpec extends UnitSpec with MockitoSug
       when(mockPushNotificationServiceWorkItemConnector.send(PushNotificationRequest1)).thenReturn(Future.failed(emulatedServiceFailure))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
-      val result = await(pushService.send(DeclarantCallbackDataOne, NotificationWorkItem1))
+      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItem1))
       result shouldBe false
     }
   }

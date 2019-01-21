@@ -49,6 +49,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val five = 5
 
   private val pushConfig = PushNotificationConfig(
+    internalClientIds = Seq.empty,
     pollingDelay = 0 second,
     lockDuration = org.joda.time.Duration.ZERO,
     maxRecordsToFetch = five,

@@ -19,13 +19,13 @@ package uk.gov.hmrc.customs.notification.services
 import java.math.MathContext
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-import javax.inject.{Inject, Singleton}
 
+import javax.inject.{Inject, Singleton}
 import akka.actor.ActorSystem
 import com.google.inject.ImplementedBy
 import org.joda.time.Duration
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFieldsResponse, ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
@@ -225,7 +225,7 @@ class ClientWorkerImpl @Inject()(
       val maybeDeclarantCallbackData = blockingMaybeDeclarantDetails(cn)
 
       maybeDeclarantCallbackData.fold(throw PushProcessingException(s"[clientSubscriptionId=${cn.csid}] Declarant details not found")){ declarantCallbackData =>
-        if (declarantCallbackData.callbackUrl.isEmpty) {
+        if (declarantCallbackData.fields.callbackUrl.isEmpty) {
           throw PushProcessingException(s"[clientSubscriptionId=${cn.csid}] callbackUrl is empty")
         } else {
           if (push.send(declarantCallbackData, cn)) {
@@ -238,7 +238,7 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier) = {
+  private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFieldsResponse] = {
     try {
       scala.concurrent.blocking {
         Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)

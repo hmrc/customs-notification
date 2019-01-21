@@ -75,8 +75,8 @@ class CustomsNotificationWorkItemController @Inject()(logger: NotificationLogger
 
     callbackDetailsConnector.getClientData(requestMetaData.clientId.toString()).flatMap {
 
-      case Some(declarantCallbackData) =>
-        customsWorkItemNotificationService.handleNotification(xml, requestMetaData, declarantCallbackData).recover{
+      case Some(apiSubscriptionFieldsResponse) =>
+        customsWorkItemNotificationService.handleNotification(xml, requestMetaData, apiSubscriptionFieldsResponse).recover{
           case t: Throwable =>
             logger.error(s"Unable to handle notification due to ${t.getMessage}")
             ErrorInternalServerError.XmlResult

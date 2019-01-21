@@ -22,6 +22,10 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscr
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
 import uk.gov.hmrc.http.HeaderCarrier
 
+/*
+TODO: Logging framework needs to be refactored so that we pass in an implicit RequestMetaData/LoggingContext object down the call stack rather than SeqOfHeader
+RequestMetaData contains all the useful data we wish to log
+*/
 object LoggingHelper {
 
   private val headerOverwriteValue = "value-not-logged"

@@ -59,9 +59,11 @@ object TestData {
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
 
   val callbackUrl = "http://callback"
+  val internalCallbackUrl = "http://localhost:11111" + ExternalServicesConfiguration.InternalPushServiceContext
   val invalidCallbackUrl = "Im-Invalid"
   val securityToken = "securityToken"
   val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
+  val internalCallbackData = DeclarantCallbackData(internalCallbackUrl, securityToken)
   val invalidCallbackData = DeclarantCallbackData(invalidCallbackUrl, securityToken)
 
   val url = "http://some-url"
@@ -77,7 +79,7 @@ object TestData {
 
   lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
   lazy val pushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML)
-
+  lazy val internalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, internalCallbackData)
 
   val Year = 2017
   val MonthOfYear = 7
@@ -167,8 +169,8 @@ object TestData {
          |}
     """.stripMargin)
 
-  def pushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
+  def pushNotificationRequest(xml: NodeSeq, cd: DeclarantCallbackData = callbackData): PushNotificationRequest = {
+    val body = PushNotificationRequestBody(cd.callbackUrl, cd.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 

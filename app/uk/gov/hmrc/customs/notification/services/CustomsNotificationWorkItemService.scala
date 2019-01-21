@@ -38,7 +38,7 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
 
   def handleNotification(xml: NodeSeq,
                          metaData: RequestMetaData,
-                         declarantCallbackData: DeclarantCallbackData)
+                         apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
                         (implicit hc: HeaderCarrier): Future[Boolean] = {
 
     val headers: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber ++ metaData.maybeCorrelationId).toSeq
@@ -46,15 +46,15 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
     val notificationWorkItem = NotificationWorkItem(metaData.clientId, Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML))
 
-    saveNotificationToDatabaseAndPush(notificationWorkItem, declarantCallbackData)
+    saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFieldsResponse)
   }
 
   private def saveNotificationToDatabaseAndPush(notificationWorkItem: NotificationWorkItem,
-                                                declarantCallbackData: DeclarantCallbackData)
+                                                apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
                                                (implicit hc: HeaderCarrier): Future[Boolean] = {
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
-      pushClientNotificationWorkItemService.send(declarantCallbackData, workItem.item).flatMap { result =>
+      pushClientNotificationWorkItemService.send(apiSubscriptionFieldsResponse, workItem.item).flatMap { result =>
         if (result) {
           notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         } else {

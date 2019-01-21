@@ -29,6 +29,7 @@ import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+// TODO: rename to ExternalPushConnector
 @Singleton
 class PushNotificationServiceConnector @Inject()(http: HttpClient,
                                                  logger: NotificationLogger,
@@ -47,17 +48,19 @@ class PushNotificationServiceConnector @Inject()(http: HttpClient,
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
-    val msg = "Calling push notification service"
+    val msg = "Calling external push notification service"
     logger.debug(msg, url, payload = pushNotificationRequest.body.toString)
 
     val postFuture = http
       .POST[PushNotificationRequestBody, HttpResponse](url, pushNotificationRequest.body)
       .recoverWith {
-        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
+        case httpError: HttpException =>
+          logger.error(s"Call to external push notification service failed. POST url=$url, httpError=$httpError")
+          Future.failed(new RuntimeException(httpError))
       }
       .recoverWith {
         case e: Throwable =>
-          logger.error(s"Call to push notification service failed. POST url=$url, $e")
+          logger.error(s"Call to external push notification service failed. POST url=$url, error=${e.getMessage}")
           Future.failed(e)
       }
     postFuture
