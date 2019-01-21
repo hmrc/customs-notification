@@ -53,7 +53,6 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
   "PushClientNotificationService" should {
     "return true and call metrics service when push is successful but no metrics start time exists" in {
-      //meq[UUID](ClientIdOne).asInstanceOf[ClientId]
       when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(()))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 

@@ -11,7 +11,7 @@ The objective of the this endpoint is as below:
 ## Configuration for Internal Clients
 
 Internal HMRC teams that have applications that receive Notifications need to have their client Ids added to the configuration.
-This is so that Squid Proxy can be bypassed and the Notications sent directly over the internal network. 
+This is so that customs-notification-gateway/Squid Proxy can be bypassed and the Notifications sent directly over the internal network. 
 The entries should be in the following format:
  
     push.internal.clientIds.0 = "ClientIdOne"
