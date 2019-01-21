@@ -68,6 +68,8 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       gaSenderUrl, gaTrackingId, gaClientId, gaEventValue, gaEnabled
     ).mapN(GoogleAnalyticsSenderConfig)
 
+    val internalClientIdsNel: CustomsValidatedNel[Seq[String]] =
+      root.stringSeq("push.internal.clientIds")
     val pollingDelayNel: CustomsValidatedNel[FiniteDuration] =
       root.int("push.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
     val pushLockDurationNel: CustomsValidatedNel[org.joda.time.Duration] =
@@ -75,6 +77,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
     val maxFetchRecordsNel: CustomsValidatedNel[Int] =
       root.int("push.fetch.maxRecords")
     val pushNotificationConfig: CustomsValidatedNel[PushNotificationConfig] = (
+      internalClientIdsNel,
       pollingDelayNel,
       pushLockDurationNel,
       maxFetchRecordsNel

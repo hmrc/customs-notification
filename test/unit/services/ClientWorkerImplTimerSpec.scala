@@ -114,9 +114,9 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId) , any[org.joda.time.Duration])).thenReturn(Future.successful(true))
-        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(DeclarantCallbackDataOne)))
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsResponseOne)))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
-        when(mockPush.send(DeclarantCallbackDataOne, ClientNotificationOne)).thenReturn(true)
+        when(mockPush.send(ApiSubscriptionFieldsResponseOne, ClientNotificationOne)).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne)))
           .thenReturn(Future.successful(()))
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
@@ -126,7 +126,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
 
         actual shouldBe (())
         eventually{
-          verify(mockPush).send(ameq(DeclarantCallbackDataOne), ameq(ClientNotificationOne))
+          verify(mockPush).send(ameq(ApiSubscriptionFieldsResponseOne), ameq(ClientNotificationOne))
           verify(mockRepo).delete(ameq(ClientNotificationOne))
 //TODO: fragile test - fails on Jenkins with `Wanted 5 times ... But was 6 times` - so disabling for now
 //          val expectedLockRefreshCount: Int = fiveSecondsProcessingDelay / ninetyPercentOfLockDuration

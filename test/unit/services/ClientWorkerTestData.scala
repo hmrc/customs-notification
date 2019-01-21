@@ -23,6 +23,10 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.LockOwnerId
 
 object ClientWorkerTestData {
+  val ClientIdStringOne = "ClientIdOne"
+  val ClientIdStringTwo = "ClientIdTwo"
+  val ClientIdOne = ClientId(ClientIdStringOne)
+  val ClientIdTwo = ClientId(ClientIdStringTwo)
   val CsidOne = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde231"))
   val CsidTwo = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde232"))
   val CsidThree = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde233"))
@@ -44,6 +48,9 @@ object ClientWorkerTestData {
   val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
   val DeclarantCallbackDataOneWithEmptyUrl = DeclarantCallbackDataOne.copy(callbackUrl = "")
   val DeclarantCallbackDataTwo = DeclarantCallbackData("URL2", "SECURITY_TOKEN2")
+  val ApiSubscriptionFieldsResponseOne = ApiSubscriptionFieldsResponse(ClientIdStringOne, DeclarantCallbackDataOne)
+  val ApiSubscriptionFieldsResponseOneWithEmptyUrl = ApiSubscriptionFieldsResponse(ClientIdStringOne, DeclarantCallbackDataOneWithEmptyUrl)
+  val ApiSubscriptionFieldsResponseTwo = ApiSubscriptionFieldsResponse(ClientIdStringTwo, DeclarantCallbackDataTwo)
   val pnrOne = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", ConversationIdOne.id.toString, Headers, PayloadOne))
   val pnrTwo = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody("URL2", "SECURITY_TOKEN2", ConversationIdTwo.id.toString, Headers, PayloadTwo))
 }

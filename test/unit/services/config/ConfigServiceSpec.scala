@@ -54,6 +54,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |pull.exclude.csIds.0 = eaca01f9-ec3b-4ede-b263-61b626dde232
       |pull.exclude.csIds.1 = eaca01f9-ec3b-4ede-b263-61b626dde233
       |
+      |push.internal.clientIds.0 = ClientIdOne
+      |push.internal.clientIds.1 = ClientIdTwo
+      |
       |  microservice {
       |    services {
       |      notification-queue {
@@ -146,6 +149,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
       actual.googleAnalyticsSenderConfig shouldBe GoogleAnalyticsSenderConfig("http://localhost2:9822/send-google-analytics", "UA-11111-1", "555", "10", gaEnabled = false)
+      actual.pushNotificationConfig.internalClientIds shouldBe Seq("ClientIdOne", "ClientIdTwo")
       actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
       actual.pullExcludeConfig.csIdsToExclude shouldBe Seq("eaca01f9-ec3b-4ede-b263-61b626dde232", "eaca01f9-ec3b-4ede-b263-61b626dde233")

@@ -29,6 +29,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext
 
+/* TODO: we may need a similar poller for new Retry functionality */
 @Singleton
 class FailedPushEmailPollingService @Inject()(clientNotificationRepo: ClientNotificationRepo,
                                               emailConnector: EmailConnector,

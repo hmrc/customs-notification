@@ -27,6 +27,7 @@ import util.TestData._
 import java.util
 
 import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.matching.UrlPattern
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import play.api.http.Status.OK
 
@@ -56,7 +57,59 @@ trait PushNotificationService extends WireMockRunner {
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       .withRequestBody(equalToJson(expectedPayload.toString()))
     )
+  }
 
+  def verifyPushNotificationServiceWasNotCalled() {
+    verify(0, postRequestedFor(urlMatchingRequestPath))
+  }
+
+}
+
+trait InternalPushNotificationService extends WireMockRunner {
+  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.InternalPushServiceContext)
+
+  def startInternalService(): Unit = {
+    setupInternalServiceToReturn(ACCEPTED, urlMatchingRequestPath)
+  }
+
+  def setupInternalServiceToReturn(status: Int = ACCEPTED, urlPattern: UrlPattern = urlMatchingRequestPath): Unit =
+    stubFor(post(urlPattern).
+      willReturn(
+        aResponse()
+          .withStatus(status)))
+
+  def verifyInternalServiceWasCalledWith(pnr: PushNotificationRequest) {
+
+    verify(1, postRequestedFor(urlMatchingRequestPath)
+      .withHeader(CONTENT_TYPE, equalTo(XML))
+      .withHeader(ACCEPT, equalTo(XML))
+      .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(pnr.body.conversationId))
+      .withHeader(USER_AGENT, equalTo("Customs Declaration Service"))
+      .withRequestBody(equalToXml(pnr.body.xmlPayload))
+    )
+
+  }
+
+  def verifyInternalServiceWasCalledWithOutboundHeaders(pnr: PushNotificationRequest) {
+
+    verify(1, postRequestedFor(urlMatchingRequestPath)
+      .withHeader(CONTENT_TYPE, equalTo(XML))
+      .withHeader(ACCEPT, equalTo(XML))
+      .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(conversationId.toString))
+      .withHeader(USER_AGENT, equalTo("Customs Declaration Service"))
+      .withHeader(X_CORRELATION_ID_HEADER_NAME, equalTo(correlationId))
+      .withHeader(X_EORI_ID_HEADER_NAME, equalTo(eoriNumber))
+      .withHeader(X_BADGE_ID_HEADER_NAME, equalTo(badgeId))
+      .withRequestBody(equalToXml(pnr.body.xmlPayload))
+    )
+
+  }
+
+
+  def verifyInternalServiceWasNotCalledWith(pnr: PushNotificationRequest) {
+    verify(0, postRequestedFor(urlMatchingRequestPath))
   }
 
 }
@@ -280,4 +333,5 @@ object ExternalServicesConfiguration {
   val EmailServiceContext = "/hmrc/email"
   val CustomsNotificationMetricsContext = "/log-times"
   val AuditContext = "/write/audit.*"
+  val InternalPushServiceContext = "/internal/notify"
 }

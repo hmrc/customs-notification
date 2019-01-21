@@ -29,7 +29,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCod
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_EORI_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.{DeclarantCallbackData, Header}
+import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFieldsResponse, Header}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
@@ -47,7 +47,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
   private val mockConfigService = mock[ConfigService]
   private val mockCallbackDetailsConnector = mock[ApiSubscriptionFieldsConnector]
-  private val mockCallbackDetails = mock[DeclarantCallbackData]
+  private val mockCallbackDetails = mock[ApiSubscriptionFieldsResponse]
   private val mockDateTimeService = mock[DateTimeService]
 
   private def controller() = new CustomsNotificationController(

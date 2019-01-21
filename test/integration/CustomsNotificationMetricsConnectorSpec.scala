@@ -16,14 +16,13 @@
 
 package integration
 
-import com.google.inject.AbstractModule
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
-import play.api.inject.guice.{GuiceApplicationBuilder, GuiceableModule}
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers.{BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
@@ -32,15 +31,6 @@ import util.CustomsNotificationMetricsTestData.ValidCustomsNotificationMetricsRe
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.{AuditService, CustomsNotificationMetricsService, ExternalServicesConfiguration}
-
-case class IntegrationTestModule(mockLogger: CdsLogger) extends AbstractModule {
-  def configure(): Unit = {
-    bind(classOf[CdsLogger]) toInstance mockLogger
-  }
-
-  def asGuiceableModule: GuiceableModule = GuiceableModule.guiceable(this)
-}
-
 
 class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
 with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService {
