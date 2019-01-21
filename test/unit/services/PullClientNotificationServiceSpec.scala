@@ -60,7 +60,7 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
       andGAEventHasBeenSentWith("notificationLeftToBePulled", s"[ConversationId=${someNotification.notification.conversationId}] A notification has been left to be pulled")
       PassByNameVerifier(mockLogger, "info")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Notification has been passed on to PULL service")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Notification has been passed on to PULL service")
         .verify()
     }
 
@@ -72,7 +72,7 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
       andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
       PassByNameVerifier(mockLogger, "error")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Failed to pass the notification to PULL service")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Failed to pass the notification to PULL service")
         .withByNameParamMatcher(any[RuntimeException])
         .verify()
     }
@@ -91,7 +91,7 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
       andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
       PassByNameVerifier(mockLogger, "error")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Failed to pass the notification to PULL service")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Failed to pass the notification to PULL service")
         .withByNameParamMatcher(any[RuntimeException])
         .verify()
     }

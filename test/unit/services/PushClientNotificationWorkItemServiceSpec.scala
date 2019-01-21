@@ -29,7 +29,6 @@ import uk.gov.hmrc.customs.notification.services.{DateTimeService, PushClientNot
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.logging.StubNotificationLogger
-import unit.services.ClientWorkerTestData._
 import util.TestData._
 
 import scala.concurrent.Future

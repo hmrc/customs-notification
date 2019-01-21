@@ -18,33 +18,71 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
+import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, NotificationWorkItemRepo}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.workitem._
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.workitem.{Failed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
+trait CustomsNotificationService {
+
+  def buildHeaders(metaData: RequestMetaData): Seq[Header] = {
+    (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber ++ metaData.maybeCorrelationId).toSeq
+  }
+}
+
+@Singleton
+class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogger,
+                                                       gaConnector: GoogleAnalyticsSenderConnector,
+                                                       clientNotificationRepo: ClientNotificationRepo,
+                                                       notificationDispatcher: NotificationDispatcher,
+                                                       pullClientNotificationService: PullClientNotificationService) extends CustomsNotificationService {
+
+  def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
+    gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
+
+    val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId,
+      buildHeaders(metaData), xml.toString, MimeTypes.XML), None, Some(metaData.startTime.toDateTime))
+
+    saveNotificationToDatabaseAndCallDispatcher(clientNotification, metaData)
+  }
+
+  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
+
+    clientNotificationRepo.save(clientNotification).map {
+      case true =>
+        notificationDispatcher.process(Set(clientNotification.csid))
+        true
+      case false => logger.error("Dispatcher failed to process the notification")
+        false
+    }.recover {
+      case t: Throwable =>
+        logger.error(s"Processing failed ${t.getMessage}")
+        false
+    }
+
+  }
+}
+
 @Singleton
 class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
                                                    notificationWorkItemRepo: NotificationWorkItemRepo,
-                                                   notificationDispatcher: NotificationDispatcher,
-                                                   pushClientNotificationWorkItemService: PushClientNotificationWorkItemService) {
+                                                   pushClientNotificationWorkItemService: PushClientNotificationWorkItemService) extends CustomsNotificationService {
 
   def handleNotification(xml: NodeSeq,
                          metaData: RequestMetaData,
                          apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
                         (implicit hc: HeaderCarrier): Future[Boolean] = {
 
-    val headers: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber ++ metaData.maybeCorrelationId).toSeq
-
     val notificationWorkItem = NotificationWorkItem(metaData.clientId, Some(metaData.startTime.toDateTime),
-      Notification(metaData.conversationId, headers, xml.toString, MimeTypes.XML))
+      Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFieldsResponse)
   }
