@@ -34,7 +34,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.services.ClientWorkerTestData._
 import util.MockitoPassByNameHelper.PassByNameVerifier
-import util.TestData._
+import util.TestData.emulatedServiceFailure
 
 import scala.collection.immutable.Seq
 import scala.concurrent.Future

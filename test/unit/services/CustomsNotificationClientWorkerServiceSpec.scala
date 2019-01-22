@@ -29,14 +29,14 @@ import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, NotificationDispatcher, PullClientNotificationService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, NotificationDispatcher, PullClientNotificationService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
 
 import scala.concurrent.Future
 
-class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
+class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
 
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
@@ -63,14 +63,13 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val clientNotification = ClientNotification(clientSubscriptionId, notification, None, Some(TimeReceivedDateTime))
   private val mockPullService = mock[PullClientNotificationService]
 
-   private val customsNotificationService = new CustomsNotificationService(
+   private val service = new CustomsNotificationClientWorkerService(
     mockNotificationLogger,
     mockGAConnector,
     mockClientNotificationRepo,
     mockNotificationDispatcher,
     mockPullService
   )
-
 
   override protected def beforeEach() {
     reset(mockNotificationDispatcher, mockClientNotificationRepo, mockGAConnector)
@@ -79,10 +78,10 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))).thenReturn(Future.successful(()))
   }
 
-  "CustomsNotificationService" should {
+  "CustomsNotificationClientWorkerService" should {
 
     "first try to Push the notification" in {
-      val result = customsNotificationService.handleNotification(ValidXML, requestMetaData)
+      val result = service.handleNotification(ValidXML, requestMetaData)
       await(result) shouldBe true
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
       eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
@@ -93,7 +92,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     "fails when was unable to save notification to repository" in {
       when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(false))
 
-      val result = customsNotificationService.handleNotification(ValidXML, requestMetaData)
+      val result = service.handleNotification(ValidXML, requestMetaData)
 
       await(result) shouldBe false
       verifyZeroInteractions(mockNotificationDispatcher)
@@ -103,7 +102,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     "fails when was unable to save notification to repository due to unexpected exception" in {
       when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.failed(new RuntimeException("save gone wrong")))
 
-      val result = customsNotificationService.handleNotification(ValidXML, requestMetaData)
+      val result = service.handleNotification(ValidXML, requestMetaData)
 
       await(result) shouldBe false
       verifyZeroInteractions(mockNotificationDispatcher)

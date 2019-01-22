@@ -16,11 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.modules
 
+import java.time.Clock
+
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.customs.notification.services.NotificationPollingService
 
 class NotificationPollingModule extends AbstractModule {
   override def configure(): Unit = {
     bind(classOf[NotificationPollingService]).asEagerSingleton()
+    //TODO move this to another module
+    bind(classOf[Clock]).toInstance(Clock.systemUTC())
   }
 }

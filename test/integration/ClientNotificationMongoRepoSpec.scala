@@ -57,7 +57,8 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     internalClientIds = Seq.empty,
     pollingDelay = 0 second,
     lockDuration = org.joda.time.Duration.ZERO,
-    maxRecordsToFetch = five
+    maxRecordsToFetch = five,
+    ttlInSeconds = 1
   )
   private val metricsConfig: NotificationMetricsConfig = NotificationMetricsConfig("http://abc.com")
   private val TenThousand = 10000
@@ -187,7 +188,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.delete(clientNotificationToDelete))
 
       collectionSize shouldBe 1
-      logVerifier("debug", s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232][clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with objectId: ${clientNotificationToDelete.id.stringify}")
+      logVerifier("debug", s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde232] deleting clientNotification with objectId: ${clientNotificationToDelete.id.stringify}")
     }
 
     "collection should be same size when deleting non-existent record" in {

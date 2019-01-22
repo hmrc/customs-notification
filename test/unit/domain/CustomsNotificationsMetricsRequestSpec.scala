@@ -28,7 +28,7 @@ class CustomsNotificationsMetricsRequestSpec extends UnitSpec {
   private val expectedJson: JsValue = Json.parse("""
                                         |{
                                         |  "eventType" : "NOTIFICATION",
-                                        |  "conversationId" : "eaca01f9-ec3b-4ede-b263-61b626dde232",
+                                        |  "conversationId" : "eaca01f9-ec3b-4ede-b263-61b626dde231",
                                         |  "eventStart" : "2016-01-30T23:46:59Z[UTC]",
                                         |  "eventEnd" : "2016-01-30T23:47:01Z[UTC]"
                                         |}

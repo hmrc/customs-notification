@@ -22,12 +22,12 @@ import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
-import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, CustomsNotificationMetricsConnector}
+import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, CustomsNotificationService, CustomsNotificationWorkItemService, DateTimeService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
@@ -35,15 +35,19 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
-case class RequestMetaData(clientId: ClientSubscriptionId /* TODO: rename as clientSubscriptionId */ , conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header], startTime: ZonedDateTime)
+case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
+                           conversationId: ConversationId,
+                           mayBeBadgeId: Option[Header],
+                           mayBeEoriNumber: Option[Header],
+                           maybeCorrelationId: Option[Header],
+                           startTime: ZonedDateTime)
 
-@Singleton
-class CustomsNotificationController @Inject()(logger: NotificationLogger,
-                                              customsNotificationService: CustomsNotificationService,
-                                              callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                              configService: CustomsNotificationConfig,
-                                              dateTimeService: DateTimeService)
-  extends BaseController with HeaderValidator {
+abstract class CustomsNotificationController @Inject()(val logger: NotificationLogger,
+                                                       val customsNotificationService: CustomsNotificationService,
+                                                       val callbackDetailsConnector: ApiSubscriptionFieldsConnector,
+                                                       val configService: CustomsNotificationConfig,
+                                                       val dateTimeService: DateTimeService)
+               extends BaseController with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
   private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
@@ -75,10 +79,10 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
-    callbackDetailsConnector.getClientData(md.clientId.toString()).flatMap {
+    callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
 
-      case Some(_) =>
-        customsNotificationService.handleNotification(xml, md).recover{
+      case Some(apiSubscriptionFieldsResponse) =>
+        handleNotification(xml, md, apiSubscriptionFieldsResponse).recover{
           case _: Throwable => ErrorInternalServerError.XmlResult
         }.map {
           case true =>
@@ -100,5 +104,35 @@ class CustomsNotificationController @Inject()(logger: NotificationLogger,
 
   private def findHeaderValue(headerName: String, headers: Headers): Option[Header] = {
     headers.get(headerName).map(Header(headerName, _))
+  }
+
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)(implicit hc: HeaderCarrier): Future[Boolean]
+}
+
+@Singleton
+class CustomsNotificationClientWorkerController @Inject()(logger: NotificationLogger,
+                                                          customsNotificationService: CustomsNotificationClientWorkerService,
+                                                          callbackDetailsConnector: ApiSubscriptionFieldsConnector,
+                                                          configService: CustomsNotificationConfig,
+                                                          dateTimeService: DateTimeService)
+  extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
+
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)(implicit hc: HeaderCarrier): Future[Boolean] = {
+    customsNotificationService.handleNotification(xml, md)
+  }
+
+}
+
+//TODO rename as CustomsNotificationRetryController
+@Singleton
+class CustomsNotificationWorkItemController @Inject()(logger: NotificationLogger,
+                                              customsNotificationService: CustomsNotificationWorkItemService,
+                                              callbackDetailsConnector: ApiSubscriptionFieldsConnector,
+                                              configService: CustomsNotificationConfig,
+                                              dateTimeService: DateTimeService)
+  extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
+
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)(implicit hc: HeaderCarrier): Future[Boolean] = {
+    customsNotificationService.handleNotification(xml, md, apiSubscriptionFieldsResponse)
   }
 }

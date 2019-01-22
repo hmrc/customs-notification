@@ -22,14 +22,16 @@ import java.util.UUID
 import com.typesafe.config.{Config, ConfigFactory}
 import org.joda.time.DateTime
 import play.api.http.HeaderNames._
-import play.api.http.MimeTypes
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.AnyContentAsXml
 import play.api.test.FakeRequest
+import play.mvc.Http.MimeTypes
+import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.controllers.CustomMimeType
+import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.workitem.{ToDo, WorkItem}
 import util.CustomsNotificationMetricsTestData.UtcZoneId
 import util.RequestHeaders._
 import util.TestData._
@@ -38,7 +40,7 @@ import scala.xml.{Elem, NodeSeq}
 
 object TestData {
 
-  val validConversationId: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
+  val validConversationId: String = "eaca01f9-ec3b-4ede-b263-61b626dde231"
   val validConversationIdUUID: UUID = UUID.fromString(validConversationId)
   val conversationId = ConversationId(validConversationIdUUID)
   val invalidConversationId: String = "I-am-not-a-valid-uuid"
@@ -52,6 +54,9 @@ object TestData {
   val validBasicAuthToken = s"Basic $basicAuthTokenValue"
   val invalidBasicAuthToken = "I-am-not-a-valid-auth-token"
   val overwrittenBasicAuthToken = "value-not-logged"
+
+  val clientIdString = "ClientId"
+  val clientId = ClientId(clientIdString)
 
   type EmulatedServiceFailure = UnsupportedOperationException
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
@@ -104,8 +109,9 @@ object TestData {
   val payload2 = "<foo2></foo2>"
   val payload3 = "<foo3></foo3>"
 
+  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_EORI_ID_HEADER_NAME, eoriNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
   val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
-  val notification1 = Notification(conversationId, headers, payload1, CustomMimeType.XmlCharsetUtf8)
+  val notification1 = Notification(conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
   val notification2 = Notification(conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
   val notification3 = Notification(conversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
 
@@ -116,6 +122,19 @@ object TestData {
 
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
+
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), TimeReceivedZoned)
+
+  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId, None, notification = notification1)
+  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId, notification = notification2)
+  val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
+  val WorkItem1 = WorkItem(BSONObjectID.generate(), TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
+  val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
+
+  val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
+  val ApiSubscriptionFieldsResponseOne = ApiSubscriptionFieldsResponse(clientId.toString, DeclarantCallbackDataOne)
+
+  val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
 

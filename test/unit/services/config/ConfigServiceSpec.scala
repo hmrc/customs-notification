@@ -54,6 +54,8 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |pull.exclude.csIds.0 = eaca01f9-ec3b-4ede-b263-61b626dde232
       |pull.exclude.csIds.1 = eaca01f9-ec3b-4ede-b263-61b626dde233
       |
+      |ttlInSeconds = 1
+      |
       |push.internal.clientIds.0 = ClientIdOne
       |push.internal.clientIds.1 = ClientIdTwo
       |
@@ -101,6 +103,8 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |pull.exclude.older.milliseconds = 5000
       |pull.exclude.email.delay.duration.seconds = 1
       |pull.exclude.email.interval.duration.minutes = 30
+      |
+      |ttlInSeconds = 1
       |
       |  microservice {
       |    services {
@@ -156,6 +160,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pullExcludeConfig.emailAddress shouldBe "some.address@domain.com"
       actual.pullExcludeConfig.emailUrl shouldBe "http://localhost:8300/hmrc/email"
       actual.pullExcludeConfig.pollingInterval shouldBe (30 minutes)
+      actual.pushNotificationConfig.ttlInSeconds shouldBe 1
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -166,6 +171,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
       actual.pullExcludeConfig.notificationsOlderMillis shouldBe 5000
+      actual.pushNotificationConfig.ttlInSeconds shouldBe 1
     }
 
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
@@ -181,6 +187,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |Could not find config key 'push.polling.delay.duration.milliseconds'
       |Could not find config key 'push.lock.duration.milliseconds'
       |Could not find config key 'push.fetch.maxRecords'
+      |Could not find config key 'ttlInSeconds'
       |Could not find config key 'pull.exclude.enabled'
       |Could not find config key 'pull.exclude.email.address'
       |Could not find config key 'pull.exclude.older.milliseconds'

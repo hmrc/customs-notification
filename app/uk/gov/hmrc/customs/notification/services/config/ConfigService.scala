@@ -76,11 +76,14 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       root.int("push.lock.duration.milliseconds").map(millis => org.joda.time.Duration.millis(millis))
     val maxFetchRecordsNel: CustomsValidatedNel[Int] =
       root.int("push.fetch.maxRecords")
+    val ttlInSecondsNel: CustomsValidatedNel[Int] =
+      root.int("ttlInSeconds")
     val pushNotificationConfig: CustomsValidatedNel[PushNotificationConfig] = (
       internalClientIdsNel,
       pollingDelayNel,
       pushLockDurationNel,
-      maxFetchRecordsNel
+      maxFetchRecordsNel,
+      ttlInSecondsNel
     ).mapN(PushNotificationConfig)
 
     val emailUrlNel = configValidatedNel.service("email").serviceUrl
