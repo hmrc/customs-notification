@@ -23,8 +23,8 @@ import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, NotificationWorkItemRepo}
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.workitem.{Failed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global

@@ -25,7 +25,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemRepo}
+import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
@@ -71,7 +71,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemRepo(mongoDbProvider, clock, config, mockNotificationLogger)
+  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, mockNotificationLogger)
 
   override def beforeEach() {
     await(repository.drop)

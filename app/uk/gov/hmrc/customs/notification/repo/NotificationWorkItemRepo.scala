@@ -18,7 +18,8 @@ package uk.gov.hmrc.customs.notification.repo
 
 import java.time.Clock
 
-import javax.inject.Inject
+import com.google.inject.ImplementedBy
+import javax.inject.{Inject, Singleton}
 import org.joda.time.DateTime
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json.{Format, Reads, __}
@@ -34,14 +35,23 @@ import uk.gov.hmrc.workitem._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class NotificationWorkItemRepo @Inject() (mongoDbProvider: MongoDbProvider,
-                                          clock: Clock,
-                                          customsNotificationConfig: CustomsNotificationConfig,
-                                          logger: NotificationLogger)
+@ImplementedBy(classOf[NotificationWorkItemMongoRepo])
+trait NotificationWorkItemRepo {
+
+  def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]]
+
+  def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit]
+}
+
+@Singleton
+class NotificationWorkItemMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
+                                              clock: Clock,
+                                              customsNotificationConfig: CustomsNotificationConfig,
+                                              logger: NotificationLogger)
       extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         collectionName = "notifications-work-item",
         mongo = mongoDbProvider.mongo,
-        itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) {
+        itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) with NotificationWorkItemRepo {
 
   override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
     val receivedAt = "createdAt"
