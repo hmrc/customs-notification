@@ -72,7 +72,11 @@ class NotificationWorkItemMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
       name = Some("createdAt-ttl-index"),
       unique = false,
       options = BSONDocument("expireAfterSeconds" -> BSONLong(customsNotificationConfig.pushNotificationConfig.ttlInSeconds.toLong))
-    )
+    ),
+    Index(
+      key = Seq("clientNotification.clientId" -> IndexType.Descending),
+      name = Some("clientNotification-clientId-index"),
+      unique = false)
   )
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]] = {
@@ -111,7 +115,7 @@ object WorkItemFormat {
         (__ \ "availableAt").read[DateTime] and
         (__ \ "status").read[uk.gov.hmrc.workitem.ProcessingStatus] and
         (__ \ "failures").read[Int].orElse(Reads.pure(0)) and
-        (__ \ "body").read[T]
+        (__ \ "clientNotification").read[T]
       )(WorkItem.apply[T](_, _, _, _, _, _, _))
 
     val writes = (
@@ -121,7 +125,7 @@ object WorkItemFormat {
         (__ \ "availableAt").write[DateTime] and
         (__ \ "status").write[uk.gov.hmrc.workitem.ProcessingStatus] and
         (__ \ "failures").write[Int] and
-        (__ \ "body").write[T]
+        (__ \ "clientNotification").write[T]
       )(unlift(WorkItem.unapply[T]))
 
     Format(reads, writes)
