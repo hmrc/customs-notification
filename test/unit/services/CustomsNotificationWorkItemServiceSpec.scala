@@ -16,7 +16,7 @@
 
 package unit.services
 
-import org.mockito.ArgumentMatchers.refEq
+import org.mockito.ArgumentMatchers.{any, refEq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
@@ -28,6 +28,7 @@ import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
+import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
 import scala.concurrent.Future
@@ -67,10 +68,13 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
 
     "first try to handle the notification" in {
       when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
+
       val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsResponseOne)
+
       await(result) shouldBe true
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
       eventually(verify(mockPushService).send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1))
+      logVerifier("info", "push succeeded for NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Eori-Identifier,IAMEORI), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
     }
 
     "fail when it was unable to save notification to repository" in {
@@ -91,6 +95,7 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
 
       await(result) shouldBe true
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
+      logVerifier("error","push failed for NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Eori-Identifier,IAMEORI), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
     }
 
     "return true when repo saves but push fails with exception" in {
@@ -103,4 +108,12 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
     }
   }
+
+  private def logVerifier(logLevel: String, logText: String): Unit = {
+    PassByNameVerifier(mockNotificationLogger, logLevel)
+      .withByNameParam(logText)
+      .withParamMatcher(any[HeaderCarrier])
+      .verify()
+  }
+
 }

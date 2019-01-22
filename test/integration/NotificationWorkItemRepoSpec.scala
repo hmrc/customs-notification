@@ -18,19 +18,17 @@ package integration
 
 import java.time.Clock
 
-import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.workitem._
-import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -43,7 +41,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with MockitoSugar
   with MongoSpecSupport { self =>
 
-  private val mockNotificationLogger = mock[NotificationLogger]
+  private val mockLogger = mock[CdsLogger]
   private val clock = Clock.systemUTC()
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
   private val five = 5
@@ -71,11 +69,11 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, mockNotificationLogger)
+  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, mockLogger)
 
   override def beforeEach() {
     await(repository.drop)
-    Mockito.reset(mockNotificationLogger)
+    Mockito.reset(mockLogger)
   }
 
   override def afterAll() {
@@ -84,13 +82,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   private def collectionSize: Int = {
     await(repository.collection.count())
-  }
-
-  private def logVerifier(logLevel: String, logText: String): Unit = {
-    PassByNameVerifier(mockNotificationLogger, logLevel)
-      .withByNameParam(logText)
-      .withParamMatcher(any[HeaderCarrier])
-      .verify()
   }
 
   "repository" should {

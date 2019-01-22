@@ -43,7 +43,8 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
                                                        gaConnector: GoogleAnalyticsSenderConnector,
                                                        clientNotificationRepo: ClientNotificationRepo,
                                                        notificationDispatcher: NotificationDispatcher,
-                                                       pullClientNotificationService: PullClientNotificationService) extends CustomsNotificationService {
+                                                       pullClientNotificationService: PullClientNotificationService)
+  extends CustomsNotificationService {
 
   def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
@@ -54,7 +55,8 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
     saveNotificationToDatabaseAndCallDispatcher(clientNotification, metaData)
   }
 
-  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification,
+                                                          metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
 
     clientNotificationRepo.save(clientNotification).map {
       case true =>
@@ -74,7 +76,8 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
 @Singleton
 class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
                                                    notificationWorkItemRepo: NotificationWorkItemRepo,
-                                                   pushClientNotificationWorkItemService: PushClientNotificationWorkItemService) extends CustomsNotificationService {
+                                                   pushClientNotificationWorkItemService: PushClientNotificationWorkItemService)
+  extends CustomsNotificationService {
 
   def handleNotification(xml: NodeSeq,
                          metaData: RequestMetaData,
@@ -97,8 +100,10 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
       pushClientNotificationWorkItemService.send(apiSubscriptionFieldsResponse, workItem.item).flatMap { result =>
         if (result) {
           notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
+          logger.info(s"push succeeded for $notificationWorkItem")
         } else {
           notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
+          logger.error(s"push failed for $notificationWorkItem")
         }
         Future.successful(true)
       }.recover {

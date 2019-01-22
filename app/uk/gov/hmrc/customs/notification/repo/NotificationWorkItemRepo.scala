@@ -26,8 +26,8 @@ import play.api.libs.json.{Format, Reads, __}
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
@@ -47,8 +47,8 @@ trait NotificationWorkItemRepo {
 class NotificationWorkItemMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
                                               clock: Clock,
                                               customsNotificationConfig: CustomsNotificationConfig,
-                                              logger: NotificationLogger)
-      extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
+                                              logger: CdsLogger) //TODO use NotificationLogger
+extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         collectionName = "notifications-work-item",
         mongo = mongoDbProvider.mongo,
         itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) with NotificationWorkItemRepo {
@@ -80,7 +80,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   )
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]] = {
-    logger.debugWithoutRequestContext(s"saving a new notification work item in locked state $notificationWorkItem")
+    logger.debug(s"saving a new notification work item in locked state $notificationWorkItem")
 
     def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
 
@@ -88,12 +88,8 @@ class NotificationWorkItemMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
   }
 
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit] = {
-    logger.debugWithoutRequestContext(s"setting completed status of $status for notification work item id: $id")
-    complete(id, status).map { result =>
-      //TODO should be error logging
-      if (!result) logger.debugWithoutRequestContext(s"unable to update status to $status when push $status for notification work item id: ${id.stringify}")
-      ()
-    }
+    logger.debug(s"setting completed status of $status for notification work item id: $id")
+    complete(id, status).map(_ => () )
   }
 }
 

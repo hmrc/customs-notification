@@ -33,6 +33,7 @@ class PushClientNotificationWorkItemService @Inject()(pushNotificationServiceWor
                                                       metricsConnector: CustomsNotificationMetricsConnector,
                                                       dateTimeService: DateTimeService) {
 
+  //TODO remove this after log refactoring
   private implicit val hc = HeaderCarrier()
 
   def send(apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse, notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
@@ -43,6 +44,7 @@ class PushClientNotificationWorkItemService @Inject()(pushNotificationServiceWor
         "NOTIFICATION", notificationWorkItem.notification.conversationId, startTime.toZonedDateTime, dateTimeService.zonedDateTimeUtc))
     }
 
+    notificationLogger.debug(s"pushing notification $notificationWorkItem")
     pushNotificationServiceWorkItemConnector.send(pushNotificationRequest).recover {
       case t: Throwable =>
         notificationLogger.error(s"failed to push $pushNotificationRequest due to: ${t.getMessage}")

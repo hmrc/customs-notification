@@ -51,7 +51,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar{
       verifyZeroInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))
       PassByNameVerifier(mockLogger, "info")
-        .withByNameParam("[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push internally for clientId=ClientIdOne")
+        .withByNameParam("[conversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push internally for clientId=ClientIdOne")
         .verify()
     }
 
@@ -64,7 +64,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar{
       verify(mockExternalConnector).send(ameq(pnrOne))
       verifyZeroInteractions(mockInternalPushService)
       PassByNameVerifier(mockLogger, "info")
-        .withByNameParam("[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push externally for clientId=ClientIdOne")
+        .withByNameParam("[conversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push externally for clientId=ClientIdOne")
         .verify()
     }
 

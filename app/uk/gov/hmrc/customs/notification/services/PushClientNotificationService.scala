@@ -37,7 +37,7 @@ class PushClientNotificationService @Inject() (pushNotificationServiceConnector:
                                                metricsConnector: CustomsNotificationMetricsConnector,
                                                dateTimeService: DateTimeService) {
 
-
+  //TODO remove this after log refactoring
   private implicit val hc = HeaderCarrier()
 
   def send(apiSubscriptionFields: ApiSubscriptionFieldsResponse, clientNotification: ClientNotification): Boolean = {

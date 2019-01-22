@@ -35,6 +35,9 @@ class PushNotificationServiceWorkItemConnector @Inject()(http: HttpClient,
                                                          logger: NotificationLogger,
                                                          serviceConfigProvider: ServiceConfigProvider) {
 
+  //TODO remove this after log refactoring
+  private implicit val hc = HeaderCarrier()
+
   private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
@@ -42,11 +45,11 @@ class PushNotificationServiceWorkItemConnector @Inject()(http: HttpClient,
   def send(pushNotificationRequest: PushNotificationRequest): Future[Boolean] = {
     doSend(pushNotificationRequest).map { response =>
       if (response.status == NO_CONTENT) {
-        logger.debugWithoutRequestContext(s"successfully pushed $pushNotificationRequest")
+        logger.debug(s"successfully pushed $pushNotificationRequest")
         true
       }
       else {
-        logger.debugWithoutRequestContext(s"failed to push $pushNotificationRequest")
+        logger.error(s"failed to push $pushNotificationRequest")
         false
       }
     }.recover {

@@ -45,7 +45,7 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
 
   // TODO: replace with call to NotificationLogger info, once logging framework has been refactored
   private def infoLog(msg: String, pnr: PushNotificationRequest) = {
-    logger.info(s"[ConversationId=${pnr.body.conversationId}] $msg")
+    logger.info(s"[conversationId=${pnr.body.conversationId}] $msg")
   }
 
 }
