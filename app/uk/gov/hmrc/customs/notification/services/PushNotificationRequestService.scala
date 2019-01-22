@@ -30,7 +30,7 @@ class PushNotificationRequestService @Inject()(apiSubscriptionFieldsConnector: A
 
     val outboundCallHeaders: Seq[Header] = (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber).toSeq
 
-    PushNotificationRequest(metaData.clientId.toString(),
+    PushNotificationRequest(metaData.clientSubscriptionId.toString(),
       PushNotificationRequestBody(
         clientData.callbackUrl,
         clientData.securityToken,

@@ -35,7 +35,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
-case class RequestMetaData(clientId: ClientSubscriptionId /* TODO: rename as clientSubscriptionId */ , conversationId: ConversationId, mayBeBadgeId: Option[Header], mayBeEoriNumber: Option[Header], maybeCorrelationId: Option[Header], startTime: ZonedDateTime)
+case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
+                           conversationId: ConversationId,
+                           mayBeBadgeId: Option[Header],
+                           mayBeEoriNumber: Option[Header],
+                           maybeCorrelationId: Option[Header],
+                           startTime: ZonedDateTime)
 
 abstract class CustomsNotificationController @Inject()(val logger: NotificationLogger,
                                                        val customsNotificationService: CustomsNotificationService,
@@ -74,7 +79,7 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
   private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
-    callbackDetailsConnector.getClientData(md.clientId.toString()).flatMap {
+    callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
 
       case Some(apiSubscriptionFieldsResponse) =>
         handleNotification(xml, md, apiSubscriptionFieldsResponse).recover{

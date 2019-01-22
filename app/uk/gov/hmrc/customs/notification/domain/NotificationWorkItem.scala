@@ -20,8 +20,8 @@ import org.joda.time.DateTime
 import play.api.libs.json.Json
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
-//TODO add clientId
 case class NotificationWorkItem(id: ClientSubscriptionId,
+                                clientId: ClientId,
                                 metricsStartDateTime: Option[DateTime] = None,
                                 notification: Notification)
 object NotificationWorkItem {

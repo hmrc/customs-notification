@@ -48,7 +48,7 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
   def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
     gaConnector.send("notificationRequestReceived", s"[ConversationId=${metaData.conversationId}] A notification received for delivery")
 
-    val clientNotification = ClientNotification(metaData.clientId, Notification(metaData.conversationId,
+    val clientNotification = ClientNotification(metaData.clientSubscriptionId, Notification(metaData.conversationId,
       buildHeaders(metaData), xml.toString, MimeTypes.XML), None, Some(metaData.startTime.toDateTime))
 
     saveNotificationToDatabaseAndCallDispatcher(clientNotification, metaData)
@@ -81,7 +81,9 @@ class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
                          apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
                         (implicit hc: HeaderCarrier): Future[Boolean] = {
 
-    val notificationWorkItem = NotificationWorkItem(metaData.clientId, Some(metaData.startTime.toDateTime),
+    val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
+      ClientId(apiSubscriptionFieldsResponse.clientId),
+      Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFieldsResponse)

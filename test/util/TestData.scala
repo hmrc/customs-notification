@@ -29,7 +29,7 @@ import play.mvc.Http.MimeTypes
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.{NotificationWorkItem, _}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.workitem.{ToDo, WorkItem}
 import util.CustomsNotificationMetricsTestData.UtcZoneId
@@ -54,6 +54,9 @@ object TestData {
   val validBasicAuthToken = s"Basic $basicAuthTokenValue"
   val invalidBasicAuthToken = "I-am-not-a-valid-auth-token"
   val overwrittenBasicAuthToken = "value-not-logged"
+
+  val clientIdString = "ClientId"
+  val clientId = ClientId(clientIdString)
 
   type EmulatedServiceFailure = UnsupportedOperationException
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
@@ -122,14 +125,14 @@ object TestData {
 
   val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), TimeReceivedZoned)
 
-  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, None, notification = notification1)
-  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, notification = notification2)
+  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId, None, notification = notification1)
+  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId, notification = notification2)
   val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
   val WorkItem1 = WorkItem(BSONObjectID.generate(), TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
   val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
-  val ApiSubscriptionFieldsResponseOne = ApiSubscriptionFieldsResponse(validClientSubscriptionId1String, DeclarantCallbackDataOne)
+  val ApiSubscriptionFieldsResponseOne = ApiSubscriptionFieldsResponse(clientId.toString, DeclarantCallbackDataOne)
 
   val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
