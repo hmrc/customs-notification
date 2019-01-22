@@ -63,7 +63,6 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
     when(mockPushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(true))
   }
 
-  //TODO test more paths through service
   "CustomsNotificationWorkItemService" should {
 
     "first try to handle the notification" in {
@@ -91,6 +90,17 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
       val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsResponseOne)
 
       await(result) shouldBe true
+      eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
+    }
+
+    "return true when repo saves but push fails with exception" in {
+      when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
+      when(mockPushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.failed(emulatedServiceFailure))
+
+      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsResponseOne)
+
+      await(result) shouldBe true
+      eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
     }
   }
 }
