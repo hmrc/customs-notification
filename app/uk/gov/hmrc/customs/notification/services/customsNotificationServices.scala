@@ -73,6 +73,7 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
   }
 }
 
+//TODO rename to CustomsNotificationRetryService
 @Singleton
 class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
                                                    notificationWorkItemRepo: NotificationWorkItemRepo,

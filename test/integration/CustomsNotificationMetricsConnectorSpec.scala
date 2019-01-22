@@ -77,6 +77,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
       setupCustomsNotificationMetricsServiceToReturn(NOT_FOUND)
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[NotFoundException]
+
       verifyAuditServiceWasNotCalled()
       //[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404", mockLogger)
@@ -86,6 +87,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
       setupCustomsNotificationMetricsServiceToReturn(BAD_REQUEST)
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadRequestException]
+
       verifyAuditServiceWasNotCalled()
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=400", mockLogger)
     }
@@ -94,6 +96,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
       setupCustomsNotificationMetricsServiceToReturn(INTERNAL_SERVER_ERROR)
 
       intercept[Upstream5xxResponse](await(sendValidRequest()))
+
       verifyAuditServiceWasNotCalled()
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times", mockLogger)
     }
@@ -102,6 +105,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
       stopMockServer()
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadGatewayException]
+
       startMockServer()
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=502", mockLogger)
     }

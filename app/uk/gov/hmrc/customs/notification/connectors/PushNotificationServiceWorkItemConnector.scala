@@ -30,6 +30,7 @@ import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+//TODO rename to PushNotificationRetryConnector
 @Singleton
 class PushNotificationServiceWorkItemConnector @Inject()(http: HttpClient,
                                                          logger: NotificationLogger,
@@ -68,7 +69,10 @@ class PushNotificationServiceWorkItemConnector @Inject()(http: HttpClient,
     val postFuture = http
       .POST[PushNotificationRequestBody, HttpResponse](url, pushNotificationRequest.body)
       .recoverWith {
-        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
+        case httpError: HttpException =>
+          logger.error(s"Call to push notification service failed with HttpException. POST url=$url, $httpError")
+          Future.failed(new RuntimeException(httpError))
+
       }
       .recoverWith {
         case e: Throwable =>
