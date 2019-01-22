@@ -48,9 +48,9 @@ object ClientWorkerTestData {
   val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
   val DeclarantCallbackDataOneWithEmptyUrl = DeclarantCallbackDataOne.copy(callbackUrl = "")
   val DeclarantCallbackDataTwo = DeclarantCallbackData("URL2", "SECURITY_TOKEN2")
-  val ApiSubscriptionFieldsResponseOne = ApiSubscriptionFieldsResponse(ClientIdStringOne, DeclarantCallbackDataOne)
-  val ApiSubscriptionFieldsResponseOneWithEmptyUrl = ApiSubscriptionFieldsResponse(ClientIdStringOne, DeclarantCallbackDataOneWithEmptyUrl)
-  val ApiSubscriptionFieldsResponseTwo = ApiSubscriptionFieldsResponse(ClientIdStringTwo, DeclarantCallbackDataTwo)
+  val ApiSubscriptionFieldsOne = ApiSubscriptionFields(ClientIdStringOne, DeclarantCallbackDataOne)
+  val ApiSubscriptionFieldsOneWithEmptyUrl = ApiSubscriptionFields(ClientIdStringOne, DeclarantCallbackDataOneWithEmptyUrl)
+  val ApiSubscriptionFieldsTwo = ApiSubscriptionFields(ClientIdStringTwo, DeclarantCallbackDataTwo)
   val pnrOne = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", ConversationIdOne.id.toString, Headers, PayloadOne))
   val pnrTwo = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody("URL2", "SECURITY_TOKEN2", ConversationIdTwo.id.toString, Headers, PayloadTwo))
 }

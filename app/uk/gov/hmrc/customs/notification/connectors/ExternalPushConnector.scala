@@ -20,7 +20,6 @@ import com.google.inject.Inject
 import javax.inject.Singleton
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
-import play.api.http.Status.NO_CONTENT
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, PushNotificationRequestBody}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -30,53 +29,37 @@ import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-//TODO rename to PushNotificationRetryConnector
 @Singleton
-class PushNotificationServiceWorkItemConnector @Inject()(http: HttpClient,
-                                                         logger: NotificationLogger,
-                                                         serviceConfigProvider: ServiceConfigProvider) {
-
-  //TODO remove this after log refactoring
-  private implicit val hc = HeaderCarrier()
+class ExternalPushConnector @Inject()(http: HttpClient,
+                                      logger: NotificationLogger,
+                                      serviceConfigProvider: ServiceConfigProvider) {
 
   private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
 
-  def send(pushNotificationRequest: PushNotificationRequest): Future[Boolean] = {
-    doSend(pushNotificationRequest).map { response =>
-      if (response.status == NO_CONTENT) {
-        logger.debug(s"successfully pushed $pushNotificationRequest")
-        true
-      }
-      else {
-        logger.error(s"failed to push $pushNotificationRequest")
-        false
-      }
-    }.recover {
-      case _: Throwable =>
-        false
-    }
+  // TODO: recover on failure to enqueue to notification queue
+  def send(pushNotificationRequest: PushNotificationRequest): Future[Unit] = {
+    doSend(pushNotificationRequest) map (_ => () )
   }
 
   private def doSend(pushNotificationRequest: PushNotificationRequest): Future[HttpResponse] = {
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
-    val msg = "Calling push notification service"
+    val msg = "Calling external push notification service"
     logger.debug(msg, url, payload = pushNotificationRequest.body.toString)
 
     val postFuture = http
       .POST[PushNotificationRequestBody, HttpResponse](url, pushNotificationRequest.body)
       .recoverWith {
         case httpError: HttpException =>
-          logger.error(s"Call to push notification service failed with HttpException. POST url=$url, $httpError")
+          logger.error(s"Call to external push notification service failed. POST url=$url, httpError=$httpError")
           Future.failed(new RuntimeException(httpError))
-
       }
       .recoverWith {
         case e: Throwable =>
-          logger.error(s"Call to push notification service failed. POST url=$url, $e")
+          logger.error(s"Call to external push notification service failed. POST url=$url, error=${e.getMessage}")
           Future.failed(e)
       }
     postFuture

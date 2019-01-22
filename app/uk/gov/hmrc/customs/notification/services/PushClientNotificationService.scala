@@ -40,7 +40,7 @@ class PushClientNotificationService @Inject() (pushNotificationServiceConnector:
   //TODO remove this after log refactoring
   private implicit val hc = HeaderCarrier()
 
-  def send(apiSubscriptionFields: ApiSubscriptionFieldsResponse, clientNotification: ClientNotification): Boolean = {
+  def send(apiSubscriptionFields: ApiSubscriptionFields, clientNotification: ClientNotification): Boolean = {
 
     val pushNotificationRequest = pushNotificationRequestFrom(apiSubscriptionFields.fields, clientNotification)
 

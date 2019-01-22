@@ -23,9 +23,9 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationServiceWorkItemConnector}
+import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationRetryConnector}
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
-import uk.gov.hmrc.customs.notification.services.{DateTimeService, PushClientNotificationWorkItemService}
+import uk.gov.hmrc.customs.notification.services.{DateTimeService, PushClientNotificationRetryService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.logging.StubNotificationLogger
@@ -33,53 +33,53 @@ import util.TestData._
 
 import scala.concurrent.Future
 
-class PushClientNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterEach {
+class PushClientNotificationRetryServiceSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterEach {
 
-  private val mockPushNotificationServiceWorkItemConnector = mock[PushNotificationServiceWorkItemConnector]
+  private val mockPushNotificationRetryConnector = mock[PushNotificationRetryConnector]
   private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val notificationLogger = new StubNotificationLogger(mock[CdsLogger])
   private val mockCustomsNotificationsMetricsConnector = mock[CustomsNotificationMetricsConnector]
   private val mockDateTimeService = mock[DateTimeService]
   private implicit val hc = HeaderCarrier()
 
-  private val pushService = new PushClientNotificationWorkItemService(mockPushNotificationServiceWorkItemConnector,
+  private val pushService = new PushClientNotificationRetryService(mockPushNotificationRetryConnector,
     mockGAConnector,notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
 
   override protected def beforeEach(): Unit = {
-    reset(mockPushNotificationServiceWorkItemConnector, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
+    reset(mockPushNotificationRetryConnector, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
 
     when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
   }
 
 
-  "PushClientNotificationWorkItemService" should {
+  "PushClientNotificationRetryService" should {
     "return true and call metrics service when push is successful but no metrics start time exists" in {
-      when(mockPushNotificationServiceWorkItemConnector.send(PushNotificationRequest1)).thenReturn(Future.successful(true))
+      when(mockPushNotificationRetryConnector.send(PushNotificationRequest1)).thenReturn(Future.successful(true))
 
-      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1))
+      val result = await(pushService.send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1))
 
       verifyMetricsConnector()
 
       result shouldBe true
-      eventually(verify(mockPushNotificationServiceWorkItemConnector).send(meq(PushNotificationRequest1)))
+      eventually(verify(mockPushNotificationRetryConnector).send(meq(PushNotificationRequest1)))
     }
 
     "return true and do not call metrics service when push is successful but no metrics start time exists" in {
-      when(mockPushNotificationServiceWorkItemConnector.send(PushNotificationRequest1)).thenReturn(Future.successful(true))
+      when(mockPushNotificationRetryConnector.send(PushNotificationRequest1)).thenReturn(Future.successful(true))
 
-      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItem1))
+      val result = await(pushService.send(ApiSubscriptionFieldsOne, NotificationWorkItem1))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
 
       result shouldBe true
-      eventually(verify(mockPushNotificationServiceWorkItemConnector).send(meq(PushNotificationRequest1)))
+      eventually(verify(mockPushNotificationRetryConnector).send(meq(PushNotificationRequest1)))
     }
 
     "return false when push fails" in {
-      when(mockPushNotificationServiceWorkItemConnector.send(PushNotificationRequest1)).thenReturn(Future.failed(emulatedServiceFailure))
+      when(mockPushNotificationRetryConnector.send(PushNotificationRequest1)).thenReturn(Future.failed(emulatedServiceFailure))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
-      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItem1))
+      val result = await(pushService.send(ApiSubscriptionFieldsOne, NotificationWorkItem1))
       result shouldBe false
     }
   }

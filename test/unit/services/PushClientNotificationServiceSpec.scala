@@ -56,7 +56,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(()))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
-      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, ClientNotificationOneWithMetricsTime))
+      val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOneWithMetricsTime))
 
       verifyMetricsConnector()
 
@@ -69,7 +69,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(()))
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
-      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, ClientNotificationOne))
+      val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOne))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
 
@@ -83,7 +83,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
-      val result = await(pushService.send(ApiSubscriptionFieldsResponseOne, ClientNotificationOne))
+      val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOne))
       result shouldBe false
       andGAEventHasBeenSentWith("notificationPushRequestFailed", "[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] A notification Push request failed")
     }

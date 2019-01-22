@@ -34,7 +34,7 @@ import util.TestData._
 import scala.concurrent.Future
 import scala.xml.Elem
 
-class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
+class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
 
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
@@ -51,9 +51,9 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
   val ValidXML: Elem = <foo1></foo1>
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockNotificationWorkItemRepo = mock[NotificationWorkItemRepo]
-  private val mockPushService = mock[PushClientNotificationWorkItemService]
+  private val mockPushService = mock[PushClientNotificationRetryService]
 
-   private val service = new CustomsNotificationWorkItemService(
+   private val service = new CustomsNotificationRetryService(
     mockNotificationLogger,
     mockNotificationWorkItemRepo,
     mockPushService
@@ -61,26 +61,26 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
 
   override protected def beforeEach() {
     reset(mockNotificationWorkItemRepo)
-    when(mockPushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(true))
+    when(mockPushService.send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(true))
   }
 
-  "CustomsNotificationWorkItemService" should {
+  "CustomsNotificationRetryService" should {
 
     "first try to handle the notification" in {
       when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
 
-      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsResponseOne)
+      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOne)
 
       await(result) shouldBe true
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
-      eventually(verify(mockPushService).send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1))
+      eventually(verify(mockPushService).send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1))
       logVerifier("info", "push succeeded for NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Eori-Identifier,IAMEORI), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
     }
 
     "fail when it was unable to save notification to repository" in {
       when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.failed(emulatedServiceFailure))
 
-      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsResponseOne)
+      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOne)
 
       await(result) shouldBe false
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
@@ -89,9 +89,9 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
 
     "return true when repo saves but push fails" in {
       when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
-      when(mockPushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(false))
+      when(mockPushService.send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(false))
 
-      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsResponseOne)
+      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOne)
 
       await(result) shouldBe true
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
@@ -100,9 +100,9 @@ class CustomsNotificationWorkItemServiceSpec extends UnitSpec with MockitoSugar 
 
     "return true when repo saves but push fails with exception" in {
       when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
-      when(mockPushService.send(ApiSubscriptionFieldsResponseOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.failed(emulatedServiceFailure))
+      when(mockPushService.send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.failed(emulatedServiceFailure))
 
-      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsResponseOne)
+      val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOne)
 
       await(result) shouldBe true
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))

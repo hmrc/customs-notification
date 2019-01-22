@@ -73,32 +73,31 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
   }
 }
 
-//TODO rename to CustomsNotificationRetryService
 @Singleton
-class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
-                                                   notificationWorkItemRepo: NotificationWorkItemRepo,
-                                                   pushClientNotificationWorkItemService: PushClientNotificationWorkItemService)
+class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
+                                                notificationWorkItemRepo: NotificationWorkItemRepo,
+                                                pushClientNotificationWorkItemService: PushClientNotificationRetryService)
   extends CustomsNotificationService {
 
   def handleNotification(xml: NodeSeq,
                          metaData: RequestMetaData,
-                         apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
+                         apiSubscriptionFields: ApiSubscriptionFields)
                         (implicit hc: HeaderCarrier): Future[Boolean] = {
 
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
-      ClientId(apiSubscriptionFieldsResponse.clientId),
+      ClientId(apiSubscriptionFields.clientId),
       Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
-    saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFieldsResponse)
+    saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFields)
   }
 
   private def saveNotificationToDatabaseAndPush(notificationWorkItem: NotificationWorkItem,
-                                                apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
+                                                apiSubscriptionFields: ApiSubscriptionFields)
                                                (implicit hc: HeaderCarrier): Future[Boolean] = {
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
-      pushClientNotificationWorkItemService.send(apiSubscriptionFieldsResponse, workItem.item).flatMap { result =>
+      pushClientNotificationWorkItemService.send(apiSubscriptionFields, workItem.item).flatMap { result =>
         if (result) {
           notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
           logger.info(s"push succeeded for $notificationWorkItem")

@@ -25,7 +25,7 @@ import akka.actor.ActorSystem
 import com.google.inject.ImplementedBy
 import org.joda.time.Duration
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFieldsResponse, ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
@@ -238,7 +238,7 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFieldsResponse] = {
+  private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFields] = {
     try {
       scala.concurrent.blocking {
         Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)

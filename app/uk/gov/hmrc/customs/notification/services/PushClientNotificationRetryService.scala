@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationServiceWorkItemConnector}
+import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationRetryConnector}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
@@ -26,19 +26,18 @@ import uk.gov.hmrc.http.HeaderCarrier
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-//TODO rename to PushClientNotificationRetryService
 @Singleton
-class PushClientNotificationWorkItemService @Inject()(pushNotificationServiceWorkItemConnector: PushNotificationServiceWorkItemConnector,
-                                                      gaConnector: GoogleAnalyticsSenderConnector,
-                                                      notificationLogger: NotificationLogger,
-                                                      metricsConnector: CustomsNotificationMetricsConnector,
-                                                      dateTimeService: DateTimeService) {
+class PushClientNotificationRetryService @Inject()(pushNotificationRetryConnector: PushNotificationRetryConnector,
+                                                   gaConnector: GoogleAnalyticsSenderConnector,
+                                                   notificationLogger: NotificationLogger,
+                                                   metricsConnector: CustomsNotificationMetricsConnector,
+                                                   dateTimeService: DateTimeService) {
 
   //TODO remove this after log refactoring
   private implicit val hc = HeaderCarrier()
 
-  def send(apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse, notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
-    val pushNotificationRequest = pushNotificationRequestFrom(apiSubscriptionFieldsResponse.fields, notificationWorkItem)
+  def send(apiSubscriptionFields: ApiSubscriptionFields, notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
+    val pushNotificationRequest = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
 
     notificationWorkItem.metricsStartDateTime.fold() { startTime =>
       metricsConnector.post(CustomsNotificationsMetricsRequest(
@@ -46,7 +45,7 @@ class PushClientNotificationWorkItemService @Inject()(pushNotificationServiceWor
     }
 
     notificationLogger.debug(s"pushing notification $notificationWorkItem")
-    pushNotificationServiceWorkItemConnector.send(pushNotificationRequest).recover {
+    pushNotificationRetryConnector.send(pushNotificationRequest).recover {
       case t: Throwable =>
         notificationLogger.error(s"failed to push $pushNotificationRequest due to: ${t.getMessage}")
         false

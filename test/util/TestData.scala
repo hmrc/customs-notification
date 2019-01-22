@@ -132,7 +132,7 @@ object TestData {
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
   val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
-  val ApiSubscriptionFieldsResponseOne = ApiSubscriptionFieldsResponse(clientId.toString, DeclarantCallbackDataOne)
+  val ApiSubscriptionFieldsOne = ApiSubscriptionFields(clientId.toString, DeclarantCallbackDataOne)
 
   val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 

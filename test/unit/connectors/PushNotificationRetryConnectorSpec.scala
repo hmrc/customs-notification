@@ -23,7 +23,7 @@ import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json.Writes
 import play.api.test.Helpers.NO_CONTENT
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
-import uk.gov.hmrc.customs.notification.connectors.PushNotificationServiceWorkItemConnector
+import uk.gov.hmrc.customs.notification.connectors.PushNotificationRetryConnector
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
@@ -34,14 +34,14 @@ import util.TestData.pushNotificationRequest
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
-class PushNotificationServiceWorkItemConnectorSpec extends UnitSpec with MockitoSugar {
+class PushNotificationRetryConnectorSpec extends UnitSpec with MockitoSugar {
 
   private val mockHttpClient = mock[HttpClient]
   private val mockNotificationLogger = mock[NotificationLogger]
   private val serviceConfigProvider = mock[ServiceConfigProvider]
   private val mockHttpResponse = mock[HttpResponse]
 
-  private val connector = new PushNotificationServiceWorkItemConnector(
+  private val connector = new PushNotificationRetryConnector(
     mockHttpClient,
     mockNotificationLogger,
     serviceConfigProvider
@@ -53,7 +53,7 @@ class PushNotificationServiceWorkItemConnectorSpec extends UnitSpec with Mockito
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  "PushNotificationServiceWorkItemConnector" should {
+  "PushNotificationServiceRetryConnector" should {
     when(serviceConfigProvider.getConfig("public-notification")).thenReturn(ServiceConfig(url, None, "default"))
     when(mockHttpResponse.status).thenReturn(NO_CONTENT)
 
