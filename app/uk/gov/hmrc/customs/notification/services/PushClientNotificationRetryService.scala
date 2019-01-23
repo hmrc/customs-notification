@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector, PushNotificationRetryConnector}
+import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class PushClientNotificationRetryService @Inject()(pushNotificationRetryConnector: PushNotificationRetryConnector,
+class PushClientNotificationRetryService @Inject()(outboundSwitchService: OutboundSwitchService,
                                                    gaConnector: GoogleAnalyticsSenderConnector,
                                                    notificationLogger: NotificationLogger,
                                                    metricsConnector: CustomsNotificationMetricsConnector,
@@ -44,11 +44,13 @@ class PushClientNotificationRetryService @Inject()(pushNotificationRetryConnecto
         "NOTIFICATION", notificationWorkItem.notification.conversationId, startTime.toZonedDateTime, dateTimeService.zonedDateTimeUtc))
     }
 
-    notificationLogger.debug(s"pushing notification $notificationWorkItem")
-    pushNotificationRetryConnector.send(pushNotificationRequest).recover {
-      case t: Throwable =>
-        notificationLogger.error(s"failed to push $pushNotificationRequest due to: ${t.getMessage}")
-        false
+    notificationLogger.debug(s"pushing notification with clientSubscriptionId ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} ")
+    outboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pushNotificationRequest)
+      .map(_ => true)
+      .recover {
+        case t: Throwable =>
+          notificationLogger.error(s"failed to push notification with clientSubscriptionId ${pushNotificationRequest.clientSubscriptionId} and conversationId ${pushNotificationRequest.body.conversationId} due to: ${t.getMessage}")
+          false
     }
   }
 

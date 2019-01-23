@@ -74,7 +74,7 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
       await(result) shouldBe true
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
       eventually(verify(mockPushService).send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1))
-      logVerifier("info", "push succeeded for NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Eori-Identifier,IAMEORI), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
+      logVerifier("info", "push succeeded for workItemId 5c46f7d70100000100ef835a")
     }
 
     "fail when it was unable to save notification to repository" in {
@@ -89,13 +89,13 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
 
     "return true when repo saves but push fails" in {
       when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
-      when(mockPushService.send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(false))
+      when(mockPushService.send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.failed(emulatedServiceFailure))
 
       val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOne)
 
       await(result) shouldBe true
       eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
-      logVerifier("error","push failed for NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Eori-Identifier,IAMEORI), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
+      logVerifier("error",s"push failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
     }
 
     "return true when repo saves but push fails with exception" in {

@@ -83,12 +83,16 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
 
       case Some(apiSubscriptionFields) =>
         handleNotification(xml, md, apiSubscriptionFields).recover{
-          case _: Throwable => ErrorInternalServerError.XmlResult
+          case t: Throwable =>
+            logger.error(s"Notification processing failed due to: ${t.getMessage}")
+            ErrorInternalServerError.XmlResult
         }.map {
           case true =>
             logger.info("Notification processed successfully")
             Results.Accepted
-          case false => ErrorInternalServerError.XmlResult
+          case false =>
+            logger.error("Notification processing failed")
+            ErrorInternalServerError.XmlResult
         }
 
       case None =>

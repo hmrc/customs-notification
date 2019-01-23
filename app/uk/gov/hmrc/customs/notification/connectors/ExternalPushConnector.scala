@@ -53,9 +53,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     val postFuture = http
       .POST[PushNotificationRequestBody, HttpResponse](url, pushNotificationRequest.body)
       .recoverWith {
-        case httpError: HttpException =>
-          logger.error(s"Call to external push notification service failed. POST url=$url, httpError=$httpError")
-          Future.failed(new RuntimeException(httpError))
+        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
       }
       .recoverWith {
         case e: Throwable =>
