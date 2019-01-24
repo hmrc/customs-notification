@@ -22,7 +22,7 @@ import play.api.http.MimeTypes
 import play.api.libs.json.Json
 import play.mvc.Http.Status._
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
-import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFieldsResponse, DeclarantCallbackData}
+import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
@@ -40,7 +40,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     (ACCEPT, MimeTypes.JSON)
   )
 
-  def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFieldsResponse]] = {
+  def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
     logger.debug("calling api-subscription-fields service")
     callApiSubscriptionFields(fieldsId)(hc = hc.copy(extraHeaders = headers)) map { response =>
       logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
@@ -56,8 +56,8 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     }
   }
 
-  private def parseResponseAsModel(jsonResponse: String)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFieldsResponse] = {
-    val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFieldsResponse])
+  private def parseResponseAsModel(jsonResponse: String)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFields] = {
+    val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFields])
     logger.debug(s"api-subscription-fields service parsed response=$response")
     response
   }

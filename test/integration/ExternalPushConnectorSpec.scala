@@ -22,17 +22,17 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.connectors.PushNotificationServiceConnector
+import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.logging.Authorization
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util.{ExternalServicesConfiguration, PushNotificationService, RequestHeaders}
 
-class PushNotificationServiceConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
+class ExternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
   with BeforeAndAfterAll with PushNotificationService {
 
-  private lazy val connector = app.injector.instanceOf[PushNotificationServiceConnector]
+  private lazy val connector = app.injector.instanceOf[ExternalPushConnector]
 
   val incomingBearerToken = "some_client's_bearer_token"
   val incomingAuthToken = s"Bearer $incomingBearerToken"
@@ -60,7 +60,7 @@ class PushNotificationServiceConnectorSpec extends IntegrationTestSpec with Guic
       "microservice.services.public-notification.context" -> ExternalServicesConfiguration.PushNotificationServiceContext
     )).build()
 
-  "PushNotificationServiceConnector" should {
+  "ExternalPushConnector" should {
 
     "make a correct request" in {
       setupPushNotificationServiceToReturn(NO_CONTENT)

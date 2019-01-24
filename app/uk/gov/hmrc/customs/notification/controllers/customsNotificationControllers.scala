@@ -27,7 +27,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCd
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, CustomsNotificationService, CustomsNotificationWorkItemService, DateTimeService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, CustomsNotificationService, CustomsNotificationRetryService, DateTimeService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
@@ -81,14 +81,18 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
 
-      case Some(apiSubscriptionFieldsResponse) =>
-        handleNotification(xml, md, apiSubscriptionFieldsResponse).recover{
-          case _: Throwable => ErrorInternalServerError.XmlResult
+      case Some(apiSubscriptionFields) =>
+        handleNotification(xml, md, apiSubscriptionFields).recover{
+          case t: Throwable =>
+            logger.error(s"Notification processing failed due to: ${t.getMessage}")
+            ErrorInternalServerError.XmlResult
         }.map {
           case true =>
             logger.info("Notification processed successfully")
             Results.Accepted
-          case false => ErrorInternalServerError.XmlResult
+          case false =>
+            logger.error("Notification processing failed")
+            ErrorInternalServerError.XmlResult
         }
 
       case None =>
@@ -106,7 +110,7 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
     headers.get(headerName).map(Header(headerName, _))
   }
 
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)(implicit hc: HeaderCarrier): Future[Boolean]
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean]
 }
 
 @Singleton
@@ -117,22 +121,21 @@ class CustomsNotificationClientWorkerController @Inject()(logger: NotificationLo
                                                           dateTimeService: DateTimeService)
   extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
 
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md)
   }
 
 }
 
-//TODO rename as CustomsNotificationRetryController
 @Singleton
-class CustomsNotificationWorkItemController @Inject()(logger: NotificationLogger,
-                                              customsNotificationService: CustomsNotificationWorkItemService,
-                                              callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                              configService: CustomsNotificationConfig,
-                                              dateTimeService: DateTimeService)
+class CustomsNotificationRetryController @Inject()(logger: NotificationLogger,
+                                                   customsNotificationService: CustomsNotificationRetryService,
+                                                   callbackDetailsConnector: ApiSubscriptionFieldsConnector,
+                                                   configService: CustomsNotificationConfig,
+                                                   dateTimeService: DateTimeService)
   extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
 
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)(implicit hc: HeaderCarrier): Future[Boolean] = {
-    customsNotificationService.handleNotification(xml, md, apiSubscriptionFieldsResponse)
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean] = {
+    customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)
   }
 }

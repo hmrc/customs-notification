@@ -88,7 +88,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: $id")
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify}")
     complete(id, status).map(_ => () )
   }
 }

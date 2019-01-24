@@ -25,7 +25,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, NotificationWorkItemRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.workitem.{Failed, Succeeded}
+import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -73,48 +73,48 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
   }
 }
 
-//TODO rename to CustomsNotificationRetryService
 @Singleton
-class CustomsNotificationWorkItemService @Inject()(logger: NotificationLogger,
-                                                   notificationWorkItemRepo: NotificationWorkItemRepo,
-                                                   pushClientNotificationWorkItemService: PushClientNotificationWorkItemService)
+class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
+                                                notificationWorkItemRepo: NotificationWorkItemRepo,
+                                                pushClientNotificationRetryService: PushClientNotificationRetryService)
   extends CustomsNotificationService {
 
   def handleNotification(xml: NodeSeq,
                          metaData: RequestMetaData,
-                         apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
+                         apiSubscriptionFields: ApiSubscriptionFields)
                         (implicit hc: HeaderCarrier): Future[Boolean] = {
 
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
-      ClientId(apiSubscriptionFieldsResponse.clientId),
+      ClientId(apiSubscriptionFields.clientId),
       Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
-    saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFieldsResponse)
+    saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFields)
   }
 
   private def saveNotificationToDatabaseAndPush(notificationWorkItem: NotificationWorkItem,
-                                                apiSubscriptionFieldsResponse: ApiSubscriptionFieldsResponse)
+                                                apiSubscriptionFields: ApiSubscriptionFields)
                                                (implicit hc: HeaderCarrier): Future[Boolean] = {
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
-      pushClientNotificationWorkItemService.send(apiSubscriptionFieldsResponse, workItem.item).flatMap { result =>
-        if (result) {
-          notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-          logger.info(s"push succeeded for $notificationWorkItem")
-        } else {
-          notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
-          logger.error(s"push failed for $notificationWorkItem")
-        }
-        Future.successful(true)
-      }.recover {
+      pushClientNotificationRetryService.send(apiSubscriptionFields, workItem.item)
+        .flatMap { result =>
+          if (result) {
+            notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
+            logger.info(s"push succeeded for workItemId ${workItem.id.stringify}")
+          } else {
+            notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+            logger.error(s"push failed for workItemId ${workItem.id.stringify}")
+          }
+          Future.successful(true)
+        }.recover {
         case t: Throwable =>
-          logger.error(s"push failed for notification work item id: ${workItem.id} due to: ${t.getMessage}")
+          logger.error(s"push failed for notification work item id: ${workItem.id.stringify} due to: ${t.getMessage}")
           true
       }
     }.recover {
       case t: Throwable =>
-        logger.error(s"saving notification work item with csid: ${notificationWorkItem.id} and conversationId: ${notificationWorkItem.notification.conversationId} failed due to: ${t.getMessage}")
+        logger.error(s"failed saving notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${t.getMessage}")
         false
     }
   }

@@ -22,7 +22,7 @@ import org.mockito.{ArgumentCaptor, ArgumentMatchers}
 import org.scalatest.mockito.MockitoSugar
 import play.api.libs.json.Writes
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
-import uk.gov.hmrc.customs.notification.connectors.PushNotificationServiceConnector
+import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
@@ -33,13 +33,13 @@ import util.TestData.pushNotificationRequest
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
-class PushNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar {
+class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
 
   private val mockHttpClient = mock[HttpClient]
   private val mockNotificationLogger = mock[NotificationLogger]
   private val serviceConfigProvider = mock[ServiceConfigProvider]
 
-  private val connector = new PushNotificationServiceConnector(
+  private val connector = new ExternalPushConnector(
     mockHttpClient,
     mockNotificationLogger,
     serviceConfigProvider
@@ -51,7 +51,7 @@ class PushNotificationServiceConnectorSpec extends UnitSpec with MockitoSugar {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  "PushNotificationServiceConnector" should {
+  "ExternalPushConnector" should {
     when(serviceConfigProvider.getConfig("public-notification")).thenReturn(ServiceConfig(url, None, "default"))
 
     "POST valid payload" in {

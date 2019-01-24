@@ -18,10 +18,9 @@ package uk.gov.hmrc.customs.notification.domain
 
 import play.api.libs.json.Json
 
-// TODO: rename to ApiSubscriptionFields
-case class ApiSubscriptionFieldsResponse(clientId: String,
-                                         fields: DeclarantCallbackData)
+case class ApiSubscriptionFields(clientId: String,
+                                 fields: DeclarantCallbackData)
 
-object ApiSubscriptionFieldsResponse {
-  implicit val jsonFormat = Json.format[ApiSubscriptionFieldsResponse]
+object ApiSubscriptionFields {
+  implicit val jsonFormat = Json.format[ApiSubscriptionFields]
 }

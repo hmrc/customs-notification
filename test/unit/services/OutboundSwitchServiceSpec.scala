@@ -20,7 +20,7 @@ import org.mockito.ArgumentMatchers.{eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{InternalPushConnector, PushNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.connectors.{InternalPushConnector, ExternalPushConnector}
 import uk.gov.hmrc.customs.notification.domain.PushNotificationConfig
 import uk.gov.hmrc.customs.notification.services.OutboundSwitchService
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
@@ -33,7 +33,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar{
   trait SetUp {
     val mockConfigService = mock[ConfigService]
     val mockPushNotificationConfig = mock[PushNotificationConfig]
-    val mockExternalConnector = mock[PushNotificationServiceConnector]
+    val mockExternalConnector = mock[ExternalPushConnector]
     val mockInternalPushService = mock[InternalPushConnector]
     val mockLogger = mock[CdsLogger]
 

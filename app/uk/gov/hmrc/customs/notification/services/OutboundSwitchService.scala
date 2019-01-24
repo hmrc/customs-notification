@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{InternalPushConnector, PushNotificationServiceConnector}
+import uk.gov.hmrc.customs.notification.connectors.{InternalPushConnector, ExternalPushConnector}
 import uk.gov.hmrc.customs.notification.domain.{ClientId, PushNotificationRequest}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 
@@ -26,7 +26,7 @@ import scala.concurrent.Future
 
 @Singleton
 class OutboundSwitchService @Inject()(configService: ConfigService,
-                                      externalPush: PushNotificationServiceConnector,
+                                      externalPush: ExternalPushConnector,
                                       internalPush: InternalPushConnector,
                                       logger: CdsLogger
                                      ) {

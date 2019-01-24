@@ -128,11 +128,11 @@ object TestData {
   val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId, None, notification = notification1)
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId, notification = notification2)
   val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
-  val WorkItem1 = WorkItem(BSONObjectID.generate(), TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
+  val WorkItem1 = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
   val DeclarantCallbackDataOne = DeclarantCallbackData("URL", "SECURITY_TOKEN")
-  val ApiSubscriptionFieldsResponseOne = ApiSubscriptionFieldsResponse(clientId.toString, DeclarantCallbackDataOne)
+  val ApiSubscriptionFieldsOne = ApiSubscriptionFields(clientId.toString, DeclarantCallbackDataOne)
 
   val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
