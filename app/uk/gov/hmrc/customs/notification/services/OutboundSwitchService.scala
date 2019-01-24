@@ -18,16 +18,19 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{InternalPushConnector, ExternalPushConnector}
+import uk.gov.hmrc.customs.notification.connectors.{ExternalPushConnector, InternalPushConnector}
 import uk.gov.hmrc.customs.notification.domain.{ClientId, PushNotificationRequest}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
+import uk.gov.hmrc.http.HttpException
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
 class OutboundSwitchService @Inject()(configService: ConfigService,
                                       externalPush: ExternalPushConnector,
                                       internalPush: InternalPushConnector,
+                                      auditingService: AuditingService,
                                       logger: CdsLogger
                                      ) {
 
@@ -35,8 +38,19 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
 
     if (configService.pushNotificationConfig.internalClientIds.contains(clientId.toString)) {
       infoLog(s"About to push internally for clientId=$clientId", pnr)
-      internalPush.send(pnr)
-      //TODO: send an EXPLICIT audit event - covered in another story
+      internalPush.send(pnr).map(_ => auditingService.auditSuccessfulNotification(pnr))
+        .recoverWith {
+          case rte: RuntimeException =>
+            rte.getCause match {
+              case httpError: HttpException =>
+                // Only if an actual call was made we audit
+                auditingService.auditFailedNotification(pnr, Some(s"status: ${httpError.responseCode} body: ${httpError.message}"))
+                Future.failed(rte)
+              case _ =>
+                Future.failed(rte)
+            }
+
+        }
     } else {
       infoLog(s"About to push externally for clientId=$clientId", pnr)
       externalPush.send(pnr)

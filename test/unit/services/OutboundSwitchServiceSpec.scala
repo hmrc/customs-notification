@@ -16,28 +16,33 @@
 
 package unit.services
 
-import org.mockito.ArgumentMatchers.{eq => ameq}
+import org.mockito.ArgumentMatchers.{any, eq => ameq}
 import org.mockito.Mockito._
+import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{InternalPushConnector, ExternalPushConnector}
-import uk.gov.hmrc.customs.notification.domain.PushNotificationConfig
-import uk.gov.hmrc.customs.notification.services.OutboundSwitchService
+import uk.gov.hmrc.customs.notification.connectors.{ExternalPushConnector, InternalPushConnector}
+import uk.gov.hmrc.customs.notification.domain.{PushNotificationConfig, PushNotificationRequest}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
+import uk.gov.hmrc.customs.notification.services.{AuditingService, OutboundSwitchService}
+import uk.gov.hmrc.http.BadRequestException
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.services.ClientWorkerTestData._
 import util.MockitoPassByNameHelper.PassByNameVerifier
 
-class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar{
+import scala.concurrent.Future
+
+class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventually {
 
   trait SetUp {
     val mockConfigService = mock[ConfigService]
     val mockPushNotificationConfig = mock[PushNotificationConfig]
     val mockExternalConnector = mock[ExternalPushConnector]
     val mockInternalPushService = mock[InternalPushConnector]
+    val mockAuditingService = mock[AuditingService]
     val mockLogger = mock[CdsLogger]
 
-    val switcher = new OutboundSwitchService(mockConfigService, mockExternalConnector, mockInternalPushService, mockLogger)
+    val switcher = new OutboundSwitchService(mockConfigService, mockExternalConnector, mockInternalPushService, mockAuditingService, mockLogger)
   }
 
   "OutboundSwitchService" should {
@@ -45,14 +50,36 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar{
     "route internally when config property push.internal.clientIds contains a matching clientId" in new SetUp {
       when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
       when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
+      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Future.successful(()))
 
       switcher.send(ClientIdOne, pnrOne)
 
       verifyZeroInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))
+      eventually {
+        verify(mockAuditingService).auditSuccessfulNotification(pnrOne)
+      }
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam("[conversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push internally for clientId=ClientIdOne")
         .verify()
+    }
+
+    "route internally when config property push.internal.clientIds contains a matching clientId and push fails" in new SetUp {
+      when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
+      when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
+      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Future.failed(new RuntimeException(new BadRequestException("bad request exception"))))
+
+      switcher.send(ClientIdOne, pnrOne)
+
+      verifyZeroInteractions(mockExternalConnector)
+      verify(mockInternalPushService).send(ameq(pnrOne))
+      eventually {
+        verify(mockAuditingService).auditFailedNotification(pnrOne, Some("status: 400 body: bad request exception"))
+      }
+      PassByNameVerifier(mockLogger, "info")
+        .withByNameParam("[conversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push internally for clientId=ClientIdOne")
+        .verify()
+
     }
 
     "route externally when config property push.internal.clientIds does not contains a matching clientId" in new SetUp {

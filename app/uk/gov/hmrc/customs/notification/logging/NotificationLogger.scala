@@ -38,6 +38,7 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
   def info(msg: => String)(implicit hc: HeaderCarrier): Unit = logger.info(formatInfo(msg))
   def error(msg: => String)(implicit hc: HeaderCarrier): Unit = logger.error(formatError(msg))
   def error(msg: => String, headers: => SeqOfHeader): Unit = logger.error(formatError(msg, headers))
+  def error(msg: => String, t: => Throwable)(implicit hc: HeaderCarrier): Unit = logger.error(formatError(msg), t)
   def debugWithoutRequestContext(s: => String): Unit = logger.debug(s)
 
 }
