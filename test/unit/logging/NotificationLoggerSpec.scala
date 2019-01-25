@@ -16,6 +16,7 @@
 
 package unit.logging
 
+import org.mockito.ArgumentMatchers.any
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -81,6 +82,14 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
 
       PassByNameVerifier(mockCdsLogger, "error")
         .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg")
+        .verify()
+    }
+    "error(s: => String, t: => Throwable)" in new SetUp {
+      logger.error("msg", new Exception("message"))
+
+      PassByNameVerifier(mockCdsLogger, "error")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg")
+        .withByNameParamMatcher[Throwable](any[Throwable])
         .verify()
     }
     "debugWithoutRequestContext(s: => String)" in new SetUp {
