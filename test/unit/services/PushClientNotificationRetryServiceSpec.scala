@@ -53,7 +53,7 @@ class PushClientNotificationRetryServiceSpec extends UnitSpec with MockitoSugar 
     "call metrics service when push is successful" in {
       when(mockOutboundSwitchService.send(eqClientId(clientId), meq(PushNotificationRequest1))).thenReturn(Future.successful(()))
 
-      val result = await(pushService.send(ApiSubscriptionFieldsOne, NotificationWorkItemWithMetricsTime1))
+      val result = await(pushService.send(ApiSubscriptionFieldsOneForPush, NotificationWorkItemWithMetricsTime1))
 
       result shouldBe true
       verifyMetricsConnector()
@@ -63,7 +63,7 @@ class PushClientNotificationRetryServiceSpec extends UnitSpec with MockitoSugar 
     "do not call metrics service when push is successful but no metrics start time exists" in {
       when(mockOutboundSwitchService.send(eqClientId(clientId), meq(PushNotificationRequest1))).thenReturn(Future.successful(()))
 
-      val result = await(pushService.send(ApiSubscriptionFieldsOne, NotificationWorkItem1))
+      val result = await(pushService.send(ApiSubscriptionFieldsOneForPush, NotificationWorkItem1))
 
       result shouldBe true
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
@@ -73,7 +73,7 @@ class PushClientNotificationRetryServiceSpec extends UnitSpec with MockitoSugar 
     "log error when push fails" in {
       when(mockOutboundSwitchService.send(eqClientId(clientId), meq(PushNotificationRequest1))).thenReturn(Future.failed(emulatedServiceFailure))
 
-      val result = await(pushService.send(ApiSubscriptionFieldsOne, NotificationWorkItem1))
+      val result = await(pushService.send(ApiSubscriptionFieldsOneForPush, NotificationWorkItem1))
 
       result shouldBe false
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
