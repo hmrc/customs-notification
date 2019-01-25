@@ -33,7 +33,7 @@ import util._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class InternalNotificationResilienceSpec extends AcceptanceTestSpec
+class CustomsNotificationTxmSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService
   with PushNotificationService
@@ -46,7 +46,7 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
   private val googleAnalyticsClientId: String = "555"
   private val googleAnalyticsEventValue = "10"
 
-  val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
+  private val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = app.injector.instanceOf[MongoDbProvider].mongo,
     domainFormat = ClientNotification.clientNotificationJF) {
@@ -85,7 +85,7 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
   }
 
 
-  feature("Ensure call to callback endpoint are made internally (ie bypass the gateway)") {
+  feature("Ensure Audit Service is made when call to callback endpoint are made internally (ie bypass the gateway)") {
 
     scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
@@ -106,32 +106,9 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
       callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
         s"[ConversationId=$validConversationId] A notification has been pushed successfully") shouldBe true
 
+      And("A call is made to the audit service")
       verify(1, postRequestedFor(urlMatching("/write/audit")))
 
     }
-
-    scenario("when notifications are present in the database and push fails") {
-      startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
-      setupInternalServiceToReturn(NOT_FOUND)
-      setupGoogleAnalyticsEndpoint()
-      runNotificationQueueService(CREATED)
-
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
-
-      And("the callback endpoint was called internally, bypassing the gateway")
-      eventually(verifyInternalServiceWasCalledWith(internalPushNotificationRequest))
-      eventually(verifyPushNotificationServiceWasNotCalled())
-      eventually(verifyNotificationQueueServiceWasCalledWith(internalPushNotificationRequest))
-
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
-
-      callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
-        s"[ConversationId=$validConversationId] A notification Push request failed") shouldBe true
-
-      callWasMadeToGoogleAnalyticsWith("notificationLeftToBePulled",
-        s"[ConversationId=$validConversationId] A notification has been left to be pulled") shouldBe true
-    }
   }
-
 }
