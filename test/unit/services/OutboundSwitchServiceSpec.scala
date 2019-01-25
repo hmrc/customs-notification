@@ -52,7 +52,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
       when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Future.successful(()))
 
-      switcher.send(ClientIdOne, pnrOne)
+      await(switcher.send(ClientIdOne, pnrOne))
 
       verifyZeroInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))
@@ -67,13 +67,15 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     "route internally when config property push.internal.clientIds contains a matching clientId and push fails" in new SetUp {
       when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
       when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
-      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Future.failed(new RuntimeException(new BadRequestException("bad request exception"))))
+      private val futureBadRequest: Future[Nothing] = Future.failed(new RuntimeException(new BadRequestException("bad request exception")))
+      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(futureBadRequest)
 
-      switcher.send(ClientIdOne, pnrOne)
+      intercept[RuntimeException](await(switcher.send(ClientIdOne, pnrOne))).getCause shouldBe a[BadRequestException]
 
       verifyZeroInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))
       eventually {
+
         verify(mockAuditingService).auditFailedNotification(pnrOne, Some("status: 400 body: bad request exception"))
       }
       PassByNameVerifier(mockLogger, "info")
@@ -85,8 +87,9 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     "route externally when config property push.internal.clientIds does not contains a matching clientId" in new SetUp {
       when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
       when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq.empty)
+      when(mockExternalConnector.send(any[PushNotificationRequest])).thenReturn(Future.successful(()))
 
-      switcher.send(ClientIdOne, pnrOne)
+      await(switcher.send(ClientIdOne, pnrOne))
 
       verify(mockExternalConnector).send(ameq(pnrOne))
       verifyZeroInteractions(mockInternalPushService)

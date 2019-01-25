@@ -38,23 +38,27 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
 
     if (configService.pushNotificationConfig.internalClientIds.contains(clientId.toString)) {
       infoLog(s"About to push internally for clientId=$clientId", pnr)
-      internalPush.send(pnr).map(_ => auditingService.auditSuccessfulNotification(pnr))
-        .recoverWith {
-          case rte: RuntimeException =>
-            rte.getCause match {
-              case httpError: HttpException =>
-                // Only if an actual call was made we audit
-                auditingService.auditFailedNotification(pnr, Some(s"status: ${httpError.responseCode} body: ${httpError.message}"))
-                Future.failed(rte)
-              case _ =>
-                Future.failed(rte)
-            }
-
-        }
+      send(pnr)
     } else {
       infoLog(s"About to push externally for clientId=$clientId", pnr)
       externalPush.send(pnr)
     }
+  }
+
+  private def send(pnr: PushNotificationRequest) = {
+    internalPush.send(pnr).map(_ => auditingService.auditSuccessfulNotification(pnr))
+      .recoverWith {
+        case rte: RuntimeException =>
+          rte.getCause match {
+            case httpError: HttpException =>
+              // Only if an actual call was made we audit
+              auditingService.auditFailedNotification(pnr, Some(s"status: ${httpError.responseCode} body: ${httpError.message}"))
+              Future.failed(rte)
+            case _ =>
+              Future.failed(rte)
+          }
+
+      }
   }
 
   // TODO: replace with call to NotificationLogger info, once logging framework has been refactored

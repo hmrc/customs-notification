@@ -46,7 +46,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
   private val googleAnalyticsClientId: String = "555"
   private val googleAnalyticsEventValue = "10"
 
-  val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
+  private val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = app.injector.instanceOf[MongoDbProvider].mongo,
     domainFormat = ClientNotification.clientNotificationJF) {
@@ -105,7 +105,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
 
       callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
         s"[ConversationId=$validConversationId] A notification has been pushed successfully") shouldBe true
-;
+
       And("A call is made to the audit service")
       verify(1, postRequestedFor(urlMatching("/write/audit")))
 
