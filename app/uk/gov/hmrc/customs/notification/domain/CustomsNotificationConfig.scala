@@ -23,8 +23,6 @@ import scala.concurrent.duration.FiniteDuration
 
 case class NotificationQueueConfig(url: String)
 
-case class GoogleAnalyticsSenderConfig(url: String, gaTrackingId: String, gaClientId: String, gaEventValue: String, gaEnabled: Boolean)
-
 case class PushNotificationConfig(internalClientIds: Seq[String], pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration, maxRecordsToFetch: Int, ttlInSeconds: Int)
 
 /* TODO: remove this - it was introduced for DesCartes when we thought they had no PULL capability*/
@@ -40,8 +38,6 @@ trait CustomsNotificationConfig {
   def maybeBasicAuthToken: Option[String]
 
   def notificationQueueConfig: NotificationQueueConfig
-
-  def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig
 
   def pushNotificationConfig: PushNotificationConfig
 

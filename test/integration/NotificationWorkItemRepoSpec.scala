@@ -62,7 +62,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     new CustomsNotificationConfig {
       override def maybeBasicAuthToken: Option[String] = None
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
-      override def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig = mock[GoogleAnalyticsSenderConfig]
       override def pushNotificationConfig: PushNotificationConfig = pushConfig
       override def pullExcludeConfig: PullExcludeConfig = mock[PullExcludeConfig]
       override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]

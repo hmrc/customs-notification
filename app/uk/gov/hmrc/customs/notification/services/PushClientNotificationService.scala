@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.services
 import java.util.concurrent.TimeUnit
 
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
+import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -32,7 +32,6 @@ import scala.concurrent.duration.Duration
 
 @Singleton
 class PushClientNotificationService @Inject() (outboundSwitchService: OutboundSwitchService,
-                                               gaConnector: GoogleAnalyticsSenderConnector,
                                                notificationLogger: NotificationLogger,
                                                metricsConnector: CustomsNotificationMetricsConnector,
                                                dateTimeService: DateTimeService) {
@@ -54,10 +53,8 @@ class PushClientNotificationService @Inject() (outboundSwitchService: OutboundSw
     }
     if (result) {
       notificationLogger.debug(s"${logMsgPrefix(clientNotification)} Notification has been pushed")
-      gaConnector.send("notificationPushRequestSuccess", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification has been pushed successfully")
     } else {
       notificationLogger.error(s"${logMsgPrefix(clientNotification)} Notification push failed")
-      gaConnector.send("notificationPushRequestFailed", s"[ConversationId=${pushNotificationRequest.body.conversationId}] A notification Push request failed")
     }
     result
   }

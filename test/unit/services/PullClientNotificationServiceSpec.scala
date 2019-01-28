@@ -16,15 +16,12 @@
 
 package unit.services
 
-;
-
-import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.{any, eq => meq}
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector}
+import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.services.PullClientNotificationService
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
@@ -38,19 +35,15 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
   private val mockPullConnector = mock[NotificationQueueConnector]
   private val mockLogger = mock[CdsLogger]
-  private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
-  private val service = new PullClientNotificationService(mockPullConnector, mockLogger, mockGAConnector)
+  private val service = new PullClientNotificationService(mockPullConnector, mockLogger)
   private implicit val hc: HeaderCarrier = mock[HeaderCarrier]
   private val someNotification = clientNotification()
   private val runtimeException = new RuntimeException("something went wrong")
 
   override protected def beforeEach(): Unit = {
-    reset(mockPullConnector, mockLogger, mockGAConnector)
+    reset(mockPullConnector, mockLogger)
 
-    when(mockPullConnector.enqueue(any[ClientNotification]))
-      .thenReturn(Future.successful(mock[HttpResponse]))
-
-    when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
+    when(mockPullConnector.enqueue(any[ClientNotification])).thenReturn(Future.successful(mock[HttpResponse]))
   }
 
   "Pull service" should {
@@ -58,7 +51,6 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
     "return sync True when the request to Pull Service is successful" in {
       service.send(someNotification) should be(true)
 
-      andGAEventHasBeenSentWith("notificationLeftToBePulled", s"[ConversationId=${someNotification.notification.conversationId}] A notification has been left to be pulled")
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Notification has been passed on to PULL service")
         .verify()
@@ -70,7 +62,6 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
       service.send(someNotification) should be(false)
 
-      andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
       PassByNameVerifier(mockLogger, "error")
         .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Failed to pass the notification to PULL service")
         .withByNameParamMatcher(any[RuntimeException])
@@ -80,7 +71,6 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
     "return async True when the request to Pull Service is successful" in {
       service.send(someNotification) should be(true)
 
-      andGAEventHasBeenSentWith("notificationLeftToBePulled", s"[ConversationId=${someNotification.notification.conversationId}] A notification has been left to be pulled")
     }
 
     "return async False when the request to Pull Service is not successful" in {
@@ -89,22 +79,11 @@ class PullClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
       service.send(someNotification) should be(false)
 
-      andGAEventHasBeenSentWith("notificationPullRequestFailed", s"[ConversationId=${someNotification.notification.conversationId}] A notification Pull request failed")
       PassByNameVerifier(mockLogger, "error")
         .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]Failed to pass the notification to PULL service")
         .withByNameParamMatcher(any[RuntimeException])
         .verify()
     }
 
-  }
-
-  private def andGAEventHasBeenSentWith(expectedEventName: String, expectedMessage: String) = {
-    val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-    val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-
-    verify(mockGAConnector, times(1)).send(eventNameCaptor.capture(), msgCaptor.capture())(any())
-
-    eventNameCaptor.getValue should be(expectedEventName)
-    msgCaptor.getValue should be(expectedMessage)
   }
 }

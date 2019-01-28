@@ -38,13 +38,8 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
   with ApiSubscriptionFieldsService with NotificationQueueService
   with PushNotificationService
   with InternalPushNotificationService
-  with GoogleAnalyticsSenderService
   with MongoSpecSupport
   with AuditService {
-
-  private val googleAnalyticsTrackingId: String = "UA-12345678-2"
-  private val googleAnalyticsClientId: String = "555"
-  private val googleAnalyticsEventValue = "10"
 
   private val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
@@ -54,10 +49,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
-      ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
-      ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
       ("push.polling.delay.duration.milliseconds" -> 2) +
-      ("googleAnalytics.eventValue" -> googleAnalyticsEventValue) +
       ("push.internal.clientIds.0" -> "aThirdPartyApplicationId") +
       ("auditing.enabled" -> "true") +
       ("auditing.consumer.baseUri.host" -> Host) +
@@ -65,11 +57,6 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
       ("customs-notification-metrics.host" -> Host) +
       ("customs-notification-metrics.port" -> Port)
   ).build()
-
-
-  private def callWasMadeToGoogleAnalyticsWith: (String, String) => Boolean =
-    aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId, googleAnalyticsClientId, googleAnalyticsEventValue)
-
 
   override protected def beforeAll() {
     startMockServer()
@@ -90,7 +77,6 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
     scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
       setupInternalServiceToReturn()
-      setupGoogleAnalyticsEndpoint()
       setupAuditServiceToReturn(NO_CONTENT)
       runNotificationQueueService(CREATED)
 
@@ -101,10 +87,6 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
       eventually(verifyInternalServiceWasCalledWith(internalPushNotificationRequest))
       eventually(verifyPushNotificationServiceWasNotCalled())
       eventually(verifyNotificationQueueServiceWasNotCalled())
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(1))
-
-      callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
-        s"[ConversationId=$validConversationId] A notification has been pushed successfully") shouldBe true
 
       And("A call is made to the audit service")
       verify(1, postRequestedFor(urlMatching("/write/audit")))
