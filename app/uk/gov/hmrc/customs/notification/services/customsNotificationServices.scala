@@ -76,7 +76,8 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
 @Singleton
 class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
                                                 notificationWorkItemRepo: NotificationWorkItemRepo,
-                                                pushClientNotificationRetryService: PushClientNotificationRetryService)
+                                                pushClientNotificationRetryService: PushClientNotificationRetryService,
+                                                pullClientNotificationRetryService: PullClientNotificationRetryService)
   extends CustomsNotificationService {
 
   def handleNotification(xml: NodeSeq,
@@ -89,27 +90,37 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
       Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
-    saveNotificationToDatabaseAndPush(notificationWorkItem, apiSubscriptionFields)
+      saveNotificationToDatabaseAndPushOrPull(notificationWorkItem, apiSubscriptionFields)
   }
 
-  private def saveNotificationToDatabaseAndPush(notificationWorkItem: NotificationWorkItem,
+  private def saveNotificationToDatabaseAndPushOrPull(notificationWorkItem: NotificationWorkItem,
                                                 apiSubscriptionFields: ApiSubscriptionFields)
                                                (implicit hc: HeaderCarrier): Future[Boolean] = {
 
+    val logMsgBuilder = StringBuilder.newBuilder
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
-      pushClientNotificationRetryService.send(apiSubscriptionFields, workItem.item)
-        .flatMap { result =>
+      {
+        if (apiSubscriptionFields.fields.callbackUrl.isEmpty) {
+          logMsgBuilder.append("pull")
+          pullClientNotificationRetryService.send(notificationWorkItem)
+        } else {
+          logMsgBuilder.append("push")
+          pushClientNotificationRetryService.send(apiSubscriptionFields, workItem.item)
+        }
+      }.flatMap { result =>
           if (result) {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-            logger.info(s"push succeeded for workItemId ${workItem.id.stringify}")
+            logMsgBuilder.append(s" succeeded for workItemId ${workItem.id.stringify}")
+            logger.info(logMsgBuilder.toString())
           } else {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-            logger.error(s"push failed for workItemId ${workItem.id.stringify}")
+            logMsgBuilder.append(s" failed for workItemId ${workItem.id.stringify}")
+            logger.info(logMsgBuilder.toString())
           }
           Future.successful(true)
         }.recover {
         case t: Throwable =>
-          logger.error(s"push failed for notification work item id: ${workItem.id.stringify} due to: ${t.getMessage}")
+          logger.error(s"processing failed for notification work item id: ${workItem.id.stringify} due to: ${t.getMessage}")
           true
       }
     }.recover {

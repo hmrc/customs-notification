@@ -59,11 +59,6 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
       ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
 
-
-  private def callWasMadeToGoogleAnalyticsWith: (String, String) => Boolean =
-    aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId, googleAnalyticsClientId, googleAnalyticsEventValue) _
-
-
   override protected def beforeAll() {
     await(repo.drop)
     startMockServer()
@@ -88,7 +83,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
   feature("Ensure call to push notification service is made when request is valid") {
 
-    scenario("DMS/MDG submits a valid request") {
+    scenario("backend submits a valid request") {
       setupGoogleAnalyticsEndpoint()
 
       Given("the API is available")
@@ -107,7 +102,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
       contentAsString(resultFuture) shouldBe 'empty
     }
 
-    scenario("DMS/MDG submits a valid request with incorrect callback details used") {
+    scenario("backend submits a valid request with incorrect callback details used") {
       setupPushNotificationServiceToReturn(NOT_FOUND)
       setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
@@ -146,7 +141,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
     forAll(table) { (description, request, httpCode, responseXML) =>
 
-      scenario(s"DMS/MDG submits an invalid request with $description") {
+      scenario(s"backend submits an invalid request with $description") {
 
         Given("the API is available")
 
