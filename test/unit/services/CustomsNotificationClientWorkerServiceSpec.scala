@@ -16,14 +16,12 @@
 
 package unit.services
 
-import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.{any, refEq, eq => meq}
+import org.mockito.ArgumentMatchers.{refEq, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
-import uk.gov.hmrc.customs.notification.connectors.GoogleAnalyticsSenderConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
@@ -51,7 +49,6 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), TimeReceivedZoned)
-  private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
   private val contentType = "application/xml"
@@ -65,15 +62,13 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
 
    private val service = new CustomsNotificationClientWorkerService(
     mockNotificationLogger,
-    mockGAConnector,
     mockClientNotificationRepo,
     mockNotificationDispatcher,
     mockPullService
   )
 
   override protected def beforeEach() {
-    reset(mockNotificationDispatcher, mockClientNotificationRepo, mockGAConnector)
-    when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
+    reset(mockNotificationDispatcher, mockClientNotificationRepo)
     when(mockClientNotificationRepo.save(refEq(clientNotification, "timeReceived", "id"))).thenReturn(Future.successful(true))
     when(mockNotificationDispatcher.process(meq(Set(clientSubscriptionId)))).thenReturn(Future.successful(()))
   }
@@ -85,7 +80,6 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
       await(result) shouldBe true
       eventually(verify(mockClientNotificationRepo).save(refEq(clientNotification, "timeReceived", "id")))
       eventually(verify(mockNotificationDispatcher).process(meq(Set(clientSubscriptionId))))
-      verifyGAReceivedEvent()
       verifyZeroInteractions(mockPullService)
     }
 
@@ -108,14 +102,5 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
       verifyZeroInteractions(mockNotificationDispatcher)
       verifyZeroInteractions(mockPullService)
     }
-  }
-
-  private def verifyGAReceivedEvent() = {
-    val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-    val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-    eventually(verify(mockGAConnector, times(1)).send(eventNameCaptor.capture(), msgCaptor.capture())(any()))
-    val capturedEventNames = eventNameCaptor.getAllValues
-
-    msgCaptor.getAllValues.get(capturedEventNames.indexOf("notificationRequestReceived")) shouldBe s"[ConversationId=${requestMetaData.conversationId}] A notification received for delivery"
   }
 }

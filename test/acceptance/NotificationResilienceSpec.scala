@@ -36,32 +36,16 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
   with ApiSubscriptionFieldsService with NotificationQueueService
   with InternalPushNotificationService
   with PushNotificationService
-  with GoogleAnalyticsSenderService
   with MongoSpecSupport {
-
-  private val googleAnalyticsTrackingId: String = "UA-12345678-2"
-  private val googleAnalyticsClientId: String = "555"
-  private val googleAnalyticsEventValue = "10"
 
   val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = app.injector.instanceOf[MongoDbProvider].mongo,
     domainFormat = ClientNotification.clientNotificationJF) {
-
-
   }
 
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
-    acceptanceTestConfigs +
-      ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
-      ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
-      ("push.polling.delay.duration.milliseconds" -> 2) +
-      ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
-
-
-  private def callWasMadeToGoogleAnalyticsWith: (String, String) => Boolean =
-    aCallWasMadeToGoogleAnalyticsWith(googleAnalyticsTrackingId, googleAnalyticsClientId, googleAnalyticsEventValue)
-
+  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs +
+      ("push.polling.delay.duration.milliseconds" -> 2)).build()
 
   override protected def beforeAll() {
     startMockServer()
@@ -82,7 +66,6 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
     scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupPushNotificationServiceToReturn()
-      setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
       repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
@@ -93,16 +76,11 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
       eventually(verifyInternalServiceWasNotCalledWith(pushNotificationRequest))
 
       eventually(verifyNotificationQueueServiceWasNotCalled())
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(1))
-
-      callWasMadeToGoogleAnalyticsWith("notificationPushRequestSuccess",
-        s"[ConversationId=$validConversationId] A notification has been pushed successfully") shouldBe true
     }
 
     scenario("when notifications are present in the database and push fails") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupPushNotificationServiceToReturn(404)
-      setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
       repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
@@ -112,14 +90,6 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
       eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
       eventually(verifyInternalServiceWasNotCalledWith(pushNotificationRequest))
       eventually(verifyNotificationQueueServiceWasCalledWith(pushNotificationRequest))
-
-      eventually(verifyNoOfGoogleAnalyticsCallsMadeWere(2))
-
-      callWasMadeToGoogleAnalyticsWith("notificationPushRequestFailed",
-        s"[ConversationId=$validConversationId] A notification Push request failed") shouldBe true
-
-      callWasMadeToGoogleAnalyticsWith("notificationLeftToBePulled",
-        s"[ConversationId=$validConversationId] A notification has been left to be pulled") shouldBe true
     }
   }
 }

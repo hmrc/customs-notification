@@ -39,13 +39,9 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
   with PushNotificationService
-  with GoogleAnalyticsSenderService
   with MongoSpecSupport {
 
   private val endpoint = "/customs-notification/notify"
-  private val googleAnalyticsTrackingId: String = "UA-12345678-2"
-  private val googleAnalyticsClientId: String = "555"
-  private val googleAnalyticsEventValue = "10"
 
   val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
@@ -54,10 +50,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   }
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
-    acceptanceTestConfigs +
-      ("googleAnalytics.trackingId" -> googleAnalyticsTrackingId) +
-      ("googleAnalytics.clientId" -> googleAnalyticsClientId) +
-      ("googleAnalytics.eventValue" -> googleAnalyticsEventValue)).build()
+    acceptanceTestConfigs).build()
 
   override protected def beforeAll() {
     await(repo.drop)
@@ -77,15 +70,12 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     startApiSubscriptionFieldsService(validFieldsId,callbackData)
     setupApiSubscriptionFieldsServiceToReturn(NOT_FOUND, someFieldsId)
     setupPushNotificationServiceToReturn()
-    setupGoogleAnalyticsEndpoint()
   }
 
 
   feature("Ensure call to push notification service is made when request is valid") {
 
     scenario("backend submits a valid request") {
-      setupGoogleAnalyticsEndpoint()
-
       Given("the API is available")
       val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
 
@@ -104,7 +94,6 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
     scenario("backend submits a valid request with incorrect callback details used") {
       setupPushNotificationServiceToReturn(NOT_FOUND)
-      setupGoogleAnalyticsEndpoint()
       runNotificationQueueService(CREATED)
 
       Given("the API is available")

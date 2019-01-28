@@ -37,7 +37,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class PushPullNotificationsSpec extends AcceptanceTestSpec
   with Matchers with OptionValues
   with ApiSubscriptionFieldsService
-  with GoogleAnalyticsSenderService
   with StubForPushService
   with StubForPullService
   with MongoSpecSupport
@@ -68,7 +67,6 @@ class PushPullNotificationsSpec extends AcceptanceTestSpec
     await(notificationRepo.drop(scala.concurrent.ExecutionContext.Implicits.global))
     runNotificationQueueService()
     setupPushNotificationServiceToReturn()
-    setupGoogleAnalyticsEndpoint()
   }
 
   override protected def afterAll() {

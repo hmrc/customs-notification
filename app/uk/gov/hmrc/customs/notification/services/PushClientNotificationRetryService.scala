@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
+import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
@@ -28,7 +28,6 @@ import scala.concurrent.Future
 
 @Singleton
 class PushClientNotificationRetryService @Inject()(outboundSwitchService: OutboundSwitchService,
-                                                   gaConnector: GoogleAnalyticsSenderConnector,
                                                    notificationLogger: NotificationLogger,
                                                    metricsConnector: CustomsNotificationMetricsConnector,
                                                    dateTimeService: DateTimeService) {

@@ -17,9 +17,9 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.util.UUID
-import javax.inject.{Inject, Singleton}
 
 import com.google.inject.ImplementedBy
+import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}

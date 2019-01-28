@@ -37,7 +37,6 @@ class FailedPushEmailSpec  extends AcceptanceTestSpec
   with NotificationQueueService
   with TableDrivenPropertyChecks
   with PushNotificationService
-  with GoogleAnalyticsSenderService
   with MongoSpecSupport {
 
   val repo = new ReactiveRepository[ClientNotification, BSONObjectID](

@@ -327,7 +327,6 @@ object ExternalServicesConfiguration {
   val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "11111").toInt
   val Host = "localhost"
   val PushNotificationServiceContext = "/notify-customs-declarant"
-  val GoogleAnalyticsEndpointContext = "/google-analytics"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"
   val EmailServiceContext = "/hmrc/email"

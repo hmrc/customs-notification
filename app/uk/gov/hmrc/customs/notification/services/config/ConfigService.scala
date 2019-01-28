@@ -41,7 +41,6 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
   private case class CustomsNotificationConfigImpl(maybeBasicAuthToken: Option[String],
                                                    notificationQueueConfig: NotificationQueueConfig,
-                                                   googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig,
                                                    pushNotificationConfig: PushNotificationConfig,
                                                    pullExcludeConfig: PullExcludeConfig,
                                                    notificationMetricsConfig: NotificationMetricsConfig) extends CustomsNotificationConfig
@@ -58,15 +57,6 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
     val notificationMetricsConfigNel: CustomsValidatedNel[NotificationMetricsConfig] =
       configValidatedNel.service("customs-notification-metrics").serviceUrl.map(NotificationMetricsConfig.apply)
-
-    val gaSenderUrl = configValidatedNel.service("google-analytics-sender").serviceUrl
-    val gaTrackingId = root.string("googleAnalytics.trackingId")
-    val gaClientId = root.string("googleAnalytics.clientId")
-    val gaEventValue = root.string("googleAnalytics.eventValue")
-    val gaEnabled= root.boolean("googleAnalytics.enabled")
-    val validatedGoogleAnalyticsSenderConfigNel: CustomsValidatedNel[GoogleAnalyticsSenderConfig] = (
-      gaSenderUrl, gaTrackingId, gaClientId, gaEventValue, gaEnabled
-    ).mapN(GoogleAnalyticsSenderConfig)
 
     val internalClientIdsNel: CustomsValidatedNel[Seq[String]] =
       root.stringSeq("push.internal.clientIds")
@@ -112,7 +102,6 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
     val validatedConfig: CustomsValidatedNel[CustomsNotificationConfig] = (
       authTokenInternalNel,
       notificationQueueConfigNel,
-      validatedGoogleAnalyticsSenderConfigNel,
       pushNotificationConfig,
       pullExcludeConfig,
       notificationMetricsConfigNel
@@ -137,8 +126,6 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
   override val maybeBasicAuthToken: Option[String] = config.maybeBasicAuthToken
 
   override val notificationQueueConfig: NotificationQueueConfig = config.notificationQueueConfig
-
-  override val googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig = config.googleAnalyticsSenderConfig
 
   override val pushNotificationConfig: PushNotificationConfig = config.pushNotificationConfig
 

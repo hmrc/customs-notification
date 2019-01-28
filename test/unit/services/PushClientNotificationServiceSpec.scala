@@ -17,13 +17,13 @@
 package unit.services
 
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.{any, eq => meq}
+import org.mockito.ArgumentMatchers.{eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
+import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationsMetricsRequest}
 import uk.gov.hmrc.customs.notification.services.{DateTimeService, OutboundSwitchService, PushClientNotificationService}
 import uk.gov.hmrc.http.HeaderCarrier
@@ -37,24 +37,20 @@ import scala.concurrent.Future
 class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterEach {
 
   private val mockOutboundSwitchService = mock[OutboundSwitchService]
-  private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val notificationLogger = new StubNotificationLogger(mock[CdsLogger])
   private val mockCustomsNotificationsMetricsConnector = mock[CustomsNotificationMetricsConnector]
   private val mockDateTimeService = mock[DateTimeService]
   private implicit val hc = HeaderCarrier()
 
-  private val pushService = new PushClientNotificationService(mockOutboundSwitchService, mockGAConnector, notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
+  private val pushService = new PushClientNotificationService(mockOutboundSwitchService, notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
 
   override protected def beforeEach(): Unit = {
-    reset(mockOutboundSwitchService, mockGAConnector, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
-
-    when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
+    reset(mockOutboundSwitchService, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
   }
 
   "PushClientNotificationService" should {
     "return true and call metrics service when push is successful but no metrics start time exists" in {
       when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(()))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOneWithMetricsTime))
 
@@ -62,12 +58,10 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
       result shouldBe true
       eventually(verify(mockOutboundSwitchService).send(eqClientId(ClientIdOne), meq(pnrOne)))
-      andGAEventHasBeenSentWith("notificationPushRequestSuccess", "[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] A notification has been pushed successfully")
     }
 
     "return true and do not call mnetrics service when push is successful but no metrics start time exists" in {
       when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(()))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOne))
 
@@ -75,32 +69,19 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
       result shouldBe true
       eventually(verify(mockOutboundSwitchService).send(eqClientId(ClientIdOne), meq(pnrOne)))
-      andGAEventHasBeenSentWith("notificationPushRequestSuccess", "[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] A notification has been pushed successfully")
     }
 
     "return false when push fails" in {
       when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.failed(emulatedServiceFailure))
-      when(mockGAConnector.send(any(), any())(meq(hc))).thenReturn(Future.successful(()))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
       val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOne))
       result shouldBe false
-      andGAEventHasBeenSentWith("notificationPushRequestFailed", "[ConversationId=caca01f9-ec3b-4ede-b263-61b626dde231] A notification Push request failed")
     }
 
   }
 
   private def eqClientId(clientId: ClientId) = meq[String](clientId.id).asInstanceOf[ClientId]
-
-  private def andGAEventHasBeenSentWith(expectedEventName: String, expectedMessage: String) = {
-    val eventNameCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-    val msgCaptor: ArgumentCaptor[String] = ArgumentCaptor.forClass(classOf[String])
-
-    verify(mockGAConnector, times(1)).send(eventNameCaptor.capture(), msgCaptor.capture())(any())
-
-    eventNameCaptor.getValue should be(expectedEventName)
-    msgCaptor.getValue should be(expectedMessage)
-  }
 
   def verifyMetricsConnector(): Unit = {
     val metricsRequestCaptor: ArgumentCaptor[CustomsNotificationsMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationsMetricsRequest])

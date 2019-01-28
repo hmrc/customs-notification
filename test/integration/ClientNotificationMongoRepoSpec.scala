@@ -79,7 +79,6 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     val config = new CustomsNotificationConfig{
       override def maybeBasicAuthToken: Option[String] = None
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
-      override def googleAnalyticsSenderConfig: GoogleAnalyticsSenderConfig = mock[GoogleAnalyticsSenderConfig]
       override def pushNotificationConfig: PushNotificationConfig = pushConfigWithMaxFiveRecords.copy(maxRecordsToFetch = maxRecords)
       override def pullExcludeConfig: PullExcludeConfig = pullExcludeConfigZeroMillis.copy(notificationsOlderMillis = notificationsOlder)
 

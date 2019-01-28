@@ -22,7 +22,7 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
-import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector, GoogleAnalyticsSenderConnector}
+import uk.gov.hmrc.customs.notification.connectors.{CustomsNotificationMetricsConnector}
 import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationsMetricsRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{DateTimeService, OutboundSwitchService, PushClientNotificationRetryService}
@@ -36,14 +36,13 @@ import scala.concurrent.Future
 class PushClientNotificationRetryServiceSpec extends UnitSpec with MockitoSugar with Eventually with BeforeAndAfterEach {
 
   private val mockOutboundSwitchService = mock[OutboundSwitchService]
-  private val mockGAConnector = mock[GoogleAnalyticsSenderConnector]
   private val notificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationsMetricsConnector = mock[CustomsNotificationMetricsConnector]
   private val mockDateTimeService = mock[DateTimeService]
   private implicit val hc = HeaderCarrier()
 
   private val pushService = new PushClientNotificationRetryService(mockOutboundSwitchService,
-    mockGAConnector, notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
+    notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
 
   override protected def beforeEach(): Unit = {
     reset(mockOutboundSwitchService, mockCustomsNotificationsMetricsConnector, mockDateTimeService)

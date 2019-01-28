@@ -17,10 +17,10 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.util.concurrent.TimeUnit
-import javax.inject.{Inject, Singleton}
 
+import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.{GoogleAnalyticsSenderConnector, NotificationQueueConnector}
+import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.http.HeaderCarrier
@@ -32,8 +32,7 @@ import scala.concurrent.{Await, Future}
 
 @Singleton
 class PullClientNotificationService @Inject() (notificationQueueConnector: NotificationQueueConnector,
-                                               logger: CdsLogger,
-                                               gaConnector: GoogleAnalyticsSenderConnector) {
+                                               logger: CdsLogger) {
 
   private implicit val hc = HeaderCarrier()
 
@@ -49,14 +48,12 @@ class PullClientNotificationService @Inject() (notificationQueueConnector: Notif
 
   private def sendAsync(clientNotification: ClientNotification): Future[Boolean] = {
     notificationQueueConnector.enqueue(clientNotification).map { _ =>
-      gaConnector.send("notificationLeftToBePulled", s"[ConversationId=${clientNotification.notification.conversationId}] A notification has been left to be pulled")
       logger.info(logMsgPrefix(clientNotification) + "Notification has been passed on to PULL service")
       true
     }
     .recover {
       case t: Throwable =>
         logger.error(logMsgPrefix(clientNotification) + "Failed to pass the notification to PULL service", t)
-        gaConnector.send("notificationPullRequestFailed", s"[ConversationId=${clientNotification.notification.conversationId}] A notification Pull request failed")
         false
     }
   }

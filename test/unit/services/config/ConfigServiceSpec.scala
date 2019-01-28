@@ -22,7 +22,7 @@ import org.scalatest.mockito.MockitoSugar
 import play.api.{Configuration, Environment, Mode}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, ServicesConfig}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{GoogleAnalyticsSenderConfig, NotificationQueueConfig}
+import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData.basicAuthTokenValue
@@ -36,11 +36,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
     s"""
       |{
       |auth.token.internal = "$basicAuthTokenValue"
-      |
-      |googleAnalytics.trackingId = UA-11111-1
-      |googleAnalytics.clientId = 555
-      |googleAnalytics.eventValue = 10
-      |googleAnalytics.enabled = false
       |
       |push.polling.delay.duration.milliseconds = 5000
       |push.lock.duration.milliseconds = 1000
@@ -66,11 +61,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |        port = 9648
       |        context = "/queue"
       |      }
-      |      google-analytics-sender {
-      |       host = localhost2
-      |       port = 9822
-      |       context = /send-google-analytics
-      |      }
       |      email {
       |        host = localhost
       |        port = 8300
@@ -89,11 +79,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val validMandatoryOnlyAppConfig: Config = ConfigFactory.parseString(
     """
       |{
-      |googleAnalytics.trackingId = UA-11111-1
-      |googleAnalytics.clientId = 555
-      |googleAnalytics.eventValue = 10
-      |googleAnalytics.enabled = false
-      |
       |push.polling.delay.duration.milliseconds = 5000
       |push.lock.duration.milliseconds = 1000
       |push.fetch.maxRecords = 50
@@ -112,11 +97,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |        host = localhost
       |        port = 9648
       |        context = "/queue"
-      |      }
-      |      google-analytics-sender {
-      |       host = localhost2
-      |       port = 9822
-      |       context = /send-google-analytics
       |      }
       |      email {
       |        host = localhost
@@ -152,7 +132,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
       actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
-      actual.googleAnalyticsSenderConfig shouldBe GoogleAnalyticsSenderConfig("http://localhost2:9822/send-google-analytics", "UA-11111-1", "555", "10", gaEnabled = false)
       actual.pushNotificationConfig.internalClientIds shouldBe Seq("ClientIdOne", "ClientIdTwo")
       actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
@@ -178,12 +157,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       val expected = """
       |Could not find config notification-queue.host
       |Service configuration not found for key: notification-queue.context
-      |Could not find config google-analytics-sender.host
-      |Service configuration not found for key: google-analytics-sender.context
-      |Could not find config key 'googleAnalytics.trackingId'
-      |Could not find config key 'googleAnalytics.clientId'
-      |Could not find config key 'googleAnalytics.eventValue'
-      |Could not find config key 'googleAnalytics.enabled'
       |Could not find config key 'push.polling.delay.duration.milliseconds'
       |Could not find config key 'push.lock.duration.milliseconds'
       |Could not find config key 'push.fetch.maxRecords'
