@@ -100,7 +100,7 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         await(result) shouldBe true
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
         eventually(verifyZeroInteractions(mockPullService))
-        logVerifier("error", s"push failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
+        logVerifier("error", s"processing failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
       }
 
       "return true when repo saves but push fails with exception" in {
@@ -149,7 +149,7 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         await(result) shouldBe true
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
         eventually(verifyZeroInteractions(mockPushService))
-        logVerifier("error", s"push failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
+        logVerifier("error", s"processing failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
       }
 
       "return true when repo saves but pull fails with exception" in {

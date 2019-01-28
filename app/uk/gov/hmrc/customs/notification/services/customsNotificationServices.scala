@@ -110,17 +110,17 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
       }.flatMap { result =>
           if (result) {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-            logMsgBuilder.append(" succeeded").append(s" for workItemId ${workItem.id.stringify}")
+            logMsgBuilder.append(s" succeeded for workItemId ${workItem.id.stringify}")
             logger.info(logMsgBuilder.toString())
           } else {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-            logMsgBuilder.append(" failed").append(s" for workItemId ${workItem.id.stringify}")
+            logMsgBuilder.append(s" failed for workItemId ${workItem.id.stringify}")
             logger.info(logMsgBuilder.toString())
           }
           Future.successful(true)
         }.recover {
         case t: Throwable =>
-          logger.error(s"push failed for notification work item id: ${workItem.id.stringify} due to: ${t.getMessage}")
+          logger.error(s"processing failed for notification work item id: ${workItem.id.stringify} due to: ${t.getMessage}")
           true
       }
     }.recover {
