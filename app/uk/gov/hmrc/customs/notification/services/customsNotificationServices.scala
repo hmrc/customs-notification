@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, NotificationWorkItemRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded}
+import uk.gov.hmrc.workitem.{Failed, PermanentlyFailed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -97,7 +97,7 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
     val logMsgBuilder = StringBuilder.newBuilder
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
       {
-        if (apiSubscriptionFields.fields.callbackUrl.isEmpty) {
+        if (pull(apiSubscriptionFields)) {
           logMsgBuilder.append("pull")
           pullClientNotificationRetryService.send(notificationWorkItem)
         } else {
@@ -107,12 +107,22 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
       }.flatMap { result =>
           if (result) {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-            logMsgBuilder.append(s" succeeded for workItemId ${workItem.id.stringify}")
-            logger.info(logMsgBuilder.toString())
+            logMsgBuilder.append(" succeeded")
           } else {
-            notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-            logMsgBuilder.append(s" failed for workItemId ${workItem.id.stringify}")
+            if (pull(apiSubscriptionFields)) {
+              notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
+              logMsgBuilder.append(" failed")
+            } else {
+              notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+              logMsgBuilder.append(" permanently failed")
+            }
+          }
+          logMsgBuilder.append(s" for workItemId ${workItem.id.stringify}")
+          if (result) {
             logger.info(logMsgBuilder.toString())
+          }
+          else {
+            logger.error(logMsgBuilder.toString())
           }
           Future.successful(true)
         }.recover {
@@ -125,5 +135,9 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
         logger.error(s"failed saving notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${t.getMessage}")
         false
     }
+  }
+
+  private def pull(apiSubscriptionFields: ApiSubscriptionFields): Boolean = {
+    apiSubscriptionFields.fields.callbackUrl.isEmpty
   }
 }

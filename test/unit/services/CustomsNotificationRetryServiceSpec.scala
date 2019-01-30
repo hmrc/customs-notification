@@ -28,6 +28,7 @@ import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.workitem.{Failed, PermanentlyFailed, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
@@ -66,7 +67,7 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
     when(mockPushService.send(ApiSubscriptionFieldsOneForPush, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(true))
   }
 
-  "CustomsNotificationRetryService for push" should {
+  "CustomsNotificationRetryService" should {
     "for push" should {
       "send notification to third party when url present" in {
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
@@ -93,14 +94,16 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
 
       "return true when repo saves but push fails" in {
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
-        when(mockPushService.send(ApiSubscriptionFieldsOneForPush, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.failed(emulatedServiceFailure))
+        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
+        when(mockPushService.send(ApiSubscriptionFieldsOneForPush, NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(false))
 
         val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
 
         await(result) shouldBe true
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
+        eventually(verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, PermanentlyFailed))
         eventually(verifyZeroInteractions(mockPullService))
-        logVerifier("error", s"processing failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
+        logVerifier("error", "push permanently failed for workItemId 5c46f7d70100000100ef835a")
       }
 
       "return true when repo saves but push fails with exception" in {
@@ -112,18 +115,21 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         await(result) shouldBe true
         eventually(verifyZeroInteractions(mockPullService))
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
+        logVerifier("error", "processing failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
       }
     }
 
     "for pull" should {
       "send notification to pull queue when url absent" in {
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
+        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(Future.successful(()))
         when(mockPullService.send(NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(true))
 
         val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPull)
 
         await(result) shouldBe true
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
+        eventually(verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, Succeeded))
         eventually(verify(mockPullService).send(NotificationWorkItemWithMetricsTime1))
         eventually(verifyZeroInteractions(mockPushService))
         logVerifier("info", "pull succeeded for workItemId 5c46f7d70100000100ef835a")
@@ -142,14 +148,16 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
 
       "return true when repo saves but pull fails" in {
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1))).thenReturn(Future.successful(WorkItem1))
-        when(mockPullService.send(NotificationWorkItemWithMetricsTime1)).thenReturn(Future.failed(emulatedServiceFailure))
+        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(Future.successful(()))
+        when(mockPullService.send(NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(false))
 
         val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPull)
 
         await(result) shouldBe true
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
+        eventually(verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, Failed))
         eventually(verifyZeroInteractions(mockPushService))
-        logVerifier("error", s"processing failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
+        logVerifier("error", "pull failed for workItemId 5c46f7d70100000100ef835a")
       }
 
       "return true when repo saves but pull fails with exception" in {
@@ -161,6 +169,7 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         await(result) shouldBe true
         eventually(verifyZeroInteractions(mockPushService))
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
+        logVerifier("error", "processing failed for notification work item id: 5c46f7d70100000100ef835a due to: Emulated service failure.")
       }
 
     }
