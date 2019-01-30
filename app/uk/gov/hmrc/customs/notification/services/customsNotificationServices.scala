@@ -105,15 +105,15 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
         logMsgBuilder.append(s"${pushPullResult._1} for workItemId ${workItem.id.stringify}")
           if (result) {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-            logMsgBuilder.insert(5, "succeeded ")
+            logMsgBuilder.insert(5, s"${Succeeded.name} ")
             logger.info(logMsgBuilder.toString())
           } else {
             if (pushPullResult._1 == "pull") {
               notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
-              logMsgBuilder.insert(5, "failed ")
+              logMsgBuilder.insert(5, s"${Failed.name} ")
             } else {
               notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-              logMsgBuilder.insert(5, "permanently failed ")
+              logMsgBuilder.insert(5, s"${PermanentlyFailed.name} ")
             }
             logger.error(logMsgBuilder.toString())
           }

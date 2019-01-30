@@ -103,7 +103,7 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1)))
         eventually(verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, PermanentlyFailed))
         eventually(verifyZeroInteractions(mockPullService))
-        logVerifier("error", "push permanently failed for workItemId 5c46f7d70100000100ef835a")
+        logVerifier("error", "push permanently-failed for workItemId 5c46f7d70100000100ef835a")
       }
 
       "return true when repo saves but push fails with exception" in {
