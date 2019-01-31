@@ -21,46 +21,45 @@ import javax.inject.Singleton
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
-import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, PushNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, PushNotificationRequestBody, ResultError}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 @Singleton
 class ExternalPushConnector @Inject()(http: HttpClient,
                                       logger: NotificationLogger,
-                                      serviceConfigProvider: ServiceConfigProvider) {
+                                      serviceConfigProvider: ServiceConfigProvider) extends MapResultError {
 
   private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
 
   // TODO: recover on failure to enqueue to notification queue
-  def send(pushNotificationRequest: PushNotificationRequest): Future[Unit] = {
-    doSend(pushNotificationRequest) map (_ => () )
+  def send(pushNotificationRequest: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
+    doSend(pushNotificationRequest)
   }
 
-  private def doSend(pushNotificationRequest: PushNotificationRequest): Future[HttpResponse] = {
+  private def doSend(pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
     val msg = "Calling external push notification service"
-    logger.debug(msg, url, payload = pushNotificationRequest.body.toString)
+    logger.debug(msg, url, payload = pnr.body.toString)
 
-    val postFuture = http
-      .POST[PushNotificationRequestBody, HttpResponse](url, pushNotificationRequest.body)
-      .recoverWith {
-        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
-      }
-      .recoverWith {
-        case e: Throwable =>
-          logger.error(s"Call to external push notification service failed. POST url=$url, error=${e.getMessage}")
-          Future.failed(e)
-      }
-    postFuture
+    http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
+      .map[Either[ResultError, HttpResponse]]{ httpResponse =>
+      Right(httpResponse)
+    }
+    .recoverWith{
+      case NonFatal(e) =>
+        val error: ResultError = mapResultError(e)
+        Future.successful(Left(error))
+    }
   }
 
 }

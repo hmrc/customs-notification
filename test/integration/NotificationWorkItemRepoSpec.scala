@@ -51,7 +51,10 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     pollingDelay = 0 second,
     lockDuration = org.joda.time.Duration.ZERO,
     maxRecordsToFetch = five,
-    ttlInSeconds = 1
+    ttlInSeconds = 1,
+    retryDelay = 500 milliseconds,
+    retryDelayFactor = 2,
+    retryMaxAttempts = 3
   )
 
   private val mongoDbProvider = new MongoDbProvider{

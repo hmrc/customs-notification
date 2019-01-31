@@ -20,12 +20,13 @@ import org.mockito.ArgumentMatchers.{any, eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import play.api.test.Helpers._
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.{ExternalPushConnector, InternalPushConnector}
-import uk.gov.hmrc.customs.notification.domain.{PushNotificationConfig, PushNotificationRequest}
+import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError, PushNotificationConfig, PushNotificationRequest}
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{AuditingService, OutboundSwitchService}
-import uk.gov.hmrc.http.BadRequestException
+import uk.gov.hmrc.http.{HttpException, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.services.ClientWorkerTestData._
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -39,6 +40,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     val mockPushNotificationConfig = mock[PushNotificationConfig]
     val mockExternalConnector = mock[ExternalPushConnector]
     val mockInternalPushService = mock[InternalPushConnector]
+    val mockHttpResponse = mock[HttpResponse]
     val mockAuditingService = mock[AuditingService]
     val mockLogger = mock[CdsLogger]
 
@@ -50,10 +52,11 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     "route internally when config property push.internal.clientIds contains a matching clientId" in new SetUp {
       when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
       when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
-      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Future.successful(()))
+      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Future.successful(Right(mockHttpResponse)))
 
-      await(switcher.send(ClientIdOne, pnrOne))
+      private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
+      actual shouldBe Right(mockHttpResponse)
       verifyZeroInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))
       eventually {
@@ -64,19 +67,40 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
         .verify()
     }
 
-    "route internally when config property push.internal.clientIds contains a matching clientId and push fails" in new SetUp {
+    "audit internal push when config property push.internal.clientIds contains a matching clientId and push fails with HttpException" in new SetUp {
       when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
       when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
-      private val futureBadRequest: Future[Nothing] = Future.failed(new RuntimeException(new BadRequestException("bad request exception")))
-      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(futureBadRequest)
+      val httpResultError = HttpResultError(BAD_REQUEST, new HttpException("BOOM", BAD_REQUEST))
+      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Left(httpResultError))
 
-      intercept[RuntimeException](await(switcher.send(ClientIdOne, pnrOne))).getCause shouldBe a[BadRequestException]
+      private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
+      actual shouldBe Left(httpResultError)
       verifyZeroInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))
       eventually {
 
-        verify(mockAuditingService).auditFailedNotification(pnrOne, Some("status: 400 body: bad request exception"))
+        verify(mockAuditingService).auditFailedNotification(pnrOne, Some("status: 400 body: BOOM"))
+      }
+      PassByNameVerifier(mockLogger, "info")
+        .withByNameParam("[conversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push internally for clientId=ClientIdOne")
+        .verify()
+
+    }
+
+    "not audit internal push when config property push.internal.clientIds contains a matching clientId and push fails with NON HttpException" in new SetUp {
+      when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
+      when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
+      val nonHttpError = NonHttpError(new Exception("BOOM"))
+      when(mockInternalPushService.send(any[PushNotificationRequest])).thenReturn(Left(nonHttpError))
+
+      private val actual = await(switcher.send(ClientIdOne, pnrOne))
+
+      actual shouldBe Left(nonHttpError)
+      verifyZeroInteractions(mockExternalConnector)
+      verify(mockInternalPushService).send(ameq(pnrOne))
+      eventually {
+        verifyZeroInteractions(mockAuditingService)
       }
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam("[conversationId=caca01f9-ec3b-4ede-b263-61b626dde231] About to push internally for clientId=ClientIdOne")
@@ -87,10 +111,11 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     "route externally when config property push.internal.clientIds does not contains a matching clientId" in new SetUp {
       when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
       when(mockPushNotificationConfig.internalClientIds).thenReturn(Seq.empty)
-      when(mockExternalConnector.send(any[PushNotificationRequest])).thenReturn(Future.successful(()))
+      when(mockExternalConnector.send(any[PushNotificationRequest])).thenReturn(Future.successful(Right(mockHttpResponse)))
 
-      await(switcher.send(ClientIdOne, pnrOne))
+      private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
+      actual shouldBe Right(mockHttpResponse)
       verify(mockExternalConnector).send(ameq(pnrOne))
       verifyZeroInteractions(mockInternalPushService)
       PassByNameVerifier(mockLogger, "info")

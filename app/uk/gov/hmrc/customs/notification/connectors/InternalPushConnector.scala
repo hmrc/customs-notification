@@ -21,18 +21,20 @@ import play.api.http.HeaderNames.{ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGEN
 import play.mvc.Http.MimeTypes.XML
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest
-import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
+import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, ResultError}
+import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.control.NonFatal
+
 
 @Singleton
 class InternalPushConnector @Inject()(http: HttpClient,
-                                      logger: CdsLogger) {
+                                      logger: CdsLogger) extends MapResultError {
 
-  def send(pnr: PushNotificationRequest): Future[Unit] = {
+  def send(pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
@@ -48,15 +50,13 @@ class InternalPushConnector @Inject()(http: HttpClient,
 
     logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=$headers \npayload= ${pnr.body.xmlPayload}")
 
-    http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, headers).map(_ => ()).recoverWith {
-      case httpError: HttpException =>
-        logger.error(s"Call to internal push notification service failed. POST url=${pnr.body.url}", httpError)
-        Future.failed(new RuntimeException(httpError))
-    }
-    .recoverWith {
-      case e: Throwable =>
-        logger.error(s"Call to internal push notification service failed. POST url=${pnr.body.url}", e)
-        Future.failed(e)
+    val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, headers)
+    val eventualEither: Future[Either[ResultError, HttpResponse]] = eventualHttpResponse.map(httpResponse => Right(httpResponse))
+
+    eventualEither.recoverWith{
+      case NonFatal(e) =>
+        val resultError = mapResultError(e)
+        Future.successful(Left(resultError))
     }
   }
 

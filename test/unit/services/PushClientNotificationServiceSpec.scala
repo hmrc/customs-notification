@@ -22,11 +22,12 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import play.api.test.Helpers.BAD_REQUEST
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
-import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationsMetricsRequest}
+import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationsMetricsRequest, HttpResultError}
 import uk.gov.hmrc.customs.notification.services.{DateTimeService, OutboundSwitchService, PushClientNotificationService}
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.logging.StubNotificationLogger
 import unit.services.ClientWorkerTestData._
@@ -40,6 +41,8 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
   private val notificationLogger = new StubNotificationLogger(mock[CdsLogger])
   private val mockCustomsNotificationsMetricsConnector = mock[CustomsNotificationMetricsConnector]
   private val mockDateTimeService = mock[DateTimeService]
+  private val mockHttpResponse = mock[HttpResponse]
+  private val httpResultError = HttpResultError(BAD_REQUEST, emulatedServiceFailure)
   private implicit val hc = HeaderCarrier()
 
   private val pushService = new PushClientNotificationService(mockOutboundSwitchService, notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
@@ -50,7 +53,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
 
   "PushClientNotificationService" should {
     "return true and call metrics service when push is successful but no metrics start time exists" in {
-      when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(()))
+      when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(Right(mockHttpResponse)))
 
       val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOneWithMetricsTime))
 
@@ -60,8 +63,8 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
       eventually(verify(mockOutboundSwitchService).send(eqClientId(ClientIdOne), meq(pnrOne)))
     }
 
-    "return true and do not call mnetrics service when push is successful but no metrics start time exists" in {
-      when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(()))
+    "return true and do not call metrics service when push is successful but no metrics start time exists" in {
+      when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(Right(mockHttpResponse)))
 
       val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOne))
 
@@ -72,7 +75,7 @@ class PushClientNotificationServiceSpec extends UnitSpec with MockitoSugar with 
     }
 
     "return false when push fails" in {
-      when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.failed(emulatedServiceFailure))
+      when(mockOutboundSwitchService.send(eqClientId(ClientIdOne), meq(pnrOne))).thenReturn(Future.successful(Left(httpResultError)))
 
       verifyZeroInteractions(mockCustomsNotificationsMetricsConnector)
       val result = await(pushService.send(ApiSubscriptionFieldsOne, ClientNotificationOne))

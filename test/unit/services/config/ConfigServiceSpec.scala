@@ -40,6 +40,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.polling.delay.duration.milliseconds = 5000
       |push.lock.duration.milliseconds = 1000
       |push.fetch.maxRecords = 50
+      |push.retry.delay.interval.milliseconds = 500
+      |push.retry.delay.interval.factor = 2
+      |push.retry.max.attempts = 3
       |
       |pull.exclude.enabled = true
       |pull.exclude.email.address = "some.address@domain.com"
@@ -88,6 +91,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |pull.exclude.older.milliseconds = 5000
       |pull.exclude.email.delay.duration.seconds = 1
       |pull.exclude.email.interval.duration.minutes = 30
+      |push.retry.delay.interval.milliseconds = 500
+      |push.retry.delay.interval.factor = 2
+      |push.retry.max.attempts = 3
       |
       |ttlInSeconds = 1
       |
@@ -140,6 +146,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pullExcludeConfig.emailUrl shouldBe "http://localhost:8300/hmrc/email"
       actual.pullExcludeConfig.pollingInterval shouldBe (30 minutes)
       actual.pushNotificationConfig.ttlInSeconds shouldBe 1
+      actual.pushNotificationConfig.retryDelay shouldBe (500 milliseconds)
+      actual.pushNotificationConfig.retryDelayFactor shouldBe 2
+      actual.pushNotificationConfig.retryMaxAttempts shouldBe 3
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -155,21 +164,24 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
       val expected = """
-      |Could not find config notification-queue.host
-      |Service configuration not found for key: notification-queue.context
-      |Could not find config key 'push.polling.delay.duration.milliseconds'
-      |Could not find config key 'push.lock.duration.milliseconds'
-      |Could not find config key 'push.fetch.maxRecords'
-      |Could not find config key 'ttlInSeconds'
-      |Could not find config key 'pull.exclude.enabled'
-      |Could not find config key 'pull.exclude.email.address'
-      |Could not find config key 'pull.exclude.older.milliseconds'
-      |Could not find config email.host
-      |Service configuration not found for key: email.context
-      |Could not find config key 'pull.exclude.email.delay.duration.seconds'
-      |Could not find config key 'pull.exclude.email.interval.duration.minutes'
-      |Could not find config customs-notification-metrics.host
-      |Service configuration not found for key: customs-notification-metrics.context""".stripMargin
+                       |Could not find config notification-queue.host
+                       |Service configuration not found for key: notification-queue.context
+                       |Could not find config key 'push.polling.delay.duration.milliseconds'
+                       |Could not find config key 'push.lock.duration.milliseconds'
+                       |Could not find config key 'push.fetch.maxRecords'
+                       |Could not find config key 'ttlInSeconds'
+                       |Could not find config key 'push.retry.delay.interval.milliseconds'
+                       |Could not find config key 'push.retry.delay.interval.factor'
+                       |Could not find config key 'push.retry.max.attempts'
+                       |Could not find config key 'pull.exclude.enabled'
+                       |Could not find config key 'pull.exclude.email.address'
+                       |Could not find config key 'pull.exclude.older.milliseconds'
+                       |Could not find config email.host
+                       |Service configuration not found for key: email.context
+                       |Could not find config key 'pull.exclude.email.delay.duration.seconds'
+                       |Could not find config key 'pull.exclude.email.interval.duration.minutes'
+                       |Could not find config customs-notification-metrics.host
+                       |Service configuration not found for key: customs-notification-metrics.context""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 
