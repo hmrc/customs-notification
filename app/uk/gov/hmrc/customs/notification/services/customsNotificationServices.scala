@@ -94,28 +94,20 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
                                                 apiSubscriptionFields: ApiSubscriptionFields)
                                                (implicit hc: HeaderCarrier): Future[Boolean] = {
 
-    val logMsgBuilder = StringBuilder.newBuilder
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
       val pushPullResult = if (apiSubscriptionFields.fields.callbackUrl.isEmpty) {
-        ("pull", pullClientNotificationRetryService.send(notificationWorkItem))
+        ("pull", pullClientNotificationRetryService.send(notificationWorkItem), Failed)
       } else {
-        ("push", pushClientNotificationRetryService.send(apiSubscriptionFields, workItem.item))
+        ("push", pushClientNotificationRetryService.send(apiSubscriptionFields, workItem.item), PermanentlyFailed)
       }
       pushPullResult._2.flatMap { result =>
-        logMsgBuilder.append(s"${pushPullResult._1} for workItemId ${workItem.id.stringify}")
+          val idMsg = s"for workItemId ${workItem.id.stringify}"
           if (result) {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-            logMsgBuilder.insert(5, s"${Succeeded.name} ")
-            logger.info(logMsgBuilder.toString())
+            logger.info(s"${pushPullResult._1} ${Succeeded.name} $idMsg")
           } else {
-            if (pushPullResult._1 == "pull") {
-              notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
-              logMsgBuilder.insert(5, s"${Failed.name} ")
-            } else {
-              notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-              logMsgBuilder.insert(5, s"${PermanentlyFailed.name} ")
-            }
-            logger.error(logMsgBuilder.toString())
+            notificationWorkItemRepo.setCompletedStatus(workItem.id, pushPullResult._3)
+            logger.error(s"${pushPullResult._1} ${pushPullResult._3.name} $idMsg")
           }
           Future.successful(true)
         }.recover {
