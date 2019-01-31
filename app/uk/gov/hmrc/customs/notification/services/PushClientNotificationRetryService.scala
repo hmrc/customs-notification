@@ -27,7 +27,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class PushClientNotificationRetryService @Inject()(outboundSwitchService: OutboundSwitchService,
+class PushClientNotificationRetryService @Inject()(retryService: RetryService,
+                                                   outboundSwitchService: OutboundSwitchService,
                                                    notificationLogger: NotificationLogger,
                                                    metricsConnector: CustomsNotificationMetricsConnector,
                                                    dateTimeService: DateTimeService) {
@@ -37,6 +38,9 @@ class PushClientNotificationRetryService @Inject()(outboundSwitchService: Outbou
 
   def send(apiSubscriptionFields: ApiSubscriptionFields, notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
     val pushNotificationRequest = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
+    // data is for logging
+    // TODO: We need a general logging refactor
+    implicit val implicitConversationId = notificationWorkItem.notification.conversationId
 
     notificationWorkItem.metricsStartDateTime.fold() { startTime =>
       metricsConnector.post(CustomsNotificationsMetricsRequest(
@@ -44,12 +48,15 @@ class PushClientNotificationRetryService @Inject()(outboundSwitchService: Outbou
     }
 
     notificationLogger.debug(s"pushing notification with clientSubscriptionId ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} ")
-    outboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pushNotificationRequest)
-      .map(_ => true)
-      .recover {
-        case t: Throwable =>
-          notificationLogger.error(s"failed to push notification with clientSubscriptionId ${pushNotificationRequest.clientSubscriptionId} and conversationId ${pushNotificationRequest.body.conversationId} due to: ${t.getMessage}")
-          false
+    retryService.retry(
+      outboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pushNotificationRequest)
+    )
+    .map{
+      case Right(_) =>
+        true
+      case Left(resultError) =>
+        notificationLogger.error(s"failed to push notification with clientSubscriptionId ${pushNotificationRequest.clientSubscriptionId} and conversationId ${pushNotificationRequest.body.conversationId} due to: ${resultError.cause.getMessage}")
+        false
     }
   }
 

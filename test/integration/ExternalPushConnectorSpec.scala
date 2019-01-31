@@ -23,6 +23,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
+import uk.gov.hmrc.customs.notification.domain.HttpResultError
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.logging.Authorization
 import util.ExternalServicesConfiguration.{Host, Port}
@@ -65,38 +66,40 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
     "make a correct request" in {
       setupPushNotificationServiceToReturn(NO_CONTENT)
 
-      await(connector.send(pushNotificationRequest))
+      val Right(_) = await(connector.send(pushNotificationRequest))
 
       verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
     }
 
-    "return a failed future with wrapped HttpVerb NotFoundException when external service returns 404" in {
+    "return a Left(HttpResultError) with status 404 and a wrapped HttpVerb NotFoundException when external service returns 404" in {
       setupPushNotificationServiceToReturn(NOT_FOUND)
 
-      val caught = intercept[RuntimeException](await(connector.send(pushNotificationRequest)))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pushNotificationRequest))
 
-      caught.getCause.getClass shouldBe classOf[NotFoundException]
+      httpResultError.status shouldBe NOT_FOUND
     }
 
-    "return a failed future with wrapped HttpVerbs BadRequestException when external service returns 400" in {
+    "return a Left(HttpResultError) with status 400 and a wrapped HttpVerb BadRequestException when external service returns 400" in {
       setupPushNotificationServiceToReturn(BAD_REQUEST)
 
-      val caught = intercept[RuntimeException](await(connector.send(pushNotificationRequest)))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pushNotificationRequest))
 
-      caught.getCause.getClass shouldBe classOf[BadRequestException]
+      httpResultError.status shouldBe BAD_REQUEST
     }
 
-    "return a failed future with Upstream5xxResponse when external service returns 500" in {
+    "return a Left(HttpResultError) with status 500 and a wrapped HttpVerb Upstream5xxResponse when external service returns 500" in {
       setupPushNotificationServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      intercept[Upstream5xxResponse](await(connector.send(pushNotificationRequest)))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pushNotificationRequest))
+
+      httpResultError.status shouldBe INTERNAL_SERVER_ERROR
     }
 
-    "return a failed future with wrapped HttpVerbs BadRequestException when it fails to connect the external service" in
+    "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in
       withoutWireMockServer {
-        val caught = intercept[RuntimeException](await(connector.send(pushNotificationRequest)))
+        val Left(httpResultError: HttpResultError) = await(connector.send(pushNotificationRequest))
 
-        caught.getCause.getClass shouldBe classOf[BadGatewayException]
+        httpResultError.status shouldBe BAD_GATEWAY
       }
   }
 

@@ -23,7 +23,16 @@ import scala.concurrent.duration.FiniteDuration
 
 case class NotificationQueueConfig(url: String)
 
-case class PushNotificationConfig(internalClientIds: Seq[String], pollingDelay: FiniteDuration, lockDuration: org.joda.time.Duration, maxRecordsToFetch: Int, ttlInSeconds: Int)
+case class PushNotificationConfig(
+  internalClientIds: Seq[String],
+  pollingDelay: FiniteDuration,
+  lockDuration: org.joda.time.Duration,
+  maxRecordsToFetch: Int,
+  ttlInSeconds: Int,
+  retryDelay: FiniteDuration,
+  retryDelayFactor: Int,
+  retryMaxAttempts: Int
+)
 
 /* TODO: remove this - it was introduced for DesCartes when we thought they had no PULL capability*/
 case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddress: String,

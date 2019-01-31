@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -48,15 +48,18 @@ class PushClientNotificationService @Inject() (outboundSwitchService: OutboundSw
         "NOTIFICATION", clientNotification.notification.conversationId, startTime.toZonedDateTime, dateTimeService.zonedDateTimeUtc))
     }
 
-    val result = scala.concurrent.blocking {
-      Await.ready(outboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS)).value.get.isSuccess
+    val either: Either[ResultError, HttpResponse] = scala.concurrent.blocking {
+      Await.result(outboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pushNotificationRequest), Duration.apply(25, TimeUnit.SECONDS))
     }
-    if (result) {
-      notificationLogger.debug(s"${logMsgPrefix(clientNotification)} Notification has been pushed")
-    } else {
-      notificationLogger.error(s"${logMsgPrefix(clientNotification)} Notification push failed")
+    either match {
+      case Right(_) =>
+        notificationLogger.debug(s"${logMsgPrefix(clientNotification)} Notification has been pushed")
+        true
+      case Left(_) =>
+        notificationLogger.error(s"${logMsgPrefix(clientNotification)} Notification push failed")
+        false
     }
-    result
+
   }
 
   private def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData,

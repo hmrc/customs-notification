@@ -68,12 +68,21 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       root.int("push.fetch.maxRecords")
     val ttlInSecondsNel: CustomsValidatedNel[Int] =
       root.int("ttlInSeconds")
+    val retryDelayNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("push.retry.delay.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+    val retryDelayFactorNel: CustomsValidatedNel[Int] =
+      root.int("push.retry.delay.interval.factor")
+    val retryMaxAttemptsNel: CustomsValidatedNel[Int] =
+      root.int("push.retry.max.attempts")
     val pushNotificationConfig: CustomsValidatedNel[PushNotificationConfig] = (
       internalClientIdsNel,
       pollingDelayNel,
       pushLockDurationNel,
       maxFetchRecordsNel,
-      ttlInSecondsNel
+      ttlInSecondsNel,
+      retryDelayNel,
+      retryDelayFactorNel,
+      retryMaxAttemptsNel
     ).mapN(PushNotificationConfig)
 
     val emailUrlNel = configValidatedNel.service("email").serviceUrl
