@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, NotificationWorkItemRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded}
+import uk.gov.hmrc.workitem.{Failed, PermanentlyFailed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -96,23 +96,26 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
 
     val logMsgBuilder = StringBuilder.newBuilder
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
-      {
-        if (apiSubscriptionFields.fields.callbackUrl.isEmpty) {
-          logMsgBuilder.append("pull")
-          pullClientNotificationRetryService.send(notificationWorkItem)
-        } else {
-          logMsgBuilder.append("push")
-          pushClientNotificationRetryService.send(apiSubscriptionFields, workItem.item)
-        }
-      }.flatMap { result =>
+      val pushPullResult = if (apiSubscriptionFields.fields.callbackUrl.isEmpty) {
+        ("pull", pullClientNotificationRetryService.send(notificationWorkItem))
+      } else {
+        ("push", pushClientNotificationRetryService.send(apiSubscriptionFields, workItem.item))
+      }
+      pushPullResult._2.flatMap { result =>
+        logMsgBuilder.append(s"${pushPullResult._1} for workItemId ${workItem.id.stringify}")
           if (result) {
             notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-            logMsgBuilder.append(s" succeeded for workItemId ${workItem.id.stringify}")
+            logMsgBuilder.insert(5, s"${Succeeded.name} ")
             logger.info(logMsgBuilder.toString())
           } else {
-            notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-            logMsgBuilder.append(s" failed for workItemId ${workItem.id.stringify}")
-            logger.info(logMsgBuilder.toString())
+            if (pushPullResult._1 == "pull") {
+              notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed)
+              logMsgBuilder.insert(5, s"${Failed.name} ")
+            } else {
+              notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+              logMsgBuilder.insert(5, s"${PermanentlyFailed.name} ")
+            }
+            logger.error(logMsgBuilder.toString())
           }
           Future.successful(true)
         }.recover {
