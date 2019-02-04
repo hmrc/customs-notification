@@ -19,18 +19,20 @@ package uk.gov.hmrc.customs.notification.controllers
 import play.mvc.Http.MimeTypes
 import play.mvc.Http.Status.UNAUTHORIZED
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.UnauthorizedCode
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 
 object CustomErrorResponses {
 
-  val ErrorCdsClientIdInvalid: ErrorResponse = ErrorResponse.errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header value is invalid")
+  val ErrorCdsClientIdInvalid: ErrorResponse = errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header value is invalid")
 
-  val ErrorCdsClientIdMissing: ErrorResponse = ErrorResponse.errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header is missing")
+  val ErrorCdsClientIdMissing: ErrorResponse = errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header is missing")
 
-  val ErrorConversationIdInvalid: ErrorResponse = ErrorResponse.errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header value is invalid")
+  val ErrorClientIdMissing: ErrorResponse = errorBadRequest(s"$X_CLIENT_ID_HEADER_NAME required")
 
-  val ErrorConversationIdMissing: ErrorResponse = ErrorResponse.errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header is missing")
+  val ErrorConversationIdInvalid: ErrorResponse = errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header value is invalid")
+
+  val ErrorConversationIdMissing: ErrorResponse = errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header is missing")
 
   val ErrorCdsClientIdNotFound: ErrorResponse = ErrorCdsClientIdInvalid
 
@@ -39,6 +41,8 @@ object CustomErrorResponses {
 
 object CustomHeaderNames {
   val X_CDS_CLIENT_ID_HEADER_NAME: String = "X-CDS-Client-ID"
+
+  val X_CLIENT_ID_HEADER_NAME = "X-Client-ID"
 
   val SUBSCRIPTION_FIELDS_ID_HEADER_NAME: String = "api-subscription-fields-id"
 
