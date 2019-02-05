@@ -22,12 +22,12 @@ import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
 import org.joda.time.DateTime
 import play.api.libs.functional.syntax.{unlift, _}
-import play.api.libs.json.{Format, Reads, __}
+import play.api.libs.json.{Format, Json, Reads, __}
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
@@ -41,6 +41,8 @@ trait NotificationWorkItemRepo {
   def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]]
 
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit]
+
+  def blockedCount(clientId: ClientId): Future[Int]
 }
 
 @Singleton
@@ -76,6 +78,10 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     Index(
       key = Seq("clientNotification.clientId" -> IndexType.Descending),
       name = Some("clientNotification-clientId-index"),
+      unique = false),
+    Index(
+      key = Seq("clientNotification.clientId" -> IndexType.Descending, "status" -> IndexType.Descending),
+      name = Some("clientId-status-index"),
       unique = false)
   )
 
@@ -90,6 +96,12 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify}")
     complete(id, status).map(_ => () )
+  }
+
+  override def blockedCount(clientId: ClientId): Future[Int] = {
+    logger.debug(s"calling repo to get blocked count for clientId ${clientId.id}")
+    val selector = Json.obj("clientNotification.clientId" -> clientId, "status" -> PermanentlyFailed.name)
+    collection.count(Some(selector))
   }
 }
 

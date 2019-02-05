@@ -23,10 +23,12 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.joda.time.DateTime
 import play.api.http.HeaderNames._
 import play.api.libs.json.{JsValue, Json}
-import play.api.mvc.AnyContentAsXml
+import play.api.mvc.{AnyContentAsEmpty, AnyContentAsXml, Headers}
 import play.api.test.FakeRequest
+import play.api.test.Helpers.GET
 import play.mvc.Http.MimeTypes
 import reactivemongo.bson.BSONObjectID
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain._
@@ -55,8 +57,10 @@ object TestData {
   val invalidBasicAuthToken = "I-am-not-a-valid-auth-token"
   val overwrittenBasicAuthToken = "value-not-logged"
 
-  val clientIdString = "ClientId"
-  val clientId = ClientId(clientIdString)
+  val clientIdString1 = "ClientId"
+  val clientId1 = ClientId(clientIdString1)
+  val clientIdString2 = "ClientId2"
+  val clientId2 = ClientId(clientIdString2)
 
   type EmulatedServiceFailure = UnsupportedOperationException
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
@@ -125,16 +129,17 @@ object TestData {
 
   val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), TimeReceivedZoned)
 
-  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId, None, notification = notification1)
-  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId, notification = notification2)
+  val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId1, None, notification = notification1)
+  val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
+  val NotificationWorkItem3 = NotificationWorkItem(validClientSubscriptionId2, clientId2, notification = notification2)
   val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
   val WorkItem1 = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
   val DeclarantCallbackDataOneForPush = DeclarantCallbackData("URL", "SECURITY_TOKEN")
   val DeclarantCallbackDataOneForPull = DeclarantCallbackData("", "SECURITY_TOKEN")
-  val ApiSubscriptionFieldsOneForPush = ApiSubscriptionFields(clientId.toString, DeclarantCallbackDataOneForPush)
-  val ApiSubscriptionFieldsOneForPull = ApiSubscriptionFields(clientId.toString, DeclarantCallbackDataOneForPull)
+  val ApiSubscriptionFieldsOneForPush = ApiSubscriptionFields(clientId1.toString, DeclarantCallbackDataOneForPush)
+  val ApiSubscriptionFieldsOneForPull = ApiSubscriptionFields(clientId1.toString, DeclarantCallbackDataOneForPull)
 
   val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
@@ -248,6 +253,9 @@ object TestData {
     .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, RequestHeaders.ACCEPT_HEADER_INVALID)
     .withXmlBody(ValidXML)
 
+  lazy val ValidBlockedCountRequest = FakeRequest(GET, "/customs-notification/blocked-count", Headers(X_CLIENT_ID_HEADER), AnyContentAsEmpty)
+  lazy val InvalidBlockedCountRequest = FakeRequest(GET, "/customs-notification/blocked-count", Headers(), AnyContentAsEmpty)
+
   val errorResponseForMissingAcceptHeader: Elem =
     <errorResponse>
       <code>ACCEPT_HEADER_INVALID</code>
@@ -297,6 +305,7 @@ object TestData {
     </errorResponse>
 
   val errorResponseForClientIdNotFound: Elem = errorResponseForInvalidClientId
+  val internalServerError = ErrorResponse.errorInternalServerError("Internal Server Error").XmlResult
 
   lazy val invalidConfigMissingBasicAuthToken: Config = ConfigFactory.parseString("")
 }
@@ -336,6 +345,8 @@ object RequestHeaders {
   lazy val BASIC_AUTH_HEADER_INVALID: (String, String) = AUTHORIZATION -> invalidBasicAuthToken
 
   lazy val BASIC_AUTH_HEADER_OVERWRITTEN: (String, String) = AUTHORIZATION -> overwrittenBasicAuthToken
+
+  lazy val X_CLIENT_ID_HEADER: (String, String) = X_CLIENT_ID_HEADER_NAME -> clientIdString1
 
   lazy val ValidHeaders: Map[String, String] = Map(
     X_CDS_CLIENT_ID_HEADER,

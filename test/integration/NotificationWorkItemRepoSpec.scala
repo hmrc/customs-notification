@@ -25,6 +25,7 @@ import reactivemongo.api.DB
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
@@ -86,6 +87,9 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     await(repository.collection.count())
   }
 
+  def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
+  def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
+
   "repository" should {
     "successfully save a single notification work item" in {
       val result = await(repository.saveWithLock(NotificationWorkItem1))
@@ -115,6 +119,26 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       failedItem.get.status shouldBe Failed
       failedItem.get.failureCount shouldBe 1
+    }
+
+    "return correct count of permanently failed items" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.blockedCount(clientId1))
+
+      result shouldBe 2
+    }
+
+    "return zero when no notifications are permanently failed" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.blockedCount(clientId1))
+
+      result shouldBe 0
     }
   }
 }
