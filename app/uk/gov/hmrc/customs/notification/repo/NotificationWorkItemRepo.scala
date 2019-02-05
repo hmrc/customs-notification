@@ -78,6 +78,10 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     Index(
       key = Seq("clientNotification.clientId" -> IndexType.Descending),
       name = Some("clientNotification-clientId-index"),
+      unique = false),
+    Index(
+      key = Seq("clientNotification.clientId" -> IndexType.Descending, "status" -> IndexType.Descending),
+      name = Some("clientId-status-index"),
       unique = false)
   )
 

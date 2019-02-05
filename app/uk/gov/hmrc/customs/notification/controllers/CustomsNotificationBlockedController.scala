@@ -47,8 +47,8 @@ class CustomsNotificationBlockedController @Inject()(val logger: NotificationLog
           response(count)
         }.recover {
           case t: Throwable =>
-          logger.error(s"unable to get blocked count for clientId $clientId due to ${t.getMessage}")
-          ErrorInternalServerError.XmlResult
+            logger.error(s"unable to get blocked count for clientId $clientId due to ${t.getMessage}")
+            ErrorInternalServerError.XmlResult
         }
       }
   }
