@@ -24,12 +24,12 @@ import org.mockito.Mockito
 import org.mockito.Mockito.{when, _}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, PullExcludeConfig}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.customs.notification.services.{ClientWorkerImpl, PullClientNotificationService, PushClientNotificationService}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.HttpResponse
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.services.ClientWorkerTestData._
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -53,7 +53,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
     private[ClientWorkerImplSpec] val mockPull = mock[PullClientNotificationService]
     private[ClientWorkerImplSpec] val mockPush = mock[PushClientNotificationService]
     private[ClientWorkerImplSpec] val mockLockRepo = mock[LockRepo]
-    private[ClientWorkerImplSpec] val mockLogger = mock[NotificationLogger]
+    private[ClientWorkerImplSpec] val mockLogger = mock[CdsLogger]
     private[ClientWorkerImplSpec] val mockHttpResponse = mock[HttpResponse]
     private[ClientWorkerImplSpec] val mockPullExcludeConfig = mock[PullExcludeConfig]
     private[ClientWorkerImplSpec] val mockConfig = mock[CustomsNotificationConfig]
@@ -77,14 +77,12 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
     def verifyLogError(msg: String): Unit = {
       PassByNameVerifier(mockLogger, "error")
         .withByNameParam(msg)
-        .withParamMatcher(any[HeaderCarrier])
         .verify()
     }
 
     def verifyLogInfo(msg: String): Unit = {
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam(msg)
-        .withParamMatcher(any[HeaderCarrier])
         .verify()
     }
 
@@ -98,7 +96,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(Nil))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)), Future.successful(Some(ApiSubscriptionFieldsTwo)))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)), Future.successful(Some(ApiSubscriptionFieldsTwo)))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(true)
         when(mockPush.send(ApiSubscriptionFieldsTwo, ClientNotificationTwo)).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.successful(()))
@@ -129,7 +127,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.failed((emulatedServiceFailure)))
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
@@ -169,7 +167,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)), Future.successful(None))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)), Future.successful(None))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(false)
         when(mockPull.send(ameq(ClientNotificationOne))).thenReturn(false)
@@ -190,7 +188,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(Nil))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(None))
         when(mockPull.send(ameq(ClientNotificationOne))).thenReturn(true)
         when(mockPull.send(ameq(ClientNotificationTwo))).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.successful(()))
@@ -218,7 +216,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne, ClientNotificationTwo)), Future.successful(List(ClientNotificationTwo)), Future.successful(Nil))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)), Future.successful(None))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)), Future.successful(None))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(true)
         when(mockPull.send(ameq(ClientNotificationTwo))).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.successful(()))
@@ -245,7 +243,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOneWithEmptyUrl)))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOneWithEmptyUrl)))
         when(mockPull.send(ameq(ClientNotificationOne))).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne))).thenReturn(Future.successful(()))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
@@ -312,7 +310,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         schedulerExpectations()
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier]))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString)))
           .thenReturn(Future.failed(emulatedServiceFailure))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
@@ -357,7 +355,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(false)
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
         when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidThree.toString()))
@@ -377,7 +375,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(false)
         when(mockPull.send(ameq(ClientNotificationOne))).thenReturn(false)
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
@@ -398,7 +396,7 @@ class ClientWorkerImplSpec extends UnitSpec with MockitoSugar with Eventually {
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
-        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
+        when(mockDeclarantDetails.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(false)
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
         when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidOne.toString()))

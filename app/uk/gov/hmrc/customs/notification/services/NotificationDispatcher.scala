@@ -20,8 +20,8 @@ import java.util.UUID
 
 import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,13 +37,13 @@ trait NotificationDispatcher {
 class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker,
                                            lockRepo: LockRepo,
                                            configService: CustomsNotificationConfig,
-                                           logger: NotificationLogger) extends NotificationDispatcher {
+                                           logger: CdsLogger) extends NotificationDispatcher {
 
   private val duration = configService.pushNotificationConfig.lockDuration
 
   def process(csids: Set[ClientSubscriptionId]): Future[Unit] = {
     if(csids.size > 0) {
-      logger.debugWithoutRequestContext(s"received $csids and about to process them")
+      logger.debug(s"received $csids and about to process them")
     }
 
     Future {
@@ -52,10 +52,10 @@ class NotificationDispatcherImpl @Inject()(clientWorker: ClientWorker,
           val lockOwnerId = LockOwnerId(UUID.randomUUID().toString)
           lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, duration).flatMap {
             case true =>
-              logger.debugWithoutRequestContext(s"sending $csid to worker")
+              logger.debug(s"sending $csid to worker")
               clientWorker.processNotificationsFor(csid, lockOwnerId, duration)
             case false =>
-              logger.debugWithoutRequestContext(s"Unable to acquire or renew Lock for ${csid}")
+              logger.debug(s"Unable to acquire or renew Lock for ${csid}")
               Future.successful(())
           }
       }

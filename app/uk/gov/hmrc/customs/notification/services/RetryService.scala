@@ -19,8 +19,8 @@ package uk.gov.hmrc.customs.notification.services
 import akka.actor.{ActorSystem, Scheduler}
 import akka.pattern.after
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{ConversationId, ResultError}
+import uk.gov.hmrc.customs.notification.domain.{HasId, ResultError}
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HttpResponse
 
@@ -30,10 +30,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 // idea for retry taken from from https://gist.github.com/viktorklang/9414163
 @Singleton
-class RetryService @Inject()(configService: ConfigService, logger: CdsLogger, actorSystem: ActorSystem) {
+class RetryService @Inject()(configService: ConfigService, logger: NotificationLogger, actorSystem: ActorSystem) {
 
   def retry(f: => Future[Either[ResultError, HttpResponse]])
-           (implicit conversationId: ConversationId, ec: ExecutionContext): Future[Either[ResultError, HttpResponse]] = {
+           (implicit rm: HasId, ec: ExecutionContext): Future[Either[ResultError, HttpResponse]] = {
     retry(
       f,
       configService.pushNotificationConfig.retryDelay,
@@ -46,12 +46,12 @@ class RetryService @Inject()(configService: ConfigService, logger: CdsLogger, ac
   private def retry(
     f: => Future[Either[ResultError, HttpResponse]],
     delay: FiniteDuration, delayFactor: Int, retries: Int, s: Scheduler)
-    (implicit conversationId: ConversationId, ec: ExecutionContext): Future[Either[ResultError, HttpResponse]] = {
+    (implicit rm: HasId, ec: ExecutionContext): Future[Either[ResultError, HttpResponse]] = {
 
     if (retries == configService.pushNotificationConfig.retryMaxAttempts -1) {
-      infoLog(s"First call delay=0, delayFactor=0, remaining retries=$retries")
+      logger.info(s"First call delay=0, delayFactor=0, remaining retries=$retries")
     } else {
-      infoLog(s"Retrying call delay=$delay milliseconds, delayFactor=$delayFactor, remaining retries=$retries")
+      logger.info(s"Retrying call delay=$delay, delayFactor=$delayFactor, remaining retries=$retries")
     }
 
     f.flatMap{
@@ -62,20 +62,9 @@ class RetryService @Inject()(configService: ConfigService, logger: CdsLogger, ac
         val x: Future[Either[ResultError, HttpResponse]] = after(increasedDelay, s)(retry(f, increasedDelay, configService.pushNotificationConfig.retryDelayFactor, retries - 1, s))
         x
       case l@Left(resultError) => // retries exhausted ie <= 0 or 3XX or 4XX error encountered
-        errorLog(s"Aborted retries. is 3XX or 4XX=${!resultError.not3xxOr4xx}, delay=$delay milliseconds, delayFactor=$delayFactor, remaining retries=$retries", resultError.cause)
+        logger.error(s"Aborted retries. is 3XX or 4XX=${!resultError.not3xxOr4xx}, delay=$delay milliseconds, delayFactor=$delayFactor, remaining retries=$retries", resultError.cause)
         Future.successful(l)
     }
   }
 
-  private def infoLog(msg: String)(implicit conversationId: ConversationId): Unit = {
-    logger.info(formatLogMsg(msg, conversationId))
-  }
-
-  private def errorLog(msg: String, e: Throwable)(implicit conversationId: ConversationId): Unit = {
-    logger.error(formatLogMsg(msg, conversationId), e)
-  }
-
-  private def formatLogMsg(msg: String, conversationId: ConversationId) = {
-    s"[conversationId=$conversationId] $msg"
-  }
 }

@@ -37,7 +37,6 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
   private lazy val connector = app.injector.instanceOf[CustomsNotificationMetricsConnector]
   private implicit val mockLogger: CdsLogger = mock[CdsLogger]
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   override protected def beforeAll() {
     startMockServer()

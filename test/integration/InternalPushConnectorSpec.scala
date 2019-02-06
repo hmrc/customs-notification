@@ -16,17 +16,16 @@
 
 package integration
 
-import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.InternalPushConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{Header, HttpResultError, PushNotificationRequest, PushNotificationRequestBody}
+import unit.logging.StubCdsLogger
 import unit.services.ClientWorkerTestData.CsidOne
 import util.TestData._
 import util.{ExternalServicesConfiguration, InternalPushNotificationService}
@@ -35,7 +34,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
   with BeforeAndAfterAll with InternalPushNotificationService {
 
   private lazy val connector = app.injector.instanceOf[InternalPushConnector]
-  private val mockLogger = mock[CdsLogger]
+  private val stubCdsLogger = StubCdsLogger()
 
   private val pnr = PushNotificationRequest(
     CsidOne.id.toString,
@@ -52,7 +51,6 @@ class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
 
   override protected def beforeAll() {
     startMockServer()
-    reset(mockLogger)
   }
 
   override protected def afterEach(): Unit = {
@@ -64,7 +62,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
   }
 
   override implicit lazy val app: Application =
-    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(mockLogger).asGuiceableModule)).configure(Map(
+    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(stubCdsLogger).asGuiceableModule)).configure(Map(
       "auditing.enabled" -> false
     )).build()
 

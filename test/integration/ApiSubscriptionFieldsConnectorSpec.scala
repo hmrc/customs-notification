@@ -24,27 +24,22 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
-import uk.gov.hmrc.http.logging.Authorization
 import uk.gov.hmrc.http.{BadGatewayException, HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ApiSubscriptionFieldsService, ExternalServicesConfiguration, RequestHeaders}
+import util.{ApiSubscriptionFieldsService, ExternalServicesConfiguration}
 
 class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
   with BeforeAndAfterAll with ApiSubscriptionFieldsService {
 
   private lazy val connector = app.injector.instanceOf[ApiSubscriptionFieldsConnector]
 
-  private val incomingBearerToken = "some_client's_bearer_token"
-  private val incomingAuthToken = s"Bearer $incomingBearerToken"
-
   private val unexpectedHttpResponseStatus = NO_CONTENT
   private val badRequestMessage = """{"code": "BAD_REQUEST", "message": "Validation failed}"""
 
   private val apiSubscriptionFieldsFullUrl = wireMockUrl + apiSubscriptionFieldsUrl(validFieldsId)
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier(authorization = Some(Authorization(incomingAuthToken)))
-    .withExtraHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER)
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   override protected def beforeAll() {
     startMockServer()

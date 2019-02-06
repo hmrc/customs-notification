@@ -41,7 +41,7 @@ trait HeaderValidator {
     def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
       implicit val headers: Headers = request.headers
       val logMessage = "Received notification"
-      notificationLogger.debug(logMessage, headers.headers)
+      notificationLogger.debugWithHeaders(logMessage, headers.headers)
 
       if (!hasAccept) {
         Future.successful(ErrorAcceptHeaderInvalid.XmlResult)
@@ -124,8 +124,8 @@ trait HeaderValidator {
   private def logValidationResult(headerName: => String, validationResult: => Boolean)(implicit h: Headers): Unit = {
     val resultText = if (validationResult) "passed" else "failed"
     val msg = s"$headerName header $resultText validation"
-    notificationLogger.debug(msg, h.headers)
-    if (!validationResult) notificationLogger.error(msg, h.headers)
+    notificationLogger.debugWithHeaders(msg, h.headers)
+    if (!validationResult) notificationLogger.errorWithHeaders(msg, h.headers)
   }
 }
 

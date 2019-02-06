@@ -21,10 +21,10 @@ import org.scalatest.Matchers
 import org.scalatest.mockito.MockitoSugar
 import play.api.{Configuration, Environment, Mode}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, ServicesConfig}
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.test.UnitSpec
+import unit.logging.StubCdsLogger
 import util.TestData.basicAuthTokenValue
 
 import scala.concurrent.duration._
@@ -129,7 +129,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val mandatoryOnlyServicesConfig = new Configuration(validMandatoryOnlyAppConfig)
   private val emptyServicesConfig = new Configuration(emptyAppConfig)
 
-  private val mockCdsLogger = mock[CdsLogger]
+  private val stubCdsLogger = StubCdsLogger()
 
   "ConfigService" should {
     val THOUSAND = 1000
@@ -190,6 +190,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   }
 
   private def configService(conf: Configuration) =
-    new ConfigService(new ConfigValidatedNelAdaptor(testServicesConfig(conf), conf), mockCdsLogger)
+    new ConfigService(new ConfigValidatedNelAdaptor(testServicesConfig(conf), conf), stubCdsLogger)
 
 }

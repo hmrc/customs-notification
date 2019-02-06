@@ -23,11 +23,12 @@ import org.scalatest.mockito.MockitoSugar
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, errorBadRequest, ErrorNotFound}
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController
+import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.model.SeqOfHeader
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
@@ -57,7 +58,7 @@ class CustomsNotificationBlockedControllerSpec
           contentAsString(result) shouldBe "<?xml version='1.0' encoding='UTF-8'?>\n<pushNotificationBlockedCount>2</pushNotificationBlockedCount>"
           contentType(result) shouldBe Some(MimeTypes.XML)
         }
-        verifyLog("info", "blocked count of 2 returned for clientId ClientId")
+        verifyLog("info", "blocked count of 2 returned")
       }
 
       "respond with status 400 for missing client id header" in {
@@ -67,7 +68,7 @@ class CustomsNotificationBlockedControllerSpec
           status(result) shouldBe 400
           await(result) shouldBe errorBadRequest("X-Client-ID required").XmlResult
         }
-        verifyLog("error", "missing X-Client-ID header when calling blocked-count endpoint")
+        verifyLogWithHeaders("errorWithHeaders", "missing X-Client-ID header when calling blocked-count endpoint")
       }
 
       "respond with 500 when unexpected failure happens" in {
@@ -77,7 +78,7 @@ class CustomsNotificationBlockedControllerSpec
           status(result) shouldBe INTERNAL_SERVER_ERROR
           await(result) shouldBe ErrorInternalServerError.XmlResult
         }
-        verifyLog("error", "unable to get blocked count for clientId ClientId due to Emulated service failure.")
+        verifyLog("error", "unable to get blocked count due to Emulated service failure.")
       }
     }
 
@@ -108,7 +109,7 @@ class CustomsNotificationBlockedControllerSpec
           status(result) shouldBe 400
           await(result) shouldBe errorBadRequest("X-Client-ID required").XmlResult
         }
-        verifyLog("error", "missing X-Client-ID header when calling blocked-flag endpoint")
+        verifyLogWithHeaders("errorWithHeaders", "missing X-Client-ID header when calling blocked-flag endpoint")
       }
 
       "respond with 500 when unexpected failure happens" in {
@@ -118,10 +119,10 @@ class CustomsNotificationBlockedControllerSpec
           status(result) shouldBe INTERNAL_SERVER_ERROR
           await(result) shouldBe ErrorInternalServerError.XmlResult
         }
-        verifyLog("error", "unable to delete blocked flags for clientId ClientId due to Emulated service failure.")
+        verifyLog("error", s"unable to delete blocked flags due to Emulated service failure.")
       }
     }
-  }
+}
 
   private def testSubmitResult(request: Request[AnyContent], action: Action[AnyContent])(test: Future[Result] => Unit) {
     val result = action.apply(request)
@@ -131,7 +132,14 @@ class CustomsNotificationBlockedControllerSpec
   private def verifyLog(method: String, message: String): Unit = {
     PassByNameVerifier(mockLogger, method)
       .withByNameParam(message)
-      .withParamMatcher(any[HeaderCarrier])
+      .withParamMatcher(any[HasId])
+      .verify()
+  }
+
+  private def verifyLogWithHeaders(method: String, message: String): Unit = {
+    PassByNameVerifier(mockLogger, method)
+      .withByNameParam(message)
+      .withByNameParamMatcher(any[SeqOfHeader])
       .verify()
   }
 

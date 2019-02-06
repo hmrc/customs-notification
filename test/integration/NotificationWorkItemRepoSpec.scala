@@ -25,7 +25,6 @@ import uk.gov.hmrc.customs.api.common.config.ServicesConfig
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.workitem._
@@ -42,8 +41,8 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with MockitoSugar
   with MongoSpecSupport { self =>
 
+  private val stubCdsLogger = StubCdsLogger()
   private val clock = Clock.systemUTC()
-  private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
   private val five = 5
 
   private val pushConfig = PushNotificationConfig(
@@ -71,7 +70,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, new StubCdsLogger(mock[ServicesConfig]))
+  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, stubCdsLogger)
 
   override def beforeEach() {
     await(repository.drop)

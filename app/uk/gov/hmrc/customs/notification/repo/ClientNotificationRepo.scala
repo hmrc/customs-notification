@@ -16,19 +16,17 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import javax.inject.{Inject, Singleton}
-
 import com.google.inject.ImplementedBy
+import javax.inject.{Inject, Singleton}
 import org.joda.time.{DateTime, DateTimeZone}
 import play.api.libs.json.{JsNumber, Json}
 import reactivemongo.api.Cursor
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.ReactiveRepository
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -53,7 +51,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
                                             mongoDbProvider: MongoDbProvider,
                                             lockRepo: LockRepo,
                                             errorHandler: ClientNotificationRepositoryErrorHandler,
-                                            notificationLogger: NotificationLogger)
+                                            logger: CdsLogger)
   extends ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = mongoDbProvider.mongo,
@@ -61,7 +59,6 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   ) with ClientNotificationRepo {
 
   private implicit val format = ClientNotification.clientNotificationJF
-  private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
 
   override def indexes: Seq[Index] = Seq(
     Index(
@@ -77,7 +74,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   )
 
   override def save(clientNotification: ClientNotification): Future[Boolean] = {
-    notificationLogger.debug(s"${logMsgPrefix(clientNotification)} saving clientNotification: $clientNotification")
+    logger.debug(s"${logMsgPrefix(clientNotification)} saving clientNotification: $clientNotification")
 
     lazy val errorMsg = s"Client Notification not saved for clientSubscriptionId ${clientNotification.csid}"
 
@@ -89,7 +86,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   }
 
   override def fetch(csid: ClientSubscriptionId): Future[List[ClientNotification]] = {
-    notificationLogger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString} and with max records=${configService.pushNotificationConfig.maxRecordsToFetch}")
+    logger.debug(s"fetching clientNotification(s) with csid: ${csid.id.toString} and with max records=${configService.pushNotificationConfig.maxRecordsToFetch}")
 
     val selector = Json.obj("csid" -> csid.id)
     val sortOrder = Json.obj("timeReceived" -> 1)
@@ -97,7 +94,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   }
 
   override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = {
-    notificationLogger.debug("fetching Distinct Notification CSIDs Which are not locked")
+    logger.debug("fetching Distinct Notification CSIDs Which are not locked")
     for {
       csIds <- fetchDistinctCsIdsFromSavedNotifications
       lockedCsIds <- fetchCsIdsThatHaveLocks
@@ -106,18 +103,18 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
 
   private def fetchCsIdsThatHaveLocks = {
     val lockedCSIds = lockRepo.lockedCSIds()
-    lockedCSIds.map(lockedCSIdSet => notificationLogger.debug(s"fetching CSIDs That are locked ${lockedCSIdSet.size}"))
+    lockedCSIds.map(lockedCSIdSet => logger.debug(s"fetching CSIDs That are locked ${lockedCSIdSet.size}"))
     lockedCSIds
   }
 
   private def fetchDistinctCsIdsFromSavedNotifications = {
     val csIds = collection.distinct[ClientSubscriptionId, Set]("csid")
-    csIds.map(cdIdsSet => notificationLogger.debug(s"fetching Distinct CSIDs from Saved Notification count is ${cdIdsSet.size}"))
+    csIds.map(cdIdsSet => logger.debug(s"fetching Distinct CSIDs from Saved Notification count is ${cdIdsSet.size}"))
     csIds
   }
 
   override def delete(clientNotification: ClientNotification): Future[Unit] = {
-    notificationLogger.debug(s"${logMsgPrefix(clientNotification)} deleting clientNotification with objectId: ${clientNotification.id.stringify}")
+    logger.debug(s"${logMsgPrefix(clientNotification)} deleting clientNotification with objectId: ${clientNotification.id.stringify}")
 
     val selector = Json.obj("_id" -> clientNotification.id)
     lazy val errorMsg = s"Could not delete entity for selector: $selector"
@@ -130,7 +127,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
     val csIds = configService.pullExcludeConfig.csIdsToExclude
     val olderThan = DateTime.now(DateTimeZone.UTC).minusMillis(millisAgo)
 
-    notificationLogger.debug(s"finding clientSubscriptionIds $csIds older than $olderThan")
+    logger.debug(s"finding clientSubscriptionIds $csIds older than $olderThan")
     val selector = Json.obj("csid" -> Json.obj("$in" -> csIds), "timeReceived" -> Json.obj("$lt" -> Json.obj("$date" -> JsNumber(olderThan.getMillis))))
 
     collection.find(selector).one[ClientNotification].map {

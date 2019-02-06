@@ -22,7 +22,7 @@ import play.api.mvc.{Action, AnyContent, Result}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorClientIdMissing
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CLIENT_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.ClientId
+import uk.gov.hmrc.customs.notification.domain.{ClientId, HasId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
@@ -38,16 +38,20 @@ class CustomsNotificationBlockedController @Inject()(val logger: NotificationLog
   def blockedCount(): Action[AnyContent] = Action.async {
     implicit request =>
       request.headers.get(X_CLIENT_ID_HEADER_NAME).fold {
-        logger.error(s"missing $X_CLIENT_ID_HEADER_NAME header when calling blocked-count endpoint")
+        logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling blocked-count endpoint", request.headers.headers)
         Future.successful(ErrorClientIdMissing.XmlResult)
       } { clientId =>
-        logger.debug(s"getting blocked count for clientId $clientId")
+        implicit val loggingContext = new HasId {
+          override def idName: String = "clientId"
+          override def idValue: String = clientId
+        }
+        logger.debug(s"getting blocked count")
         customsNotificationBlockedService.blockedCount(ClientId(clientId)).map { count =>
-          logger.info(s"blocked count of $count returned for clientId $clientId")
+          logger.info(s"blocked count of $count returned")
           blockedCountResponse(count)
         }.recover {
           case t: Throwable =>
-            logger.error(s"unable to get blocked count for clientId $clientId due to ${t.getMessage}")
+            logger.error(s"unable to get blocked count due to ${t.getMessage}")
             ErrorInternalServerError.XmlResult
         }
       }
@@ -56,9 +60,13 @@ class CustomsNotificationBlockedController @Inject()(val logger: NotificationLog
   def deleteBlocked():Action[AnyContent] = Action.async {
     implicit request =>
       request.headers.get(X_CLIENT_ID_HEADER_NAME).fold {
-        logger.error(s"missing $X_CLIENT_ID_HEADER_NAME header when calling blocked-flag endpoint")
+        logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling blocked-flag endpoint", request.headers.headers)
         Future.successful(ErrorClientIdMissing.XmlResult)
       } { clientId =>
+        implicit val loggingContext = new HasId {
+          override def idName: String = "clientId"
+          override def idValue: String = clientId
+        }
         logger.debug(s"deleting blocked flags for clientId $clientId")
         customsNotificationBlockedService.deleteBlocked(ClientId(clientId)).map { deleted =>
           if (deleted) {
@@ -70,7 +78,7 @@ class CustomsNotificationBlockedController @Inject()(val logger: NotificationLog
           }
         }.recover {
           case t: Throwable =>
-            logger.error(s"unable to delete blocked flags for clientId $clientId due to ${t.getMessage}")
+            logger.error(s"unable to delete blocked flags due to ${t.getMessage}")
             ErrorInternalServerError.XmlResult
         }
       }

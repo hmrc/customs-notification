@@ -19,27 +19,21 @@ package unit.logging
 import uk.gov.hmrc.customs.api.common.config.ServicesConfig
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 
-// Use purely to increase coverage
-class StubCdsLogger(serviceConfig: ServicesConfig) extends CdsLogger(serviceConfig) {
+case class StubCdsLogger() extends CdsLogger(MockitoSugarHelper.mock[ServicesConfig]) {
 
-  override lazy val logger = play.api.Logger("StubCdsLogger")
+  override def debug(msg: =>String): Unit = println(msg)
 
-  override def debug(s: => String): Unit =
-    println(s)
+  override def debug(msg: =>String, e: =>Throwable): Unit = println(msg + e.toString)
 
-  override def debug(s: => String, e: => Throwable): Unit =
-    println(s)
+  override def info(msg: =>String): Unit = println(msg)
 
-  override def info(s: => String): Unit =
-    println(s)
+  override def info(msg: =>String, e: =>Throwable): Unit = println(msg + e.toString)
 
-  override def warn(s: => String): Unit =
-    println(s)
+  override def warn(msg: =>String): Unit = println(msg)
 
-  override def error(s: => String, e: => Throwable): Unit =
-    println(s)
+  override def warn(msg: =>String, e: =>Throwable): Unit = println(msg+e.toString)
 
-  override def error(s: => String): Unit =
-    println(s)
+  override def error(msg: =>String): Unit = println(msg)
 
+  override def error(msg: =>String, e: =>Throwable): Unit = println(msg+e.toString)
 }

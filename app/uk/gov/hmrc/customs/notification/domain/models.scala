@@ -46,3 +46,36 @@ object ClientId {
   }
 }
 
+case class Eori(id: String) extends AnyVal {
+  override def toString: String = id.toString
+}
+
+case class BadgeId(id: String) extends AnyVal {
+  override def toString: String = id.toString
+}
+
+case class CorrelationId(id: String) extends AnyVal {
+  override def toString: String = id.toString
+}
+
+trait HasId {
+  def idName: String
+  def idValue: String
+}
+
+trait HasClientSubscriptionId {
+  def clientSubscriptionId: ClientSubscriptionId
+}
+
+trait HasMaybeBadgeId {
+  def mayBeBadgeId: Option[BadgeId]
+}
+
+trait HasMaybeEori {
+  def mayBeEoriNumber: Option[Eori]
+}
+
+trait HasMaybeCorrelationId {
+  def maybeCorrelationId: Option[CorrelationId]
+}
+

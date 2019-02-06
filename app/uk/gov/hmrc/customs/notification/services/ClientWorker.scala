@@ -20,16 +20,15 @@ import java.math.MathContext
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
-import javax.inject.{Inject, Singleton}
 import akka.actor.ActorSystem
 import com.google.inject.ImplementedBy
+import javax.inject.{Inject, Singleton}
 import org.joda.time.Duration
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
-import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.collection.immutable.Seq
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -63,7 +62,7 @@ class ClientWorkerImpl @Inject()(
                                   push: PushClientNotificationService,
                                   pull: PullClientNotificationService,
                                   lockRepo: LockRepo,
-                                  logger: NotificationLogger,
+                                  logger: CdsLogger,
                                   configService: CustomsNotificationConfig
                                 ) extends ClientWorker {
 
@@ -80,9 +79,6 @@ class ClientWorkerImpl @Inject()(
   private val pullExcludeEnabled = configService.pullExcludeConfig.pullExcludeEnabled
 
   override def processNotificationsFor(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Unit] = {
-    //implicit HeaderCarrier required for ApiSubscriptionFieldsConnector
-    //however looking at api-subscription-fields service I do not think it is required so keep new HeaderCarrier() for now
-    implicit val hc = HeaderCarrier()
     implicit val refreshLockFailed: AtomicBoolean = new AtomicBoolean(false)
     val refreshDuration = ninetyPercentOf(lockDuration)
     val timer = actorSystem.scheduler.schedule(initialDelay = refreshDuration, interval = refreshDuration, new Runnable {
@@ -107,7 +103,7 @@ class ClientWorkerImpl @Inject()(
     ninetyPercentOfMillis milliseconds
   }
 
-  private def refreshLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
+  private def refreshLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration)(implicit refreshLockFailed: AtomicBoolean): Future[Unit] = {
     lockRepo.tryToAcquireOrRenewLock(csid, lockOwnerId, lockDuration).map{ refreshedOk =>
       if (!refreshedOk) {
         val ex = new IllegalStateException(s"[clientSubscriptionId=$csid] Unable to refresh lock")
@@ -121,7 +117,7 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  private def blockingReleaseLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier): Unit = {
+  private def blockingReleaseLock(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId): Unit = {
     val f = lockRepo.release(csid, lockOwnerId).map { _ =>
       logger.info(s"[clientSubscriptionId=$csid][lockOwnerId=${lockOwnerId.id}] released lock")
     }.recover {
@@ -134,7 +130,7 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  private def blockingFetch(csid: ClientSubscriptionId)(implicit hc: HeaderCarrier): Seq[ClientNotification] = {
+  private def blockingFetch(csid: ClientSubscriptionId): Seq[ClientNotification] = {
     try {
       scala.concurrent.blocking {
         Await.result(repo.fetch(csid), awaitMongoCallDuration)
@@ -147,7 +143,7 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
+  protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit refreshLockFailed: AtomicBoolean): Future[Unit] = {
     Future{
       blockingOuterProcessLoop(csid, lockOwnerId)
       blockingReleaseLock(csid, lockOwnerId)
@@ -167,7 +163,7 @@ class ClientWorkerImpl @Inject()(
     * @param hc
     * @param refreshLockFailed
     */
-  private def blockingOuterProcessLoop(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  private def blockingOuterProcessLoop(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit refreshLockFailed: AtomicBoolean): Unit = {
 
     logger.info(s"[clientSubscriptionId=$csid] About to push notifications")
 
@@ -216,7 +212,7 @@ class ClientWorkerImpl @Inject()(
 
   }
 
-  protected def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  protected def blockingInnerPushLoop(clientNotifications: Seq[ClientNotification])(implicit refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
         throw ExitOuterLoopException(s"[clientSubscriptionId=${cn.csid}] error refreshing lock during push processing")
@@ -238,7 +234,7 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  private def blockingMaybeDeclarantDetails(cn: ClientNotification)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFields] = {
+  private def blockingMaybeDeclarantDetails(cn: ClientNotification): Option[ApiSubscriptionFields] = {
     try {
       scala.concurrent.blocking {
         Await.result(callbackDetailsConnector.getClientData(cn.csid.id.toString), awaitApiCallDuration)
@@ -249,7 +245,7 @@ class ClientWorkerImpl @Inject()(
     }
   }
 
-  private def blockingDeleteNotification(cn: ClientNotification)(implicit hc: HeaderCarrier): Unit = {
+  private def blockingDeleteNotification(cn: ClientNotification): Unit = {
     scala.concurrent.blocking {
       Await.result(
         repo.delete(cn).recover {
@@ -262,7 +258,7 @@ class ClientWorkerImpl @Inject()(
   }
 
 
-  private def blockingEnqueueNotificationsOnPullQueue(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  private def blockingEnqueueNotificationsOnPullQueue(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit refreshLockFailed: AtomicBoolean): Unit = {
     logger.info(s"[clientSubscriptionId=$csid] About to enqueue notifications to pull queue")
 
     try {
@@ -276,7 +272,7 @@ class ClientWorkerImpl @Inject()(
 
   }
 
-  protected def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+  protected def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit refreshLockFailed: AtomicBoolean): Unit = {
     clientNotifications.foreach { cn =>
       if (refreshLockFailed.get) {
         throw ExitOuterLoopException(s"[clientSubscriptionId=${cn.csid}] error refreshing lock during pull processing")
