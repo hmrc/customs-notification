@@ -1,12 +1,14 @@
 # customs-notification
 
-The objective of the this endpoint is as below: 
+The objective of this service is 
 
 1. Receive an update from CDS Backend System (Messaging) regarding a declaration that a CDS Client made earlier using Customs Declarations API
 
 2. Fetch client details(Client’s provided callback URL and Security Token) using the CDS Client ID received in header
 
-3. Notify the CDS Client with the given payload by calling notification gateway service with the payload
+3. Notify the CDS Client with the given payload by calling the notification gateway service with the payload or sending it to the pull queue
+
+4. Provide two endpoints for the counting and deleting of notifications blocked from being pushed.  
 
 ## Configuration for Internal Clients
 
@@ -20,11 +22,13 @@ The entries should be in the following format:
 
 ## HTTP return codes
 
-| HTTP Status   | Code Error scenario                                                                              |
-| ------------- | ------------------------------------------------------------------------------------------------ |
-| 204           | If the request is processed successful.                                                          |
-| 400           | This status code will be returned in case of incorrect data,incorrect data format, missing parameters etc. are provided in the request. |
-| 401           | If request has missing or invalid Authorization header (when configured to check the header).                                            |
+| HTTP Status   | Code Error scenario                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------|
+| 202           | If request is processed successfully.                                                              |
+| 204           | If remove blocked flags modifies some notifications                                                |
+| 400           | If request has incorrect data, incorrect data format, missing parameters etc.                      |
+| 401           | If request has missing or invalid Authorization header (when configured to check the header).      |
+| 404           | If delete blocked flags request fails to remove any blocked flags.                                 |
 | 406           | If request has missing or invalid ACCEPT header.                                                   |
 | 415           | If request has missing or invalid Content-Type header.                                             |
 | 500           | In case of a system error such as time out, server down etc. ,this HTTP status code will be returned.|
@@ -40,6 +44,7 @@ The entries should be in the following format:
 | Authorization     | depends on config  |Basic authorization token                                                    |
 | X-CDS-Client-ID   | M                  |The client id which was passed to Messaging when client submitted the declaration earlier. This must be a type 4 UUID|
 | X-Conversation-ID | M                  |This id was passed to Messaging when the declaration was passed onto Messaging earlier. This must be a UUID|
+| X-Client-ID       | M                  |The client id used to identify notifications for count and delete blocked flag operations.|
 
 ### Body
 The body of the request will contain the XML payload. 
@@ -52,6 +57,16 @@ To configure the service to accept requests only with specific value in `Authori
 Accept only requests having the header `Authorization: Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=`
 
     auth.token.internal = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
+
+## Blocked flag endpoints
+
+### Count blocked flags for a given client id
+
+    curl -X GET http://customs-notification-host/customs-notification/blocked-count -H 'X-Client-ID: AClientId'
+    
+### Delete blocked flags for a given client id
+
+    curl -X DELETE http://customs-notification-host/customs-notification/blocked-flag -H 'X-Client-ID: AClientId'
 
 ## Switching service endpoints
 

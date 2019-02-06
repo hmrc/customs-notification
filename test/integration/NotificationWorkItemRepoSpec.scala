@@ -21,7 +21,6 @@ import java.time.Clock
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
-import uk.gov.hmrc.customs.api.common.config.ServicesConfig
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
