@@ -21,7 +21,6 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
-import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -30,8 +29,6 @@ import scala.concurrent.Future
 @Singleton
 class PullClientNotificationRetryService @Inject()(notificationQueueConnector: NotificationQueueConnector,
                                                    logger: CdsLogger) {
-
-  private implicit val hc = HeaderCarrier()
 
   def send(notificationWorkItem: NotificationWorkItem): Future[Boolean] = {
     val clientNotification = clientNotificationFrom(notificationWorkItem)

@@ -27,8 +27,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCd
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, CustomsNotificationService, CustomsNotificationRetryService, DateTimeService}
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, CustomsNotificationRetryService, CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,10 +36,29 @@ import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
-                           mayBeBadgeId: Option[Header],
-                           mayBeEoriNumber: Option[Header],
-                           maybeCorrelationId: Option[Header],
+                           mayBeBadgeId: Option[BadgeId],
+                           mayBeEoriNumber: Option[Eori],
+                           maybeCorrelationId: Option[CorrelationId],
                            startTime: ZonedDateTime)
+  extends HasId
+  with HasClientSubscriptionId
+  with HasMaybeBadgeId
+  with HasMaybeCorrelationId
+  with HasMaybeEori
+{
+  def mayBeBadgeIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME, mayBeBadgeId)
+
+  def mayBeEoriHeader: Option[Header] = asHeader(CustomHeaderNames.X_EORI_ID_HEADER_NAME, mayBeEoriNumber)
+
+  def mayBeCorrelationIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_CORRELATION_ID_HEADER_NAME, maybeCorrelationId)
+
+  private def asHeader[T](name: String, maybeHeaderValue: Option[T]) =
+    maybeHeaderValue.map(v => Header(name = name, value = v.toString))
+
+  override def idName: String = "conversationId"
+
+  override def idValue: String = conversationId.toString
+}
 
 abstract class CustomsNotificationController @Inject()(val logger: NotificationLogger,
                                                        val customsNotificationService: CustomsNotificationService,
@@ -57,9 +75,10 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
     val startTime = dateTimeService.zonedDateTimeUtc
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
+        implicit val rd = requestMetaData(request.headers, startTime)
         request.body.asXml match {
           case Some(xml) =>
-            process(xml, requestMetaData(request.headers, startTime))
+            process(xml)
           case None =>
             notificationLogger.error(xmlValidationErrorMessage)
             Future.successful(errorBadRequest(xmlValidationErrorMessage).XmlResult)
@@ -71,14 +90,13 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
     // headers have been validated so safe to do a naked get except badgeId, eori and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
-      findHeaderValue(X_BADGE_ID_HEADER_NAME, headers), findHeaderValue(X_EORI_ID_HEADER_NAME, headers),
-      findHeaderValue(X_CORRELATION_ID_HEADER_NAME, headers),
+      headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_EORI_ID_HEADER_NAME).map(Eori),
+      headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
       startTime)
   }
 
-  private def process(xml: NodeSeq, md: RequestMetaData)(implicit hc: HeaderCarrier): Future[Result] = {
+  private def process(xml: NodeSeq)(implicit md: RequestMetaData): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
-
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
 
       case Some(apiSubscriptionFields) =>
@@ -106,11 +124,7 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
     }
   }
 
-  private def findHeaderValue(headerName: String, headers: Headers): Option[Header] = {
-    headers.get(headerName).map(Header(headerName, _))
-  }
-
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean]
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean]
 }
 
 @Singleton
@@ -121,7 +135,7 @@ class CustomsNotificationClientWorkerController @Inject()(logger: NotificationLo
                                                           dateTimeService: DateTimeService)
   extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
 
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md)
   }
 
@@ -135,7 +149,7 @@ class CustomsNotificationRetryController @Inject()(logger: NotificationLogger,
                                                    dateTimeService: DateTimeService)
   extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
 
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)
   }
 }

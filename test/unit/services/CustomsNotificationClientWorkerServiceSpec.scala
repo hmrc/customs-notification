@@ -40,7 +40,7 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
 
   private val badgeIdValue = "test-badge-id"
-  private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
+  private val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
     X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
     X_BADGE_ID_HEADER_NAME -> badgeIdValue,
     X_EORI_ID_HEADER_NAME -> eoriNumber,
@@ -48,7 +48,7 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
     X_CORRELATION_ID_HEADER_NAME -> correlationId))
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeIdValue)), Some(Header(X_EORI_ID_HEADER_NAME, eoriNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)), TimeReceivedZoned)
+  private val requestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeIdValue)), Some(Eori(eoriNumber)), Some(CorrelationId(correlationId)), TimeReceivedZoned)
   private val mockClientNotificationRepo = mock[ClientNotificationRepo]
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
   private val contentType = "application/xml"

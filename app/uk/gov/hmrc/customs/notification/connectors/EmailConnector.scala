@@ -17,10 +17,9 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-
 import play.api.libs.json.Json
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, SendEmailRequest}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -28,7 +27,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class EmailConnector @Inject()(http: HttpClient, logger: NotificationLogger, configService: CustomsNotificationConfig) {
+class EmailConnector @Inject()(http: HttpClient, logger: CdsLogger, configService: CustomsNotificationConfig) {
 
   private val emailUrl = configService.pullExcludeConfig.emailUrl
   private implicit val hc = HeaderCarrier()

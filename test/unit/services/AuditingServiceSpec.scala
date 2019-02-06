@@ -23,14 +23,13 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.config.ServicesConfig
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.AuditingService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
 import uk.gov.hmrc.play.test.UnitSpec
-import unit.logging.StubNotificationLogger
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData
@@ -44,16 +43,17 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
   override implicit val patienceConfig = PatienceConfig(timeout = 5 seconds)
 
-  private val stubNotificationLogger = new StubNotificationLogger(mock[CdsLogger])
+  private val mockLogger = mock[NotificationLogger]
   private val mockServicesConfig = mock[ServicesConfig]
   private val mockAuditConnector = mock[AuditConnector]
+  private implicit val rm = TestData.requestMetaData
 
   override def beforeEach(): Unit = {
     org.mockito.Mockito.reset(mockServicesConfig)
     org.mockito.Mockito.reset(mockAuditConnector)
   }
 
-  val auditingService = new AuditingService(stubNotificationLogger, mockServicesConfig, mockAuditConnector)
+  val auditingService = new AuditingService(mockLogger, mockServicesConfig, mockAuditConnector)
 
   "AuditingService" should {
 
@@ -112,18 +112,17 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
     "should log error when auditing fails" in {
 
-      val mockNotificationLogger = mock[NotificationLogger]
-      val auditingService = new AuditingService(mockNotificationLogger, mockServicesConfig, mockAuditConnector)
+      val auditingService = new AuditingService(mockLogger, mockServicesConfig, mockAuditConnector)
 
       when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.failed(new Exception))
 
       auditingService.auditFailedNotification(internalPushNotificationRequest, Some("FailureReasonAbc123"))
 
       eventually {
-        PassByNameVerifier(mockNotificationLogger, "error")
-          .withByNameParam[String]("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]failed to audit FAILURE event")
+        PassByNameVerifier(mockLogger, "error")
+          .withByNameParam[String]("failed to audit FAILURE event")
           .withByNameParamMatcher[Throwable](any[Throwable])
-          .withParamMatcher(any[HeaderCarrier])
+          .withParamMatcher(any[HasId])
           .verify()
       }
     }

@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.services.PullClientNotificationRetryService
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.HttpResponse
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
@@ -36,7 +36,6 @@ class PullClientNotificationRetryServiceSpec extends UnitSpec with MockitoSugar 
   private val mockPullConnector = mock[NotificationQueueConnector]
   private val mockLogger = mock[CdsLogger]
   private val service = new PullClientNotificationRetryService(mockPullConnector, mockLogger)
-  private implicit val hc: HeaderCarrier = mock[HeaderCarrier]
   private val runtimeException = new RuntimeException("something went wrong")
 
   override protected def beforeEach(): Unit = {

@@ -21,8 +21,8 @@ import javax.inject.Singleton
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, PushNotificationRequestBody, ResultError}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -32,7 +32,7 @@ import scala.util.control.NonFatal
 
 @Singleton
 class ExternalPushConnector @Inject()(http: HttpClient,
-                                      logger: NotificationLogger,
+                                      logger: CdsLogger,
                                       serviceConfigProvider: ServiceConfigProvider) extends MapResultError {
 
   private val outboundHeaders = Seq(
@@ -49,7 +49,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
     implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
     val msg = "Calling external push notification service"
-    logger.debug(msg, url, payload = pnr.body.toString)
+    logger.debug(s"$msg url=${pnr.body.url} \nheaders=$outboundHeaders \npayload= ${pnr.body.xmlPayload}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
       .map[Either[ResultError, HttpResponse]]{ httpResponse =>

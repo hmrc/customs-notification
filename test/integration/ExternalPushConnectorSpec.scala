@@ -24,22 +24,14 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
 import uk.gov.hmrc.customs.notification.domain.HttpResultError
-import uk.gov.hmrc.http._
-import uk.gov.hmrc.http.logging.Authorization
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ExternalServicesConfiguration, PushNotificationService, RequestHeaders}
+import util.{ExternalServicesConfiguration, PushNotificationService}
 
 class ExternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
   with BeforeAndAfterAll with PushNotificationService {
 
   private lazy val connector = app.injector.instanceOf[ExternalPushConnector]
-
-  val incomingBearerToken = "some_client's_bearer_token"
-  val incomingAuthToken = s"Bearer $incomingBearerToken"
-
-  private implicit val hc: HeaderCarrier = HeaderCarrier(authorization = Some(Authorization(incomingAuthToken)))
-    .withExtraHeaders(RequestHeaders.X_CDS_CLIENT_ID_HEADER)
 
   override protected def beforeAll() {
     startMockServer()

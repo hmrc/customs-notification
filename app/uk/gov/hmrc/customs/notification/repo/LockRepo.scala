@@ -23,7 +23,6 @@ import org.joda.time.Duration
 import play.api.libs.json.Json
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
 import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
 import uk.gov.hmrc.mongo.CurrentTime
@@ -35,8 +34,7 @@ import scala.concurrent.Future
 case class LockOwnerId(id: String) extends AnyVal
 
 @Singleton
-class LockRepo @Inject()(mongoDbProvider: MongoDbProvider,
-                         notificationLogger: NotificationLogger) extends CurrentTime {
+class LockRepo @Inject()(mongoDbProvider: MongoDbProvider) extends CurrentTime {
 
   val repo = new LockRepository()(mongoDbProvider.mongo)
 

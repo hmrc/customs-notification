@@ -20,11 +20,10 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
 import uk.gov.hmrc.play.test.UnitSpec
-import unit.logging.StubNotificationLogger
+import unit.logging.StubCdsLogger
 import util.TestData._
 
 import scala.concurrent.Future
@@ -34,9 +33,9 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
   with Eventually
   with BeforeAndAfterEach {
 
-  private val notificationLogger = new StubNotificationLogger(mock[CdsLogger])
+  private val stubCdsLogger = StubCdsLogger()
   private val mockRepo = mock[NotificationWorkItemRepo]
-  private val service = new CustomsNotificationBlockedService(notificationLogger, mockRepo)
+  private val service = new CustomsNotificationBlockedService(stubCdsLogger, mockRepo)
 
   "CustomsNotificationBlockedService" should {
     "return count when repo called" in {

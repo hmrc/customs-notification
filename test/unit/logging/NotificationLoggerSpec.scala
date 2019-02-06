@@ -20,83 +20,61 @@ import org.mockito.ArgumentMatchers.any
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.http.logging.RequestChain
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
-import util.RequestHeaders._
+import util.TestData.requestMetaData
 
 class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
 
   trait SetUp {
     val mockCdsLogger: CdsLogger = mock[CdsLogger]
     val logger = new NotificationLogger(mockCdsLogger)
-    implicit val hc = HeaderCarrier(extraHeaders = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER), requestChain = RequestChain("rc"))
   }
+
+  private implicit val implicitRequestMetaData = requestMetaData
 
   "DeclarationsLogger" should {
     "debug(s: => String)" in new SetUp {
       logger.debug("msg")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg\nheaders=List((X-Request-Chain,rc), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] msg")
         .verify()
     }
     "debug(s: => String, url: => String)" in new SetUp {
       logger.debug("msg", "url")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg url=url\nheaders=List((X-Request-Chain,rc), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] msg url=url\n")
         .verify()
     }
     "debug(s: => String, url: => String, payload: => String)" in new SetUp {
       logger.debug("msg", "url", "payload")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg url=url\nheaders=List((X-Request-Chain,rc), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))\npayload=\npayload")
-        .verify()
-    }
-    "debug(s: => String, headers: => SeqOfHeader)" in new SetUp {
-      logger.debug("msg", ValidHeaders.toSeq)
-
-      PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg\nheaders=ArrayBuffer((X-Badge-Identifier,ABCDEF1234), (Accept,application/xml), (Content-Type,application/xml; charset=UTF-8), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Eori-Identifier,IAMEORI), (Authorization,Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] msg url=url\n\npayload=\npayload")
         .verify()
     }
     "info(s: => String)" in new SetUp {
       logger.info("msg")
 
       PassByNameVerifier(mockCdsLogger, "info")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg")
-        .verify()
-    }
-    "error(s: => String, headers: => SeqOfHeader)" in new SetUp {
-      logger.error("msg", ValidHeaders.toSeq)
-
-      PassByNameVerifier(mockCdsLogger, "error")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] msg")
         .verify()
     }
     "error(s: => String)" in new SetUp {
       logger.error("msg")
 
       PassByNameVerifier(mockCdsLogger, "error")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] msg")
         .verify()
     }
     "error(s: => String, t: => Throwable)" in new SetUp {
       logger.error("msg", new Exception("message"))
 
       PassByNameVerifier(mockCdsLogger, "error")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] msg")
         .withByNameParamMatcher[Throwable](any[Throwable])
-        .verify()
-    }
-    "debugWithoutRequestContext(s: => String)" in new SetUp {
-      logger.debugWithoutRequestContext("msg")
-
-      PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("msg")
         .verify()
     }
   }
