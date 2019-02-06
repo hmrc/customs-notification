@@ -51,7 +51,7 @@ class RetryService @Inject()(configService: ConfigService, logger: NotificationL
     if (retries == configService.pushNotificationConfig.retryMaxAttempts -1) {
       logger.info(s"First call delay=0, delayFactor=0, remaining retries=$retries")
     } else {
-      logger.info(s"Retrying call delay=$delay milliseconds, delayFactor=$delayFactor, remaining retries=$retries")
+      logger.info(s"Retrying call delay=$delay, delayFactor=$delayFactor, remaining retries=$retries")
     }
 
     f.flatMap{

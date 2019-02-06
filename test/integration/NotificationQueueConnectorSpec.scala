@@ -37,8 +37,6 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAp
   val incomingBearerToken = "some_client's_bearer_token"
   val incomingAuthToken = s"Bearer $incomingBearerToken"
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
-
   override protected def beforeAll() {
     startMockServer()
   }

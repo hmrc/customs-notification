@@ -25,7 +25,6 @@ import play.api.test.Helpers.ACCEPTED
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.EmailConnector
 import uk.gov.hmrc.customs.notification.domain.{Email, SendEmailRequest}
-import uk.gov.hmrc.http.HeaderCarrier
 import unit.logging.StubCdsLogger
 import util.EmailService
 import util.ExternalServicesConfiguration.{Host, Port}
@@ -62,7 +61,6 @@ class EmailConnectorSpec extends IntegrationTestSpec
     val sendEmailRequest = SendEmailRequest(List(Email("some-email@address.com")), "some-template-id",
       Map("parameters" -> "some-parameter"), force = false)
 
-    implicit val hc = HeaderCarrier()
     lazy val connector: EmailConnector = app.injector.instanceOf[EmailConnector]
   }
 

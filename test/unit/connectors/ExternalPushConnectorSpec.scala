@@ -49,8 +49,6 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
 
   private val emulatedHttpVerbsException = new RuntimeException("FooBar")
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
-
   "ExternalPushConnector" should {
     when(serviceConfigProvider.getConfig("public-notification")).thenReturn(ServiceConfig(url, None, "default"))
 

@@ -48,7 +48,7 @@ class RetryServiceSpec extends UnitSpec with MockitoSugar  {
     def futureCall: Future[Either[ResultError, HttpResponse]] = {
       mockConnector.send(clientId, request)
     }
-    val system = akka.actor.ActorSystem("Test")
+    val system = akka.actor.ActorSystem("RetryServiceSpec")
     val eventuallyOk: Future[Either[ResultError, HttpResponse]] = Future.successful(Right(mockHttpResponse))
     val httpErrorResult3XX = HttpResultError(MOVED_PERMANENTLY, exception)
     val httpErrorResult4XX = HttpResultError(BAD_REQUEST, exception)
