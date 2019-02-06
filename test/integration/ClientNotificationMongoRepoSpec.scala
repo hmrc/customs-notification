@@ -26,10 +26,9 @@ import play.api.libs.json.Json
 import reactivemongo.api.{Cursor, DB}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo._
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.lock.LockRepository
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
@@ -46,10 +45,9 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   with MockitoSugar
   with MongoSpecSupport  { self =>
 
-  private val mockNotificationLogger = mock[NotificationLogger]
+  private val mockCdsLogger = mock[CdsLogger]
   private val mockErrorHandler = mock[ClientNotificationRepositoryErrorHandler]
 
-  private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
   private val timeoutInSeconds = 2
   private val duration = org.joda.time.Duration.standardSeconds(timeoutInSeconds)
   private val five = 5
@@ -73,7 +71,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   }
 
   val lockRepository = new LockRepository
-  val lockRepo: LockRepo = new LockRepo(mongoDbProvider, mockNotificationLogger) {
+  val lockRepo: LockRepo = new LockRepo(mongoDbProvider) {
     val db: () => DB = () => mock[DB]
     override val repo: LockRepository = lockRepository
   }
@@ -90,14 +88,14 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     config
   }
 
-  private val repository = new ClientNotificationMongoRepo(configWithMaxRecords(five), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
-  private val repositoryWithOneMaxRecord = new ClientNotificationMongoRepo(configWithMaxRecords(1), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
-  private val repositoryWithLongWait = new ClientNotificationMongoRepo(configWithMaxRecords(five, TenThousand), mongoDbProvider, lockRepo, mockErrorHandler, mockNotificationLogger)
+  private val repository = new ClientNotificationMongoRepo(configWithMaxRecords(five), mongoDbProvider, lockRepo, mockErrorHandler, mockCdsLogger)
+  private val repositoryWithOneMaxRecord = new ClientNotificationMongoRepo(configWithMaxRecords(1), mongoDbProvider, lockRepo, mockErrorHandler, mockCdsLogger)
+  private val repositoryWithLongWait = new ClientNotificationMongoRepo(configWithMaxRecords(five, TenThousand), mongoDbProvider, lockRepo, mockErrorHandler, mockCdsLogger)
 
   override def beforeEach() {
     await(repository.drop)
     await(lockRepository.drop)
-    Mockito.reset(mockErrorHandler, mockNotificationLogger)
+    Mockito.reset(mockErrorHandler)
   }
 
   override def afterAll() {
@@ -114,9 +112,8 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   }
 
   private def logVerifier(logLevel: String, logText: String): Unit = {
-    PassByNameVerifier(mockNotificationLogger, logLevel)
+    PassByNameVerifier(mockCdsLogger, logLevel)
       .withByNameParam(logText)
-      .withParamMatcher(any[HeaderCarrier])
       .verify()
   }
 

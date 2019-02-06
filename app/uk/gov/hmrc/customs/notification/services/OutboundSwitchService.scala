@@ -17,9 +17,9 @@
 package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors._
-import uk.gov.hmrc.customs.notification.domain.{ClientId, HttpResultError, PushNotificationRequest, ResultError}
+import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HttpResponse
 
@@ -31,31 +31,31 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
                                       externalPush: ExternalPushConnector,
                                       internalPush: InternalPushConnector,
                                       auditingService: AuditingService,
-                                      logger: CdsLogger
+                                      logger: NotificationLogger
                                      ) {
 
-  def send(clientId: ClientId, pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
+  def send(clientId: ClientId, pnr: PushNotificationRequest)(implicit rm: HasId): Future[Either[ResultError, HttpResponse]] = {
 
     val response: (String, Future[Either[ResultError, HttpResponse]]) =
       if (configService.pushNotificationConfig.internalClientIds.contains(clientId.toString)) {
-        infoLog(s"About to push internally for clientId=$clientId", pnr)
+        logger.info(s"About to push internally")
         ("internal", internalPushWithAuditing(pnr))
       } else {
-        infoLog(s"About to push externally for clientId=$clientId", pnr)
+        logger.info(s"About to push externally")
         ("external", externalPush.send(pnr))
       }
 
     response._2.map {
       case r@Right(_) =>
-        infoLog(s"${response._1} push notification call succeeded", pnr)
+        logger.info(s"${response._1} push notification call succeeded")
         r
       case l@Left(resultError: ResultError) =>
-        errorLog(s"Call to ${response._1} push notification service failed. POST url=${pnr.body.url}", pnr, resultError.cause)
+        logger.error(s"Call to ${response._1} push notification service failed. POST url=${pnr.body.url}", resultError.cause)
         l
     }
   }
 
-  private def internalPushWithAuditing(pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
+  private def internalPushWithAuditing(pnr: PushNotificationRequest)(implicit rm: HasId): Future[Either[ResultError, HttpResponse]] = {
 
     val eventuallyEither: Future[Either[ResultError, HttpResponse]] = internalPush.send(pnr).map{
       case r@Right(_) =>
@@ -71,16 +71,4 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
     eventuallyEither
   }
 
-
-  // TODO: replace with call to NotificationLogger info, once logging framework has been refactored
-  private def infoLog(msg: String, pnr: PushNotificationRequest): Unit = {
-    logger.info(formatLogMsg(msg, pnr))
-  }
-  private def errorLog(msg: String, pnr: PushNotificationRequest, e: Throwable): Unit = {
-    logger.error(formatLogMsg(msg, pnr), e)
-  }
-
-  private def formatLogMsg(msg: String, pnr: PushNotificationRequest) = {
-    s"[conversationId=${pnr.body.conversationId}] $msg"
-  }
 }

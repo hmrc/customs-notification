@@ -17,16 +17,12 @@
 package uk.gov.hmrc.customs.notification.repo
 
 import javax.inject.{Inject, Singleton}
-
 import reactivemongo.api.commands.WriteResult
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.http.HeaderCarrier
 
 @Singleton
-class ClientNotificationRepositoryErrorHandler @Inject() (notificationLogger: NotificationLogger) {
-
-  private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
+class ClientNotificationRepositoryErrorHandler @Inject() (logger: CdsLogger) {
 
   def handleDeleteError(result: WriteResult, exceptionMsg: => String): Boolean = {
     handleError(result, databaseAltered, exceptionMsg)
@@ -49,7 +45,7 @@ class ClientNotificationRepositoryErrorHandler @Inject() (notificationLogger: No
     result.writeConcernError.fold(f(result)) {
       errMsg => {
         val errorMsg = s"$exceptionMsg. $errMsg"
-        notificationLogger.error(errorMsg)
+        logger.error(errorMsg)
         throw new RuntimeException(errorMsg)
       }
     }

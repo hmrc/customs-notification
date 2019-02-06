@@ -16,10 +16,10 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import javax.inject._
 import akka.actor.ActorSystem
+import javax.inject._
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 
 import scala.concurrent.ExecutionContext
@@ -27,17 +27,17 @@ import scala.concurrent.duration._
 
 
 @Singleton
-class NotificationPollingService @Inject() (config: CustomsNotificationConfig,
+class NotificationPollingService @Inject()(config: CustomsNotificationConfig,
                                             actorSystem: ActorSystem,
                                             clientNotificationRepo: ClientNotificationRepo,
                                             notificationDispatcher: NotificationDispatcher,
-                                            logger: NotificationLogger)(implicit executionContext: ExecutionContext) {
+                                            logger: CdsLogger)(implicit executionContext: ExecutionContext) {
 
   private val pollingDelay: FiniteDuration = config.pushNotificationConfig.pollingDelay
 
   actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
     clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked().map(csIdSet => {
-      logger.debugWithoutRequestContext(s"polling service about to process ${csIdSet.size} notifications")
+      logger.debug(s"polling service about to process ${csIdSet.size} notifications")
       notificationDispatcher.process(csIdSet)
     })
   }

@@ -17,90 +17,54 @@
 package unit.logging
 
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import util.RequestHeaders.{LoggingHeaders, LoggingHeadersWithAuth, LoggingHeadersMixedCase}
+import util.RequestHeaders.LoggingHeadersWithAuth
 import util.TestData._
 
 class LoggingHelperSpec extends UnitSpec {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = LoggingHeaders)
-
   "LoggingHelper" should {
 
-    "format ERROR" in {
-      LoggingHelper.formatError(errorMsg) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $errorMsg"
+    "logMsgPrefix with both clientSubscriptionId and conversationId" in {
+      val actual = LoggingHelper.logMsgPrefix(clientSubscriptionId, conversationId)
+
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=ffff01f9-ec3b-4ede-b263-61b626dde232]"
     }
 
-    "format ERROR with headers" in {
-      LoggingHelper.formatError(errorMsg, LoggingHeaders) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $errorMsg"
+    "logMsgPrefix with clientNotification" in {
+      val actual = LoggingHelper.logMsgPrefix(client1Notification1)
+
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientSubscriptionId=eaca01f9-ec3b-4ede-b263-61b626dde232]"
     }
 
-    "format INFO with HeaderCarrier" in {
-      LoggingHelper.formatInfo(infoMsg) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $infoMsg"
+    "format" in {
+      val actual = LoggingHelper.format(errorMsg, requestMetaData)
+
+      actual shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] $errorMsg"
     }
 
-    "format INFO with headers" in {
-      LoggingHelper.formatInfo(infoMsg, LoggingHeaders) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $infoMsg"
+    "format Debug with URL" in {
+      val actual = LoggingHelper.formatDebug(errorMsg, Some(url))(requestMetaData)
+
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] ERROR url=http://some-url\n"
     }
 
-    "format INFO with headers one mixed case" in {
-      LoggingHelper.formatInfo(infoMsg, LoggingHeadersMixedCase) shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $infoMsg"
-    }
+    "format Debug with URL and Payload" in {
+      val actual = LoggingHelper.formatDebug(errorMsg, Some(url), Some("PAYLOAD"))(requestMetaData)
 
-    "format DEBUG with HeaderCarrier" in {
-      val requestChain = hc.requestChain.value
-      LoggingHelper.formatDebug(debugMsg) shouldBe
-        s"""[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $debugMsg
-           |headers=List((X-Request-Chain,$requestChain), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))""".stripMargin
-    }
-
-    "format DEBUG with headers" in {
-      LoggingHelper.formatDebug(debugMsg, LoggingHeaders) shouldBe
-        s"""[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $debugMsg
-           |headers=List((X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))""".stripMargin
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] ERROR url=http://some-url\n\npayload=\nPAYLOAD"
     }
 
     "format DEBUG with url and payload" in {
-      val requestChain = hc.requestChain.value
-      LoggingHelper.formatDebug(debugMsg, Some(url), Some(ValidXML.toString())) shouldBe
-        s"""[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $debugMsg url=http://some-url
-           |headers=List((X-Request-Chain,$requestChain), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))
-           |payload=
-           |<Foo>Bar</Foo>""".stripMargin
+      val actual = LoggingHelper.formatDebug(debugMsg, Some(url), Some(ValidXML.toString()))(requestMetaData)
+
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][eoriIdentifier=IAMEORI][correlationId=CORRID2234] DEBUG url=http://some-url\n\npayload=\n<Foo>Bar</Foo>"
     }
 
-    "format DEBUG with url, payload and auth header overwritten" in {
-      implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = LoggingHeadersWithAuth)
+    "format with headers" in {
+      val actual = LoggingHelper.formatWithHeaders(debugMsg, LoggingHeadersWithAuth)
 
-      val requestChain = hc.requestChain.value
-      LoggingHelper.formatDebug(debugMsg, Some(url), Some(ValidXML.toString())) shouldBe
-        s"""[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $debugMsg url=http://some-url
-           |headers=List((X-Request-Chain,$requestChain), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231), (Authorization,Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=))
-           |payload=
-           |<Foo>Bar</Foo>""".stripMargin
-    }
-
-    "format DEBUG with url and no payload" in {
-      val requestChain = hc.requestChain.value
-      LoggingHelper.formatDebug(debugMsg, Some(url)) shouldBe
-        s"""[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $debugMsg url=http://some-url
-           |headers=List((X-Request-Chain,$requestChain), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))""".stripMargin
-    }
-
-    "format DEBUG with payload and no url" in {
-      val requestChain = hc.requestChain.value
-      LoggingHelper.formatDebug(debugMsg, None, Some(ValidXML.toString())) shouldBe
-        s"""[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $debugMsg
-           |headers=List((X-Request-Chain,$requestChain), (X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231))
-           |payload=
-           |<Foo>Bar</Foo>""".stripMargin
-    }
-
-    "format DEBUG with headers including single overwritten header" in {
-      LoggingHelper.formatDebug(debugMsg, LoggingHeadersWithAuth) shouldBe
-        s"""[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] $debugMsg
-           |headers=List((X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231), (Authorization,Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=))""".stripMargin
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] DEBUG\nheaders=List((X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231), (Authorization,Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=))"
     }
 
   }

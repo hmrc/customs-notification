@@ -16,16 +16,14 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import javax.inject.{Inject, Singleton}
-
 import akka.actor.ActorSystem
+import javax.inject.{Inject, Singleton}
 import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.{DateTime, DateTimeZone}
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.EmailConnector
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, Email, SendEmailRequest}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
-import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext
 
@@ -35,14 +33,13 @@ class FailedPushEmailPollingService @Inject()(clientNotificationRepo: ClientNoti
                                               emailConnector: EmailConnector,
                                               actorSystem: ActorSystem,
                                               configService: CustomsNotificationConfig,
-                                              logger: NotificationLogger)(implicit executionContext: ExecutionContext){
+                                              logger: CdsLogger)(implicit executionContext: ExecutionContext){
 
   private val emailAddress: List[Email] = List(Email(configService.pullExcludeConfig.emailAddress))
   private val pullExcludeEnabled = configService.pullExcludeConfig.pullExcludeEnabled
   private val templateId = "customs_push_notifications_warning"
   private val interval = configService.pullExcludeConfig.pollingInterval
   private val delay = configService.pullExcludeConfig.pollingDelay
-  private implicit val hc = HeaderCarrier()
 
   if (pullExcludeEnabled) {
     actorSystem.scheduler.schedule(delay, interval) {

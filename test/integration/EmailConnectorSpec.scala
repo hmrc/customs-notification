@@ -22,9 +22,11 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers.ACCEPTED
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.EmailConnector
 import uk.gov.hmrc.customs.notification.domain.{Email, SendEmailRequest}
 import uk.gov.hmrc.http.HeaderCarrier
+import unit.logging.StubCdsLogger
 import util.EmailService
 import util.ExternalServicesConfiguration.{Host, Port}
 
@@ -33,6 +35,9 @@ class EmailConnectorSpec extends IntegrationTestSpec
   with MockitoSugar
   with BeforeAndAfterAll
   with EmailService {
+
+  private val stubCdsLogger: CdsLogger = StubCdsLogger()
+
 
   override protected def beforeAll() {
     startMockServer()
@@ -46,7 +51,8 @@ class EmailConnectorSpec extends IntegrationTestSpec
     stopMockServer()
   }
 
-  override implicit lazy val app: Application = GuiceApplicationBuilder().configure(Map(
+  override implicit lazy val app: Application =
+    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(stubCdsLogger).asGuiceableModule)).configure(Map(
       "microservice.services.email.host" -> Host,
       "microservice.services.email.port" -> Port,
       "microservice.services.email.context" -> "/hmrc/email"

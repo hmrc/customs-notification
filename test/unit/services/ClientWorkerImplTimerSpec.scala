@@ -25,12 +25,11 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig, PullExcludeConfig}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 import uk.gov.hmrc.customs.notification.services.{ClientWorkerImpl, PullClientNotificationService, PushClientNotificationService}
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.services.ClientWorkerTestData._
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -54,7 +53,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     private[ClientWorkerImplTimerSpec] val mockPull = mock[PullClientNotificationService]
     private[ClientWorkerImplTimerSpec] val mockPush = mock[PushClientNotificationService]
     private[ClientWorkerImplTimerSpec] val mockLockRepo = mock[LockRepo]
-    private[ClientWorkerImplTimerSpec] val mockLogger = mock[NotificationLogger]
+    private[ClientWorkerImplTimerSpec] val mockLogger = mock[CdsLogger]
     private[ClientWorkerImplTimerSpec] val mockPullExcludeConfig = mock[PullExcludeConfig]
     private[ClientWorkerImplTimerSpec] val mockConfig = mock[CustomsNotificationConfig]
 
@@ -71,24 +70,22 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         mockConfig
       )
       {
-        override protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Future[Unit] = {
+        override protected def process(csid: ClientSubscriptionId, lockOwnerId: LockOwnerId)(implicit refreshLockFailed: AtomicBoolean): Future[Unit] = {
           scala.concurrent.blocking {
             Thread.sleep(outerProcessingDelayMilliseconds)
           }
-          super.process(csid, lockOwnerId)(hc, refreshLockFailed)
+          super.process(csid, lockOwnerId)(refreshLockFailed)
         }
-        override protected def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit hc: HeaderCarrier, refreshLockFailed: AtomicBoolean): Unit = {
+        override protected def blockingInnerPullLoop(clientNotifications: Seq[ClientNotification])(implicit refreshLockFailed: AtomicBoolean): Unit = {
           scala.concurrent.blocking {
             Thread.sleep(innerPullLoopDelayMilliseconds)
           }
-          super.blockingInnerPullLoop(clientNotifications)(hc, refreshLockFailed)
+          super.blockingInnerPullLoop(clientNotifications)(refreshLockFailed)
         }
 
       }
       clientWorker
     }
-
-    private[ClientWorkerImplTimerSpec] implicit val implicitHc = HeaderCarrier()
 
     def eqLockOwnerId(id: LockOwnerId): LockOwnerId = ameq[String](id.id).asInstanceOf[LockOwnerId]
     def eqClientSubscriptionId(id: ClientSubscriptionId): ClientSubscriptionId = ameq[UUID](id.id).asInstanceOf[ClientSubscriptionId]
@@ -96,7 +93,6 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
     def verifyLogError(msg: String): Unit = {
       PassByNameVerifier(mockLogger, "error")
         .withByNameParam(msg)
-        .withParamMatcher(any[HeaderCarrier])
         .verify()
     }
 
@@ -114,7 +110,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId) , any[org.joda.time.Duration])).thenReturn(Future.successful(true))
-        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(Some(ApiSubscriptionFieldsOne)))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockPush.send(ApiSubscriptionFieldsOne, ClientNotificationOne)).thenReturn(true)
         when(mockRepo.delete(ameq(ClientNotificationOne)))
@@ -159,7 +155,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
       "exit pull inner loop processing when lock refresh returns false" in new SetUp {
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)), Future.successful(List(ClientNotificationOne)), Future.successful(Nil))
-        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(None))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(true), Future.successful(true), Future.successful(false))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
@@ -203,7 +199,7 @@ class ClientWorkerImplTimerSpec extends UnitSpec with MockitoSugar with Eventual
         when(mockRepo.fetch(CsidOne))
           .thenReturn(Future.successful(List(ClientNotificationOne)))
         when(mockLockRepo.tryToAcquireOrRenewLock(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId), any[org.joda.time.Duration])).thenReturn(Future.successful(true), Future.failed(emulatedServiceFailure))
-        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))(any[HeaderCarrier])).thenReturn(Future.successful(None))
+        when(mockApiSubscriptionFieldsConnector.getClientData(ameq(CsidOne.id.toString))).thenReturn(Future.successful(None))
         when(mockLockRepo.release(eqClientSubscriptionId(CsidOne), eqLockOwnerId(CsidOneLockOwnerId))).thenReturn(Future.successful(()))
         when(mockConfig.pullExcludeConfig).thenReturn(mockPullExcludeConfig)
         when(mockPullExcludeConfig.csIdsToExclude).thenReturn(Seq(CsidThree.toString()))

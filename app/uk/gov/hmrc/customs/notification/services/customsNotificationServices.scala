@@ -19,11 +19,10 @@ package uk.gov.hmrc.customs.notification.services
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.{HasId, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, NotificationWorkItemRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.workitem.{Failed, PermanentlyFailed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -33,7 +32,7 @@ import scala.xml.NodeSeq
 trait CustomsNotificationService {
 
   def buildHeaders(metaData: RequestMetaData): Seq[Header] = {
-    (metaData.mayBeBadgeId ++ metaData.mayBeEoriNumber ++ metaData.maybeCorrelationId).toSeq
+    (metaData.mayBeBadgeIdHeader ++ metaData.mayBeEoriHeader ++ metaData.mayBeCorrelationIdHeader).toSeq
   }
 }
 
@@ -44,16 +43,15 @@ class CustomsNotificationClientWorkerService @Inject()(logger: NotificationLogge
                                                        pullClientNotificationService: PullClientNotificationService)
   extends CustomsNotificationService {
 
-  def handleNotification(xml: NodeSeq, metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  def handleNotification(xml: NodeSeq, metaData: RequestMetaData): Future[Boolean] = {
 
     val clientNotification = ClientNotification(metaData.clientSubscriptionId, Notification(metaData.conversationId,
       buildHeaders(metaData), xml.toString, MimeTypes.XML), None, Some(metaData.startTime.toDateTime))
 
-    saveNotificationToDatabaseAndCallDispatcher(clientNotification, metaData)
+    saveNotificationToDatabaseAndCallDispatcher(clientNotification)(metaData)
   }
 
-  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification,
-                                                          metaData: RequestMetaData)(implicit hc: HeaderCarrier): Future[Boolean] = {
+  private def saveNotificationToDatabaseAndCallDispatcher(clientNotification: ClientNotification)(implicit metaData: HasId): Future[Boolean] = {
 
     clientNotificationRepo.save(clientNotification).map {
       case true =>
@@ -79,20 +77,19 @@ class CustomsNotificationRetryService @Inject()(logger: NotificationLogger,
 
   def handleNotification(xml: NodeSeq,
                          metaData: RequestMetaData,
-                         apiSubscriptionFields: ApiSubscriptionFields)
-                        (implicit hc: HeaderCarrier): Future[Boolean] = {
+                         apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
 
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
       Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
-      saveNotificationToDatabaseAndPushOrPull(notificationWorkItem, apiSubscriptionFields)
+      saveNotificationToDatabaseAndPushOrPull(notificationWorkItem, apiSubscriptionFields)(metaData)
   }
 
   private def saveNotificationToDatabaseAndPushOrPull(notificationWorkItem: NotificationWorkItem,
                                                 apiSubscriptionFields: ApiSubscriptionFields)
-                                               (implicit hc: HeaderCarrier): Future[Boolean] = {
+                                               (implicit rm: HasId): Future[Boolean] = {
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem).flatMap { workItem =>
       val pushPullResult = if (apiSubscriptionFields.fields.callbackUrl.isEmpty) {

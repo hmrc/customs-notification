@@ -22,13 +22,12 @@ import akka.actor.ActorSystem
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, PushNotificationConfig}
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{NotificationDispatcher, NotificationPollingService}
 import uk.gov.hmrc.play.test.UnitSpec
-import unit.logging.StubNotificationLogger
+import unit.logging.StubCdsLogger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -38,7 +37,7 @@ class NotificationPollingServiceSpec extends UnitSpec with MockitoSugar {
   private val clientNotificationRepoMock = mock[ClientNotificationRepo]
   private val notificationDispatcherMock = mock[NotificationDispatcher]
   private val configServiceMock = mock[ConfigService]
-  private val logger = new StubNotificationLogger(mock[CdsLogger])
+  private val logger = new StubCdsLogger
   private val SIX_THOUSAND = 6000
   val testActorSystem = ActorSystem("NotificationPollingService")
 

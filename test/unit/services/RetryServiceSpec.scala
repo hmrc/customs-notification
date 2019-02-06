@@ -20,14 +20,14 @@ import akka.actor.ActorSystem
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, PushNotificationConfig, ResultError}
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{OutboundSwitchService, RetryService}
 import uk.gov.hmrc.http.HttpResponse
 import uk.gov.hmrc.play.test.UnitSpec
 import unit.services.ClientWorkerTestData.{ClientIdOne, pnrOne}
-import util.TestData._
+import util.TestData
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -37,12 +37,14 @@ import scala.language.postfixOps
 class RetryServiceSpec extends UnitSpec with MockitoSugar  {
 
   trait SetUp {
-    val mockCdsLogger = mock[CdsLogger]
+    val mockLogger = mock[NotificationLogger]
     val exception = new IllegalStateException("BOOM!")
     val mockHttpResponse = mock[HttpResponse]
     val clientId = ClientIdOne
     val request = pnrOne
     val mockConnector = mock[OutboundSwitchService]
+    implicit val rm = TestData.requestMetaData
+
     def futureCall: Future[Either[ResultError, HttpResponse]] = {
       mockConnector.send(clientId, request)
     }
@@ -56,8 +58,7 @@ class RetryServiceSpec extends UnitSpec with MockitoSugar  {
     val eventuallyFailedWith5XX = Future.successful(Left(httpErrorResult5XX))
     val mockConfigService = mock[ConfigService]
     val mockPushNotificationConfig = mock[PushNotificationConfig]
-    val retryService = new RetryService(mockConfigService, mockCdsLogger, ActorSystem("RetryServiceSpec"))
-    implicit val implicitConversationId = conversationId
+    val retryService = new RetryService(mockConfigService, mockLogger, ActorSystem("RetryServiceSpec"))
 
     when(mockConfigService.pushNotificationConfig).thenReturn(mockPushNotificationConfig)
     when(mockPushNotificationConfig.retryDelay).thenReturn(500 milliseconds)

@@ -22,8 +22,8 @@ import play.api.http.MimeTypes
 import play.api.libs.json.Json
 import play.mvc.Http.Status._
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -32,7 +32,7 @@ import scala.concurrent.Future
 
 @Singleton
 class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
-                                               logger: NotificationLogger,
+                                               logger: CdsLogger,
                                                serviceConfigProvider: ServiceConfigProvider) {
 
   private val headers = Seq(
@@ -40,9 +40,9 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     (ACCEPT, MimeTypes.JSON)
   )
 
-  def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
+  def getClientData(fieldsId: String): Future[Option[ApiSubscriptionFields]] = {
     logger.debug("calling api-subscription-fields service")
-    callApiSubscriptionFields(fieldsId)(hc = hc.copy(extraHeaders = headers)) map { response =>
+    callApiSubscriptionFields(fieldsId) map { response =>
       logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
 
       response.status match {
@@ -56,17 +56,18 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     }
   }
 
-  private def parseResponseAsModel(jsonResponse: String)(implicit hc: HeaderCarrier): Option[ApiSubscriptionFields] = {
+  private def parseResponseAsModel(jsonResponse: String): Option[ApiSubscriptionFields] = {
     val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFields])
     logger.debug(s"api-subscription-fields service parsed response=$response")
     response
   }
 
-  private def callApiSubscriptionFields(fieldsId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
-
+  private def callApiSubscriptionFields(fieldsId: String): Future[HttpResponse] = {
+    implicit val hc = HeaderCarrier(extraHeaders = headers)
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
     val fullUrl = s"$baseUrl/$fieldsId"
-    logger.debug("calling api-subscription-fields service", url = fullUrl)
+
+    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=${fullUrl} \nheaders=$headers")
 
     http.GET[HttpResponse](fullUrl)
       .recoverWith {

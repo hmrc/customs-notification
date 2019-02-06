@@ -17,18 +17,18 @@
 package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.ClientId
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 
 import scala.concurrent.Future
 
 @Singleton
-class CustomsNotificationBlockedService @Inject() (logger: NotificationLogger,
+class CustomsNotificationBlockedService @Inject() (logger: CdsLogger,
                                                    notificationWorkItemRepo: NotificationWorkItemRepo) {
 
   def blockedCount(clientId: ClientId): Future[Int] = {
-    logger.debugWithoutRequestContext(s"getting blocked count for clientId ${clientId.id}")
+    logger.debug(s"getting blocked count for clientId ${clientId.id}")
     notificationWorkItemRepo.blockedCount(clientId)
   }
 }

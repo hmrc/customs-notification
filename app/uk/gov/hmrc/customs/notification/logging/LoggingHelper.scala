@@ -18,14 +18,9 @@ package uk.gov.hmrc.customs.notification.logging
 
 import play.api.http.HeaderNames.AUTHORIZATION
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, ConversationId}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
-import uk.gov.hmrc.http.HeaderCarrier
 
-/*
-TODO: Logging framework needs to be refactored so that we pass in an implicit RequestMetaData/LoggingContext object down the call stack rather than SeqOfHeader
-RequestMetaData contains all the useful data we wish to log
-*/
 object LoggingHelper {
 
   private val headerOverwriteValue = "value-not-logged"
@@ -38,40 +33,54 @@ object LoggingHelper {
   def logMsgPrefix(clientNotification: ClientNotification): String =
     s"[conversationId=${clientNotification.notification.conversationId}][clientSubscriptionId=${clientNotification.csid}]"
 
-  def formatError(msg: String)(implicit hc: HeaderCarrier): String = {
-    formatInfo(msg)
+  def format(msg: String, rm: HasId): String = {
+    s"${formatLogPrefix(rm)} $msg"
   }
 
-  def formatError(msg: String, headers: SeqOfHeader): String = {
-    formatInfo(msg, headers)
-  }
-
-  def formatInfo(msg: String)(implicit hc: HeaderCarrier): String = {
-    val headers = hc.headers
-    formatInfo(msg, headers)
-  }
-
-  def formatInfo(msg: String, headers: SeqOfHeader): String = {
-    s"${formatLogPrefix(headers)} $msg"
-  }
-
-  def formatDebug(msg: String, headers: SeqOfHeader): String = {
-    s"${formatLogPrefix(headers)} $msg\nheaders=${overwriteHeaderValues(headers,headersToOverwrite - AUTHORIZATION)}"
-  }
-
-  def formatDebug(msg: String, maybeUrl: Option[String] = None, maybePayload: Option[String] = None)(implicit hc: HeaderCarrier): String = {
-    val headers = hc.headers
+  def formatDebug(msg: String, maybeUrl: Option[String] = None, maybePayload: Option[String] = None)(implicit rm: HasId): String = {
     val urlPart = maybeUrl.fold("")(url => s" url=$url")
     val payloadPart = maybePayload.fold("")(payload => s"\npayload=\n$payload")
-    s"${formatLogPrefix(headers)} $msg$urlPart\nheaders=${overwriteHeaderValues(headers,headersToOverwrite - AUTHORIZATION)}$payloadPart"
+    s"${formatLogPrefix(rm)} $msg$urlPart\n$payloadPart"
   }
 
-  private def formatLogPrefix(headers: SeqOfHeader): String = {
+  def formatWithHeaders(msg: String, headers: SeqOfHeader): String = {
+    s"${formatLogPrefixWithHeaders(headers)} $msg\nheaders=${overwriteHeaderValues(headers,headersToOverwrite - AUTHORIZATION)}"
+  }
+  private def formatLogPrefixWithHeaders(headers: SeqOfHeader): String = {
     val maybeFieldsId = findHeaderValue(CustomHeaderNames.X_CDS_CLIENT_ID_HEADER_NAME, headers)
     val maybeConversationId = findHeaderValue(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, headers)
 
     maybeConversationId.fold("")(conversationId => s"[conversationId=$conversationId]") +
-    maybeFieldsId.fold("")(maybeFieldsId => s"[fieldsId=$maybeFieldsId]")
+      maybeFieldsId.fold("")(maybeFieldsId => s"[fieldsId=$maybeFieldsId]")
+  }
+
+  private def formatLogPrefix(rm: HasId): String = {
+    def fieldsId = rm match {
+      case has: HasClientSubscriptionId =>
+        s"[fieldsId=${has.clientSubscriptionId}]"
+      case _ => ""
+    }
+    def correlationId = rm match {
+      case has: HasMaybeCorrelationId =>
+        formatOptional("correlationId", has.maybeCorrelationId)
+      case _ => ""
+    }
+    def badgeId = rm match {
+      case has: HasMaybeBadgeId =>
+        formatOptional("badgeId", has.mayBeBadgeId)
+      case _ => ""
+    }
+    def eori = rm match {
+      case has: HasMaybeEori =>
+        formatOptional("eoriIdentifier", has.mayBeEoriNumber)
+      case _ => ""
+    }
+
+    s"[${rm.idName}=${rm.idValue}]$fieldsId$badgeId$eori$correlationId"
+  }
+
+  private def formatOptional[T](name: String, maybeValue: Option[T]) = {
+    maybeValue.fold("")(h => s"[$name=${h.toString}]")
   }
 
   private def findHeaderValue(headerName: String, headers: SeqOfHeader): Option[String] = {
