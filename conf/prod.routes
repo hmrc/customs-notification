@@ -3,5 +3,6 @@
 POST        /customs-notification/notify         @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationClientWorkerController.submit()
 POST        /customs-notification/notify-retry   @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationRetryController.submit()
 GET         /customs-notification/blocked-count  @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController.blockedCount()
+DELETE      /customs-notification/blocked-flag   @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController.deleteBlocked()
 
 GET         /admin/metrics                       @com.kenshoo.play.metrics.MetricsController.metrics

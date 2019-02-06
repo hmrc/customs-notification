@@ -38,6 +38,10 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
   private val mockRepo = mock[NotificationWorkItemRepo]
   private val service = new CustomsNotificationBlockedService(notificationLogger, mockRepo)
 
+  override protected def beforeEach(): Unit = {
+    reset(mockRepo)
+  }
+
   "CustomsNotificationBlockedService" should {
     "return count when repo called" in {
       when(mockRepo.blockedCount(clientId1)).thenReturn(Future.successful(2))
@@ -46,6 +50,24 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
       result shouldBe 2
 
       eventually(verify(mockRepo).blockedCount(clientId1))
+    }
+
+    "return true when notifications are unblocked" in {
+      when(mockRepo.deleteBlocked(clientId1)).thenReturn(Future.successful(2))
+
+      val result = await(service.deleteBlocked(clientId1))
+      result shouldBe true
+
+      eventually(verify(mockRepo).deleteBlocked(clientId1))
+    }
+
+    "return false when no notifications are unblocked" in {
+      when(mockRepo.deleteBlocked(clientId1)).thenReturn(Future.successful(0))
+
+      val result = await(service.deleteBlocked(clientId1))
+      result shouldBe false
+
+      eventually(verify(mockRepo).deleteBlocked(clientId1))
     }
   }
 }

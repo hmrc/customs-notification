@@ -18,11 +18,10 @@ package integration
 
 import java.time.Clock
 
-import org.mockito.Mockito
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.api.common.config.ServicesConfig
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
@@ -30,6 +29,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.workitem._
+import unit.logging.StubCdsLogger
 import util.TestData._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -42,7 +42,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with MockitoSugar
   with MongoSpecSupport { self =>
 
-  private val mockLogger = mock[CdsLogger]
   private val clock = Clock.systemUTC()
   private lazy implicit val emptyHC: HeaderCarrier = HeaderCarrier()
   private val five = 5
@@ -72,11 +71,10 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, mockLogger)
+  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, new StubCdsLogger(mock[ServicesConfig]))
 
   override def beforeEach() {
     await(repository.drop)
-    Mockito.reset(mockLogger)
   }
 
   override def afterAll() {
@@ -137,6 +135,28 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
 
       val result = await(repository.blockedCount(clientId1))
+
+      result shouldBe 0
+    }
+
+    "return count of unblocked flags cleared" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.deleteBlocked(clientId1))
+
+      result shouldBe 2
+    }
+
+    "return zero when no notification blocked flags present" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.deleteBlocked(clientId1))
 
       result shouldBe 0
     }

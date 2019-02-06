@@ -25,7 +25,7 @@ import play.api.http.HeaderNames._
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{AnyContentAsEmpty, AnyContentAsXml, Headers}
 import play.api.test.FakeRequest
-import play.api.test.Helpers.GET
+import play.api.test.Helpers.{GET, DELETE}
 import play.mvc.Http.MimeTypes
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
@@ -255,6 +255,8 @@ object TestData {
 
   lazy val ValidBlockedCountRequest = FakeRequest(GET, "/customs-notification/blocked-count", Headers(X_CLIENT_ID_HEADER), AnyContentAsEmpty)
   lazy val InvalidBlockedCountRequest = FakeRequest(GET, "/customs-notification/blocked-count", Headers(), AnyContentAsEmpty)
+  lazy val ValidDeleteBlockedRequest = FakeRequest(DELETE, "/customs-notification/blocked-flag", Headers(X_CLIENT_ID_HEADER), AnyContentAsEmpty)
+  lazy val InvalidDeleteBlockedRequest = FakeRequest(DELETE, "/customs-notification/blocked-flag", Headers(), AnyContentAsEmpty)
 
   val errorResponseForMissingAcceptHeader: Elem =
     <errorResponse>
