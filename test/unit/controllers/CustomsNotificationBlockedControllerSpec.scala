@@ -109,7 +109,7 @@ class CustomsNotificationBlockedControllerSpec
           status(result) shouldBe 400
           await(result) shouldBe errorBadRequest("X-Client-ID required").XmlResult
         }
-        verifyLogWithHeaders("errorWithHeaders", "missing X-Client-ID header when calling blocked-flag endpoint")
+        verifyLogWithHeaders("errorWithHeaders", "missing X-Client-ID header when calling delete blocked-flag endpoint")
       }
 
       "respond with 500 when unexpected failure happens" in {

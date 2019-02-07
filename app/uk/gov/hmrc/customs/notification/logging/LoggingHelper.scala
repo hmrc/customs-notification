@@ -47,11 +47,13 @@ object LoggingHelper {
     s"${formatLogPrefixWithHeaders(headers)} $msg\nheaders=${overwriteHeaderValues(headers,headersToOverwrite - AUTHORIZATION)}"
   }
   private def formatLogPrefixWithHeaders(headers: SeqOfHeader): String = {
+    val maybeClientId = findHeaderValue(CustomHeaderNames.X_CLIENT_ID_HEADER_NAME, headers)
     val maybeFieldsId = findHeaderValue(CustomHeaderNames.X_CDS_CLIENT_ID_HEADER_NAME, headers)
     val maybeConversationId = findHeaderValue(CustomHeaderNames.X_CONVERSATION_ID_HEADER_NAME, headers)
 
     maybeConversationId.fold("")(conversationId => s"[conversationId=$conversationId]") +
-      maybeFieldsId.fold("")(maybeFieldsId => s"[fieldsId=$maybeFieldsId]")
+      maybeFieldsId.fold("")(maybeFieldsId => s"[fieldsId=$maybeFieldsId]") +
+        maybeClientId.fold("")(maybeClientId => s"[clientId=$maybeClientId]")
   }
 
   private def formatLogPrefix(rm: HasId): String = {

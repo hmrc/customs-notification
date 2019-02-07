@@ -37,6 +37,7 @@ The entries should be in the following format:
 
 | HTTP Status   | Error code scenario                                                                                |
 | ------------- | ---------------------------------------------------------------------------------------------------|
+| 200           | If blocked count request is processed successfully                                                 |
 | 204           | If remove blocked flags modifies some notifications                                                |
 | 404           | If delete blocked flags request fails to remove any blocked flags.                                 |
 | 500           | In case of a system error such as time out, server down etc. ,this HTTP status code will be returned.|
