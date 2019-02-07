@@ -136,5 +136,27 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
       result shouldBe 0
     }
+
+    "return count of unblocked flags cleared" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.deleteBlocked(clientId1))
+
+      result shouldBe 2
+    }
+
+    "return zero when no notification blocked flags present" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.deleteBlocked(clientId1))
+
+      result shouldBe 0
+    }
   }
 }

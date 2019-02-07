@@ -64,7 +64,7 @@ class LoggingHelperSpec extends UnitSpec {
     "format with headers" in {
       val actual = LoggingHelper.formatWithHeaders(debugMsg, LoggingHeadersWithAuth)
 
-      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232] DEBUG\nheaders=List((X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231), (Authorization,Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=))"
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232][clientId=ClientId] DEBUG\nheaders=List((X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Client-ID,ClientId), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231), (Authorization,Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=))"
     }
 
   }

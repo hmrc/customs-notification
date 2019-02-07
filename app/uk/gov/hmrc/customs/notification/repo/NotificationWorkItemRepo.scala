@@ -43,6 +43,8 @@ trait NotificationWorkItemRepo {
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
+
+  def deleteBlocked(clientId: ClientId): Future[Int]
 }
 
 @Singleton
@@ -99,9 +101,20 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
-    logger.debug(s"calling repo to get blocked count for clientId ${clientId.id}")
+    logger.debug(s"getting blocked count (i.e. those with status of ${PermanentlyFailed.name}) for clientId ${clientId.id}")
     val selector = Json.obj("clientNotification.clientId" -> clientId, "status" -> PermanentlyFailed.name)
     collection.count(Some(selector))
+  }
+
+  override def deleteBlocked(clientId: ClientId): Future[Int] = {
+
+    logger.debug(s"deleting blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
+    val selector = Json.obj("clientNotification.clientId" -> clientId, "status" -> PermanentlyFailed.name)
+    val update = Json.obj("$set" -> Json.obj("status" -> Failed))
+    collection.update(selector, update, multi = true).map {result =>
+      logger.debug(s"deleted ${result.n} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
+      result.n
+    }
   }
 }
 

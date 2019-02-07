@@ -50,7 +50,13 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
       <message>X-Client-ID required</message>
     </errorResponse>
 
-  val repo = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
+  private val notFoundError =
+    <errorResponse>
+      <code>NOT_FOUND</code>
+      <message>Resource was not found</message>
+    </errorResponse>
+
+  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
     collectionName = "notifications-work-item",
     mongo = app.injector.instanceOf[MongoDbProvider].mongo,
     itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) {
@@ -79,7 +85,7 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
     await(repo.drop)
   }
 
-  feature("Ensure requests for blocked data is made when request is valid") {
+  feature("Ensure requests for blocked count are processed correctly") {
     scenario("a valid request returns the correct blocked count") {
       Given("the API is available")
       And("there is data in the database")
@@ -92,15 +98,12 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
       Then("a response with a 200 status is received")
       result shouldBe 'defined
       val resultFuture: Future[Result] = result.value
-
       status(resultFuture) shouldBe OK
 
       And("the response body contains the expected count as xml")
       trim(loadString(contentAsString(resultFuture))) shouldBe trim(<pushNotificationBlockedCount>2</pushNotificationBlockedCount>)
     }
-  }
 
-  feature("Ensure error responses are correct for invalid requests") {
     scenario("a request without a client id header returns the correct error response") {
       Given("the API is available")
       And("there is data in the database")
@@ -118,6 +121,45 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
       And("the response body contains the expected error text")
       trim(loadString(contentAsString(resultFuture))) shouldBe trim(missingClientIdError)
     }
+  }
+
+  feature("Ensure requests for deleting blocked flags are processed correctly") {
+
+    scenario("a request that removes blocks returns the correct response") {
+      Given("the API is available")
+      And("there is data in the database")
+      await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
+      await(repo.pushNew(NotificationWorkItem2, DateTime.now(), permanentlyFailed _))
+      await(repo.pushNew(NotificationWorkItem3, DateTime.now(), permanentlyFailed _))
+
+      When("a DELETE request with data is sent to the API")
+      val result: Option[Future[Result]] = route(app = app, ValidDeleteBlockedRequest)
+
+      Then("a response with a 204 status is received")
+      result shouldBe 'defined
+      val resultFuture: Future[Result] = result.value
+      status(resultFuture) shouldBe NO_CONTENT
+
+      And("the response body is empty")
+      contentAsString(resultFuture) shouldBe empty
+    }
+
+    scenario("a request that removes no blocks returns the correct response") {
+      Given("the API is available")
+      And("there is no data in the database")
+
+      When("a DELETE request with data is sent to the API")
+      val result: Option[Future[Result]] = route(app = app, ValidDeleteBlockedRequest)
+
+      Then("a response with a 404 status is received")
+      result shouldBe 'defined
+      val resultFuture: Future[Result] = result.value
+      status(resultFuture) shouldBe NOT_FOUND
+
+      And("the response body is empty")
+      trim(loadString(contentAsString(resultFuture))) shouldBe trim(notFoundError)
+    }
+
   }
 
 }

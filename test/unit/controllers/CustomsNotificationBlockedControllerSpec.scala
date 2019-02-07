@@ -23,7 +23,7 @@ import org.scalatest.mockito.MockitoSugar
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, errorBadRequest}
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController
 import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -49,41 +49,83 @@ class CustomsNotificationBlockedControllerSpec
   }
 
   "CustomsNotificationBlockedController" should {
-    "respond with status 200 for valid request" in {
-      when(mockService.blockedCount(clientId1)).thenReturn(Future.successful(2))
+    "when blocked-count endpoint is called" should {
+      "respond with status 200 for valid request" in {
+        when(mockService.blockedCount(clientId1)).thenReturn(Future.successful(2))
 
-      testSubmitResult(ValidBlockedCountRequest) { result =>
-        status(result) shouldBe OK
-        contentAsString(result) shouldBe "<?xml version='1.0' encoding='UTF-8'?>\n<pushNotificationBlockedCount>2</pushNotificationBlockedCount>"
-        contentType(result) shouldBe Some(MimeTypes.XML)
+        testSubmitResult(ValidBlockedCountRequest, controller.blockedCount()) { result =>
+          status(result) shouldBe OK
+          contentAsString(result) shouldBe "<?xml version='1.0' encoding='UTF-8'?>\n<pushNotificationBlockedCount>2</pushNotificationBlockedCount>"
+          contentType(result) shouldBe Some(MimeTypes.XML)
+        }
+        verifyLog("info", "blocked count of 2 returned")
       }
-      verifyLog("info", "blocked count of 2 returned")
+
+      "respond with status 400 for missing client id header" in {
+        when(mockService.blockedCount(clientId1)).thenReturn(Future.successful(2))
+
+        testSubmitResult(InvalidBlockedCountRequest, controller.blockedCount()) { result =>
+          status(result) shouldBe 400
+          await(result) shouldBe errorBadRequest("X-Client-ID required").XmlResult
+        }
+        verifyLogWithHeaders("errorWithHeaders", "missing X-Client-ID header when calling blocked-count endpoint")
+      }
+
+      "respond with 500 when unexpected failure happens" in {
+        when(mockService.blockedCount(clientId1)).thenReturn(Future.failed(emulatedServiceFailure))
+
+        testSubmitResult(ValidBlockedCountRequest, controller.blockedCount()) { result =>
+          status(result) shouldBe INTERNAL_SERVER_ERROR
+          await(result) shouldBe ErrorInternalServerError.XmlResult
+        }
+        verifyLog("error", "unable to get blocked count due to Emulated service failure.")
+      }
     }
 
-    "respond with status 400 for missing client id header" in {
-      when(mockService.blockedCount(clientId1)).thenReturn(Future.successful(2))
+    "when blocked-flag endpoint is called" should {
+      "respond with status 204 when notifications are unblocked" in {
+        when(mockService.deleteBlocked(clientId1)).thenReturn(Future.successful(true))
 
-      testSubmitResult(InvalidBlockedCountRequest) { result =>
-        status(result) shouldBe 400
-        await(result) shouldBe errorBadRequest("X-Client-ID required").XmlResult
+        testSubmitResult(ValidDeleteBlockedRequest, controller.deleteBlocked()) { result =>
+          status(result) shouldBe NO_CONTENT
+        }
+        verifyLog("info", "blocked flags deleted for clientId ClientId")
       }
-      verifyLogWithHeaders("errorWithHeaders", "missing X-Client-ID header")
-    }
 
-    "respond with 500 when unexpected failure happens" in {
-      when(mockService.blockedCount(clientId1)).thenReturn(Future.failed(emulatedServiceFailure))
+      "respond with status 404 when no notifications are unblocked" in {
+        when(mockService.deleteBlocked(clientId1)).thenReturn(Future.successful(false))
 
-      testSubmitResult(ValidBlockedCountRequest) { result =>
-        status(result) shouldBe INTERNAL_SERVER_ERROR
-        await(result) shouldBe ErrorInternalServerError.XmlResult
+        testSubmitResult(ValidDeleteBlockedRequest, controller.deleteBlocked()) { result =>
+          status(result) shouldBe NOT_FOUND
+          await(result) shouldBe ErrorNotFound.XmlResult
+        }
+        verifyLog("info", "no blocked flags deleted for clientId ClientId")
       }
-      verifyLog("error", s"unable to get blocked count due to Emulated service failure.")
+
+      "respond with status 400 for missing client id header" in {
+        when(mockService.deleteBlocked(clientId1)).thenReturn(Future.successful(true))
+
+        testSubmitResult(InvalidDeleteBlockedRequest, controller.deleteBlocked()) { result =>
+          status(result) shouldBe 400
+          await(result) shouldBe errorBadRequest("X-Client-ID required").XmlResult
+        }
+        verifyLogWithHeaders("errorWithHeaders", "missing X-Client-ID header when calling delete blocked-flag endpoint")
+      }
+
+      "respond with 500 when unexpected failure happens" in {
+        when(mockService.deleteBlocked(clientId1)).thenReturn(Future.failed(emulatedServiceFailure))
+
+        testSubmitResult(ValidDeleteBlockedRequest, controller.deleteBlocked()) { result =>
+          status(result) shouldBe INTERNAL_SERVER_ERROR
+          await(result) shouldBe ErrorInternalServerError.XmlResult
+        }
+        verifyLog("error", s"unable to delete blocked flags due to Emulated service failure.")
+      }
     }
+}
 
-  }
-
-  private def testSubmitResult(request: Request[AnyContent])(test: Future[Result] => Unit) {
-    val result = controller.blockedCount().apply(request)
+  private def testSubmitResult(request: Request[AnyContent], action: Action[AnyContent])(test: Future[Result] => Unit) {
+    val result = action.apply(request)
     test(result)
   }
 

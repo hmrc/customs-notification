@@ -18,8 +18,9 @@ package uk.gov.hmrc.customs.notification.controllers
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.ContentTypes
-import play.api.mvc.{Action, AnyContent, Result}
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.ErrorInternalServerError
+import play.api.mvc._
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorClientIdMissing
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CLIENT_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.domain.{ClientId, HasId}
@@ -36,28 +37,62 @@ class CustomsNotificationBlockedController @Inject()(val logger: NotificationLog
   extends BaseController {
 
   def blockedCount(): Action[AnyContent] = Action.async {
-    implicit request =>
-      request.headers.get(X_CLIENT_ID_HEADER_NAME).fold {
-        logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header", request.headers.headers)
-        Future.successful(ErrorClientIdMissing.XmlResult)
-      } { clientId =>
-        implicit val loggingContext = new HasId {
-          override def idName: String = "clientId"
-          override def idValue: String = clientId
-        }
-        logger.debug(s"getting blocked count")
-        customsNotificationBlockedService.blockedCount(ClientId(clientId)).map { count =>
-          logger.info(s"blocked count of $count returned")
-          response(count)
-        }.recover {
-          case t: Throwable =>
-            logger.error(s"unable to get blocked count due to ${t.getMessage}")
-            ErrorInternalServerError.XmlResult
-        }
+    implicit request: Request[AnyContent] =>
+      validateHeader(request.headers, "blocked-count") match {
+        case Left(errorResponse) => Future.successful(errorResponse.XmlResult)
+        case Right(clientId) =>
+          implicit val loggingContext: HasId = createLoggingContext(clientId.toString)
+          customsNotificationBlockedService.blockedCount(ClientId(clientId.toString)).map { count =>
+            logger.info(s"blocked count of $count returned")
+            blockedCountResponse(count)
+          }.recover {
+            case t: Throwable =>
+              logger.error(s"unable to get blocked count due to ${t.getMessage}")
+              ErrorInternalServerError.XmlResult
+          }
       }
   }
 
-  private def response(count: Int): Result = {
+  def deleteBlocked():Action[AnyContent] = Action.async {
+    implicit request =>
+      validateHeader(request.headers, "delete blocked-flag") match {
+        case Left(errorResponse) => Future.successful(errorResponse.XmlResult)
+        case Right(clientId) =>
+          implicit val loggingContext: HasId = createLoggingContext(clientId.toString)
+          customsNotificationBlockedService.deleteBlocked(ClientId(clientId.toString)).map { deleted =>
+            if (deleted) {
+              logger.info(s"blocked flags deleted for clientId $clientId")
+              NoContent
+            } else {
+              logger.info(s"no blocked flags deleted for clientId $clientId")
+              ErrorNotFound.XmlResult
+            }
+          }.recover {
+            case t: Throwable =>
+              logger.error(s"unable to delete blocked flags due to ${t.getMessage}")
+              ErrorInternalServerError.XmlResult
+          }
+      }
+  }
+
+  private def validateHeader(headers: Headers, endpointName: String): Either[ErrorResponse, ClientId] = {
+    headers.get(X_CLIENT_ID_HEADER_NAME).fold[Either[ErrorResponse, ClientId]]{
+      logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling $endpointName endpoint", headers.headers)
+      Left(ErrorClientIdMissing)
+    } { clientId =>
+      logger.debugWithHeaders(s"called $endpointName", headers.headers)
+      Right(ClientId(clientId))
+    }
+  }
+
+  private def createLoggingContext(clientId: String): HasId = {
+    new HasId {
+      override def idName: String = "clientId"
+      override def idValue: String = clientId
+    }
+  }
+
+  private def blockedCountResponse(count: Int): Result = {
     val countXml = <pushNotificationBlockedCount>{count}</pushNotificationBlockedCount>
     Ok(s"<?xml version='1.0' encoding='UTF-8'?>\n$countXml").as(ContentTypes.XML)
   }

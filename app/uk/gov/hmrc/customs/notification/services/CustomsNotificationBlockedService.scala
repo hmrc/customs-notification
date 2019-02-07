@@ -21,6 +21,7 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.ClientId
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
@@ -30,5 +31,16 @@ class CustomsNotificationBlockedService @Inject() (logger: CdsLogger,
   def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count for clientId ${clientId.id}")
     notificationWorkItemRepo.blockedCount(clientId)
+  }
+
+  def deleteBlocked(clientId: ClientId): Future[Boolean] = {
+    logger.debug(s"deleting blocked flags for clientId ${clientId.id}")
+    notificationWorkItemRepo.deleteBlocked(clientId).map { updateCount =>
+      if (updateCount == 0) {
+        false
+      } else {
+        true
+      }
+    }
   }
 }
