@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.controllers
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.ContentTypes
-import play.api.mvc.{Action, AnyContent, Result}
+import play.api.mvc._
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorClientIdMissing
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CLIENT_ID_HEADER_NAME
@@ -36,52 +36,59 @@ class CustomsNotificationBlockedController @Inject()(val logger: NotificationLog
   extends BaseController {
 
   def blockedCount(): Action[AnyContent] = Action.async {
-    implicit request =>
-      request.headers.get(X_CLIENT_ID_HEADER_NAME).fold {
-        logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling blocked-count endpoint", request.headers.headers)
-        Future.successful(ErrorClientIdMissing.XmlResult)
-      } { clientId =>
-        implicit val loggingContext = new HasId {
-          override def idName: String = "clientId"
-          override def idValue: String = clientId
-        }
-        logger.debug(s"getting blocked count")
-        customsNotificationBlockedService.blockedCount(ClientId(clientId)).map { count =>
-          logger.info(s"blocked count of $count returned")
-          blockedCountResponse(count)
-        }.recover {
-          case t: Throwable =>
-            logger.error(s"unable to get blocked count due to ${t.getMessage}")
-            ErrorInternalServerError.XmlResult
-        }
-      }
+    implicit request: Request[AnyContent] =>
+      validateHeader(request.headers, "blocked-count").flatMap(_.fold(Future.successful(ErrorClientIdMissing.XmlResult)) {
+        clientId =>
+          implicit val loggingContext: HasId = createLoggingContext(clientId)
+          logger.debug(s"getting blocked count")
+          customsNotificationBlockedService.blockedCount(ClientId(clientId)).map { count =>
+            logger.info(s"blocked count of $count returned")
+            blockedCountResponse(count)
+          }.recover {
+            case t: Throwable =>
+              logger.error(s"unable to get blocked count due to ${t.getMessage}")
+              ErrorInternalServerError.XmlResult
+          }
+      })
   }
 
   def deleteBlocked():Action[AnyContent] = Action.async {
     implicit request =>
-      request.headers.get(X_CLIENT_ID_HEADER_NAME).fold {
-        logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling blocked-flag endpoint", request.headers.headers)
-        Future.successful(ErrorClientIdMissing.XmlResult)
-      } { clientId =>
-        implicit val loggingContext = new HasId {
-          override def idName: String = "clientId"
-          override def idValue: String = clientId
-        }
-        logger.debug(s"deleting blocked flags for clientId $clientId")
-        customsNotificationBlockedService.deleteBlocked(ClientId(clientId)).map { deleted =>
-          if (deleted) {
-            logger.info(s"blocked flags deleted for clientId $clientId")
-            NoContent
-          } else {
-            logger.info(s"no blocked flags deleted for clientId $clientId")
-            ErrorNotFound.XmlResult
+      validateHeader(request.headers, "blocked-flag").flatMap(_.fold(Future.successful(ErrorClientIdMissing.XmlResult)) {
+        clientId =>
+          implicit val loggingContext = createLoggingContext(clientId)
+          logger.debug(s"deleting blocked flags for clientId $clientId")
+          customsNotificationBlockedService.deleteBlocked(ClientId(clientId)).map { deleted =>
+            if (deleted) {
+              logger.info(s"blocked flags deleted for clientId $clientId")
+              NoContent
+            } else {
+              logger.info(s"no blocked flags deleted for clientId $clientId")
+              ErrorNotFound.XmlResult
+            }
+          }.recover {
+            case t: Throwable =>
+              logger.error(s"unable to delete blocked flags due to ${t.getMessage}")
+              ErrorInternalServerError.XmlResult
           }
-        }.recover {
-          case t: Throwable =>
-            logger.error(s"unable to delete blocked flags due to ${t.getMessage}")
-            ErrorInternalServerError.XmlResult
-        }
-      }
+      })
+  }
+
+  private def validateHeader(headers: Headers, endpointName: String): Future[Option[String]] = {
+    headers.get(X_CLIENT_ID_HEADER_NAME).fold {
+      logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling $endpointName endpoint", headers.headers)
+      val tmp : Option[String] = None
+      Future.successful(tmp)
+    } { clientId =>
+      Future.successful(Some(clientId))
+    }
+  }
+
+  private def createLoggingContext(clientId: String): HasId = {
+    new HasId {
+      override def idName: String = "clientId"
+      override def idValue: String = clientId
+    }
   }
 
   private def blockedCountResponse(count: Int): Result = {
