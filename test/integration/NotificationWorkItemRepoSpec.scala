@@ -46,6 +46,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   private val pushConfig = PushNotificationConfig(
     internalClientIds = Seq.empty,
+    pollingEnabled = true,
     pollingDelay = 0 second,
     lockDuration = org.joda.time.Duration.ZERO,
     maxRecordsToFetch = five,
@@ -55,7 +56,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     retryMaxAttempts = 3
   )
 
-  private val mongoDbProvider = new MongoDbProvider{
+  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider{
     override val mongo: () => DB = self.mongo
   }
 
