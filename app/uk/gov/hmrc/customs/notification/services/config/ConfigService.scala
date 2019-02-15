@@ -60,6 +60,8 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
     val internalClientIdsNel: CustomsValidatedNel[Seq[String]] =
       root.stringSeq("push.internal.clientIds")
+    val pollingEnabledNel: CustomsValidatedNel[Boolean] =
+      root.boolean("push.polling.enabled")
     val pollingDelayNel: CustomsValidatedNel[FiniteDuration] =
       root.int("push.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
     val pushLockDurationNel: CustomsValidatedNel[org.joda.time.Duration] =
@@ -76,6 +78,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       root.int("push.retry.max.attempts")
     val pushNotificationConfig: CustomsValidatedNel[PushNotificationConfig] = (
       internalClientIdsNel,
+      pollingEnabledNel,
       pollingDelayNel,
       pushLockDurationNel,
       maxFetchRecordsNel,

@@ -53,6 +53,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   private val five = 5
   private val pushConfigWithMaxFiveRecords = PushNotificationConfig(
     internalClientIds = Seq.empty,
+    pollingEnabled = true,
     pollingDelay = 0 second,
     lockDuration = org.joda.time.Duration.ZERO,
     maxRecordsToFetch = five,

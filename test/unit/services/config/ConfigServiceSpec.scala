@@ -38,6 +38,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |auth.token.internal = "$basicAuthTokenValue"
       |
       |push.polling.delay.duration.milliseconds = 5000
+      |push.polling.enabled = true
       |push.lock.duration.milliseconds = 1000
       |push.fetch.maxRecords = 50
       |push.retry.delay.interval.milliseconds = 500
@@ -83,6 +84,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
     """
       |{
       |push.polling.delay.duration.milliseconds = 5000
+      |push.polling.enabled = true
       |push.lock.duration.milliseconds = 1000
       |push.fetch.maxRecords = 50
       |
@@ -166,6 +168,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       val expected = """
                        |Could not find config notification-queue.host
                        |Service configuration not found for key: notification-queue.context
+                       |Could not find config key 'push.polling.enabled'
                        |Could not find config key 'push.polling.delay.duration.milliseconds'
                        |Could not find config key 'push.lock.duration.milliseconds'
                        |Could not find config key 'push.fetch.maxRecords'

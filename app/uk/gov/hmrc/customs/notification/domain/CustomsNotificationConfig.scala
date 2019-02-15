@@ -25,6 +25,7 @@ case class NotificationQueueConfig(url: String)
 
 case class PushNotificationConfig(
   internalClientIds: Seq[String],
+  pollingEnabled: Boolean,
   pollingDelay: FiniteDuration,
   lockDuration: org.joda.time.Duration,
   maxRecordsToFetch: Int,

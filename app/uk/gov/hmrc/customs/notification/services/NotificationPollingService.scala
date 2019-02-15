@@ -33,12 +33,16 @@ class NotificationPollingService @Inject()(config: CustomsNotificationConfig,
                                             notificationDispatcher: NotificationDispatcher,
                                             logger: CdsLogger)(implicit executionContext: ExecutionContext) {
 
-  private val pollingDelay: FiniteDuration = config.pushNotificationConfig.pollingDelay
+  if (config.pushNotificationConfig.pollingEnabled) {
+    val pollingDelay: FiniteDuration = config.pushNotificationConfig.pollingDelay
 
-  actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
-    clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked().map(csIdSet => {
-      logger.debug(s"polling service about to process ${csIdSet.size} notifications")
-      notificationDispatcher.process(csIdSet)
-    })
+      actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
+        clientNotificationRepo.fetchDistinctNotificationCSIDsWhichAreNotLocked().map(csIdSet => {
+          logger.debug(s"polling service about to process ${csIdSet.size} notifications")
+          notificationDispatcher.process(csIdSet)
+        })
+      }
+    } else {
+      logger.info("push notification polling disabled")
   }
 }
