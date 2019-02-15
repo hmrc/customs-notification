@@ -63,6 +63,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     retryMaxAttempts = 3
   )
   private val metricsConfig: NotificationMetricsConfig = NotificationMetricsConfig("http://abc.com")
+  private val unblockConfig: UnblockPollingConfig = UnblockPollingConfig(true, 1 seconds)
   private val TenThousand = 10000
   private val pullExcludeConfigZeroMillis = PullExcludeConfig(pullExcludeEnabled = true, emailAddress = "some.address@domain.com",
     notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"), "some-email-url", 0 seconds, 0 minutes)
@@ -83,8 +84,8 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
       override def pushNotificationConfig: PushNotificationConfig = pushConfigWithMaxFiveRecords.copy(maxRecordsToFetch = maxRecords)
       override def pullExcludeConfig: PullExcludeConfig = pullExcludeConfigZeroMillis.copy(notificationsOlderMillis = notificationsOlder)
-
       override def notificationMetricsConfig: NotificationMetricsConfig = metricsConfig
+      override def unblockPollingConfig: UnblockPollingConfig = unblockConfig
     }
     config
   }

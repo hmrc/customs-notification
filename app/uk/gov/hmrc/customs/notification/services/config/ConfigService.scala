@@ -22,7 +22,7 @@ import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.{UnblockPollingConfig, _}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
@@ -43,7 +43,8 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
                                                    notificationQueueConfig: NotificationQueueConfig,
                                                    pushNotificationConfig: PushNotificationConfig,
                                                    pullExcludeConfig: PullExcludeConfig,
-                                                   notificationMetricsConfig: NotificationMetricsConfig) extends CustomsNotificationConfig
+                                                   notificationMetricsConfig: NotificationMetricsConfig,
+                                                   unblockPollingConfig: UnblockPollingConfig) extends CustomsNotificationConfig
 
   private val root = configValidatedNel.root
 
@@ -111,12 +112,22 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       pullExcludePollingIntervalNel
     ).mapN(PullExcludeConfig)
 
+    val unblockPollingEnabledNel: CustomsValidatedNel[Boolean] =
+      root.boolean("unblock.polling.enabled")
+    val unblockPollingDelayNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("unblock.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+    val unblockPollingConfigNel: CustomsValidatedNel[UnblockPollingConfig] =
+      (unblockPollingEnabledNel,
+        unblockPollingDelayNel
+    ).mapN(UnblockPollingConfig)
+
     val validatedConfig: CustomsValidatedNel[CustomsNotificationConfig] = (
       authTokenInternalNel,
       notificationQueueConfigNel,
       pushNotificationConfig,
       pullExcludeConfig,
-      notificationMetricsConfigNel
+      notificationMetricsConfigNel,
+      unblockPollingConfigNel
     ).mapN(CustomsNotificationConfigImpl)
 
       /*
@@ -144,5 +155,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
   override val pullExcludeConfig: PullExcludeConfig = config.pullExcludeConfig
 
   override val notificationMetricsConfig: NotificationMetricsConfig = config.notificationMetricsConfig
+
+  override val unblockPollingConfig: UnblockPollingConfig = config.unblockPollingConfig
 
 }

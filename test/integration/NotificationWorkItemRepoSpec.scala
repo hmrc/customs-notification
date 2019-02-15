@@ -67,6 +67,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       override def pushNotificationConfig: PushNotificationConfig = pushConfig
       override def pullExcludeConfig: PullExcludeConfig = mock[PullExcludeConfig]
       override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]
+      override def unblockPollingConfig: UnblockPollingConfig = mock[UnblockPollingConfig]
     }
   }
 
@@ -158,6 +159,18 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result = await(repository.deleteBlocked(clientId1))
 
       result shouldBe 0
+    }
+
+    "update all blocked notifications to unblocked" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      val item4 = await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.unblock())
+
+      result shouldBe 3
+      await(repository.findById(item4.id)).get.status shouldBe Failed
     }
   }
 }

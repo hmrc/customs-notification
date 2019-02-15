@@ -45,6 +45,8 @@ trait NotificationWorkItemRepo {
   def blockedCount(clientId: ClientId): Future[Int]
 
   def deleteBlocked(clientId: ClientId): Future[Int]
+
+  def unblock(): Future[Int]
 }
 
 @Singleton
@@ -114,6 +116,15 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     collection.update(selector, update, multi = true).map {result =>
       logger.debug(s"deleted ${result.n} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
       result.n
+    }
+  }
+
+  override def unblock(): Future[Int] = {
+    logger.debug("unblocking all blocked notifications")
+    val selector = Json.obj("status" -> PermanentlyFailed)
+    val update = Json.obj("$set" -> Json.obj("status" -> Failed))
+    collection.update(selector, update, multi = true).map {result =>
+      result.nModified
     }
   }
 }
