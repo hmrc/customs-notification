@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 // idea for retry taken from from https://gist.github.com/viktorklang/9414163
 @Singleton
-class RetryService @Inject()(configService: ConfigService, logger: NotificationLogger, actorSystem: ActorSystem) {
+class OnlineRetryService @Inject()(configService: ConfigService, logger: NotificationLogger, actorSystem: ActorSystem) {
 
   def retry(f: => Future[Either[ResultError, HttpResponse]])
            (implicit rm: HasId, ec: ExecutionContext): Future[Either[ResultError, HttpResponse]] = {

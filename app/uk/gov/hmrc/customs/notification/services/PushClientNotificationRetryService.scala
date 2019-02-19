@@ -26,7 +26,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class PushClientNotificationRetryService @Inject()(retryService: RetryService,
+class PushClientNotificationRetryService @Inject()(retryService: OnlineRetryService,
                                                    outboundSwitchService: OutboundSwitchService,
                                                    notificationLogger: NotificationLogger,
                                                    metricsConnector: CustomsNotificationMetricsConnector,

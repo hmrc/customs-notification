@@ -19,8 +19,11 @@ package uk.gov.hmrc.customs.notification.util
 import java.time.{Clock, ZonedDateTime}
 import java.util.TimeZone
 
-import org.joda.time.{DateTime, DateTimeZone}
+import org.joda.time.{DateTime, DateTimeZone, Duration}
 
+import scala.concurrent.duration.FiniteDuration
+
+//TODO: improve parameter names by prefixing Joda stuff with joda as DataTime is also a trait in java time
 object DateTimeHelpers {
 
   implicit class DateTimeToZonedDateTimeOps(val dateTime: DateTime) extends AnyVal {
@@ -43,6 +46,12 @@ object DateTimeHelpers {
       new DateTime(
         clock.instant().toEpochMilli,
         DateTimeZone.forTimeZone(TimeZone.getTimeZone(clock.getZone)))
+    }
+  }
+
+  implicit class FiniteDurationOps(val finiteDuration: FiniteDuration) extends AnyVal {
+    def toJodaDuration: Duration = {
+      Duration.millis(finiteDuration.toMillis)
     }
   }
 

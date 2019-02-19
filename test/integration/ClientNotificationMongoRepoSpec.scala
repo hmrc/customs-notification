@@ -60,7 +60,12 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     ttlInSeconds = 1,
     retryDelay = 500 milliseconds,
     retryDelayFactor = 2,
-    retryMaxAttempts = 3
+    retryMaxAttempts = 3,
+    retryPollerEnabled = false,
+    retryInitialPollingInterval = 1 second,
+    retryAfterFailureInterval = 2 seconds,
+    retryInProgressRetryAfter = 2 seconds,
+    retryPollerInstances = 1
   )
   private val metricsConfig: NotificationMetricsConfig = NotificationMetricsConfig("http://abc.com")
   private val unblockConfig: UnblockPollingConfig = UnblockPollingConfig(true, 1 seconds)
