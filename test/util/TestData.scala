@@ -25,7 +25,7 @@ import play.api.http.HeaderNames._
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{AnyContentAsEmpty, AnyContentAsXml, Headers}
 import play.api.test.FakeRequest
-import play.api.test.Helpers.{GET, DELETE}
+import play.api.test.Helpers.{DELETE, GET}
 import play.mvc.Http.MimeTypes
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
@@ -113,7 +113,7 @@ object TestData {
   val payload2 = "<foo2></foo2>"
   val payload3 = "<foo3></foo3>"
 
-  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_EORI_ID_HEADER_NAME, eoriNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
+  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, eoriNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
   val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   val notification1 = Notification(conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
   val notification2 = Notification(conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
@@ -198,11 +198,11 @@ object TestData {
   val ValidXML: Elem = <Foo>Bar</Foo>
 
   lazy val ValidRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_SUBMITTER_ID_HEADER)
     .withXmlBody(ValidXML)
 
   lazy val ValidRequestWithMixedCaseCorrelationId: FakeRequest[AnyContentAsXml] = FakeRequest()
-    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_EORI_ID_HEADER, "X-coRRelaTion-iD" -> correlationId)
+    .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_SUBMITTER_ID_HEADER, "X-coRRelaTion-iD" -> correlationId)
     .withXmlBody(ValidXML)
 
   lazy val ValidRequestWithClientIdAbsentInDatabase: FakeRequest[AnyContentAsXml] = FakeRequest()
@@ -328,7 +328,7 @@ object RequestHeaders {
 
   lazy val X_BADGE_ID_HEADER: (String, String) = X_BADGE_ID_HEADER_NAME -> badgeId
 
-  lazy val X_EORI_ID_HEADER: (String, String) = X_EORI_ID_HEADER_NAME -> eoriNumber
+  lazy val X_SUBMITTER_ID_HEADER: (String, String) = X_SUBMITTER_ID_HEADER_NAME -> eoriNumber
 
   lazy val X_CORRELATION_ID_HEADER: (String, String) = X_CORRELATION_ID_HEADER_NAME -> correlationId
 
@@ -357,7 +357,7 @@ object RequestHeaders {
     ACCEPT_HEADER,
     BASIC_AUTH_HEADER,
     X_BADGE_ID_HEADER,
-    X_EORI_ID_HEADER
+    X_SUBMITTER_ID_HEADER
   )
 
   val LoggingHeaders: Seq[(String, String)] = Seq(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER)

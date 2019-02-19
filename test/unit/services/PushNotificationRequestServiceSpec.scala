@@ -56,7 +56,7 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
 
   private def expectedRequest(expectedBadgeId: Option[String], expectedEoriNumber: Option[String]) = {
     val expectedHeaders: Seq[Header] = expectedBadgeId.fold(Seq[Header]())(badgeId => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId))) ++
-      expectedEoriNumber.fold(Seq[Header]())(eoriNumber => Seq(Header(X_EORI_ID_HEADER_NAME, eoriNumber)))
+      expectedEoriNumber.fold(Seq[Header]())(eoriNumber => Seq(Header(X_SUBMITTER_ID_HEADER_NAME, eoriNumber)))
     PushNotificationRequest(validFieldsId,
       PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
   }
