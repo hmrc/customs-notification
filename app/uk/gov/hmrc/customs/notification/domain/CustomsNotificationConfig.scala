@@ -42,6 +42,8 @@ case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddress: String,
 
 case class NotificationMetricsConfig(baseUrl: String)
 
+case class UnblockPollingConfig(pollingEnabled: Boolean, pollingDelay: FiniteDuration)
+
 // TODO: pull up all other service config into here
 @ImplementedBy(classOf[ConfigService])
 trait CustomsNotificationConfig {
@@ -54,4 +56,6 @@ trait CustomsNotificationConfig {
   def pullExcludeConfig: PullExcludeConfig
 
   def notificationMetricsConfig: NotificationMetricsConfig
+
+  def unblockPollingConfig: UnblockPollingConfig
 }

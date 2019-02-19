@@ -53,6 +53,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |pull.exclude.csIds.0 = eaca01f9-ec3b-4ede-b263-61b626dde232
       |pull.exclude.csIds.1 = eaca01f9-ec3b-4ede-b263-61b626dde233
       |
+      |unblock.polling.enabled = true
+      |unblock.polling.delay.duration.milliseconds = 400
+      |
       |ttlInSeconds = 1
       |
       |push.internal.clientIds.0 = ClientIdOne
@@ -96,6 +99,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.retry.delay.interval.milliseconds = 500
       |push.retry.delay.interval.factor = 2
       |push.retry.max.attempts = 3
+      |
+      |unblock.polling.enabled = true
+      |unblock.polling.delay.duration.milliseconds = 400
       |
       |ttlInSeconds = 1
       |
@@ -151,6 +157,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pushNotificationConfig.retryDelay shouldBe (500 milliseconds)
       actual.pushNotificationConfig.retryDelayFactor shouldBe 2
       actual.pushNotificationConfig.retryMaxAttempts shouldBe 3
+      actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -162,6 +169,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
       actual.pullExcludeConfig.notificationsOlderMillis shouldBe 5000
       actual.pushNotificationConfig.ttlInSeconds shouldBe 1
+      actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
     }
 
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
@@ -184,7 +192,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config key 'pull.exclude.email.delay.duration.seconds'
                        |Could not find config key 'pull.exclude.email.interval.duration.minutes'
                        |Could not find config customs-notification-metrics.host
-                       |Service configuration not found for key: customs-notification-metrics.context""".stripMargin
+                       |Service configuration not found for key: customs-notification-metrics.context
+                       |Could not find config key 'unblock.polling.enabled'
+                       |Could not find config key 'unblock.polling.delay.duration.milliseconds'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 

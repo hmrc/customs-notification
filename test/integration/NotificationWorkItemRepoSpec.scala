@@ -18,10 +18,11 @@ package integration
 
 import java.time.Clock
 
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import reactivemongo.api.DB
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem, _}
 import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.MongoSpecSupport
@@ -43,6 +44,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val stubCdsLogger = StubCdsLogger()
   private val clock = Clock.systemUTC()
   private val five = 5
+  private val mockUnblockPollingConfig = mock[UnblockPollingConfig]
 
   private val pushConfig = PushNotificationConfig(
     internalClientIds = Seq.empty,
@@ -67,6 +69,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       override def pushNotificationConfig: PushNotificationConfig = pushConfig
       override def pullExcludeConfig: PullExcludeConfig = mock[PullExcludeConfig]
       override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]
+      override def unblockPollingConfig: UnblockPollingConfig = mockUnblockPollingConfig
     }
   }
 
@@ -158,6 +161,22 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result = await(repository.deleteBlocked(clientId1))
 
       result shouldBe 0
+    }
+
+    "update all blocked notifications to unblocked" in {
+
+      when(mockUnblockPollingConfig.pollingDelay).thenReturn(1 second)
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      val item2 = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+      Thread.sleep(1000)
+      val item3 = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.unblock())
+
+      result shouldBe 2
+      await(repository.findById(item2.id)).get.status shouldBe Failed
+      await(repository.findById(item3.id)).get.status shouldBe PermanentlyFailed
     }
   }
 }

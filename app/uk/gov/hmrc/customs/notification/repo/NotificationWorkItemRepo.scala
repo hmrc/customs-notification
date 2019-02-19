@@ -22,7 +22,7 @@ import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
 import org.joda.time.DateTime
 import play.api.libs.functional.syntax.{unlift, _}
-import play.api.libs.json.{Format, Json, Reads, __}
+import play.api.libs.json._
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
@@ -45,6 +45,8 @@ trait NotificationWorkItemRepo {
   def blockedCount(clientId: ClientId): Future[Int]
 
   def deleteBlocked(clientId: ClientId): Future[Int]
+
+  def unblock(): Future[Int]
 }
 
 @Singleton
@@ -82,8 +84,12 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
       name = Some("clientNotification-clientId-index"),
       unique = false),
     Index(
-      key = Seq("clientNotification.clientId" -> IndexType.Descending, "status" -> IndexType.Descending),
-      name = Some("clientId-status-index"),
+      key = Seq("clientNotification.clientId" -> IndexType.Descending, workItemFields.status -> IndexType.Descending),
+      name = Some(s"clientId-${workItemFields.status}-index"),
+      unique = false),
+    Index(
+      key = Seq(workItemFields.status -> IndexType.Descending, workItemFields.updatedAt -> IndexType.Descending),
+      name = Some(s"${workItemFields.status}-${workItemFields.updatedAt}-index"),
       unique = false)
   )
 
@@ -102,18 +108,31 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count (i.e. those with status of ${PermanentlyFailed.name}) for clientId ${clientId.id}")
-    val selector = Json.obj("clientNotification.clientId" -> clientId, "status" -> PermanentlyFailed.name)
+    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed.name)
     collection.count(Some(selector))
   }
 
   override def deleteBlocked(clientId: ClientId): Future[Int] = {
-
     logger.debug(s"deleting blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
-    val selector = Json.obj("clientNotification.clientId" -> clientId, "status" -> PermanentlyFailed.name)
-    val update = Json.obj("$set" -> Json.obj("status" -> Failed))
+    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed.name)
+    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> Failed))
     collection.update(selector, update, multi = true).map {result =>
       logger.debug(s"deleted ${result.n} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
       result.n
+    }
+  }
+
+  override def unblock(): Future[Int] = {
+    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
+
+    val lessTenPercentIntervalInMillis = customsNotificationConfig.unblockPollingConfig.pollingDelay.toMillis * 0.9
+    val onlyUnblockBefore = now.minusMillis(lessTenPercentIntervalInMillis.toInt)
+    logger.debug(s"unblocking all blocked notifications before $onlyUnblockBefore")
+
+    val selector = Json.obj(workItemFields.status -> PermanentlyFailed, workItemFields.updatedAt -> Json.obj("$lt" -> onlyUnblockBefore))
+    val update = Json.obj("$set" -> Json.obj(workItemFields.updatedAt -> now, workItemFields.status -> Failed))
+    collection.update(selector, update, multi = true).map {result =>
+      result.nModified
     }
   }
 }
