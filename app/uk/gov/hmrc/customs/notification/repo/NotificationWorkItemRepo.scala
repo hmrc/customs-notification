@@ -150,7 +150,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     val update = Json.obj("$set" -> Json.obj("status" -> PermanentlyFailed, workItemFields.updatedAt -> now))
     collection.update(selector, update, multi = true).map {result =>
       logger.debug(s"updated ${result.n} notifications to have status ${PermanentlyFailed.name} for clientId ${clientId.id}")
-      result.n
+      result.nModified
     }
   }
 }
