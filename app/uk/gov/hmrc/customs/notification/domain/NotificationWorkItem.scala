@@ -23,7 +23,13 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 case class NotificationWorkItem(id: ClientSubscriptionId,
                                 clientId: ClientId,
                                 metricsStartDateTime: Option[DateTime] = None,
-                                notification: Notification)
+                                notification: Notification
+) extends HasId with HasClientSubscriptionId {
+  override def idName: String = "conversationId"
+  override def idValue: String = notification.conversationId.toString
+  override def clientSubscriptionId: ClientSubscriptionId = id
+
+}
 object NotificationWorkItem {
   implicit val dateFormats = ReactiveMongoFormats.dateTimeFormats
   implicit val idFormat = reactivemongo.play.json.BSONFormats.BSONObjectIDFormat

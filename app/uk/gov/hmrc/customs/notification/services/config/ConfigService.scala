@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, Customs
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{UnblockPollingConfig, _}
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration._
 
 /**
   * Responsible for reading the HMRC style Play2 configuration file, error handling, and de-serialising config into
@@ -71,12 +71,25 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       root.int("push.fetch.maxRecords")
     val ttlInSecondsNel: CustomsValidatedNel[Int] =
       root.int("ttlInSeconds")
+
     val retryDelayNel: CustomsValidatedNel[FiniteDuration] =
       root.int("push.retry.delay.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
     val retryDelayFactorNel: CustomsValidatedNel[Int] =
       root.int("push.retry.delay.interval.factor")
     val retryMaxAttemptsNel: CustomsValidatedNel[Int] =
       root.int("push.retry.max.attempts")
+
+    val retryPollerEnabledNel: CustomsValidatedNel[Boolean] =
+      root.boolean("push.retry.enabled")
+    val retryInitialPollingIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("push.retry.initialPollingInterval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+    val retryAfterFailureIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("push.retry.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+    val retryInProgressRetryAfterNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("push.retry.inProgressRetryAfter.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+    val retryPollerInstancesNel: CustomsValidatedNel[Int] =
+      root.int("push.retry.poller.instances")
+
     val pushNotificationConfig: CustomsValidatedNel[PushNotificationConfig] = (
       internalClientIdsNel,
       pollingEnabledNel,
@@ -84,9 +97,17 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       pushLockDurationNel,
       maxFetchRecordsNel,
       ttlInSecondsNel,
+
+      //TODO: remove online properties
       retryDelayNel,
       retryDelayFactorNel,
-      retryMaxAttemptsNel
+      retryMaxAttemptsNel,
+
+      retryPollerEnabledNel,
+      retryInitialPollingIntervalNel,
+      retryAfterFailureIntervalNel,
+      retryInProgressRetryAfterNel,
+      retryPollerInstancesNel
     ).mapN(PushNotificationConfig)
 
     val emailUrlNel = configValidatedNel.service("email").serviceUrl

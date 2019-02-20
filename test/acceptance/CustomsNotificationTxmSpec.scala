@@ -89,7 +89,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
       eventually(verifyNotificationQueueServiceWasNotCalled())
 
       And("A call is made to the audit service")
-      verify(1, postRequestedFor(urlMatching("/write/audit")))
+      eventually(verify(1, postRequestedFor(urlMatching("/write/audit"))))
 
     }
   }

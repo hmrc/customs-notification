@@ -44,6 +44,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.retry.delay.interval.milliseconds = 500
       |push.retry.delay.interval.factor = 2
       |push.retry.max.attempts = 3
+      |push.retry.enabled = true
+      |push.retry.initialPollingInterval.milliseconds = 700
+      |push.retry.retryAfterFailureInterval.seconds = 2
+      |push.retry.inProgressRetryAfter.seconds = 3
+      |push.retry.poller.instances = 3
       |
       |pull.exclude.enabled = true
       |pull.exclude.email.address = "some.address@domain.com"
@@ -99,6 +104,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.retry.delay.interval.milliseconds = 500
       |push.retry.delay.interval.factor = 2
       |push.retry.max.attempts = 3
+      |push.retry.enabled = true
+      |push.retry.initialPollingInterval.milliseconds = 700
+      |push.retry.retryAfterFailureInterval.seconds = 2
+      |push.retry.inProgressRetryAfter.seconds = 3
+      |push.retry.poller.instances = 3
       |
       |unblock.polling.enabled = true
       |unblock.polling.delay.duration.milliseconds = 400
@@ -157,6 +167,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pushNotificationConfig.retryDelay shouldBe (500 milliseconds)
       actual.pushNotificationConfig.retryDelayFactor shouldBe 2
       actual.pushNotificationConfig.retryMaxAttempts shouldBe 3
+      actual.pushNotificationConfig.retryPollerEnabled shouldBe true
+      actual.pushNotificationConfig.retryInitialPollingInterval shouldBe (700 milliseconds)
+      actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
+      actual.pushNotificationConfig.retryInProgressRetryAfter shouldBe (3 seconds)
+      actual.pushNotificationConfig.retryPollerInstances shouldBe 3
       actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
     }
 
@@ -170,6 +185,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pullExcludeConfig.notificationsOlderMillis shouldBe 5000
       actual.pushNotificationConfig.ttlInSeconds shouldBe 1
       actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
+      actual.pushNotificationConfig.retryPollerEnabled shouldBe true
+      actual.pushNotificationConfig.retryInitialPollingInterval shouldBe (700 milliseconds)
+      actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
+      actual.pushNotificationConfig.retryInProgressRetryAfter shouldBe (3 seconds)
+      actual.pushNotificationConfig.retryPollerInstances shouldBe 3
     }
 
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
@@ -184,6 +204,11 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config key 'push.retry.delay.interval.milliseconds'
                        |Could not find config key 'push.retry.delay.interval.factor'
                        |Could not find config key 'push.retry.max.attempts'
+                       |Could not find config key 'push.retry.enabled'
+                       |Could not find config key 'push.retry.initialPollingInterval.milliseconds'
+                       |Could not find config key 'push.retry.retryAfterFailureInterval.seconds'
+                       |Could not find config key 'push.retry.inProgressRetryAfter.seconds'
+                       |Could not find config key 'push.retry.poller.instances'
                        |Could not find config key 'pull.exclude.enabled'
                        |Could not find config key 'pull.exclude.email.address'
                        |Could not find config key 'pull.exclude.older.milliseconds'
