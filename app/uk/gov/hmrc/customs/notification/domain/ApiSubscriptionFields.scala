@@ -19,7 +19,10 @@ package uk.gov.hmrc.customs.notification.domain
 import play.api.libs.json.Json
 
 case class ApiSubscriptionFields(clientId: String,
-                                 fields: DeclarantCallbackData)
+                                 fields: DeclarantCallbackData) {
+
+  def isPush: Boolean = !fields.callbackUrl.isEmpty
+}
 
 object ApiSubscriptionFields {
   implicit val jsonFormat = Json.format[ApiSubscriptionFields]

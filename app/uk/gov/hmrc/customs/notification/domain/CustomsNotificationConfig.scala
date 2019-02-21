@@ -30,9 +30,17 @@ case class PushNotificationConfig(
   lockDuration: org.joda.time.Duration,
   maxRecordsToFetch: Int,
   ttlInSeconds: Int,
+
+  //TODO: remove these online retry properties
   retryDelay: FiniteDuration,
   retryDelayFactor: Int,
-  retryMaxAttempts: Int
+  retryMaxAttempts: Int,
+
+  retryPollerEnabled: Boolean,
+  retryInitialPollingInterval: FiniteDuration,
+  retryAfterFailureInterval: FiniteDuration,
+  retryInProgressRetryAfter: FiniteDuration,
+  retryPollerInstances: Int
 )
 
 /* TODO: remove this - it was introduced for DesCartes when we thought they had no PULL capability*/

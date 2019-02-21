@@ -42,7 +42,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with MongoSpecSupport { self =>
 
   private val stubCdsLogger = StubCdsLogger()
-  private val clock = Clock.systemUTC()
+  private val clock: Clock = Clock.systemUTC()
   private val five = 5
   private val mockUnblockPollingConfig = mock[UnblockPollingConfig]
 
@@ -55,7 +55,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     ttlInSeconds = 1,
     retryDelay = 500 milliseconds,
     retryDelayFactor = 2,
-    retryMaxAttempts = 3
+    retryMaxAttempts = 3,
+    retryPollerEnabled = true,
+    retryInitialPollingInterval = 1 second,
+    retryAfterFailureInterval = 2 seconds,
+    retryInProgressRetryAfter = 2 seconds,
+    retryPollerInstances = 1
   )
 
   private val mongoDbProvider: MongoDbProvider = new MongoDbProvider{
@@ -87,6 +92,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     await(repository.collection.count())
   }
 
+  def failed(item: NotificationWorkItem): ProcessingStatus = Failed
   def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
   def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
 
@@ -163,6 +169,32 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       result shouldBe 0
     }
 
+    "return zero when no notifications with clientId are present when setting to PermanentlyFailed" in {
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+
+      val result = await(repository.toPermanentlyFailedByClientId(clientId1))
+
+      result shouldBe 0
+    }
+
+    //TODO: verify updatedAt
+    "return count of notifications blocked by setting to PermanentlyFailed" in {
+      val nowAsJoda = clock.nowAsJoda
+      val wiClient1One = await(repository.pushNew(NotificationWorkItem1, nowAsJoda, failed _))
+      val wiClient1Two = await(repository.pushNew(NotificationWorkItem1, nowAsJoda, failed _))
+      val wiClient3One = await(repository.pushNew(NotificationWorkItem3, nowAsJoda, failed _))
+
+      val result = await(repository.toPermanentlyFailedByClientId(clientId1))
+
+      result shouldBe 2
+      await(repository.findById(wiClient1One.id)).get.status shouldBe PermanentlyFailed
+      await(repository.findById(wiClient1Two.id)).get.status shouldBe PermanentlyFailed
+      await(repository.findById(wiClient3One.id)).get.status shouldBe Failed
+    }
+
+
+    //TODO: verify updatedAt
     "update all blocked notifications to unblocked" in {
 
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(1 second)

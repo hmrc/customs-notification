@@ -136,6 +136,8 @@ object TestData {
   val WorkItem1 = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
+  val NotUsedBsonId = "123456789012345678901234"
+
   val DeclarantCallbackDataOneForPush = DeclarantCallbackData("URL", "SECURITY_TOKEN")
   val DeclarantCallbackDataOneForPull = DeclarantCallbackData("", "SECURITY_TOKEN")
   val ApiSubscriptionFieldsOneForPush = ApiSubscriptionFields(clientId1.toString, DeclarantCallbackDataOneForPush)

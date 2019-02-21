@@ -28,7 +28,7 @@ import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsCon
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.customs.notification.services.{DateTimeService, OutboundSwitchService, PushClientNotificationRetryService, RetryService}
+import uk.gov.hmrc.customs.notification.services.{DateTimeService, OutboundSwitchService, PushClientNotificationRetryService, OnlineRetryService}
 import uk.gov.hmrc.http.HttpResponse
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -50,7 +50,7 @@ class PushClientNotificationRetryServiceSpec extends UnitSpec with MockitoSugar 
   private val mockConfigService = mock[ConfigService]
   private val mockPushNotificationConfig = mock[PushNotificationConfig]
   implicit private val implicitConversationId = conversationId
-  private val retryService = new RetryService(mockConfigService, mockLogger, ActorSystem("PushClientNotificationRetryServiceSpec"))
+  private val retryService = new OnlineRetryService(mockConfigService, mockLogger, ActorSystem("PushClientNotificationRetryServiceSpec"))
   private val pushService = new PushClientNotificationRetryService(retryService, mockOutboundSwitchService,
     notificationLogger, mockCustomsNotificationsMetricsConnector, mockDateTimeService)
   private implicit val implicitRequestMetaData = requestMetaData

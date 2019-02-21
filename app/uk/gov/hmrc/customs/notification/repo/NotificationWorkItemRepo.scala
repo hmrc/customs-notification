@@ -20,7 +20,7 @@ import java.time.Clock
 
 import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
-import org.joda.time.DateTime
+import org.joda.time.{DateTime, Duration}
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json._
 import reactivemongo.api.indexes.{Index, IndexType}
@@ -31,6 +31,7 @@ import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationCon
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -46,14 +47,16 @@ trait NotificationWorkItemRepo {
 
   def deleteBlocked(clientId: ClientId): Future[Int]
 
+  def toPermanentlyFailedByClientId(clientId: ClientId): Future[Int]
+
   def unblock(): Future[Int]
 }
 
 @Singleton
 class NotificationWorkItemMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
-                                              clock: Clock,
+                                              clock: Clock, //TODO: use DateTime service
                                               customsNotificationConfig: CustomsNotificationConfig,
-                                              logger: CdsLogger) //TODO use NotificationLogger
+                                              logger: CdsLogger)
 extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         collectionName = "notifications-work-item",
         mongo = mongoDbProvider.mongo,
@@ -70,7 +73,11 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
 
   override def now: DateTime = clock.nowAsJoda
 
-  override def inProgressRetryAfterProperty: String = ???
+  override def inProgressRetryAfterProperty: String =
+    ??? // we don't use this, we override inProgressRetryAfter instead
+
+  override lazy val inProgressRetryAfter: Duration =
+    customsNotificationConfig.pushNotificationConfig.retryInProgressRetryAfter.toJodaDuration
 
   override def indexes: Seq[Index] = super.indexes ++ Seq(
     Index(
@@ -132,6 +139,17 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     val selector = Json.obj(workItemFields.status -> PermanentlyFailed, workItemFields.updatedAt -> Json.obj("$lt" -> onlyUnblockBefore))
     val update = Json.obj("$set" -> Json.obj(workItemFields.updatedAt -> now, workItemFields.status -> Failed))
     collection.update(selector, update, multi = true).map {result =>
+      result.nModified
+    }
+  }
+
+  override def toPermanentlyFailedByClientId(clientId: ClientId): Future[Int] = {
+    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
+
+    val selector = Json.obj("clientNotification.clientId" -> clientId)
+    val update = Json.obj("$set" -> Json.obj("status" -> PermanentlyFailed, workItemFields.updatedAt -> now))
+    collection.update(selector, update, multi = true).map {result =>
+      logger.debug(s"updated ${result.n} notifications to have status ${PermanentlyFailed.name} for clientId ${clientId.id}")
       result.nModified
     }
   }
