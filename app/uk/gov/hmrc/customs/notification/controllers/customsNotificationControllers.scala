@@ -48,7 +48,7 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
 {
   def mayBeBadgeIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME, mayBeBadgeId)
 
-  def mayBeEoriHeader: Option[Header] = asHeader(CustomHeaderNames.X_EORI_ID_HEADER_NAME, mayBeEoriNumber)
+  def mayBeEoriHeader: Option[Header] = asHeader(CustomHeaderNames.X_SUBMITTER_ID_HEADER_NAME, mayBeEoriNumber)
 
   def mayBeCorrelationIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_CORRELATION_ID_HEADER_NAME, maybeCorrelationId)
 
@@ -90,7 +90,7 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
     // headers have been validated so safe to do a naked get except badgeId, eori and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
-      headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_EORI_ID_HEADER_NAME).map(Eori),
+      headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Eori),
       headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
       startTime)
   }

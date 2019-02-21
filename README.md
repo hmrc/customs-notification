@@ -55,6 +55,7 @@ The entries should be in the following format:
 | X-CDS-Client-ID   | M                  |The client id which was passed to Messaging when client submitted the declaration earlier. This must be a type 4 UUID|
 | X-Conversation-ID | M                  |This id was passed to Messaging when the declaration was passed onto Messaging earlier. This must be a UUID|
 | X-Client-ID       | M                  |The client id used to identify notifications for count and delete blocked flag operations.|
+| X-Submitter-Identifier | O             |The submitter EORI which was passed to CDS when the  declaration or inventory linking request was submitted.  The submitter EORI supports the identification of the trader using the CSP service|                                                                       |
 
 ### Body
 The body of the request will contain the XML payload. 

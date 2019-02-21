@@ -43,7 +43,7 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
   private val hc: HeaderCarrier = HeaderCarrier(extraHeaders = Seq(
     X_CONVERSATION_ID_HEADER_NAME -> validConversationId,
     X_BADGE_ID_HEADER_NAME -> badgeIdValue,
-    X_EORI_ID_HEADER_NAME -> eoriNumber,
+    X_SUBMITTER_ID_HEADER_NAME -> eoriNumber,
     X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId,
     X_CORRELATION_ID_HEADER_NAME -> correlationId))
 
@@ -53,7 +53,7 @@ class CustomsNotificationClientWorkerServiceSpec extends UnitSpec with MockitoSu
   private val mockNotificationDispatcher = mock[NotificationDispatcher]
   private val contentType = "application/xml"
   private val badgeIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_BADGE_ID_HEADER_NAME).head
-  private val eoriIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_EORI_ID_HEADER_NAME).head
+  private val eoriIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_SUBMITTER_ID_HEADER_NAME).head
   private val correlationIdHeader: (String, String) = hc.headers.filter(a => a._1 == X_CORRELATION_ID_HEADER_NAME).head
   private val expectedHeaders = Seq(Header(badgeIdHeader._1, badgeIdHeader._2), Header(eoriIdHeader._1, eoriIdHeader._2), Header(correlationIdHeader._1, correlationIdHeader._2))
   private val notification = Notification(conversationId, expectedHeaders, pushNotificationRequest.body.xmlPayload, contentType)
