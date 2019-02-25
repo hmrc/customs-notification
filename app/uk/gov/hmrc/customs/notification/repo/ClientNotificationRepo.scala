@@ -81,12 +81,8 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
 
     val selector = Json.obj("_id" -> clientNotification.id)
     val update = Json.obj("$currentDate" -> Json.obj("timeReceived" -> true), "$set" -> clientNotification)
-    findAndUpdate(selector, update, upsert = true).map {
-      result =>
+    findAndUpdate(selector, update, upsert = true).map { result =>
         errorHandler.handleUpdateError(result, errorMsg, clientNotification)
-    }.recoverWith {
-      case error =>
-        Future.failed(error)
     }
   }
 
