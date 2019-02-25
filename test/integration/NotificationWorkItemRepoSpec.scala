@@ -18,14 +18,17 @@ package integration
 
 import java.time.Clock
 
+import com.typesafe.config.Config
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import reactivemongo.api.DB
+import play.api.Configuration
+import play.api.libs.json.Json
+import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem, _}
-import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
-import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.workitem._
 import unit.logging.StubCdsLogger
@@ -45,6 +48,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val clock: Clock = Clock.systemUTC()
   private val five = 5
   private val mockUnblockPollingConfig = mock[UnblockPollingConfig]
+  private val mockConfiguration = mock[Configuration]
 
   private val pushConfig = PushNotificationConfig(
     internalClientIds = Seq.empty,
@@ -63,11 +67,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     retryPollerInstances = 1
   )
 
-  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider{
-    override val mongo: () => DB = self.mongo
-  }
+  private val reactiveMongoComponent: ReactiveMongoComponent =
+    new ReactiveMongoComponent {
+      override def mongoConnector: MongoConnector = mongoConnectorForTest
+    }
 
-  private val config: CustomsNotificationConfig = {
+  private val customsNotificationConfig: CustomsNotificationConfig = {
     new CustomsNotificationConfig {
       override def maybeBasicAuthToken: Option[String] = None
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
@@ -78,9 +83,10 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, stubCdsLogger)
+  private val repository = new NotificationWorkItemMongoRepo(reactiveMongoComponent, clock, customsNotificationConfig, stubCdsLogger, mockConfiguration)
 
   override def beforeEach() {
+    when(mockConfiguration.underlying).thenReturn(mock[Config])
     await(repository.drop)
   }
 
@@ -89,7 +95,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   }
 
   private def collectionSize: Int = {
-    await(repository.collection.count())
+    await(repository.count(Json.obj()))
   }
 
   def failed(item: NotificationWorkItem): ProcessingStatus = Failed

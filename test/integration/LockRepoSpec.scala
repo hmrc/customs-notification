@@ -20,11 +20,11 @@ import java.util.UUID
 
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import reactivemongo.api.DB
+import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo, MongoDbProvider}
+import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
 import uk.gov.hmrc.lock.LockRepository
-import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
 import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,11 +36,12 @@ class LockRepoSpec extends UnitSpec
   with BeforeAndAfterEach { self =>
   val lockRepository = new LockRepository
 
-  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider {
-    override val mongo: () => DB = self.mongo
-  }
+  private val reactiveMongoComponent: ReactiveMongoComponent =
+    new ReactiveMongoComponent {
+      override def mongoConnector: MongoConnector = mongoConnectorForTest
+    }
 
-  val lockRepo: LockRepo = new LockRepo(mongoDbProvider)
+  val lockRepo: LockRepo = new LockRepo(reactiveMongoComponent)
 
   override def beforeEach() {
     await(lockRepository.drop)

@@ -20,6 +20,7 @@ import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
 import org.joda.time.{DateTime, DateTimeZone}
 import play.api.libs.json.{JsNumber, Json}
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.Cursor
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
@@ -48,13 +49,13 @@ trait ClientNotificationRepo {
 
 @Singleton
 class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationConfig,
-                                            mongoDbProvider: MongoDbProvider,
+                                            reactiveMongoComponent: ReactiveMongoComponent,
                                             lockRepo: LockRepo,
                                             errorHandler: ClientNotificationRepositoryErrorHandler,
                                             logger: CdsLogger)
   extends ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
-    mongo = mongoDbProvider.mongo,
+    mongo = reactiveMongoComponent.mongoConnector.db,
     domainFormat = ClientNotification.clientNotificationJF
   ) with ClientNotificationRepo {
 
@@ -80,8 +81,12 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
 
     val selector = Json.obj("_id" -> clientNotification.id)
     val update = Json.obj("$currentDate" -> Json.obj("timeReceived" -> true), "$set" -> clientNotification)
-    collection.update(selector, update, upsert = true).map {
-      writeResult => errorHandler.handleSaveError(writeResult, errorMsg, clientNotification)
+    findAndUpdate(selector, update, upsert = true).map {
+      result =>
+        errorHandler.handleUpdateError(result, errorMsg, clientNotification)
+    }.recoverWith {
+      case error =>
+        Future.failed(error)
     }
   }
 
@@ -90,7 +95,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
 
     val selector = Json.obj("csid" -> csid.id)
     val sortOrder = Json.obj("timeReceived" -> 1)
-    collection.find(selector).sort(sortOrder).cursor().collect[List](maxDocs = configService.pushNotificationConfig.maxRecordsToFetch, Cursor.FailOnError[List[ClientNotification]]())
+    collection.find(selector, Option.empty).sort(sortOrder).cursor().collect[List](maxDocs = configService.pushNotificationConfig.maxRecordsToFetch, Cursor.FailOnError[List[ClientNotification]]())
   }
 
   override def fetchDistinctNotificationCSIDsWhichAreNotLocked(): Future[Set[ClientSubscriptionId]] = {
@@ -108,7 +113,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   }
 
   private def fetchDistinctCsIdsFromSavedNotifications = {
-    val csIds = collection.distinct[ClientSubscriptionId, Set]("csid")
+    val csIds = collection.distinct[ClientSubscriptionId, Set]("csid", None, mongo().connection.options.readConcern, None)
     csIds.map(cdIdsSet => logger.debug(s"fetching Distinct CSIDs from Saved Notification count is ${cdIdsSet.size}"))
     csIds
   }
@@ -116,9 +121,8 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   override def delete(clientNotification: ClientNotification): Future[Unit] = {
     logger.debug(s"${logMsgPrefix(clientNotification)} deleting clientNotification with objectId: ${clientNotification.id.stringify}")
 
-    val selector = Json.obj("_id" -> clientNotification.id)
-    lazy val errorMsg = s"Could not delete entity for selector: $selector"
-    collection.remove(selector).map(errorHandler.handleDeleteError(_, errorMsg))
+    lazy val errorMsg = s"Could not delete clientNotificationId: ${clientNotification.id}"
+    remove("_id" -> clientNotification.id).map(errorHandler.handleDeleteError(_, errorMsg))
   }
 
   override def failedPushNotificationsExist(): Future[Boolean] = {
@@ -130,7 +134,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
     logger.debug(s"finding clientSubscriptionIds $csIds older than $olderThan")
     val selector = Json.obj("csid" -> Json.obj("$in" -> csIds), "timeReceived" -> Json.obj("$lt" -> Json.obj("$date" -> JsNumber(olderThan.getMillis))))
 
-    collection.find(selector).one[ClientNotification].map {
+    collection.find(selector, None).one[ClientNotification].map {
       case Some(_) => true
       case None => false
     }

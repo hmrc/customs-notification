@@ -21,6 +21,7 @@ import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import org.joda.time.Duration
 import play.api.libs.json.Json
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.DB
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId
 import uk.gov.hmrc.lock.LockFormats.{Lock, expiryTime}
@@ -34,16 +35,16 @@ import scala.concurrent.Future
 case class LockOwnerId(id: String) extends AnyVal
 
 @Singleton
-class LockRepo @Inject()(mongoDbProvider: MongoDbProvider) extends CurrentTime {
+class LockRepo @Inject()(reactiveMongoComponent: ReactiveMongoComponent) extends CurrentTime {
 
-  val repo = new LockRepository()(mongoDbProvider.mongo)
+  val repo = new LockRepository()(reactiveMongoComponent.mongoConnector.db)
 
   /*
     Calling lock will try to renew a lock but acquire a new lock if it doesn't exist
    */
   def tryToAcquireOrRenewLock(csId: ClientSubscriptionId, lockOwnerId: LockOwnerId, lockDuration: Duration): Future[Boolean] = {
 
-    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration,mongoDbProvider.mongo, repo)
+    val lock: ExclusiveTimePeriodLock = new NotificationExclusiveTimePeriodLock(csId, lockOwnerId, lockDuration, reactiveMongoComponent.mongoConnector.db, repo)
     val eventualMaybeBoolean: Future[Option[Boolean]] = lock.tryToAcquireOrRenewLock(Future.successful(true))
     val eventualBoolean: Future[Boolean] = eventualMaybeBoolean.map {
       case Some(true) => true

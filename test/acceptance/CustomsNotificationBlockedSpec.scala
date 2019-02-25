@@ -20,14 +20,15 @@ import java.time.Clock
 
 import org.joda.time.DateTime
 import org.scalatest.{Matchers, OptionValues}
-import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc.Result
 import play.api.test.Helpers._
+import play.api.{Application, Configuration}
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, WorkItemFormat}
+import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.workitem._
@@ -58,8 +59,9 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
 
   private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
     collectionName = "notifications-work-item",
-    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
-    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) {
+    mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
+    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
+    config = Configuration().underlying) {
 
     override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
       val receivedAt = "createdAt"
