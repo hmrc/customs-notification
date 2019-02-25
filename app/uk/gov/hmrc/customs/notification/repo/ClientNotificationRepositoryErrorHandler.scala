@@ -18,6 +18,7 @@ package uk.gov.hmrc.customs.notification.repo
 
 import javax.inject.{Inject, Singleton}
 import reactivemongo.api.commands.WriteResult
+import reactivemongo.play.json.commands.JSONFindAndModifyCommand.FindAndModifyResult
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 
@@ -28,23 +29,22 @@ class ClientNotificationRepositoryErrorHandler @Inject() (logger: CdsLogger) {
     handleError(result, databaseAltered, exceptionMsg)
   }
 
-  def handleSaveError(writeResult: WriteResult, exceptionMsg: String, clientNotification: ClientNotification): Boolean = {
-
-    def handleSaveError(result: WriteResult): Boolean =
-      if (databaseAltered(result)) {
-        true
-      }
-      else {
-        throw new IllegalStateException(exceptionMsg)
-      }
-
-    handleError(writeResult, handleSaveError, exceptionMsg)
-  }
-
   private def handleError[T](result: WriteResult, f: WriteResult => T, exceptionMsg: => String): T = {
     result.writeConcernError.fold(f(result)) {
       errMsg => {
         val errorMsg = s"$exceptionMsg. $errMsg"
+        logger.error(errorMsg)
+        throw new RuntimeException(errorMsg)
+      }
+    }
+  }
+
+  def handleUpdateError(result: FindAndModifyResult, exceptionMsg: String, clientNotification: ClientNotification): Boolean = {
+    result.lastError.fold(true) { lastError =>
+      if (lastError.n > 0) {
+        true
+      } else {
+        val errorMsg = lastError.err.fold(exceptionMsg)(errMsg => s"$exceptionMsg. $errMsg")
         logger.error(errorMsg)
         throw new RuntimeException(errorMsg)
       }

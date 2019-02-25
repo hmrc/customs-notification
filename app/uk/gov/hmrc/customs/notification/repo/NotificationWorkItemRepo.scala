@@ -21,17 +21,18 @@ import java.time.Clock
 import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
 import org.joda.time.{DateTime, Duration}
+import play.api.Configuration
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json._
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationConfig, NotificationWorkItem}
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -53,14 +54,16 @@ trait NotificationWorkItemRepo {
 }
 
 @Singleton
-class NotificationWorkItemMongoRepo @Inject()(mongoDbProvider: MongoDbProvider,
+class NotificationWorkItemMongoRepo @Inject()(reactiveMongoComponent: ReactiveMongoComponent,
                                               clock: Clock, //TODO: use DateTime service
                                               customsNotificationConfig: CustomsNotificationConfig,
-                                              logger: CdsLogger)
+                                              logger: CdsLogger,
+                                              configuration: Configuration)
 extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         collectionName = "notifications-work-item",
-        mongo = mongoDbProvider.mongo,
-        itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) with NotificationWorkItemRepo {
+        mongo = reactiveMongoComponent.mongoConnector.db,
+        itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
+        configuration.underlying) with NotificationWorkItemRepo {
 
   override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
     val receivedAt = "createdAt"
@@ -116,7 +119,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   override def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count (i.e. those with status of ${PermanentlyFailed.name}) for clientId ${clientId.id}")
     val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed.name)
-    collection.count(Some(selector))
+    count(selector)
   }
 
   override def deleteBlocked(clientId: ClientId): Future[Int] = {

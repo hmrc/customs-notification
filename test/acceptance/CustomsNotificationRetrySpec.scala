@@ -21,9 +21,9 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.test.Helpers._
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.repo.MongoDbProvider
 import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
@@ -41,9 +41,9 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
 
   private val endpoint = "/customs-notification/notify-retry"
 
-  val repo = new ReactiveRepository[NotificationWorkItem, BSONObjectID](
+  private val repo = new ReactiveRepository[NotificationWorkItem, BSONObjectID](
     collectionName = "notifications-work-item",
-    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
+    mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
     domainFormat = NotificationWorkItem.notificationWorkItemJF) {
   }
 

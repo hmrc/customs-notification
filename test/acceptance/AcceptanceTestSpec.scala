@@ -25,8 +25,12 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import util.ExternalServicesConfiguration
 
 
-trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneAppPerSuite
-   with BeforeAndAfterAll with BeforeAndAfterEach with Eventually {
+trait AcceptanceTestSpec extends FeatureSpec
+  with GivenWhenThen
+  with GuiceOneAppPerSuite
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach
+  with Eventually {
 
   private val Wait = 5
 
@@ -44,9 +48,10 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
     "microservice.services.notification-queue.port" -> ExternalServicesConfiguration.Port,
     "microservice.services.notification-queue.context" -> ExternalServicesConfiguration.NotificationQueueContext,
     "auditing.enabled" -> false,
-    "mongodb.uri" -> "mongodb://localhost:27017/customs-notification"
+    "mongodb.uri" -> "mongodb://localhost:27017/customs-notification",
+    "metrics.jvm" -> false,
+    "metrics.logback" -> false
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
-
 }

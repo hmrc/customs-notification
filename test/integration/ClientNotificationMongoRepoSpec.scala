@@ -23,14 +23,14 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
-import reactivemongo.api.{Cursor, DB}
+import play.modules.reactivemongo.ReactiveMongoComponent
+import reactivemongo.api.DB
 import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo._
 import uk.gov.hmrc.lock.LockRepository
-import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
@@ -68,17 +68,18 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     retryPollerInstances = 1
   )
   private val metricsConfig: NotificationMetricsConfig = NotificationMetricsConfig("http://abc.com")
-  private val unblockConfig: UnblockPollingConfig = UnblockPollingConfig(true, 1 seconds)
+  private val unblockConfig: UnblockPollingConfig = UnblockPollingConfig(pollingEnabled = true, 1 seconds)
   private val TenThousand = 10000
   private val pullExcludeConfigZeroMillis = PullExcludeConfig(pullExcludeEnabled = true, emailAddress = "some.address@domain.com",
     notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"), "some-email-url", 0 seconds, 0 minutes)
 
-  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider {
-    override val mongo: () => DB = self.mongo
-  }
+  private val reactiveMongoComponent: ReactiveMongoComponent =
+    new ReactiveMongoComponent {
+      override def mongoConnector: MongoConnector = mongoConnectorForTest
+    }
 
   val lockRepository = new LockRepository
-  val lockRepo: LockRepo = new LockRepo(mongoDbProvider) {
+  val lockRepo: LockRepo = new LockRepo(reactiveMongoComponent) {
     val db: () => DB = () => mock[DB]
     override val repo: LockRepository = lockRepository
   }
@@ -95,9 +96,9 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
     config
   }
 
-  private val repository = new ClientNotificationMongoRepo(configWithMaxRecords(five), mongoDbProvider, lockRepo, mockErrorHandler, mockCdsLogger)
-  private val repositoryWithOneMaxRecord = new ClientNotificationMongoRepo(configWithMaxRecords(1), mongoDbProvider, lockRepo, mockErrorHandler, mockCdsLogger)
-  private val repositoryWithLongWait = new ClientNotificationMongoRepo(configWithMaxRecords(five, TenThousand), mongoDbProvider, lockRepo, mockErrorHandler, mockCdsLogger)
+  private val repository = new ClientNotificationMongoRepo(configWithMaxRecords(five), reactiveMongoComponent, lockRepo, mockErrorHandler, mockCdsLogger)
+  private val repositoryWithOneMaxRecord = new ClientNotificationMongoRepo(configWithMaxRecords(1), reactiveMongoComponent, lockRepo, mockErrorHandler, mockCdsLogger)
+  private val repositoryWithLongWait = new ClientNotificationMongoRepo(configWithMaxRecords(five, TenThousand), reactiveMongoComponent, lockRepo, mockErrorHandler, mockCdsLogger)
 
   override def beforeEach() {
     await(repository.drop)
@@ -111,11 +112,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   }
 
   private def collectionSize: Int = {
-    await(repository.collection.count())
-  }
-
-  private def selector(clientSubscriptionId: ClientSubscriptionId) = {
-    Json.obj("csid" -> clientSubscriptionId.id)
+    await(repository.count(Json.obj()))
   }
 
   private def logVerifier(logLevel: String, logText: String): Unit = {
@@ -126,12 +123,12 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
 
   "repository" should {
     "successfully save a single notification" in {
-      when(mockErrorHandler.handleSaveError(any(), any(), any())).thenReturn(true)
+      when(mockErrorHandler.handleUpdateError(any(), any(), any())).thenReturn(true)
       val saveResult = await(repository.save(client1Notification1))
       saveResult shouldBe true
       collectionSize shouldBe 1
 
-      val findResult = await(repository.collection.find(selector(validClientSubscriptionId1)).one[ClientNotification]).get
+      val findResult = await(repository.find("csid" -> validClientSubscriptionId1.id).head)
       findResult.id should not be None
       findResult.timeReceived should not be None
       Seconds.secondsBetween(DateTime.now(DateTimeZone.UTC), findResult.timeReceived.get).getSeconds should be < 3
@@ -145,7 +142,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       await(repository.save(client2Notification1))
 
       collectionSize shouldBe 3
-      val clientNotifications = await(repository.collection.find(selector(validClientSubscriptionId1)).cursor[ClientNotification]().collect[List](Int.MaxValue, Cursor.FailOnError[List[ClientNotification]]()))
+      val clientNotifications = await(repository.find("csid" -> validClientSubscriptionId1.id))
       clientNotifications.size shouldBe 2
       clientNotifications.head.id should not be None
     }

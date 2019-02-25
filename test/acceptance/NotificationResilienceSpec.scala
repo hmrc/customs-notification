@@ -22,9 +22,9 @@ import org.scalatest.{Matchers, OptionValues}
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
+import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.repo.MongoDbProvider
 import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
@@ -38,9 +38,9 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
   with PushNotificationService
   with MongoSpecSupport {
 
-  val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
+  private val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
-    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
+    mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
     domainFormat = ClientNotification.clientNotificationJF) {
   }
 
@@ -80,7 +80,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
 
     scenario("when notifications are present in the database and push fails") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
-      setupPushNotificationServiceToReturn(404)
+      setupPushNotificationServiceToReturn(NOT_FOUND)
       runNotificationQueueService(CREATED)
 
       repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
