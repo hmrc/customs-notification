@@ -72,13 +72,6 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
     val ttlInSecondsNel: CustomsValidatedNel[Int] =
       root.int("ttlInSeconds")
 
-    val retryDelayNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.retry.delay.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
-    val retryDelayFactorNel: CustomsValidatedNel[Int] =
-      root.int("push.retry.delay.interval.factor")
-    val retryMaxAttemptsNel: CustomsValidatedNel[Int] =
-      root.int("push.retry.max.attempts")
-
     val retryPollerEnabledNel: CustomsValidatedNel[Boolean] =
       root.boolean("push.retry.enabled")
     val retryInitialPollingIntervalNel: CustomsValidatedNel[FiniteDuration] =
@@ -97,11 +90,6 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       pushLockDurationNel,
       maxFetchRecordsNel,
       ttlInSecondsNel,
-
-      //TODO: remove online properties
-      retryDelayNel,
-      retryDelayFactorNel,
-      retryMaxAttemptsNel,
 
       retryPollerEnabledNel,
       retryInitialPollingIntervalNel,
