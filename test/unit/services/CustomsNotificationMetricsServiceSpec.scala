@@ -56,7 +56,7 @@ class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
 
   "CustomsNotificationMetricsService" should {
     "send notification metric when NotificationWorkItem has a metrics time" in new SetUp {
-      when(mockMetricsConnector.post(metricsRequest)).thenReturn(Future.successful())
+      when(mockMetricsConnector.post(metricsRequest)).thenReturn(Future.successful(()))
       when(mockDateTimeService.zonedDateTimeUtc).thenReturn(MetricsStartTimeZoned)
 
       await(service.notificationMetric(NotificationWorkItemWithMetricsTime1))
