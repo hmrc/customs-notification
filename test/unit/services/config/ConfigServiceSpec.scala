@@ -41,9 +41,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |push.polling.enabled = true
       |push.lock.duration.milliseconds = 1000
       |push.fetch.maxRecords = 50
-      |push.retry.delay.interval.milliseconds = 500
-      |push.retry.delay.interval.factor = 2
-      |push.retry.max.attempts = 3
       |push.retry.enabled = true
       |push.retry.initialPollingInterval.milliseconds = 700
       |push.retry.retryAfterFailureInterval.seconds = 2
@@ -101,9 +98,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |pull.exclude.older.milliseconds = 5000
       |pull.exclude.email.delay.duration.seconds = 1
       |pull.exclude.email.interval.duration.minutes = 30
-      |push.retry.delay.interval.milliseconds = 500
-      |push.retry.delay.interval.factor = 2
-      |push.retry.max.attempts = 3
       |push.retry.enabled = true
       |push.retry.initialPollingInterval.milliseconds = 700
       |push.retry.retryAfterFailureInterval.seconds = 2
@@ -164,9 +158,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pullExcludeConfig.emailUrl shouldBe "http://localhost:8300/hmrc/email"
       actual.pullExcludeConfig.pollingInterval shouldBe (30 minutes)
       actual.pushNotificationConfig.ttlInSeconds shouldBe 1
-      actual.pushNotificationConfig.retryDelay shouldBe (500 milliseconds)
-      actual.pushNotificationConfig.retryDelayFactor shouldBe 2
-      actual.pushNotificationConfig.retryMaxAttempts shouldBe 3
       actual.pushNotificationConfig.retryPollerEnabled shouldBe true
       actual.pushNotificationConfig.retryInitialPollingInterval shouldBe (700 milliseconds)
       actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
@@ -201,9 +192,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config key 'push.lock.duration.milliseconds'
                        |Could not find config key 'push.fetch.maxRecords'
                        |Could not find config key 'ttlInSeconds'
-                       |Could not find config key 'push.retry.delay.interval.milliseconds'
-                       |Could not find config key 'push.retry.delay.interval.factor'
-                       |Could not find config key 'push.retry.max.attempts'
                        |Could not find config key 'push.retry.enabled'
                        |Could not find config key 'push.retry.initialPollingInterval.milliseconds'
                        |Could not find config key 'push.retry.retryAfterFailureInterval.seconds'

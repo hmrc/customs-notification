@@ -31,11 +31,6 @@ case class PushNotificationConfig(
   maxRecordsToFetch: Int,
   ttlInSeconds: Int,
 
-  //TODO: remove these online retry properties
-  retryDelay: FiniteDuration,
-  retryDelayFactor: Int,
-  retryMaxAttempts: Int,
-
   retryPollerEnabled: Boolean,
   retryInitialPollingInterval: FiniteDuration,
   retryAfterFailureInterval: FiniteDuration,

@@ -47,16 +47,15 @@ class WorkItemServiceImpl @Inject()(
 
     val failedBefore = dateTimeService.zonedDateTimeUtc.toDateTime
     val availableBefore = failedBefore
-
-    val result: OptionT[Future, Unit] = for {
-      firstOutstandingItem <- OptionT(
-        repository.pullOutstanding(failedBefore, availableBefore))
-      _ <- OptionT.liftF(pushOrPull(firstOutstandingItem))
-    } yield ()
-
-    val somethingHasBeenProcessed = result.value.map(_.isDefined)
-
-    somethingHasBeenProcessed
+    val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap{
+      case Some(firstOutstandingItem) =>
+        pushOrPull(firstOutstandingItem).map{_ =>
+          true
+        }
+      case None =>
+        Future.successful(false)
+    }
+    eventuallyProcessedOne
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
