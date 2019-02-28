@@ -119,7 +119,6 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
 
         await(result) shouldBe true
-
         eventually(verify(mockNotificationWorkItemRepo).permanentlyFailedByClientIdExists(NotificationWorkItemWithMetricsTime1.clientId))
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed)))
         eventually(verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))

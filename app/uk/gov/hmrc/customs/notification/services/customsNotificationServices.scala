@@ -90,20 +90,31 @@ class CustomsNotificationRetryService @Inject()(
       Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
-    notificationWorkItemRepo.permanentlyFailedByClientIdExists(notificationWorkItem.clientId).flatMap {
-      case true =>
-        logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
-          s"Setting notification to permanently failed")
-        notificationWorkItemRepo.saveWithLock(notificationWorkItem, PermanentlyFailed)
-        Future.successful(true)
-      case false =>
-        saveNotificationToDatabaseAndPushOrPull(notificationWorkItem, apiSubscriptionFields)(metaData)
-    }.recover {
-      case NonFatal(e) =>
-        logger.error(s"failed saving notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: " +
-          s"${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
-        false
-    }
+
+    (for {
+      isAnyPF <- notificationWorkItemRepo.permanentlyFailedByClientIdExists(notificationWorkItem.clientId)
+      hasSaved <- if (isAnyPF) saveNotificationToDatabaseAsPermanentlyFailed(notificationWorkItem) else saveNotificationToDatabaseAndPushOrPull(notificationWorkItem, apiSubscriptionFields)(metaData)
+    } yield hasSaved)
+      .recover {
+        case NonFatal(e) =>
+          logger.error(s"A problem occurred while handling notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
+          false
+      }
+  }
+
+  private def saveNotificationToDatabaseAsPermanentlyFailed(notificationWorkItem: NotificationWorkItem)
+                                                     (implicit rm: HasId): Future[HasSaved] = {
+
+    logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
+      s"Setting notification to permanently failed")
+
+     notificationWorkItemRepo.saveWithLock(notificationWorkItem, PermanentlyFailed).map(
+       _ => true
+     ).recover {
+       case NonFatal(e) =>
+         logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
+         false
+     }
   }
 
   private def saveNotificationToDatabaseAndPushOrPull(notificationWorkItem: NotificationWorkItem,

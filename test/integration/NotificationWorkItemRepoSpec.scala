@@ -109,6 +109,15 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       collectionSize shouldBe 1
     }
 
+    "successfully save a single notification work item with specified status" in {
+      val result = await(repository.saveWithLock(NotificationWorkItem1, PermanentlyFailed))
+
+      result.status shouldBe PermanentlyFailed
+      result.item shouldBe NotificationWorkItem1
+      result.failureCount shouldBe 0
+      collectionSize shouldBe 1
+    }
+
     "update status of an item of work to Succeeded when successfully completed" in {
       val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
       result.status shouldBe InProgress
@@ -220,7 +229,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
 
-      val result = await(repository.permanentlyFailedByClientIdExists(clientId1))
+      val result = await(repository.permanentlyFailedByClientIdExists(NotificationWorkItem1.clientId))
 
       result shouldBe true
     }
