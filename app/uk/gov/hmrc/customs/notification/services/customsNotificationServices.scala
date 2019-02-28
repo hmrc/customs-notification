@@ -23,7 +23,7 @@ import uk.gov.hmrc.customs.notification.domain.{HasId, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, NotificationWorkItemRepo}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
-import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded}
+import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, Succeeded}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -83,19 +83,34 @@ class CustomsNotificationRetryService @Inject()(
                          metaData: RequestMetaData,
                          apiSubscriptionFields: ApiSubscriptionFields): Future[HasSaved] = {
 
+    implicit val hasId: RequestMetaData = metaData
+
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
       Some(metaData.startTime.toDateTime),
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
-      saveNotificationToDatabaseAndPushOrPull(notificationWorkItem, apiSubscriptionFields)(metaData)
+    notificationWorkItemRepo.permanentlyFailedByClientIdExists(notificationWorkItem.clientId).flatMap {
+      case true =>
+        logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
+          s"Setting notification to permanently failed")
+        notificationWorkItemRepo.saveWithLock(notificationWorkItem, PermanentlyFailed)
+        Future.successful(true)
+      case false =>
+        saveNotificationToDatabaseAndPushOrPull(notificationWorkItem, apiSubscriptionFields)(metaData)
+    }.recover {
+      case NonFatal(e) =>
+        logger.error(s"failed saving notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: " +
+          s"${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
+        false
+    }
   }
 
   private def saveNotificationToDatabaseAndPushOrPull(notificationWorkItem: NotificationWorkItem,
                                                 apiSubscriptionFields: ApiSubscriptionFields)
                                                (implicit rm: HasId): Future[HasSaved] = {
     (for {
-      workItem <- notificationWorkItemRepo.saveWithLock(notificationWorkItem)
+      workItem <- notificationWorkItemRepo.saveWithLock(notificationWorkItem, InProgress)
       idMsg = s"for workItemId ${workItem.id.stringify}"
       either <- pushOrPullService.send(notificationWorkItem, apiSubscriptionFields) // pushOrPullService does a recover on all error paths
     } yield either match {

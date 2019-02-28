@@ -28,6 +28,7 @@ import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
+import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
@@ -40,7 +41,7 @@ import scala.concurrent.Future
 @ImplementedBy(classOf[NotificationWorkItemMongoRepo])
 trait NotificationWorkItemRepo {
 
-  def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]]
+  def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus): Future[WorkItem[NotificationWorkItem]]
 
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit]
 
@@ -49,6 +50,8 @@ trait NotificationWorkItemRepo {
   def deleteBlocked(clientId: ClientId): Future[Int]
 
   def toPermanentlyFailedByClientId(clientId: ClientId): Future[Int]
+
+  def permanentlyFailedByClientIdExists(clientId: ClientId): Future[Boolean]
 
   def unblock(): Future[Int]
 }
@@ -103,12 +106,12 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
       unique = false)
   )
 
-  def saveWithLock(notificationWorkItem: NotificationWorkItem): Future[WorkItem[NotificationWorkItem]] = {
+  def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus = InProgress): Future[WorkItem[NotificationWorkItem]] = {
     logger.debug(s"saving a new notification work item in locked state $notificationWorkItem")
 
-    def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
+    def processWithInitialStatus(item: NotificationWorkItem): ProcessingStatus = processingStatus
 
-    pushNew(notificationWorkItem, now, inProgress _)
+    pushNew(notificationWorkItem, now, processWithInitialStatus _)
   }
 
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit] = {
@@ -154,6 +157,17 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     collection.update(selector, update, multi = true).map {result =>
       logger.debug(s"updated ${result.n} notifications to have status ${PermanentlyFailed.name} for clientId ${clientId.id}")
       result.nModified
+    }
+  }
+
+  override def permanentlyFailedByClientIdExists(clientId: ClientId): Future[Boolean] = {
+    val selector = Json.obj("clientNotification.clientId" -> clientId.id,  "status" -> PermanentlyFailed.name)
+
+    collection.find(selector, None)(JsObjectDocumentWriter, JsObjectDocumentWriter).one[JsValue].map { // No need for json deserialisation
+      case Some(_) =>
+        logger.info(s"Found existing permanently failed notification for client id: $clientId")
+        true
+      case None => false
     }
   }
 }

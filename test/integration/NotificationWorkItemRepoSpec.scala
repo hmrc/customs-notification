@@ -213,5 +213,16 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.findById(item2.id)).get.status shouldBe Failed
       await(repository.findById(item3.id)).get.status shouldBe PermanentlyFailed
     }
+
+    "return true when at least one permanently failed items exist for client id" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+
+      val result = await(repository.permanentlyFailedByClientIdExists(clientId1))
+
+      result shouldBe true
+    }
   }
 }
