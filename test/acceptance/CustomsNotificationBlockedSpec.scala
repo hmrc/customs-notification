@@ -79,7 +79,7 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
 
-  override protected def beforeAll() {
+  override protected def beforeEach() {
     await(repo.drop)
   }
 

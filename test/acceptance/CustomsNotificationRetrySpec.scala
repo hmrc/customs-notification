@@ -16,15 +16,22 @@
 
 package acceptance
 
+import java.time.Clock
+
+import org.joda.time.DateTime
 import org.scalatest.{Matchers, OptionValues}
-import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.test.Helpers._
+import play.api.{Application, Configuration}
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
+import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus, WorkItemFieldNames, WorkItemRepository}
 import util.TestData._
 import util._
 
@@ -37,14 +44,31 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService
+  with CustomsNotificationMetricsService
   with MongoSpecSupport {
 
   private val endpoint = "/customs-notification/notify-retry"
 
-  private val repo = new ReactiveRepository[NotificationWorkItem, BSONObjectID](
+  private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
+
+  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
     collectionName = "notifications-work-item",
     mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
-    domainFormat = NotificationWorkItem.notificationWorkItemJF) {
+    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
+    config = Configuration().underlying) {
+
+    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
+      val receivedAt = "createdAt"
+      val updatedAt = "lastUpdated"
+      val availableAt = "availableAt"
+      val status = "status"
+      val id = "_id"
+      val failureCount = "failures"
+    }
+
+    override def now: DateTime = Clock.systemUTC().nowAsJoda
+
+    override def inProgressRetryAfterProperty: String = ???
   }
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
@@ -125,5 +149,46 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
     }
+  }
+
+
+
+  feature("Ensure work item is saved as permanently failed when existing work item is permanently failed") {
+
+    scenario("backend submits a valid request") {
+
+      await(repo.drop)
+      await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
+
+      startApiSubscriptionFieldsService(validFieldsId, callbackData)
+      setupPushNotificationServiceToReturn()
+
+      Given("There is an existing work item that is permanently failed")
+      eventually(assertWorkItemRepoWithStatus(PermanentlyFailed, 1))
+
+      Given("the API is available")
+      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+
+      When("a POST request with data is sent to the API")
+      val result: Option[Future[Result]] = route(app = app, request)
+
+      Then("a response with a 202 status is received")
+      result shouldBe 'defined
+      val resultFuture: Future[Result] = result.value
+
+      status(resultFuture) shouldBe ACCEPTED
+
+      And("the response body is empty")
+      contentAsString(resultFuture) shouldBe 'empty
+
+      Then("the status is set to PermanentlyFailed")
+      eventually(assertWorkItemRepoWithStatus(PermanentlyFailed, 2))
+    }
+  }
+
+  private def assertWorkItemRepoWithStatus(status: ProcessingStatus, count: Int) = {
+    val workItems = await(repo.find())
+    workItems should have size count
+    workItems.head.status shouldBe status
   }
 }
