@@ -33,6 +33,7 @@ import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, ResultStatus, Succee
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.Elem
 
@@ -114,7 +115,6 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         when(mockNotificationWorkItemRepo.permanentlyFailedByClientIdExists(NotificationWorkItemWithMetricsTime1.clientId)).thenReturn(Future.successful(true))
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed))).thenReturn(Future.successful(WorkItem1))
         when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
-        when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId])).thenReturn(eventuallyLeftOfPush)
 
         val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
 
@@ -123,6 +123,29 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed)))
         eventually(verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
         infoLogVerifier("Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
+      }
+
+      "returned HasSaved is true BEFORE push has succeeded" in {
+        when(mockNotificationWorkItemRepo.permanentlyFailedByClientIdExists(NotificationWorkItemWithMetricsTime1.clientId)).thenReturn(Future.successful(false))
+        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
+        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
+        var returnTimeOfPush = 0L
+        when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId])).thenReturn(
+          Future{
+            Thread.sleep(1000)
+            returnTimeOfPush = System.currentTimeMillis()
+            Right(Pull)
+          })
+
+        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
+
+        await(result) shouldBe true
+        val returnTimeOfSavedToDb = System.currentTimeMillis()
+        eventually(verify(mockNotificationWorkItemRepo).permanentlyFailedByClientIdExists(NotificationWorkItemWithMetricsTime1.clientId))
+        eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
+        eventually(verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
+        infoLogVerifier("Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
+        eventually(assert(returnTimeOfPush > returnTimeOfSavedToDb, "Save to database did not happen before push"))
       }
     }
 
@@ -169,7 +192,6 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         eventually(verifyZeroInteractions(mockMetricsService))
         errorLogVerifier("Pull error PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a", exception)
       }
-
     }
   }
 
