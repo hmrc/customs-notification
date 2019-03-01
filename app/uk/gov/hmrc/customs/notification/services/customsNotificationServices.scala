@@ -92,7 +92,7 @@ class CustomsNotificationRetryService @Inject()(
 
     (for {
       isAnyPF <- notificationWorkItemRepo.permanentlyFailedByClientIdExists(notificationWorkItem.clientId)
-      hasSaved <- saveNotificationToDatabase(notificationWorkItem, isAnyPF, apiSubscriptionFields)
+      hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, isAnyPF, apiSubscriptionFields)
     } yield hasSaved)
       .recover {
         case NonFatal(e) =>
@@ -101,30 +101,28 @@ class CustomsNotificationRetryService @Inject()(
       }
   }
 
-  private def saveNotificationToDatabase(notificationWorkItem: NotificationWorkItem,
-                                                            isAnyPF: Boolean,
-                                                            apiSubscriptionFields: ApiSubscriptionFields)
-                                                     (implicit rm: HasId): Future[HasSaved] = {
+  private def saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem: NotificationWorkItem,
+                                                                isAnyPF: Boolean,
+                                                                apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId): Future[HasSaved] = {
 
     logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
       s"Setting notification to permanently failed")
-      val status = if (isAnyPF) PermanentlyFailed else InProgress
+    val status = if (isAnyPF) PermanentlyFailed else InProgress
 
-     notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
-       workItem => {
+    notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
+      workItem => {
          if (status == InProgress) pushOrPull(workItem, apiSubscriptionFields)
          true
-       }
-     ).recover {
-       case NonFatal(e) =>
-         logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
-         false
-     }
+      }
+    ).recover {
+      case NonFatal(e) =>
+        logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
+        false
+    }
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
-                                                      apiSubscriptionFields: ApiSubscriptionFields)
-                                                     (implicit rm: HasId): Future[HasSaved] = {
+                         apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId): Future[HasSaved] = {
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
