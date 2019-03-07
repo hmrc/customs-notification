@@ -72,13 +72,13 @@ object LoggingHelper {
         formatOptional("badgeId", has.mayBeBadgeId)
       case _ => ""
     }
-    def eori = rm match {
-      case has: HasMaybeEori =>
-        formatOptional("eoriIdentifier", has.mayBeEoriNumber)
+    def submitter = rm match {
+      case has: HasMaybeSubmitter =>
+        formatOptional("submitterIdentifier", has.mayBeSubmitterNumber)
       case _ => ""
     }
 
-    s"[${rm.idName}=${rm.idValue}]$fieldsId$badgeId$eori$correlationId"
+    s"[${rm.idName}=${rm.idValue}]$fieldsId$badgeId$submitter$correlationId"
   }
 
   private def formatOptional[T](name: String, maybeValue: Option[T]) = {

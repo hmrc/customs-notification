@@ -100,7 +100,7 @@ trait InternalPushNotificationService extends WireMockRunner {
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(conversationId.toString))
       .withHeader(USER_AGENT, equalTo("Customs Declaration Service"))
       .withHeader(X_CORRELATION_ID_HEADER_NAME, equalTo(correlationId))
-      .withHeader(X_SUBMITTER_ID_HEADER_NAME, equalTo(eoriNumber))
+      .withHeader(X_SUBMITTER_ID_HEADER_NAME, equalTo(submitterNumber))
       .withHeader(X_BADGE_ID_HEADER_NAME, equalTo(badgeId))
       .withRequestBody(equalToXml(pnr.body.xmlPayload))
     )

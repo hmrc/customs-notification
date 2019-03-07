@@ -33,7 +33,7 @@ import scala.xml.NodeSeq
 trait CustomsNotificationService {
 
   def buildHeaders(metaData: RequestMetaData): Seq[Header] = {
-    (metaData.mayBeBadgeIdHeader ++ metaData.mayBeEoriHeader ++ metaData.mayBeCorrelationIdHeader).toSeq
+    (metaData.mayBeBadgeIdHeader ++ metaData.mayBeSubmitterHeader ++ metaData.mayBeCorrelationIdHeader).toSeq
   }
 }
 

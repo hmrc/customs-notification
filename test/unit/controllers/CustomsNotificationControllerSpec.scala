@@ -66,7 +66,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)), Some(Eori(eoriNumber)), Some(CorrelationId(correlationId)), mockDateTimeService.zonedDateTimeUtc)
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), mockDateTimeService.zonedDateTimeUtc)
 
   private val eventualTrue = Future.successful(true)
 
@@ -93,19 +93,19 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     "respond with status 202 for missing Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeSubmitterNumber = None)))).thenReturn(eventualTrue)
 
       testSubmitResult(MissingAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeSubmitterNumber = None)))
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeEoriNumber = None)))).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeSubmitterNumber = None)))).thenReturn(eventualTrue)
 
       testSubmitResult(InvalidAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
