@@ -34,7 +34,7 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
   val testDate: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
 
-  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)), Some(Eori(eoriNumber)), None, testDate)
+  val metaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), None, testDate)
 
   "PushNotificationRequestService" should {
 
@@ -43,20 +43,20 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
       service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId), None)
     }
 
-    "request does not contain badgeId or eoriNumber headers when not provided" in {
+    "request does not contain badgeId or submitterNumber headers when not provided" in {
       val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, None, None, None, testDate)
       service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None, None)
     }
 
-    "return valid request when eoriNumber is provided" in {
-      val metaDataWithSomeEoriNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(Eori(eoriNumber)), None, testDate)
-      service.createRequest(ValidXML, callbackData, metaDataWithSomeEoriNumber) shouldBe expectedRequest(None, Some(eoriNumber))
+    "return valid request when submitterNumber is provided" in {
+      val metaDataWithSomeSubmitterNumber = RequestMetaData(clientSubscriptionId, conversationId, None, Some(Submitter(submitterNumber)), None, testDate)
+      service.createRequest(ValidXML, callbackData, metaDataWithSomeSubmitterNumber) shouldBe expectedRequest(None, Some(submitterNumber))
     }
   }
 
-  private def expectedRequest(expectedBadgeId: Option[String], expectedEoriNumber: Option[String]) = {
+  private def expectedRequest(expectedBadgeId: Option[String], expectedSubmitterNumber: Option[String]) = {
     val expectedHeaders: Seq[Header] = expectedBadgeId.fold(Seq[Header]())(badgeId => Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId))) ++
-      expectedEoriNumber.fold(Seq[Header]())(eoriNumber => Seq(Header(X_SUBMITTER_ID_HEADER_NAME, eoriNumber)))
+      expectedSubmitterNumber.fold(Seq[Header]())(submitterNumber => Seq(Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber)))
     PushNotificationRequest(validFieldsId,
       PushNotificationRequestBody(callbackData.callbackUrl, callbackData.securityToken, validConversationId, expectedHeaders, ValidXML.toString()))
   }

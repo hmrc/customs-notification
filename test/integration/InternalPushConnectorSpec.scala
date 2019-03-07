@@ -48,7 +48,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
       Seq(
         X_CORRELATION_ID_HEADER_NAME -> correlationId,
         X_BADGE_ID_HEADER_NAME -> badgeId,
-        X_SUBMITTER_ID_HEADER_NAME -> eoriNumber
+        X_SUBMITTER_ID_HEADER_NAME -> submitterNumber
       ).map(t => Header(t._1, t._2)),
       ValidXML.toString())
   )

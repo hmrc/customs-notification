@@ -80,7 +80,7 @@ object TestData {
   val debugMsg = "DEBUG"
 
   val badgeId = "ABCDEF1234"
-  val eoriNumber = "IAMEORI"
+  val submitterNumber = "IAMSUBMITTER"
   val userAgent = "Customs Declaration Service"
   val correlationId = "CORRID2234"
 
@@ -113,7 +113,7 @@ object TestData {
   val payload2 = "<foo2></foo2>"
   val payload3 = "<foo3></foo3>"
 
-  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, eoriNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
+  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
   val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   val notification1 = Notification(conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
   val notification2 = Notification(conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
@@ -127,7 +127,7 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(BadgeId(badgeId)), Some(Eori(eoriNumber)), Some(CorrelationId(correlationId)), TimeReceivedZoned)
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), TimeReceivedZoned)
 
   val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId1, None, notification = notification1)
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
@@ -330,7 +330,7 @@ object RequestHeaders {
 
   lazy val X_BADGE_ID_HEADER: (String, String) = X_BADGE_ID_HEADER_NAME -> badgeId
 
-  lazy val X_SUBMITTER_ID_HEADER: (String, String) = X_SUBMITTER_ID_HEADER_NAME -> eoriNumber
+  lazy val X_SUBMITTER_ID_HEADER: (String, String) = X_SUBMITTER_ID_HEADER_NAME -> submitterNumber
 
   lazy val X_CORRELATION_ID_HEADER: (String, String) = X_CORRELATION_ID_HEADER_NAME -> correlationId
 

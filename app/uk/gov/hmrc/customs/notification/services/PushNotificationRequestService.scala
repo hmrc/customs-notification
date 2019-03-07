@@ -28,7 +28,7 @@ class PushNotificationRequestService @Inject()(apiSubscriptionFieldsConnector: A
 
   def createRequest(notificationXML: NodeSeq, clientData: DeclarantCallbackData, metaData: RequestMetaData): PushNotificationRequest = {
 
-    val outboundCallHeaders: Seq[Header] = (metaData.mayBeBadgeIdHeader ++ metaData.mayBeEoriHeader).toSeq
+    val outboundCallHeaders: Seq[Header] = (metaData.mayBeBadgeIdHeader ++ metaData.mayBeSubmitterHeader).toSeq
 
     PushNotificationRequest(metaData.clientSubscriptionId.toString(),
       PushNotificationRequestBody(
