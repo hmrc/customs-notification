@@ -44,7 +44,8 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
                                                    pushNotificationConfig: PushNotificationConfig,
                                                    pullExcludeConfig: PullExcludeConfig,
                                                    notificationMetricsConfig: NotificationMetricsConfig,
-                                                   unblockPollingConfig: UnblockPollingConfig) extends CustomsNotificationConfig
+                                                   unblockPollingConfig: UnblockPollingConfig,
+                                                   logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig) extends CustomsNotificationConfig
 
   private val root = configValidatedNel.root
 
@@ -130,13 +131,23 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
         unblockPollingDelayNel
     ).mapN(UnblockPollingConfig)
 
+    val logNotificationCountsEnabledNel: CustomsValidatedNel[Boolean] =
+      root.boolean("logCounts.polling.enabled")
+    val logNotificationCountsPollingIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("logCounts.polling.interval.duration.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+    val logNotificationCountsPollingConfigNel: CustomsValidatedNel[LogNotificationCountsPollingConfig] =
+      (logNotificationCountsEnabledNel,
+        logNotificationCountsPollingIntervalNel
+    ).mapN(LogNotificationCountsPollingConfig)
+
     val validatedConfig: CustomsValidatedNel[CustomsNotificationConfig] = (
       authTokenInternalNel,
       notificationQueueConfigNel,
       pushNotificationConfig,
       pullExcludeConfig,
       notificationMetricsConfigNel,
-      unblockPollingConfigNel
+      unblockPollingConfigNel,
+      logNotificationCountsPollingConfigNel
     ).mapN(CustomsNotificationConfigImpl)
 
       /*
@@ -167,4 +178,5 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
   override val unblockPollingConfig: UnblockPollingConfig = config.unblockPollingConfig
 
+  override val logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig = config.logNotificationCountsPollingConfig
 }

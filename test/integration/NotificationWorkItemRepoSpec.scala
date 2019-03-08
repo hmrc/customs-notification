@@ -48,6 +48,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val clock: Clock = Clock.systemUTC()
   private val five = 5
   private val mockUnblockPollingConfig = mock[UnblockPollingConfig]
+  private val mockLogNotificationCountsPollingConfig = mock[LogNotificationCountsPollingConfig]
   private val mockConfiguration = mock[Configuration]
 
   private val pushConfig = PushNotificationConfig(
@@ -77,6 +78,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       override def pullExcludeConfig: PullExcludeConfig = mock[PullExcludeConfig]
       override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]
       override def unblockPollingConfig: UnblockPollingConfig = mockUnblockPollingConfig
+      override def logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig = mockLogNotificationCountsPollingConfig
     }
   }
 

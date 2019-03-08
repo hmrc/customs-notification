@@ -19,6 +19,7 @@ package unit.services
 import akka.actor.ActorSystem
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.UnblockPollingConfig
@@ -33,24 +34,22 @@ import scala.concurrent.duration._
 
 class UnblockPollingServiceSpec extends UnitSpec
   with MockitoSugar
+  with Eventually
   with BeforeAndAfterEach {
-  private val notificationWorkItemRepoMock = mock[NotificationWorkItemRepo]
-  private val configServiceMock = mock[ConfigService]
-  private val mockCdsLogger= mock[CdsLogger]
-  val testActorSystem = ActorSystem("UnblockPollingService")
 
-  override def beforeEach(): Unit = {
-    reset(notificationWorkItemRepoMock, configServiceMock)
+  trait Setup {
+    protected val notificationWorkItemRepoMock = mock[NotificationWorkItemRepo]
+    protected val configServiceMock = mock[ConfigService]
+    protected val mockCdsLogger= mock[CdsLogger]
+    protected val testActorSystem = ActorSystem("UnblockPollingService")
+    protected val mockUnblockPollingConfig = mock[UnblockPollingConfig]
+    when(configServiceMock.unblockPollingConfig).thenReturn(mockUnblockPollingConfig)
   }
 
   "UnblockPollingService" should {
 
-    "should poll the database and unblock any blocked notifications" in {
-
-      val mockUnblockPollingConfig = mock[UnblockPollingConfig]
-
+    "should poll the database and unblock any blocked notifications" in new Setup {
       when(notificationWorkItemRepoMock.unblock()).thenReturn(Future.successful(2))
-      when(configServiceMock.unblockPollingConfig).thenReturn(mockUnblockPollingConfig)
       when(mockUnblockPollingConfig.pollingEnabled) thenReturn true
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(50.milliseconds)
 
@@ -59,14 +58,10 @@ class UnblockPollingServiceSpec extends UnitSpec
           notificationWorkItemRepoMock,
           mockCdsLogger)
 
-      Thread.sleep(100)
-      verify(notificationWorkItemRepoMock, times(2)).unblock()
+      eventually(verify(notificationWorkItemRepoMock, times(2)).unblock())
     }
 
-    "should not poll the database when disabled" in {
-      val mockUnblockPollingConfig = mock[UnblockPollingConfig]
-
-      when(configServiceMock.unblockPollingConfig).thenReturn(mockUnblockPollingConfig)
+    "should not poll the database when disabled" in new Setup {
       when(mockUnblockPollingConfig.pollingEnabled).thenReturn(false)
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(5.seconds)
 
@@ -75,7 +70,7 @@ class UnblockPollingServiceSpec extends UnitSpec
         notificationWorkItemRepoMock,
         mockCdsLogger)
 
-      verify(notificationWorkItemRepoMock, never).unblock()
+      eventually(verify(notificationWorkItemRepoMock, never).unblock())
     }
   }
 }
