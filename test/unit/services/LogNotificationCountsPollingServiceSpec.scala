@@ -69,7 +69,8 @@ class LogNotificationCountsPollingServiceSpec extends UnitSpec
       val service = new LogNotificationCountsPollingService(mockClientNotificationRepo, testActorSystem, mockCustomsNotificationConfig, mockLogger)
 
       Thread.sleep(1000)
-      eventually(PassByNameVerifier(mockLogger, "info")
+      eventually(
+        PassByNameVerifier(mockLogger, "info")
         .withByNameParam("current notification counts in descending order: \ncsid1 count: 2 latest: 2017-07-04T13:45:00.000Z\ncsid2 count: 1 latest: 2017-07-04T13:45:00.001Z")
         .verify()
       )
@@ -81,7 +82,8 @@ class LogNotificationCountsPollingServiceSpec extends UnitSpec
       val service = new LogNotificationCountsPollingService(mockClientNotificationRepo, testActorSystem, mockCustomsNotificationConfig, mockLogger)
 
       Thread.sleep(1000)
-      eventually(PassByNameVerifier(mockLogger, "error")
+      eventually(
+        PassByNameVerifier(mockLogger, "error")
         .withByNameParam("failed to get notification counts due to Emulated service failure.")
         .verify()
       )
