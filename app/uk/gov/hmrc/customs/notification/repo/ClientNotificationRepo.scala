@@ -26,7 +26,7 @@ import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscriptionId, CustomsNotificationConfig, NotificationCount}
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.mongo.ReactiveRepository
 
@@ -45,6 +45,8 @@ trait ClientNotificationRepo {
   def delete(clientNotification: ClientNotification): Future[Unit]
 
   def failedPushNotificationsExist(): Future[Boolean]
+
+  def notificationCountByCsid(): Future[List[NotificationCount]]
 }
 
 @Singleton
@@ -135,5 +137,22 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
       case None => false
     }
 
+  }
+
+  override def notificationCountByCsid(): Future[List[NotificationCount]] = {
+    import collection.BatchCommands.AggregationFramework._
+
+    collection.aggregatorContext[NotificationCount](
+      Group(Json.obj("csid" -> "$csid"))("notificationCount" -> SumAll,
+                                                "latestNotification" -> MaxField("timeReceived")),
+      List(Sort(Descending("notificationCount")),
+        Project(Json.obj("_id" -> 0,
+          "csid" -> "$_id.csid",
+          "notificationCount" -> "$notificationCount",
+          "latestNotification" -> "$latestNotification"
+        ))))
+      .prepared
+      .cursor
+      .collect[List](-1, reactivemongo.api.Cursor.FailOnError[List[NotificationCount]]())
   }
 }

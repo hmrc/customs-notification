@@ -47,6 +47,8 @@ case class NotificationMetricsConfig(baseUrl: String)
 
 case class UnblockPollingConfig(pollingEnabled: Boolean, pollingDelay: FiniteDuration)
 
+case class LogNotificationCountsPollingConfig(pollingEnabled: Boolean, pollingInterval: FiniteDuration)
+
 // TODO: pull up all other service config into here
 @ImplementedBy(classOf[ConfigService])
 trait CustomsNotificationConfig {
@@ -61,4 +63,6 @@ trait CustomsNotificationConfig {
   def notificationMetricsConfig: NotificationMetricsConfig
 
   def unblockPollingConfig: UnblockPollingConfig
+
+  def logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig
 }

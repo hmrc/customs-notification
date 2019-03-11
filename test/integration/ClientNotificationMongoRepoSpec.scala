@@ -66,6 +66,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
   )
   private val metricsConfig: NotificationMetricsConfig = NotificationMetricsConfig("http://abc.com")
   private val unblockConfig: UnblockPollingConfig = UnblockPollingConfig(pollingEnabled = true, 1 seconds)
+  private val logNotificationCountsConfig: LogNotificationCountsPollingConfig = LogNotificationCountsPollingConfig(pollingEnabled = true, 1 seconds)
   private val TenThousand = 10000
   private val pullExcludeConfigZeroMillis = PullExcludeConfig(pullExcludeEnabled = true, emailAddress = "some.address@domain.com",
     notificationsOlderMillis = 0, csIdsToExclude = Seq("eaca01f9-ec3b-4ede-b263-61b626dde232"), "some-email-url", 0 seconds, 0 minutes)
@@ -89,6 +90,7 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       override def pullExcludeConfig: PullExcludeConfig = pullExcludeConfigZeroMillis.copy(notificationsOlderMillis = notificationsOlder)
       override def notificationMetricsConfig: NotificationMetricsConfig = metricsConfig
       override def unblockPollingConfig: UnblockPollingConfig = unblockConfig
+      override def logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig = logNotificationCountsConfig
     }
     config
   }
@@ -255,5 +257,18 @@ class ClientNotificationMongoRepoSpec extends UnitSpec
       exists shouldBe false
     }
 
+    "count notifications by csid" in {
+      await(repository.save(client1Notification1))
+      await(repository.save(client1Notification2))
+      await(repository.save(client2Notification1))
+      await(repository.save(client1Notification3))
+
+      val notificationsByCsid = await(repository.notificationCountByCsid())
+      val clientNotifications = await(repository.fetch(validClientSubscriptionId1))
+
+      notificationsByCsid.size shouldBe 2
+      notificationsByCsid.head.notificationCount shouldBe 3
+      notificationsByCsid.head.latestNotification shouldBe clientNotifications(2).timeReceived.get
+    }
   }
 }

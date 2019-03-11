@@ -58,6 +58,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |unblock.polling.enabled = true
       |unblock.polling.delay.duration.milliseconds = 400
       |
+      |logCounts.polling.enabled = true
+      |logCounts.polling.interval.duration.seconds = 10
+      |
       |ttlInSeconds = 1
       |
       |push.internal.clientIds.0 = ClientIdOne
@@ -106,6 +109,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |
       |unblock.polling.enabled = true
       |unblock.polling.delay.duration.milliseconds = 400
+      |
+      |logCounts.polling.enabled = true
+      |logCounts.polling.interval.duration.seconds = 10
       |
       |ttlInSeconds = 1
       |
@@ -164,6 +170,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pushNotificationConfig.retryInProgressRetryAfter shouldBe (3 seconds)
       actual.pushNotificationConfig.retryPollerInstances shouldBe 3
       actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
+      actual.logNotificationCountsPollingConfig.pollingInterval shouldBe (10 seconds)
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -176,6 +183,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.pullExcludeConfig.notificationsOlderMillis shouldBe 5000
       actual.pushNotificationConfig.ttlInSeconds shouldBe 1
       actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
+      actual.logNotificationCountsPollingConfig.pollingInterval shouldBe (10 seconds)
       actual.pushNotificationConfig.retryPollerEnabled shouldBe true
       actual.pushNotificationConfig.retryInitialPollingInterval shouldBe (700 milliseconds)
       actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
@@ -207,7 +215,9 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config customs-notification-metrics.host
                        |Service configuration not found for key: customs-notification-metrics.context
                        |Could not find config key 'unblock.polling.enabled'
-                       |Could not find config key 'unblock.polling.delay.duration.milliseconds'""".stripMargin
+                       |Could not find config key 'unblock.polling.delay.duration.milliseconds'
+                       |Could not find config key 'logCounts.polling.enabled'
+                       |Could not find config key 'logCounts.polling.interval.duration.seconds'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 
