@@ -30,7 +30,7 @@ import uk.gov.hmrc.customs.notification.services.{NotificationDispatcher, Notifi
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

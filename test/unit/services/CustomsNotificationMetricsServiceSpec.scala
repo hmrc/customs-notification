@@ -31,6 +31,7 @@ import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
 import scala.concurrent.Future
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
 

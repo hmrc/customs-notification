@@ -30,8 +30,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, CustomsNotificationRetryService, CustomsNotificationService, DateTimeService}
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
@@ -65,6 +64,7 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
                                                        val callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                                        val configService: CustomsNotificationConfig,
                                                        val dateTimeService: DateTimeService)
+                                                      (implicit ec: ExecutionContext)
                extends BaseController with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
@@ -133,6 +133,7 @@ class CustomsNotificationClientWorkerController @Inject()(logger: NotificationLo
                                                           callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                                           configService: CustomsNotificationConfig,
                                                           dateTimeService: DateTimeService)
+                                                         (implicit ec: ExecutionContext)
   extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
 
   def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
@@ -147,6 +148,7 @@ class CustomsNotificationRetryController @Inject()(logger: NotificationLogger,
                                                    callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                                    configService: CustomsNotificationConfig,
                                                    dateTimeService: DateTimeService)
+                                                  (implicit ec: ExecutionContext)
   extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
 
   def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {

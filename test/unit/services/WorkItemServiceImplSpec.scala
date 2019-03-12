@@ -22,6 +22,7 @@ import org.joda.time.DateTimeZone
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain.{HasId, HttpResultError}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -32,7 +33,6 @@ import uk.gov.hmrc.workitem.{Failed, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
@@ -55,7 +55,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val httpResultError = HttpResultError(Helpers.NOT_FOUND, exception)
     private[WorkItemServiceImplSpec] val eventualFailed = Future.failed(exception)
 
-    def verifyErrorLog(msg: String) = {
+    private[WorkItemServiceImplSpec] def verifyErrorLog(msg: String) = {
       PassByNameVerifier(mockLogger, "error")
         .withByNameParam(msg)
         .withByNameParamMatcher(any[Throwable])
@@ -63,7 +63,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
         .verify()
     }
 
-    def verifyInfoLog(msg: String) = {
+    private[WorkItemServiceImplSpec] def verifyInfoLog(msg: String) = {
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam(msg)
         .withParamMatcher(any[HasId])

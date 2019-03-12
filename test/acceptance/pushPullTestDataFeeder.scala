@@ -25,10 +25,11 @@ import util.ApiSubscriptionFieldsService
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.util.Random
 import scala.xml.NodeSeq
+
+import play.api.libs.concurrent.Execution.Implicits.defaultContext // contains blocking code so uses standard scala ExecutionContext
 
 case class Client(csid: UUID, isPushEnabled: Boolean, callbackData: DeclarantCallbackData)
 

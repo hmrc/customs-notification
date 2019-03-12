@@ -21,6 +21,7 @@ import java.time.Clock
 import org.joda.time.DateTime
 import org.scalatest.{Matchers, OptionValues}
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.Result
 import play.api.test.Helpers._
 import play.api.{Application, Configuration}
@@ -34,7 +35,6 @@ import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.workitem._
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.Utility.trim
 import scala.xml.XML.loadString

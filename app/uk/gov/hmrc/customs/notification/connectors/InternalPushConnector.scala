@@ -25,14 +25,14 @@ import uk.gov.hmrc.customs.notification.domain.{NonHttpError, PushNotificationRe
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 
 @Singleton
 class InternalPushConnector @Inject()(http: HttpClient,
-                                      logger: CdsLogger) extends MapResultError {
+                                      logger: CdsLogger)
+                                     (implicit ec: ExecutionContext) extends MapResultError {
 
   def send(pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
 

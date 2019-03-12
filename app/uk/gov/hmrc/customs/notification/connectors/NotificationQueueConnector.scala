@@ -25,11 +25,11 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotif
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, configServices: CustomsNotificationConfig) {
+class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, configServices: CustomsNotificationConfig)
+                                          (implicit ec: ExecutionContext) {
 
   //TODO: handle POST failure scenario after Trade Test
   def enqueue(request: ClientNotification): Future[HttpResponse] = {

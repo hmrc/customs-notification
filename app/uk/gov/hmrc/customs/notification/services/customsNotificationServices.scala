@@ -25,7 +25,7 @@ import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, Notificati
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, Succeeded, WorkItem}
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.xml.NodeSeq

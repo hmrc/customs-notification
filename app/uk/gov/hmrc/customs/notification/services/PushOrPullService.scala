@@ -21,8 +21,7 @@ import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MapResultError, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, DeclarantCallbackData, HasId, NonHttpError, NotificationWorkItem, PushNotificationRequest, PushNotificationRequestBody, ResultError}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 
@@ -38,7 +37,8 @@ class PushOrPullService @Inject()(
   callbackDetailsConnector: ApiSubscriptionFieldsConnector,
   pushOutboundSwitchService: OutboundSwitchService,
   pull: NotificationQueueConnector
-) extends MapResultError {
+)
+(implicit ec: ExecutionContext) extends MapResultError {
 
   def send(n: NotificationWorkItem): Future[Either[PushOrPullError, ConnectorSource]] = {
     implicit val hasId = n

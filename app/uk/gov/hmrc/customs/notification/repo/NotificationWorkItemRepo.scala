@@ -35,8 +35,7 @@ import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtension
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @ImplementedBy(classOf[NotificationWorkItemMongoRepo])
 trait NotificationWorkItemRepo {
@@ -62,6 +61,7 @@ class NotificationWorkItemMongoRepo @Inject()(reactiveMongoComponent: ReactiveMo
                                               customsNotificationConfig: CustomsNotificationConfig,
                                               logger: CdsLogger,
                                               configuration: Configuration)
+                                             (implicit ec: ExecutionContext)
 extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         collectionName = "notifications-work-item",
         mongo = reactiveMongoComponent.mongoConnector.db,

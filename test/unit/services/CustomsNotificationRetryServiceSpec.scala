@@ -33,7 +33,7 @@ import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, ResultStatus, Succee
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.Future
 import scala.xml.Elem
 

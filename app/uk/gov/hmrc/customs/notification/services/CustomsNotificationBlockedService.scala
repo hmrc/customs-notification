@@ -21,12 +21,12 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.ClientId
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class CustomsNotificationBlockedService @Inject() (logger: CdsLogger,
-                                                   notificationWorkItemRepo: NotificationWorkItemRepo) {
+                                                   notificationWorkItemRepo: NotificationWorkItemRepo)
+                                                  (implicit ec: ExecutionContext) {
 
   def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count for clientId ${clientId.id}")

@@ -21,6 +21,7 @@ import java.time.Clock
 import org.joda.time.DateTime
 import org.scalatest.{Matchers, OptionValues}
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.api.{Application, Configuration}
@@ -35,7 +36,6 @@ import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus, WorkItemFieldN
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class CustomsNotificationRetrySpec extends AcceptanceTestSpec

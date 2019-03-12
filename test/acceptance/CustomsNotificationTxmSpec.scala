@@ -31,7 +31,7 @@ import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 
 class CustomsNotificationTxmSpec extends AcceptanceTestSpec
   with Matchers with OptionValues

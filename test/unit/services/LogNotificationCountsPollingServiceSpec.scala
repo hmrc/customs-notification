@@ -21,6 +21,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo
@@ -29,7 +30,6 @@ import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.emulatedServiceFailure
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
