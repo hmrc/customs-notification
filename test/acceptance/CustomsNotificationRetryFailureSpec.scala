@@ -19,6 +19,7 @@ package acceptance
 import org.scalatest.{Matchers, OptionValues}
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc._
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
@@ -27,7 +28,6 @@ import uk.gov.hmrc.workitem._
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec

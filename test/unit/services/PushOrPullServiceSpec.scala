@@ -27,6 +27,7 @@ import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
 
 import scala.concurrent.Future
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 

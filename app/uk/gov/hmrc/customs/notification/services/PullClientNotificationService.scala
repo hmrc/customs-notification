@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 

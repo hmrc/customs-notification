@@ -23,6 +23,7 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.Configuration
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem, _}
@@ -34,7 +35,6 @@ import uk.gov.hmrc.workitem._
 import unit.logging.StubCdsLogger
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 

@@ -23,15 +23,14 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 
 import scala.util.control.NonFatal
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class CustomsNotificationMetricsService @Inject() (
   logger: NotificationLogger,
   metricsConnector: CustomsNotificationMetricsConnector,
   dateTimeService: DateTimeService
-) {
+)(implicit ec: ExecutionContext) {
 
   def notificationMetric(notificationWorkItem: NotificationWorkItem): Future[Unit] = {
     implicit val hasId = notificationWorkItem

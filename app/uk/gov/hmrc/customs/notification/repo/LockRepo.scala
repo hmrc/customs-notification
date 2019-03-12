@@ -29,13 +29,13 @@ import uk.gov.hmrc.lock.{ExclusiveTimePeriodLock, LockFormats, LockRepository}
 import uk.gov.hmrc.mongo.CurrentTime
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 case class LockOwnerId(id: String) extends AnyVal
 
 @Singleton
-class LockRepo @Inject()(reactiveMongoComponent: ReactiveMongoComponent) extends CurrentTime {
+class LockRepo @Inject()(reactiveMongoComponent: ReactiveMongoComponent)
+                        (implicit ec: ExecutionContext) extends CurrentTime {
 
   val repo = new LockRepository()(reactiveMongoComponent.mongoConnector.db)
 

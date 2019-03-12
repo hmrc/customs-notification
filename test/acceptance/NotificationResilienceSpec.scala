@@ -29,7 +29,7 @@ import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 
 class NotificationResilienceSpec extends AcceptanceTestSpec
   with Matchers with OptionValues

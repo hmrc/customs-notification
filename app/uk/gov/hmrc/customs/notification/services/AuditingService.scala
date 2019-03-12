@@ -27,11 +27,12 @@ import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
 import uk.gov.hmrc.time.DateTimeUtils
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 @Singleton
-class AuditingService @Inject()(logger: NotificationLogger, servicesConfig: ServicesConfig, auditConnector: AuditConnector) {
+class AuditingService @Inject()(logger: NotificationLogger, servicesConfig: ServicesConfig, auditConnector: AuditConnector)
+                               (implicit ec: ExecutionContext) {
 
   private val appName = "customs-notification"
   private val transactionNameValue = "customs-declaration-outbound-call"
@@ -44,7 +45,8 @@ class AuditingService @Inject()(logger: NotificationLogger, servicesConfig: Serv
 
   private val failureReasonKey = "failureReason"
 
-  def auditFailedNotification(pnr: PushNotificationRequest, failureReason: Option[String])(implicit rm: HasId): Unit = {
+  def auditFailedNotification(pnr: PushNotificationRequest, failureReason: Option[String])
+                             (implicit rm: HasId): Unit = {
     auditNotification(pnr, "FAILURE", failureReason)
   }
 

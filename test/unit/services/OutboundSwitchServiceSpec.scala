@@ -20,6 +20,7 @@ import org.mockito.ArgumentMatchers.{any, eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.{ExternalPushConnector, InternalPushConnector}
 import uk.gov.hmrc.customs.notification.domain._

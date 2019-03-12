@@ -30,8 +30,7 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, ClientSubscr
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.mongo.ReactiveRepository
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @ImplementedBy(classOf[ClientNotificationMongoRepo])
 trait ClientNotificationRepo {
@@ -55,6 +54,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
                                             lockRepo: LockRepo,
                                             errorHandler: ClientNotificationRepositoryErrorHandler,
                                             logger: CdsLogger)
+                                           (implicit ec: ExecutionContext)
   extends ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",
     mongo = reactiveMongoComponent.mongoConnector.db,

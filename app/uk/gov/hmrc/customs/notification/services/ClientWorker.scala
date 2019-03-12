@@ -31,7 +31,7 @@ import uk.gov.hmrc.customs.notification.logging.LoggingHelper.logMsgPrefix
 import uk.gov.hmrc.customs.notification.repo.{ClientNotificationRepo, LockOwnerId, LockRepo}
 
 import scala.collection.immutable.Seq
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.duration.{DurationDouble, FiniteDuration}
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps

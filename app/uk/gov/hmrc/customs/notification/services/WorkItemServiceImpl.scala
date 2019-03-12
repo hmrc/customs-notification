@@ -16,18 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import cats.data.OptionT
-import cats.implicits._
 import com.google.inject.ImplementedBy
 import javax.inject.Inject
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @ImplementedBy(classOf[WorkItemServiceImpl])
@@ -37,11 +34,12 @@ trait WorkItemService {
 }
 
 class WorkItemServiceImpl @Inject()(
-                                             repository: NotificationWorkItemMongoRepo,
-                                             pushOrPullService: PushOrPullService,
-                                             dateTimeService: DateTimeService,
-                                             logger: NotificationLogger
-  ) extends WorkItemService {
+    repository: NotificationWorkItemMongoRepo,
+    pushOrPullService: PushOrPullService,
+    dateTimeService: DateTimeService,
+    logger: NotificationLogger
+  )
+  (implicit ec: ExecutionContext) extends WorkItemService {
 
   def processOne(): Future[Boolean] = {
 

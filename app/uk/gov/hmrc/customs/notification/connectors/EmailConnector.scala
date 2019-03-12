@@ -23,11 +23,11 @@ import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, SendE
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class EmailConnector @Inject()(http: HttpClient, logger: CdsLogger, configService: CustomsNotificationConfig) {
+class EmailConnector @Inject()(http: HttpClient, logger: CdsLogger, configService: CustomsNotificationConfig)
+                              (implicit ec: ExecutionContext) {
 
   private val emailUrl = configService.pullExcludeConfig.emailUrl
   private implicit val hc = HeaderCarrier()

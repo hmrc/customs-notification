@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.repo.{LockOwnerId, LockRepo}
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.Future
 
 @ImplementedBy(classOf[NotificationDispatcherImpl])

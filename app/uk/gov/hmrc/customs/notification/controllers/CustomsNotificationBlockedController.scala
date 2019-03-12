@@ -28,12 +28,12 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class CustomsNotificationBlockedController @Inject()(val logger: NotificationLogger,
                                                      val customsNotificationBlockedService: CustomsNotificationBlockedService)
+                                                    (implicit ec: ExecutionContext)
   extends BaseController {
 
   def blockedCount(): Action[AnyContent] = Action.async {

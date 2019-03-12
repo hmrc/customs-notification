@@ -21,6 +21,7 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.UnblockPollingConfig
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
@@ -28,7 +29,6 @@ import uk.gov.hmrc.customs.notification.services.UnblockPollingService
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.test.UnitSpec
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

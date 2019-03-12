@@ -20,6 +20,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Matchers, OptionValues}
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
@@ -27,8 +28,6 @@ import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
 import util.TestData._
 import util._
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class FailedPushEmailSpec  extends AcceptanceTestSpec
   with Matchers
