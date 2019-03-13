@@ -36,6 +36,7 @@ class LogNotificationCountsPollingService @Inject()(clientNotificationRepo: Clie
 
   if (logCountsEnabled) {
     actorSystem.scheduler.schedule(0.seconds, interval) {
+      logger.debug(s"running log notification counts scheduler with an initial delay of 0 seconds and an interval of $interval")
       clientNotificationRepo.notificationCountByCsid().map { counts =>
         val notificationCounts = counts.mkString("\n")
         logger.info(s"current notification counts in descending order: \n$notificationCounts")
