@@ -187,7 +187,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
-      val result = await(repository.toPermanentlyFailedByClientId(validClientSubscriptionId1))
+      val result = await(repository.toPermanentlyFailedByCsId(validClientSubscriptionId1))
 
       result shouldBe 0
     }
@@ -199,7 +199,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val wiClient1Two = await(repository.pushNew(NotificationWorkItem1, nowAsJoda, failed _))
       val wiClient3One = await(repository.pushNew(NotificationWorkItem3, nowAsJoda, failed _))
 
-      val result = await(repository.toPermanentlyFailedByClientId(validClientSubscriptionId1))
+      val result = await(repository.toPermanentlyFailedByCsId(validClientSubscriptionId1))
 
       result shouldBe 2
       await(repository.findById(wiClient1One.id)).get.status shouldBe PermanentlyFailed
@@ -231,7 +231,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
 
-      val result = await(repository.permanentlyFailedByClientIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.permanentlyFailedByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe true
     }
@@ -243,7 +243,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
-      val result = await(repository.toPermanentlyFailedByClientId(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.toPermanentlyFailedByCsId(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe 2
     }
@@ -254,7 +254,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
-      val result = await(repository.distinctPermanentlyFailedByCsid())
+      val result = await(repository.distinctPermanentlyFailedByCsId())
 
       result should contain (ClientSubscriptionId(validClientSubscriptionId1UUID))
       result should contain (ClientSubscriptionId(validClientSubscriptionId2UUID))
@@ -267,7 +267,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
-      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1))
+      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1))
 
       result.get.status shouldBe InProgress
       result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
@@ -280,7 +280,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
-      val result = await(repository.toFailedByCsid(validClientSubscriptionId1))
+      val result = await(repository.toFailedByCsId(validClientSubscriptionId1))
 
       result shouldBe 2
       await(repository.findById(changed.id)).get.status shouldBe Failed

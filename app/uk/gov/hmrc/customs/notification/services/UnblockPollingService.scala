@@ -38,21 +38,21 @@ class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
     val pollingDelay: FiniteDuration = config.unblockPollingConfig.pollingDelay
 
       actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
-        notificationWorkItemRepo.distinctPermanentlyFailedByCsid().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
-          logger.info(s"Un-blocker - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
+        notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
+          logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
           permanentlyFailedCsids.foreach { csid =>
-            notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsid(csid).map {
+            notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsId(csid).map {
               case Some(workItem) =>
                 pushOrPull(workItem).foreach(ok =>
                   if (ok) {
                     // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
-                    notificationWorkItemRepo.toFailedByCsid(csid).foreach{count =>
-                      logger.info(s"Un-blocker - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
+                    notificationWorkItemRepo.toFailedByCsId(csid).foreach{ count =>
+                      logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
                     }
                   }
                 )
               case None =>
-                logger.info(s"Un-blocker found no PermanentlyFailed notifications for CsId ${csid.toString}")
+                logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
               }
             }
           }
@@ -66,14 +66,14 @@ class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
 
     pushOrPullService.send(workItem.item).map[Boolean]{
       case Right(connector) =>
-        logger.info(s"Un-blocker pilot retry succeeded for $connector for notification ${workItem.item}")
+        logger.info(s"Unblock pilot retry succeeded for $connector for notification ${workItem.item}")
         true
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Un-blocker pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}")
+        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}")
         false
     }.recover{
       case NonFatal(e) => // Should never happen
-        logger.error(s"Un-blocker - error with pilot unblock of notification ${workItem.item}", e)
+        logger.error(s"Unblock - error with pilot unblock of notification ${workItem.item}", e)
         false
     }
 

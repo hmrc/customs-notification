@@ -73,9 +73,9 @@ class UnblockPollingServiceSpec extends UnitSpec
   "UnblockPollingService" should {
 
     "should poll the database and unblock any blocked notifications when ONE distinct CsId found" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsid()).thenReturn(Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
-      when(notificationWorkItemRepoMock.toFailedByCsid(validClientSubscriptionId1)).thenReturn(Future.successful(CountOfChangedStatuses))
+      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.toFailedByCsId(validClientSubscriptionId1)).thenReturn(Future.successful(CountOfChangedStatuses))
       when(mockPushOrPullService.send(WorkItem1.item)).thenReturn(Future.successful(Right(Push)))
       when(mockUnblockPollingConfig.pollingEnabled) thenReturn true
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -87,18 +87,18 @@ class UnblockPollingServiceSpec extends UnitSpec
           mockCdsLogger)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsid()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(WorkItem1.item)
-        verify(notificationWorkItemRepoMock, times(1)).toFailedByCsid(validClientSubscriptionId1)
-        verifyInfoLog("Un-blocker - discovered 1 blocked csids (i.e. with status of permanently-failed)")
-        verifyInfoLog("Un-blocker pilot retry succeeded for Push for notification NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
-        verifyInfoLog("Un-blocker - number of notifications set from PermanentlyFailed to Failed = 2 for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
+        verify(notificationWorkItemRepoMock, times(1)).toFailedByCsId(validClientSubscriptionId1)
+        verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
+        verifyInfoLog("Unblock pilot retry succeeded for Push for notification NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
+        verifyInfoLog("Unblock - number of notifications set from PermanentlyFailed to Failed = 2 for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
       }
     }
 
     "should poll the database and NOT unblock any blocked notifications when NO distinct CsId found" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsid()).thenReturn(Future.successful(Set.empty[ClientSubscriptionId]))
+      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(Set.empty[ClientSubscriptionId]))
       when(mockUnblockPollingConfig.pollingEnabled) thenReturn true
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
 
@@ -109,14 +109,14 @@ class UnblockPollingServiceSpec extends UnitSpec
         mockCdsLogger)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsid()
+        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verifyZeroInteractions(mockPushOrPullService)
       }
     }
 
     "should poll the database and NOT unblock any blocked notifications when pull for CsId returns None" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsid()).thenReturn(Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1)).thenReturn(None)
+      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(None)
       when(mockUnblockPollingConfig.pollingEnabled) thenReturn true
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
 
@@ -128,14 +128,14 @@ class UnblockPollingServiceSpec extends UnitSpec
 
       eventually {
         verifyZeroInteractions(mockPushOrPullService)
-        verifyInfoLog("Un-blocker - discovered 1 blocked csids (i.e. with status of permanently-failed)")
-        verifyInfoLog("Un-blocker found no PermanentlyFailed notifications for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
+        verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
+        verifyInfoLog("Unblock found no PermanentlyFailed notifications for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
       }
     }
 
     "should poll the database and NOT unblock any blocked notifications when Push/Pull fails" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsid()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(WorkItem1.item)).thenReturn(Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.NOT_FOUND, BoomException)))))
       when(mockUnblockPollingConfig.pollingEnabled) thenReturn true
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -147,18 +147,18 @@ class UnblockPollingServiceSpec extends UnitSpec
         mockCdsLogger)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsid()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(WorkItem1.item)
-        verify(notificationWorkItemRepoMock, times(0)).toFailedByCsid(validClientSubscriptionId1)
-        verifyInfoLog("Un-blocker - discovered 1 blocked csids (i.e. with status of permanently-failed)")
-        verifyInfoLog("Un-blocker pilot send for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232")
+        verify(notificationWorkItemRepoMock, times(0)).toFailedByCsId(validClientSubscriptionId1)
+        verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
+        verifyInfoLog("Unblock pilot send for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232")
       }
     }
 
     "should poll the database and recover from Push/Pull failure" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsid()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(WorkItem1.item)).thenReturn(Future.failed(BoomException))
       when(mockUnblockPollingConfig.pollingEnabled) thenReturn true
       when(mockUnblockPollingConfig.pollingDelay).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -170,11 +170,11 @@ class UnblockPollingServiceSpec extends UnitSpec
         mockCdsLogger)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsid()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsid(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(WorkItem1.item)
-        verify(notificationWorkItemRepoMock, times(0)).toFailedByCsid(validClientSubscriptionId1)
-        verifyErrorLog("Un-blocker - error with pilot unblock of notification NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232," +
+        verify(notificationWorkItemRepoMock, times(0)).toFailedByCsId(validClientSubscriptionId1)
+        verifyErrorLog("Unblock - error with pilot unblock of notification NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232," +
           "ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234)," +
           " Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))")
       }
