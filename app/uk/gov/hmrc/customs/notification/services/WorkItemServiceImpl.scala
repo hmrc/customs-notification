@@ -69,7 +69,7 @@ class WorkItemServiceImpl @Inject()(
           s"PermanentlyFailed for all notifications with clientId ${workItem.item.clientId.toString}")
         (for {
           _ <- repository.setCompletedStatus(workItem.id, Failed) // increase failure count
-          _ <- repository.toPermanentlyFailedByClientId(workItem.item.clientId)
+          _ <- repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId)
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)

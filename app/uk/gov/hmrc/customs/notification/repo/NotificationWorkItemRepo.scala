@@ -30,7 +30,7 @@ import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{ClientId, CustomsNotificationConfig, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
@@ -48,11 +48,17 @@ trait NotificationWorkItemRepo {
 
   def deleteBlocked(clientId: ClientId): Future[Int]
 
-  def toPermanentlyFailedByClientId(clientId: ClientId): Future[Int]
+  def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int]
 
-  def permanentlyFailedByClientIdExists(clientId: ClientId): Future[Boolean]
+  def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
 
   def unblock(): Future[Int]
+
+  def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]]
+
+  def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
+
+  def toFailedByCsId(csid: ClientSubscriptionId): Future[Int]
 }
 
 @Singleton
@@ -103,6 +109,10 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     Index(
       key = Seq(workItemFields.status -> IndexType.Descending, workItemFields.updatedAt -> IndexType.Descending),
       name = Some(s"${workItemFields.status}-${workItemFields.updatedAt}-index"),
+      unique = false),
+    Index(
+      key = Seq("clientNotification._id" -> IndexType.Descending, workItemFields.status -> IndexType.Descending),
+      name = Some(s"csId-${workItemFields.status}-index"),
       unique = false)
   )
 
@@ -121,13 +131,13 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count (i.e. those with status of ${PermanentlyFailed.name}) for clientId ${clientId.id}")
-    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed.name)
+    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed)
     count(selector)
   }
 
   override def deleteBlocked(clientId: ClientId): Future[Int] = {
     logger.debug(s"deleting blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
-    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed.name)
+    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed)
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> Failed))
     collection.update(selector, update, multi = true).map {result =>
       logger.debug(s"deleted ${result.n} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
@@ -149,26 +159,49 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     }
   }
 
-  override def toPermanentlyFailedByClientId(clientId: ClientId): Future[Int] = {
+  override def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int] = {
     import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
-    val selector = Json.obj("clientNotification.clientId" -> clientId)
-    val update = Json.obj("$set" -> Json.obj("status" -> PermanentlyFailed, workItemFields.updatedAt -> now))
+    val selector = Json.obj("clientNotification._id" -> csId.id, workItemFields.status -> Failed)
+    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> PermanentlyFailed, workItemFields.updatedAt -> now))
     collection.update(selector, update, multi = true).map {result =>
-      logger.debug(s"updated ${result.n} notifications to have status ${PermanentlyFailed.name} for clientId ${clientId.id}")
+      logger.debug(s"updated ${result.nModified} notifications with status equal to ${Failed.name} to ${PermanentlyFailed.name} for clientId ${csId.id}")
       result.nModified
     }
   }
 
-  override def permanentlyFailedByClientIdExists(clientId: ClientId): Future[Boolean] = {
-    val selector = Json.obj("clientNotification.clientId" -> clientId.id,  "status" -> PermanentlyFailed.name)
+  override def toFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
+    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
+
+    val selector = Json.obj("clientNotification._id" -> csid.id, workItemFields.status -> PermanentlyFailed)
+    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> Failed, workItemFields.updatedAt -> now))
+    collection.update(selector, update, multi = true).map {result =>
+      logger.debug(s"updated ${result.nModified} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
+      result.nModified
+    }
+  }
+
+  override def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean] = {
+    val selector = Json.obj("clientNotification._id" -> csId.id,  workItemFields.status -> PermanentlyFailed)
 
     collection.find(selector, None)(JsObjectDocumentWriter, JsObjectDocumentWriter).one[JsValue].map { // No need for json deserialisation
       case Some(_) =>
-        logger.info(s"Found existing permanently failed notification for client id: $clientId")
+        logger.info(s"Found existing permanently failed notification for client id: $csId")
         true
       case None => false
     }
+  }
+
+  override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {
+    collection.distinct[ClientSubscriptionId, Set]("clientNotification._id", None, mongo().connection.options.readConcern, None)
+  }
+
+  override def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
+    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
+
+    val selector = Json.obj("clientNotification._id" -> csid.toString, workItemFields.status -> PermanentlyFailed)
+    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> InProgress, workItemFields.updatedAt -> now))
+    collection.findAndUpdate(selector, update, fetchNewObject = true).map(_.result[WorkItem[NotificationWorkItem]])
   }
 }
 

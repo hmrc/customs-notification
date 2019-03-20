@@ -82,7 +82,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe false
       verifyZeroInteractions(mockPushOrPull)
-      verify(mockRepo, times(0)).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
+      verify(mockRepo, times(0)).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verify(mockRepo, times(0)).setCompletedStatus(WorkItem1.id, Failed)
     }
 
@@ -117,13 +117,13 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val fieldsError = PushOrPullError(GetApiSubscriptionFields, httpResultError)
       when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(fieldsError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByClientId(WorkItem1.item.clientId)).thenReturn(Future.successful(1))
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyInfoLog("Retry failed for GetApiSubscriptionFields with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
     }
 
@@ -133,13 +133,13 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pushError = PushOrPullError(Push, httpResultError)
       when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(pushError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByClientId(WorkItem1.item.clientId)).thenReturn(Future.successful(1))
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyInfoLog("Retry failed for Push with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
     }
 
@@ -149,13 +149,13 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pullError = PushOrPullError(Pull, httpResultError)
       when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(pullError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByClientId(WorkItem1.item.clientId)).thenReturn(Future.successful(1))
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyInfoLog("Retry failed for Pull with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
     }
 
@@ -170,7 +170,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo, times(0)).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
+      verify(mockRepo, times(0)).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyErrorLog("Error updating database")
     }
 

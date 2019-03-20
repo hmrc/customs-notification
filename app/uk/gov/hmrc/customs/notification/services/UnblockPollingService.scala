@@ -19,26 +19,64 @@ package uk.gov.hmrc.customs.notification.services
 import akka.actor.ActorSystem
 import javax.inject._
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.workitem.{Failed, PermanentlyFailed}
+import uk.gov.hmrc.workitem.{PermanentlyFailed, WorkItem}
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
                                       actorSystem: ActorSystem,
                                       notificationWorkItemRepo: NotificationWorkItemRepo,
+                                      pushOrPullService: PushOrPullService,
                                       logger: CdsLogger)(implicit executionContext: ExecutionContext) {
 
   if (config.unblockPollingConfig.pollingEnabled) {
     val pollingDelay: FiniteDuration = config.unblockPollingConfig.pollingDelay
 
       actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
-        notificationWorkItemRepo.unblock().map { updated =>
-          logger.info(s"deleted $updated blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name})")
+        notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
+          logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
+          permanentlyFailedCsids.foreach { csid =>
+            notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsId(csid).map {
+              case Some(workItem) =>
+                pushOrPull(workItem).foreach(ok =>
+                  if (ok) {
+                    // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
+                    notificationWorkItemRepo.toFailedByCsId(csid).foreach{ count =>
+                      logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
+                    }
+                  }
+                )
+              case None =>
+                logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
+              }
+            }
+          }
+
         }
-      }
+  }
+
+  private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Boolean] = {
+
+    implicit val loggingContext: NotificationWorkItem = workItem.item
+
+    pushOrPullService.send(workItem.item).map[Boolean]{
+      case Right(connector) =>
+        logger.info(s"Unblock pilot retry succeeded for $connector for notification ${workItem.item}")
+        true
+      case Left(PushOrPullError(connector, resultError)) =>
+        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}")
+        false
+    }.recover{
+      case NonFatal(e) => // Should never happen
+        logger.error(s"Unblock - error with pilot unblock of notification ${workItem.item}", e)
+        false
     }
+
+  }
+
 }

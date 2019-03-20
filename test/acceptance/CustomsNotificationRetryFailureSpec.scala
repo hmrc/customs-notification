@@ -92,12 +92,6 @@ class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
       Then("the status is set to PermanentlyFailed")
       eventually(assertOneWorkItemRepoWithStatus(PermanentlyFailed))
 
-      Then("the status is set to Failed")
-      eventually(assertOneWorkItemRepoWithStatus(Failed))
-
-      Then("the status is set to PermanentlyFailed")
-      eventually(assertOneWorkItemRepoWithStatus(PermanentlyFailed))
-
       When("the Push endpoint is then setup to return a NO_CONTENT success response")
       setupPushNotificationServiceToReturn()
 
@@ -131,9 +125,6 @@ class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
 
       Then("the status is set to InProgress")
       eventually(assertOneWorkItemRepoWithStatus(InProgress))
-
-      Then("the status is set to Failed")
-      eventually(assertOneWorkItemRepoWithStatus(Failed))
 
       Then("the status is set to PermanentlyFailed")
       eventually(assertOneWorkItemRepoWithStatus(PermanentlyFailed))

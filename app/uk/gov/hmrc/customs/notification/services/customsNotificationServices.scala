@@ -91,7 +91,7 @@ class CustomsNotificationRetryService @Inject()(
       Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     (for {
-      isAnyPF <- notificationWorkItemRepo.permanentlyFailedByClientIdExists(notificationWorkItem.clientId)
+      isAnyPF <- notificationWorkItemRepo.permanentlyFailedByCsIdExists(notificationWorkItem.clientSubscriptionId)
       hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, isAnyPF, apiSubscriptionFields)
     } yield hasSaved)
       .recover {
