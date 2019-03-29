@@ -41,7 +41,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   with PushNotificationService
   with MongoSpecSupport {
 
-  private val endpoint = "/customs-notification/notify"
+  private val endpoint = "/customs-notification/notify-legacy"
 
   private val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
     collectionName = "notifications",

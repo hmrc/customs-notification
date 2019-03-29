@@ -17,7 +17,7 @@
 package unit.services
 
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields => _, _}

@@ -19,7 +19,7 @@ package unit.services
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification

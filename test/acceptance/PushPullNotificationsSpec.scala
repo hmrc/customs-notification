@@ -50,7 +50,7 @@ class PushPullNotificationsSpec extends AcceptanceTestSpec
   lazy val makeAPICall = makeLocalCall
   lazy val apiSubscriptionFieldsService = this
 
-  private val endpoint = "/customs-notification/notify"
+  private val endpoint = "/customs-notification/notify-legacy"
   private val totalNotificationsToBeSent = 100
   private val numberOfClientsToTest = 10
 

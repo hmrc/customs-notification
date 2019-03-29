@@ -38,7 +38,7 @@ class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
   with PushNotificationService
   with MongoSpecSupport {
 
-  private val endpoint = "/customs-notification/notify-retry"
+  private val endpoint = "/customs-notification/notify"
 
   private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 

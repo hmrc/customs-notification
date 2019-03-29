@@ -18,7 +18,7 @@ package unit.services
 
 import java.time.{ZoneId, ZonedDateTime}
 
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData

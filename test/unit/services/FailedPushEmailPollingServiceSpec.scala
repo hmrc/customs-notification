@@ -22,7 +22,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import uk.gov.hmrc.customs.notification.connectors.EmailConnector
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, Email, PullExcludeConfig, SendEmailRequest}
