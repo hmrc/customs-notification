@@ -21,7 +21,7 @@ import java.util.UUID.randomUUID
 import akka.actor.ActorSystem
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, PushNotificationConfig}
 import uk.gov.hmrc.customs.notification.repo.ClientNotificationRepo

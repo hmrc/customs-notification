@@ -18,7 +18,7 @@ package integration
 
 import java.util.UUID
 
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.customs.notification.domain.ClientSubscriptionId

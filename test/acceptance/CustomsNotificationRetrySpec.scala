@@ -47,7 +47,7 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
   with CustomsNotificationMetricsService
   with MongoSpecSupport {
 
-  private val endpoint = "/customs-notification/notify-retry"
+  private val endpoint = "/customs-notification/notify"
 
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
 

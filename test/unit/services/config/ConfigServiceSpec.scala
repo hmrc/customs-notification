@@ -18,7 +18,7 @@ package unit.services.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Matchers
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.{Configuration, Environment, Mode}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, ServicesConfig}
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig

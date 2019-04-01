@@ -20,7 +20,7 @@ import org.mockito.ArgumentMatchers.{any, refEq, eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
 import play.api.test.Helpers
 import reactivemongo.bson.BSONObjectID

@@ -17,7 +17,7 @@
 package unit.logging
 
 import org.mockito.ArgumentMatchers.any
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.play.test.UnitSpec
