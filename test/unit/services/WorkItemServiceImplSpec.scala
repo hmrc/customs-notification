@@ -18,6 +18,8 @@ package unit.services
 
 import java.time.{ZoneId, ZonedDateTime}
 
+import com.codahale.metrics.{Counter, MetricRegistry}
+import com.kenshoo.play.metrics.Metrics
 import org.joda.time.DateTimeZone
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
@@ -42,8 +44,11 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val mockPushOrPull = mock[PushOrPullService]
     private[WorkItemServiceImplSpec] val mockDateTime = mock[DateTimeService]
     private[WorkItemServiceImplSpec] val mockLogger = mock[NotificationLogger]
+    private[WorkItemServiceImplSpec] val mockMetrics = mock[Metrics]
+    private[WorkItemServiceImplSpec] val mockMetricRegistry: MetricRegistry = mock[MetricRegistry]
+    private[WorkItemServiceImplSpec] val mockCounter: Counter = mock[Counter]
     private[WorkItemServiceImplSpec] val service = new WorkItemServiceImpl(
-      mockRepo, mockPushOrPull, mockDateTime, mockLogger
+      mockRepo, mockPushOrPull, mockDateTime, mockLogger, mockMetrics
     )
     private[WorkItemServiceImplSpec] val UtcZoneId = ZoneId.of("UTC")
     private[WorkItemServiceImplSpec] val now: ZonedDateTime = ZonedDateTime.now(UtcZoneId)
@@ -54,6 +59,9 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val exception = new IllegalStateException("BOOM!")
     private[WorkItemServiceImplSpec] val httpResultError = HttpResultError(Helpers.NOT_FOUND, exception)
     private[WorkItemServiceImplSpec] val eventualFailed = Future.failed(exception)
+
+    when(mockMetrics.defaultRegistry).thenReturn(mockMetricRegistry)
+    when(mockMetricRegistry.counter("declaration-digital-notification-retry-total-counter")).thenReturn(mockCounter)
 
     private[WorkItemServiceImplSpec] def verifyErrorLog(msg: String) = {
       PassByNameVerifier(mockLogger, "error")
@@ -96,6 +104,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Succeeded)
+      verify(mockCounter).inc()
       verifyInfoLog("Retry succeeded for Push")
     }
 

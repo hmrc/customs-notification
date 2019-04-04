@@ -16,7 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import com.codahale.metrics.MetricRegistry
 import com.google.inject.ImplementedBy
+import com.kenshoo.play.metrics.Metrics
 import javax.inject.Inject
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -37,9 +39,12 @@ class WorkItemServiceImpl @Inject()(
     repository: NotificationWorkItemMongoRepo,
     pushOrPullService: PushOrPullService,
     dateTimeService: DateTimeService,
-    logger: NotificationLogger
+    logger: NotificationLogger,
+    metrics: Metrics
   )
   (implicit ec: ExecutionContext) extends WorkItemService {
+
+  private val metricName = "declaration-digital-notification-retry-total"
 
   def processOne(): Future[Boolean] = {
 
@@ -47,6 +52,7 @@ class WorkItemServiceImpl @Inject()(
     val availableBefore = failedBefore
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap{
       case Some(firstOutstandingItem) =>
+        recordTime(metricName, firstOutstandingItem)
         pushOrPull(firstOutstandingItem).map{_ =>
           true
         }
@@ -54,6 +60,14 @@ class WorkItemServiceImpl @Inject()(
         Future.successful(false)
     }
     eventuallyProcessedOne
+  }
+
+  lazy val registry: MetricRegistry = metrics.defaultRegistry
+
+  def recordTime(metric: String, workItem: WorkItem[NotificationWorkItem]): Unit = {
+    implicit val loggingContext = workItem.item
+    logger.debug(s"incrementing counter for metric: $metric")
+    registry.counter(s"$metric-counter").inc()
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
