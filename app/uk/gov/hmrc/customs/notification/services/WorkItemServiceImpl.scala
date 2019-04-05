@@ -52,7 +52,7 @@ class WorkItemServiceImpl @Inject()(
     val availableBefore = failedBefore
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap{
       case Some(firstOutstandingItem) =>
-        recordTime(metricName, firstOutstandingItem)
+        incrementCountMetric(metricName, firstOutstandingItem)
         pushOrPull(firstOutstandingItem).map{_ =>
           true
         }
@@ -64,7 +64,7 @@ class WorkItemServiceImpl @Inject()(
 
   lazy val registry: MetricRegistry = metrics.defaultRegistry
 
-  def recordTime(metric: String, workItem: WorkItem[NotificationWorkItem]): Unit = {
+  def incrementCountMetric(metric: String, workItem: WorkItem[NotificationWorkItem]): Unit = {
     implicit val loggingContext = workItem.item
     logger.debug(s"incrementing counter for metric: $metric")
     registry.counter(s"$metric-counter").inc()
