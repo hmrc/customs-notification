@@ -144,7 +144,6 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
         eventually(verify(mockNotificationWorkItemRepo).permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId))
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
         eventually(verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
-        infoLogVerifier("Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
         eventually(assert(returnTimeOfPush > returnTimeOfSavedToDb, "Save to database did not happen before push"))
       }
     }

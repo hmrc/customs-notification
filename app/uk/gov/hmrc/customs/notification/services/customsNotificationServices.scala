@@ -105,9 +105,14 @@ class CustomsNotificationRetryService @Inject()(
                                                                 isAnyPF: Boolean,
                                                                 apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId): Future[HasSaved] = {
 
-    logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
-      s"Setting notification to permanently failed")
-    val status = if (isAnyPF) PermanentlyFailed else InProgress
+    val status = if (isAnyPF) {
+        logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
+          "Setting notification to permanently failed")
+        PermanentlyFailed
+      }
+      else {
+        InProgress
+      }
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
       workItem => {
