@@ -207,24 +207,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.findById(wiClient3One.id)).get.status shouldBe Failed
     }
 
-
-    //TODO: verify updatedAt
-    "update all blocked notifications to unblocked" in {
-
-      when(mockUnblockPollingConfig.pollingDelay).thenReturn(1 second)
-      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
-      val item2 = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
-      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
-      Thread.sleep(1000)
-      val item3 = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
-
-      val result = await(repository.unblock())
-
-      result shouldBe 2
-      await(repository.findById(item2.id)).get.status shouldBe Failed
-      await(repository.findById(item3.id)).get.status shouldBe PermanentlyFailed
-    }
-
     "return true when at least one permanently failed items exist for client id" in {
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))

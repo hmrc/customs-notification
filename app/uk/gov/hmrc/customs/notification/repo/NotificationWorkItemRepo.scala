@@ -52,8 +52,6 @@ trait NotificationWorkItemRepo {
 
   def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
 
-  def unblock(): Future[Int]
-
   def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]]
 
   def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
@@ -142,20 +140,6 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     collection.update(selector, update, multi = true).map {result =>
       logger.debug(s"deleted ${result.n} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
       result.n
-    }
-  }
-
-  override def unblock(): Future[Int] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
-
-    val lessTenPercentIntervalInMillis = customsNotificationConfig.unblockPollingConfig.pollingDelay.toMillis * 0.9
-    val onlyUnblockBefore = now.minusMillis(lessTenPercentIntervalInMillis.toInt)
-    logger.debug(s"unblocking all blocked notifications before $onlyUnblockBefore")
-
-    val selector = Json.obj(workItemFields.status -> PermanentlyFailed, workItemFields.updatedAt -> Json.obj("$lt" -> onlyUnblockBefore))
-    val update = Json.obj("$set" -> Json.obj(workItemFields.updatedAt -> now, workItemFields.status -> Failed))
-    collection.update(selector, update, multi = true).map {result =>
-      result.nModified
     }
   }
 
