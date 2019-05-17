@@ -115,7 +115,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   )
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus = InProgress): Future[WorkItem[NotificationWorkItem]] = {
-    logger.debug(s"saving a new notification work item in locked state $notificationWorkItem")
+    logger.debug(s"saving a new notification work item in locked state (${processingStatus.name}) $notificationWorkItem")
 
     def processWithInitialStatus(item: NotificationWorkItem): ProcessingStatus = processingStatus
 
@@ -146,10 +146,11 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   override def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int] = {
     import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
+    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csId.id}")
     val selector = Json.obj("clientNotification._id" -> csId.id, workItemFields.status -> Failed)
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> PermanentlyFailed, workItemFields.updatedAt -> now))
     collection.update(selector, update, multi = true).map {result =>
-      logger.debug(s"updated ${result.nModified} notifications with status equal to ${Failed.name} to ${PermanentlyFailed.name} for clientId ${csId.id}")
+      logger.debug(s"updated ${result.nModified} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csId.id}")
       result.nModified
     }
   }

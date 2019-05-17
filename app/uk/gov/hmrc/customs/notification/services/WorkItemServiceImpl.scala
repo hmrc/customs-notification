@@ -74,13 +74,14 @@ class WorkItemServiceImpl @Inject()(
 
     implicit val loggingContext = workItem.item
 
+    logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap{
       case Right(connector) =>
-        logger.info(s"Retry succeeded for $connector")
+        logger.info(s"$connector retry succeeded for $workItem")
         repository.setCompletedStatus(workItem.id, Succeeded)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Retry failed for $connector with error $resultError. Setting status to " +
-          s"PermanentlyFailed for all notifications with clientId ${workItem.item.clientId.toString}")
+        logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
+          s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (for {
           _ <- repository.setCompletedStatus(workItem.id, Failed) // increase failure count
           _ <- repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId)
@@ -90,7 +91,7 @@ class WorkItemServiceImpl @Inject()(
         }
     }.recover{
       case NonFatal(e) => // this should never happen as exceptions are recovered in all above code paths
-        logger.error(s"error processing notification ${workItem.item}", e)
+        logger.error(s"error processing work item $workItem", e)
         Future.failed(e)
     }
 

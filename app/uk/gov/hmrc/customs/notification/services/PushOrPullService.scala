@@ -20,12 +20,10 @@ import javax.inject.Inject
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MapResultError, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, DeclarantCallbackData, HasId, NonHttpError, NotificationWorkItem, PushNotificationRequest, PushNotificationRequestBody, ResultError}
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-
-
-
 
 sealed trait ConnectorSource
 case object Push extends ConnectorSource
@@ -36,7 +34,8 @@ case class PushOrPullError(source: ConnectorSource, resultError: ResultError)
 class PushOrPullService @Inject()(
   callbackDetailsConnector: ApiSubscriptionFieldsConnector,
   pushOutboundSwitchService: OutboundSwitchService,
-  pull: NotificationQueueConnector
+  pull: NotificationQueueConnector,
+  logger: NotificationLogger
 )
 (implicit ec: ExecutionContext) extends MapResultError {
 
@@ -72,8 +71,10 @@ class PushOrPullService @Inject()(
       val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, n)
       pushOutboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pnr).map[Either[PushOrPullError, ConnectorSource]]{
         case Right(_) =>
+          logger.debug(s"successfully pushed $n")
           Right(Push)
         case Left(resultError) =>
+          logger.debug(s"failed to push $n")
           Left(PushOrPullError(Push, resultError))
       }
       .recover{
@@ -99,14 +100,16 @@ class PushOrPullService @Inject()(
       ))
   }
 
-  private def pull(n: NotificationWorkItem): Future[Either[PushOrPullError, ConnectorSource]] = {
+  private def pull(n: NotificationWorkItem)(implicit hasId: HasId): Future[Either[PushOrPullError, ConnectorSource]] = {
     val clientNotification = clientNotificationFrom(n)
 
     pull.enqueue(clientNotification).map[Either[PushOrPullError, ConnectorSource]] { _ =>
+      logger.debug(s"successfully sent to pull queue $n")
       Right(Pull)
     }
     .recover {
       case NonFatal(t) =>
+        logger.debug(s"failed to send to pull queue $n")
         Left(PushOrPullError(Pull, mapResultError(t)))
     }
   }

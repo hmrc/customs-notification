@@ -66,14 +66,14 @@ class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
 
     pushOrPullService.send(workItem.item).map[Boolean]{
       case Right(connector) =>
-        logger.info(s"Unblock pilot retry succeeded for $connector for notification ${workItem.item}")
+        logger.info(s"Unblock pilot retry succeeded for $connector for work item $workItem")
         true
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}")
+        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Work item = $workItem")
         false
     }.recover{
       case NonFatal(e) => // Should never happen
-        logger.error(s"Unblock - error with pilot unblock of notification ${workItem.item}", e)
+        logger.error(s"Unblock - error with pilot unblock of work item $workItem", e)
         false
     }
 

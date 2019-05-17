@@ -105,7 +105,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Succeeded)
       verify(mockCounter).inc()
-      verifyInfoLog("Retry succeeded for Push")
+      verifyInfoLog("Push retry succeeded for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
     }
 
     "return Future of true and set WorkItem status to Success when PULL returns 2XX" in new SetUp {
@@ -117,7 +117,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       val actual = await(service.processOne())
 
       actual shouldBe true
-      verifyInfoLog("Retry succeeded for Pull")
+      verifyInfoLog("Pull retry succeeded for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
     }
 
     "return Future of true and set WorkItem status to PermanentlyFailed when ApiSubscriptionFields connector returns an error" in new SetUp {
@@ -133,7 +133,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
       verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
-      verifyInfoLog("Retry failed for GetApiSubscriptionFields with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
+      verifyInfoLog("GetApiSubscriptionFields retry failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
     "return Future of true and set WorkItem status to PermanentlyFailed when PUSH returns an error" in new SetUp {
@@ -149,7 +149,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
       verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
-      verifyInfoLog("Retry failed for Push with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
+      verifyInfoLog("Push retry failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
     "return Future of true and set WorkItem status to PermanentlyFailed when PULL returns an error" in new SetUp {
@@ -165,7 +165,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
       verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
-      verifyInfoLog("Retry failed for Pull with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
+      verifyInfoLog("Pull retry failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
     "return Future of true and log database error when PUSH returns an error and call to repository setCompletedStatus fails" in new SetUp {

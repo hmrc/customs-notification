@@ -44,8 +44,11 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
     domainFormat = ClientNotification.clientNotificationJF) {
   }
 
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs +
-      ("push.polling.delay.duration.milliseconds" -> 2)).build()
+  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
+    acceptanceTestConfigs +
+      ("push.polling.delay.duration.milliseconds" -> 2) +
+      ("push.polling.enabled" -> "true")
+    ).build()
 
   override protected def beforeAll() {
     startMockServer()
@@ -53,7 +56,7 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    await(repo.drop)
+    dropTestCollection("notifications")
   }
 
   override protected def afterAll() {
