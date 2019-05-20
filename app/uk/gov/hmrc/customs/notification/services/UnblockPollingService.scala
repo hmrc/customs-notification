@@ -40,6 +40,7 @@ class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
       actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
         notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
           logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
+          logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name})")
           permanentlyFailedCsids.foreach { csid =>
             notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsId(csid).map {
               case Some(workItem) =>

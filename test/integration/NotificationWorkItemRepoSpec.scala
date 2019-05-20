@@ -42,7 +42,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with BeforeAndAfterAll
   with BeforeAndAfterEach
   with MockitoSugar
-  with MongoSpecSupport { self =>
+  with MongoSpecSupport {
 
   private val stubCdsLogger = StubCdsLogger()
   private val clock: Clock = Clock.systemUTC()
@@ -50,6 +50,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val mockUnblockPollingConfig = mock[UnblockPollingConfig]
   private val mockLogNotificationCountsPollingConfig = mock[LogNotificationCountsPollingConfig]
   private val mockConfiguration = mock[Configuration]
+  private val collectionName = "notifications-work-item"
 
   private val pushConfig = PushNotificationConfig(
     internalClientIds = Seq.empty,
@@ -86,11 +87,11 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   override def beforeEach() {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
-    await(repository.drop)
+    dropTestCollection(collectionName)
   }
 
   override def afterAll() {
-    await(repository.drop)
+    dropTestCollection(collectionName)
   }
 
   private def collectionSize: Int = {
@@ -233,13 +234,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     "return list of distinct clientIds" in {
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
-      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
       val result = await(repository.distinctPermanentlyFailedByCsId())
 
       result should contain (ClientSubscriptionId(validClientSubscriptionId1UUID))
-      result should contain (ClientSubscriptionId(validClientSubscriptionId2UUID))
+      result should not contain ClientSubscriptionId(validClientSubscriptionId2UUID)
     }
 
     "return a modified permanently failed notification with specified csid" in {

@@ -169,7 +169,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   override def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean] = {
     val selector = Json.obj("clientNotification._id" -> csId.id,  workItemFields.status -> PermanentlyFailed)
 
-    collection.find(selector, None)(JsObjectDocumentWriter, JsObjectDocumentWriter).one[JsValue].map { // No need for json deserialisation
+    collection.find(selector, None)(JsObjectDocumentWriter, JsObjectDocumentWriter).one[JsValue].map { // No need for json deserialization
       case Some(_) =>
         logger.info(s"Found existing permanently failed notification for client id: $csId")
         true
@@ -178,7 +178,9 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {
-    collection.distinct[ClientSubscriptionId, Set]("clientNotification._id", None, mongo().connection.options.readConcern, None)
+    val selector = Json.obj(workItemFields.status -> PermanentlyFailed)
+
+    collection.distinct[ClientSubscriptionId, Set]("clientNotification._id", Some(selector), mongo().connection.options.readConcern, None)
   }
 
   override def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
