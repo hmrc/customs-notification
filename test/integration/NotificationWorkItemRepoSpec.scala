@@ -87,11 +87,11 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   override def beforeEach() {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
-    dropTestCollection(collectionName)
+    await(repository.drop)
   }
 
   override def afterAll() {
-    dropTestCollection(collectionName)
+    await(repository.drop)
   }
 
   private def collectionSize: Int = {
