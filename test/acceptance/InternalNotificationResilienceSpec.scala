@@ -65,11 +65,12 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    dropTestCollection("notifications")
+    await(repo.drop)
   }
 
   override protected def afterAll() {
     stopMockServer()
+    await(repo.drop)
   }
 
 
@@ -85,12 +86,12 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
         Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
 
       And("the callback endpoint was called internally, bypassing the gateway")
-      eventually(verifyInternalServiceWasCalledWith(internalPushNotificationRequest))
-      eventually(verifyPushNotificationServiceWasNotCalled())
-      eventually(verifyNotificationQueueServiceWasNotCalled())
-
-      verify(1, postRequestedFor(urlMatching("/write/audit")))
-
+      eventually {
+        verifyInternalServiceWasCalledWith(internalPushNotificationRequest)
+        verifyPushNotificationServiceWasNotCalled()
+        verifyNotificationQueueServiceWasNotCalled()
+        verify(1, postRequestedFor(urlMatching("/write/audit")))
+      }
     }
 
     scenario("when notifications are present in the database and push fails") {
@@ -102,9 +103,11 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
         Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
 
       And("the callback endpoint was called internally, bypassing the gateway")
-      eventually(verifyInternalServiceWasCalledWith(internalPushNotificationRequest))
-      eventually(verifyPushNotificationServiceWasNotCalled())
-      eventually(verifyNotificationQueueServiceWasCalledWith(internalPushNotificationRequest))
+      eventually {
+        verifyInternalServiceWasCalledWith(internalPushNotificationRequest)
+        verifyPushNotificationServiceWasNotCalled()
+        verifyNotificationQueueServiceWasCalledWith(internalPushNotificationRequest)
+      }
     }
   }
 
