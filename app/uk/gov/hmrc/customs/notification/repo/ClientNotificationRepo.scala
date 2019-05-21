@@ -21,7 +21,7 @@ import javax.inject.{Inject, Singleton}
 import org.joda.time.{DateTime, DateTimeZone}
 import play.api.libs.json.{JsNumber, Json}
 import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.Cursor
+import reactivemongo.api.{Cursor, ReadConcern}
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.JsObjectDocumentWriter
@@ -111,7 +111,7 @@ class ClientNotificationMongoRepo @Inject()(configService: CustomsNotificationCo
   }
 
   private def fetchDistinctCsIdsFromSavedNotifications = {
-    val csIds = collection.distinct[ClientSubscriptionId, Set]("csid", None, mongo().connection.options.readConcern, None)
+    val csIds = collection.distinct[ClientSubscriptionId, Set]("csid", None, ReadConcern.Local, None)
     csIds.map(cdIdsSet => logger.debug(s"fetching Distinct CSIDs from Saved Notification count is ${cdIdsSet.size}"))
     csIds
   }

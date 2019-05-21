@@ -24,12 +24,14 @@ import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers
+import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, HttpResultError, UnblockPollingConfig}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.test.UnitSpec
+import uk.gov.hmrc.workitem.{PermanentlyFailed, ResultStatus, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.{WorkItem1, validClientSubscriptionId1}
 
@@ -90,9 +92,10 @@ class UnblockPollingServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(WorkItem1.item)
+        verify(notificationWorkItemRepoMock, times(1)).setCompletedStatus(WorkItem1.id, Succeeded)
         verify(notificationWorkItemRepoMock, times(1)).toFailedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
-        verifyInfoLog("Unblock pilot retry succeeded for Push for work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
+        verifyInfoLog("Unblock pilot send for Push succeeded. CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status succeeded for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
         verifyInfoLog("Unblock - number of notifications set from PermanentlyFailed to Failed = 2 for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
       }
     }
@@ -110,6 +113,7 @@ class UnblockPollingServiceSpec extends UnitSpec
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
+        verify(notificationWorkItemRepoMock, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus])
         verifyZeroInteractions(mockPushOrPullService)
       }
     }
@@ -150,9 +154,10 @@ class UnblockPollingServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(WorkItem1.item)
+        verify(notificationWorkItemRepoMock, times(1)).setCompletedStatus(WorkItem1.id, PermanentlyFailed)
         verify(notificationWorkItemRepoMock, times(0)).toFailedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
-        verifyInfoLog("Unblock pilot send for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Work item = WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
+        verifyInfoLog("Unblock pilot send for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status back to permanently-failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
       }
     }
 
@@ -173,6 +178,7 @@ class UnblockPollingServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(WorkItem1.item)
+        verify(notificationWorkItemRepoMock, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus])
         verify(notificationWorkItemRepoMock, times(0)).toFailedByCsId(validClientSubscriptionId1)
         verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
       }

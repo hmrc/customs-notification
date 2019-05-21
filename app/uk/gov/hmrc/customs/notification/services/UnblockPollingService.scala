@@ -21,7 +21,7 @@ import javax.inject._
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.workitem.{PermanentlyFailed, WorkItem}
+import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded, WorkItem}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -67,10 +67,12 @@ class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
 
     pushOrPullService.send(workItem.item).map[Boolean]{
       case Right(connector) =>
-        logger.info(s"Unblock pilot retry succeeded for $connector for work item $workItem")
+        notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
+        logger.info(s"Unblock pilot send for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
         true
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Work item = $workItem")
+        notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
         false
     }.recover{
       case NonFatal(e) => // Should never happen
