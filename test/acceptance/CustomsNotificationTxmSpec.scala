@@ -65,11 +65,12 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    dropTestCollection("notifications")
+    await(repo.drop)
   }
 
   override protected def afterAll() {
     stopMockServer()
+    await(repo.drop)
   }
 
 
