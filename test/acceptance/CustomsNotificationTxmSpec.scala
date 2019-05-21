@@ -52,6 +52,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
       ("push.polling.delay.duration.milliseconds" -> 2) +
       ("push.internal.clientIds.0" -> "aThirdPartyApplicationId") +
       ("auditing.enabled" -> "true") +
+      ("push.polling.enabled" -> "true") +
       ("auditing.consumer.baseUri.host" -> Host) +
       ("auditing.consumer.baseUri.port" -> Port) +
       ("customs-notification-metrics.host" -> Host) +
@@ -64,7 +65,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    await(repo.drop)
+    dropTestCollection("notifications")
   }
 
   override protected def afterAll() {

@@ -28,6 +28,7 @@ import util.TestData._
 
 import scala.concurrent.Future
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
 class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 
@@ -35,11 +36,13 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
     private[PushOrPullServiceSpec] val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
     private[PushOrPullServiceSpec] val mockOutboundSwitchService = mock[OutboundSwitchService]
     private[PushOrPullServiceSpec] val mockNotificationQueueConnector = mock[NotificationQueueConnector]
+    private[PushOrPullServiceSpec] val mockNotificationLogger = mock[NotificationLogger]
 
     private[PushOrPullServiceSpec] val service = new PushOrPullService(
       mockApiSubscriptionFieldsConnector,
       mockOutboundSwitchService,
-      mockNotificationQueueConnector
+      mockNotificationQueueConnector,
+      mockNotificationLogger
     )
 
     private[PushOrPullServiceSpec] val mockResultError = mock[ResultError]
