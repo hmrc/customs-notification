@@ -22,7 +22,7 @@ import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{UnblockPollingConfig, _}
+import uk.gov.hmrc.customs.notification.domain.{UnblockPollerConfig, _}
 
 import scala.concurrent.duration._
 
@@ -41,9 +41,9 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
   private case class CustomsNotificationConfigImpl(maybeBasicAuthToken: Option[String],
                                                    notificationQueueConfig: NotificationQueueConfig,
-                                                   pushNotificationConfig: PushNotificationConfig,
+                                                   notificationConfig: NotificationConfig,
                                                    notificationMetricsConfig: NotificationMetricsConfig,
-                                                   unblockPollingConfig: UnblockPollingConfig) extends CustomsNotificationConfig
+                                                   unblockPollerConfig: UnblockPollerConfig) extends CustomsNotificationConfig
 
   private val root = configValidatedNel.root
 
@@ -59,47 +59,47 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       configValidatedNel.service("customs-notification-metrics").serviceUrl.map(NotificationMetricsConfig.apply)
 
     val internalClientIdsNel: CustomsValidatedNel[Seq[String]] =
-      root.stringSeq("push.internal.clientIds")
+      root.stringSeq("internal.clientIds")
 
     val ttlInSecondsNel: CustomsValidatedNel[Int] =
       root.int("ttlInSeconds")
 
     val retryPollerEnabledNel: CustomsValidatedNel[Boolean] =
-      root.boolean("push.retry.enabled")
-    val retryPollingIntervalNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.retry.pollingInterval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
-    val retryAfterFailureIntervalNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.retry.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
-    val retryInProgressRetryAfterNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.retry.inProgressRetryAfter.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+      root.boolean("retry.poller.enabled")
+    val retryPollerIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("retry.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+    val retryPollerAfterFailureIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("retry.poller.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+    val retryPollerInProgressRetryAfterNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("retry.poller.inProgressRetryAfter.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
     val retryPollerInstancesNel: CustomsValidatedNel[Int] =
-      root.int("push.retry.poller.instances")
+      root.int("retry.poller.instances")
 
-    val pushNotificationConfig: CustomsValidatedNel[PushNotificationConfig] = (
+    val notificationConfig: CustomsValidatedNel[NotificationConfig] = (
       internalClientIdsNel,
       ttlInSecondsNel,
       retryPollerEnabledNel,
-      retryPollingIntervalNel,
-      retryAfterFailureIntervalNel,
-      retryInProgressRetryAfterNel,
+      retryPollerIntervalNel,
+      retryPollerAfterFailureIntervalNel,
+      retryPollerInProgressRetryAfterNel,
       retryPollerInstancesNel
-    ).mapN(PushNotificationConfig)
+    ).mapN(NotificationConfig)
 
-    val unblockPollingEnabledNel: CustomsValidatedNel[Boolean] =
-      root.boolean("unblock.polling.enabled")
-    val unblockPollingDelayNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("unblock.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
-    val unblockPollingConfigNel: CustomsValidatedNel[UnblockPollingConfig] =
-      (unblockPollingEnabledNel,
-        unblockPollingDelayNel
-    ).mapN(UnblockPollingConfig)
+    val unblockPollerEnabledNel: CustomsValidatedNel[Boolean] =
+      root.boolean("unblock.poller.enabled")
+    val unblockPollerIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("unblock.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+    val unblockPollerConfigNel: CustomsValidatedNel[UnblockPollerConfig] =
+      (unblockPollerEnabledNel,
+        unblockPollerIntervalNel
+    ).mapN(UnblockPollerConfig)
 
     val validatedConfig: CustomsValidatedNel[CustomsNotificationConfig] = (
       authTokenInternalNel,
       notificationQueueConfigNel,
-      pushNotificationConfig,
+      notificationConfig,
       notificationMetricsConfigNel,
-      unblockPollingConfigNel
+      unblockPollerConfigNel
     ).mapN(CustomsNotificationConfigImpl)
 
       /*
@@ -122,9 +122,9 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
   override val notificationQueueConfig: NotificationQueueConfig = config.notificationQueueConfig
 
-  override val pushNotificationConfig: PushNotificationConfig = config.pushNotificationConfig
+  override val notificationConfig: NotificationConfig = config.notificationConfig
 
   override val notificationMetricsConfig: NotificationMetricsConfig = config.notificationMetricsConfig
 
-  override val unblockPollingConfig: UnblockPollingConfig = config.unblockPollingConfig
+  override val unblockPollerConfig: UnblockPollerConfig = config.unblockPollerConfig
 }

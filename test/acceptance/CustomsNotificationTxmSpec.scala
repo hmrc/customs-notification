@@ -64,7 +64,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
-      ("push.internal.clientIds.0" -> "aThirdPartyApplicationId") +
+      ("internal.clientIds.0" -> "aThirdPartyApplicationId") +
       ("auditing.enabled" -> "true") +
       ("auditing.consumer.baseUri.host" -> Host) +
       ("auditing.consumer.baseUri.port" -> Port) +

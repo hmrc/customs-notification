@@ -57,7 +57,7 @@ trait NotificationWorkItemRepo {
 
   def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
 
-  def toFailedByCsId(csid: ClientSubscriptionId): Future[Int]
+  def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int]
 }
 
 @Singleton
@@ -88,14 +88,14 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     ??? // we don't use this, we override inProgressRetryAfter instead
 
   override lazy val inProgressRetryAfter: Duration =
-    customsNotificationConfig.pushNotificationConfig.retryInProgressRetryAfter.toJodaDuration
+    customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toJodaDuration
 
   override def indexes: Seq[Index] = super.indexes ++ Seq(
     Index(
       key = Seq("createdAt" -> IndexType.Descending),
       name = Some("createdAt-ttl-index"),
       unique = false,
-      options = BSONDocument("expireAfterSeconds" -> BSONLong(customsNotificationConfig.pushNotificationConfig.ttlInSeconds.toLong))
+      options = BSONDocument("expireAfterSeconds" -> BSONLong(customsNotificationConfig.notificationConfig.ttlInSeconds.toLong))
     ),
     Index(
       key = Seq("clientNotification.clientId" -> IndexType.Descending),
@@ -157,7 +157,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     }
   }
 
-  override def toFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
+  override def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
     import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
     val selector = Json.obj("clientNotification._id" -> csid.id, workItemFields.status -> PermanentlyFailed)

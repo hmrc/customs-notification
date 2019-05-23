@@ -40,11 +40,11 @@ class CustomsNotificationFailureSpec extends AcceptanceTestSpec
   private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   private lazy val pollerConfigs = Map(
-    "push.retry.pollingInterval.milliseconds" -> 100,
-    "push.retry.retryAfterFailureInterval.seconds" -> 1,
-    "push.retry.inProgressRetryAfter.seconds" -> 1,
-    "push.retry.poller.instances" -> 10,
-    "unblock.polling.delay.duration.milliseconds" -> 100
+    "retry.poller.interval.milliseconds" -> 100,
+    "retry.poller.retryAfterFailureInterval.seconds" -> 1,
+    "retry.poller.inProgressRetryAfter.seconds" -> 1,
+    "retry.poller.instances" -> 10,
+    "unblock.poller.interval.milliseconds" -> 100
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs ++ pollerConfigs).build()

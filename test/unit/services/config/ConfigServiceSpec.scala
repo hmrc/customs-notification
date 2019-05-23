@@ -37,19 +37,19 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |{
       |auth.token.internal = "$basicAuthTokenValue"
       |
-      |push.retry.enabled = true
-      |push.retry.pollingInterval.milliseconds = 700
-      |push.retry.retryAfterFailureInterval.seconds = 2
-      |push.retry.inProgressRetryAfter.seconds = 3
-      |push.retry.poller.instances = 3
+      |retry.poller.enabled = true
+      |retry.poller.interval.milliseconds = 700
+      |retry.poller.retryAfterFailureInterval.seconds = 2
+      |retry.poller.inProgressRetryAfter.seconds = 3
+      |retry.poller.instances = 3
       |
-      |unblock.polling.enabled = true
-      |unblock.polling.delay.duration.milliseconds = 400
+      |unblock.poller.enabled = true
+      |unblock.poller.interval.milliseconds = 400
       |
       |ttlInSeconds = 1
       |
-      |push.internal.clientIds.0 = ClientIdOne
-      |push.internal.clientIds.1 = ClientIdTwo
+      |internal.clientIds.0 = ClientIdOne
+      |internal.clientIds.1 = ClientIdTwo
       |
       |  microservice {
       |    services {
@@ -71,17 +71,14 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val validMandatoryOnlyAppConfig: Config = ConfigFactory.parseString(
     """
       |{
-      |push.retry.enabled = true
-      |push.retry.pollingInterval.milliseconds = 700
-      |push.retry.retryAfterFailureInterval.seconds = 2
-      |push.retry.inProgressRetryAfter.seconds = 3
-      |push.retry.poller.instances = 3
+      |retry.poller.enabled = true
+      |retry.poller.interval.milliseconds = 700
+      |retry.poller.retryAfterFailureInterval.seconds = 2
+      |retry.poller.inProgressRetryAfter.seconds = 3
+      |retry.poller.instances = 3
       |
-      |unblock.polling.enabled = true
-      |unblock.polling.delay.duration.milliseconds = 400
-      |
-      |logCounts.polling.enabled = true
-      |logCounts.polling.interval.duration.seconds = 10
+      |unblock.poller.enabled = true
+      |unblock.poller.interval.milliseconds = 400
       |
       |ttlInSeconds = 1
       |
@@ -121,14 +118,14 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
       actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
-      actual.pushNotificationConfig.internalClientIds shouldBe Seq("ClientIdOne", "ClientIdTwo")
-      actual.pushNotificationConfig.ttlInSeconds shouldBe 1
-      actual.pushNotificationConfig.retryPollerEnabled shouldBe true
-      actual.pushNotificationConfig.retryPollingInterval shouldBe (700 milliseconds)
-      actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
-      actual.pushNotificationConfig.retryInProgressRetryAfter shouldBe (3 seconds)
-      actual.pushNotificationConfig.retryPollerInstances shouldBe 3
-      actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
+      actual.notificationConfig.internalClientIds shouldBe Seq("ClientIdOne", "ClientIdTwo")
+      actual.notificationConfig.ttlInSeconds shouldBe 1
+      actual.notificationConfig.retryPollerEnabled shouldBe true
+      actual.notificationConfig.retryPollerInterval shouldBe (700 milliseconds)
+      actual.notificationConfig.retryPollerAfterFailureInterval shouldBe (2 seconds)
+      actual.notificationConfig.retryPollerInProgressRetryAfter shouldBe (3 seconds)
+      actual.notificationConfig.retryPollerInstances shouldBe 3
+      actual.unblockPollerConfig.pollerInterval shouldBe (400 milliseconds)
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -136,13 +133,13 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
       actual.maybeBasicAuthToken shouldBe None
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
-      actual.pushNotificationConfig.ttlInSeconds shouldBe 1
-      actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
-      actual.pushNotificationConfig.retryPollerEnabled shouldBe true
-      actual.pushNotificationConfig.retryPollingInterval shouldBe (700 milliseconds)
-      actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
-      actual.pushNotificationConfig.retryInProgressRetryAfter shouldBe (3 seconds)
-      actual.pushNotificationConfig.retryPollerInstances shouldBe 3
+      actual.notificationConfig.ttlInSeconds shouldBe 1
+      actual.unblockPollerConfig.pollerInterval shouldBe (400 milliseconds)
+      actual.notificationConfig.retryPollerEnabled shouldBe true
+      actual.notificationConfig.retryPollerInterval shouldBe (700 milliseconds)
+      actual.notificationConfig.retryPollerAfterFailureInterval shouldBe (2 seconds)
+      actual.notificationConfig.retryPollerInProgressRetryAfter shouldBe (3 seconds)
+      actual.notificationConfig.retryPollerInstances shouldBe 3
     }
 
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
@@ -150,15 +147,15 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config notification-queue.host
                        |Service configuration not found for key: notification-queue.context
                        |Could not find config key 'ttlInSeconds'
-                       |Could not find config key 'push.retry.enabled'
-                       |Could not find config key 'push.retry.pollingInterval.milliseconds'
-                       |Could not find config key 'push.retry.retryAfterFailureInterval.seconds'
-                       |Could not find config key 'push.retry.inProgressRetryAfter.seconds'
-                       |Could not find config key 'push.retry.poller.instances'
+                       |Could not find config key 'retry.poller.enabled'
+                       |Could not find config key 'retry.poller.interval.milliseconds'
+                       |Could not find config key 'retry.poller.retryAfterFailureInterval.seconds'
+                       |Could not find config key 'retry.poller.inProgressRetryAfter.seconds'
+                       |Could not find config key 'retry.poller.instances'
                        |Could not find config customs-notification-metrics.host
                        |Service configuration not found for key: customs-notification-metrics.context
-                       |Could not find config key 'unblock.polling.enabled'
-                       |Could not find config key 'unblock.polling.delay.duration.milliseconds'""".stripMargin
+                       |Could not find config key 'unblock.poller.enabled'
+                       |Could not find config key 'unblock.poller.interval.milliseconds'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 

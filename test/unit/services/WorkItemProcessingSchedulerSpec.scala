@@ -24,7 +24,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Seconds, Span}
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, PushNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationConfig}
 import uk.gov.hmrc.customs.notification.services.{WorkItemProcessingScheduler, WorkItemService}
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -46,14 +46,14 @@ class WorkItemProcessingSchedulerSpec extends UnitSpec with MockitoSugar
     }
 
     private[WorkItemProcessingSchedulerSpec] val mockConfig = mock[CustomsNotificationConfig]
-    private[WorkItemProcessingSchedulerSpec] val mockPushConfig = mock[PushNotificationConfig]
+    private[WorkItemProcessingSchedulerSpec] val mockPushConfig = mock[NotificationConfig]
     private[WorkItemProcessingSchedulerSpec] val mockLogger = mock[CdsLogger]
 
-    when(mockConfig.pushNotificationConfig).thenReturn(mockPushConfig)
+    when(mockConfig.notificationConfig).thenReturn(mockPushConfig)
     when(mockPushConfig.retryPollerEnabled).thenReturn(true)
-    when(mockPushConfig.retryPollingInterval).thenReturn(1 second)
-    when(mockPushConfig.retryAfterFailureInterval).thenReturn(2 second)
-    when(mockPushConfig.retryInProgressRetryAfter).thenReturn(2 second)
+    when(mockPushConfig.retryPollerInterval).thenReturn(1 second)
+    when(mockPushConfig.retryPollerAfterFailureInterval).thenReturn(2 second)
+    when(mockPushConfig.retryPollerInProgressRetryAfter).thenReturn(2 second)
     when(mockPushConfig.retryPollerInstances).thenReturn(1)
 
     private[WorkItemProcessingSchedulerSpec] val stubWorkItemService = new StubWorkItemService()

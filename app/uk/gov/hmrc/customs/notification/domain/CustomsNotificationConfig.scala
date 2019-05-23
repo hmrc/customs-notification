@@ -23,18 +23,17 @@ import scala.concurrent.duration.FiniteDuration
 
 case class NotificationQueueConfig(url: String)
 
-case class PushNotificationConfig(
-           internalClientIds: Seq[String],
-           ttlInSeconds: Int,
-           retryPollerEnabled: Boolean,
-           retryPollingInterval: FiniteDuration,
-           retryAfterFailureInterval: FiniteDuration,
-           retryInProgressRetryAfter: FiniteDuration,
-           retryPollerInstances: Int)
+case class NotificationConfig(internalClientIds: Seq[String],
+                              ttlInSeconds: Int,
+                              retryPollerEnabled: Boolean,
+                              retryPollerInterval: FiniteDuration,
+                              retryPollerAfterFailureInterval: FiniteDuration,
+                              retryPollerInProgressRetryAfter: FiniteDuration,
+                              retryPollerInstances: Int)
 
 case class NotificationMetricsConfig(baseUrl: String)
 
-case class UnblockPollingConfig(pollingEnabled: Boolean, pollingDelay: FiniteDuration)
+case class UnblockPollerConfig(pollerEnabled: Boolean, pollerInterval: FiniteDuration)
 
 // TODO: pull up all other service config into here
 @ImplementedBy(classOf[ConfigService])
@@ -43,9 +42,9 @@ trait CustomsNotificationConfig {
 
   def notificationQueueConfig: NotificationQueueConfig
 
-  def pushNotificationConfig: PushNotificationConfig
+  def notificationConfig: NotificationConfig
 
   def notificationMetricsConfig: NotificationMetricsConfig
 
-  def unblockPollingConfig: UnblockPollingConfig
+  def unblockPollerConfig: UnblockPollerConfig
 }
