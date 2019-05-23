@@ -24,13 +24,14 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import util.ExternalServicesConfiguration
 
-
 trait AcceptanceTestSpec extends FeatureSpec
   with GivenWhenThen
   with GuiceOneAppPerSuite
   with BeforeAndAfterAll
   with BeforeAndAfterEach
-  with Eventually {
+  with Eventually
+  with Matchers
+  with OptionValues {
 
   private val Wait = 5
 

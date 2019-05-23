@@ -16,6 +16,8 @@
 
 package unit.services
 
+import java.util.UUID
+
 import org.mockito.ArgumentMatchers.{any, eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
@@ -29,9 +31,8 @@ import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{AuditingService, OutboundSwitchService}
 import uk.gov.hmrc.http.{HttpException, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
-import unit.services.ClientWorkerTestData._
 import util.MockitoPassByNameHelper.PassByNameVerifier
-import util.TestData
+import util.TestData._
 
 import scala.concurrent.Future
 
@@ -45,9 +46,14 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     val mockHttpResponse = mock[HttpResponse]
     val mockAuditingService = mock[AuditingService]
     val mockLogger = mock[NotificationLogger]
-    implicit val rm = TestData.requestMetaData
+    implicit val rm = requestMetaData
     val switcher = new OutboundSwitchService(mockConfigService, mockExternalConnector, mockInternalPushService, mockAuditingService, mockLogger)
   }
+
+  private val Headers = Seq(Header("h1", "v1"))
+  private val PayloadOne = "PAYLOAD_ONE"
+  private val ConversationIdOne = ConversationId(UUID.fromString("caca01f9-ec3b-4ede-b263-61b626dde231"))
+  private val pnrOne = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", ConversationIdOne.id.toString, Headers, PayloadOne))
 
   "OutboundSwitchService" should {
 

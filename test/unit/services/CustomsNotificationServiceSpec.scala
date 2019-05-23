@@ -20,8 +20,9 @@ import org.mockito.ArgumentMatchers.{any, refEq, eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Span}
+import org.scalatestplus.mockito.MockitoSugar
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.domain.{HasId, HttpResultError}
@@ -33,29 +34,28 @@ import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, ResultStatus, Succee
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.Future
 import scala.xml.Elem
 
-class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
+class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
 
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
 
-  val eventuallyRightOfPush = Future.successful(Right(Push))
+  private val eventuallyRightOfPush = Future.successful(Right(Push))
   private val exception = new Exception("Boom")
-  val eventuallyLeftOfPush = Future.successful(Left(PushOrPullError(Push, HttpResultError(Helpers.NOT_FOUND, exception))))
-  val eventuallyLeftOfPull = Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.NOT_FOUND, exception))))
-  val eventuallyLeftOfApiSubsFields = Future.successful(Left(PushOrPullError(GetApiSubscriptionFields, HttpResultError(Helpers.NOT_FOUND, exception))))
-  val eventuallyRightOfPull = Future.successful(Right(Pull))
+  private val eventuallyLeftOfPush = Future.successful(Left(PushOrPullError(Push, HttpResultError(Helpers.NOT_FOUND, exception))))
+  private val eventuallyLeftOfPull = Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.NOT_FOUND, exception))))
+  private val eventuallyLeftOfApiSubsFields = Future.successful(Left(PushOrPullError(GetApiSubscriptionFields, HttpResultError(Helpers.NOT_FOUND, exception))))
+  private val eventuallyRightOfPull = Future.successful(Right(Pull))
 
-  val ValidXML: Elem = <foo1></foo1>
+  private val ValidXML: Elem = <foo1></foo1>
   private val mockPushOrPullService = mock[PushOrPullService]
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockNotificationWorkItemRepo = mock[NotificationWorkItemRepo]
   private lazy val mockMetricsService = mock[CustomsNotificationMetricsService]
 
-   private val service = new CustomsNotificationRetryService(
+   private val service = new CustomsNotificationService(
     mockNotificationLogger,
     mockNotificationWorkItemRepo,
     mockPushOrPullService,
@@ -68,7 +68,7 @@ class CustomsNotificationRetryServiceSpec extends UnitSpec with MockitoSugar wit
     reset(mockNotificationWorkItemRepo, mockNotificationLogger, mockPushOrPullService)
   }
 
-  "CustomsNotificationRetryService" should {
+  "CustomsNotificationService" should {
     "for push" should {
       "send notification with metrics time to third party when url present and call metrics service" in {
         when(mockNotificationWorkItemRepo.permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))

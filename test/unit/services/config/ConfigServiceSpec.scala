@@ -37,29 +37,14 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |{
       |auth.token.internal = "$basicAuthTokenValue"
       |
-      |push.polling.delay.duration.milliseconds = 5000
-      |push.polling.enabled = true
-      |push.lock.duration.milliseconds = 1000
-      |push.fetch.maxRecords = 50
       |push.retry.enabled = true
-      |push.retry.initialPollingInterval.milliseconds = 700
+      |push.retry.pollingInterval.milliseconds = 700
       |push.retry.retryAfterFailureInterval.seconds = 2
       |push.retry.inProgressRetryAfter.seconds = 3
       |push.retry.poller.instances = 3
       |
-      |pull.exclude.enabled = true
-      |pull.exclude.email.address = "some.address@domain.com"
-      |pull.exclude.email.delay.duration.seconds = 1
-      |pull.exclude.email.interval.duration.minutes = 30
-      |pull.exclude.older.milliseconds = 5000
-      |pull.exclude.csIds.0 = eaca01f9-ec3b-4ede-b263-61b626dde232
-      |pull.exclude.csIds.1 = eaca01f9-ec3b-4ede-b263-61b626dde233
-      |
       |unblock.polling.enabled = true
       |unblock.polling.delay.duration.milliseconds = 400
-      |
-      |logCounts.polling.enabled = true
-      |logCounts.polling.interval.duration.seconds = 10
       |
       |ttlInSeconds = 1
       |
@@ -72,11 +57,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |        host = localhost
       |        port = 9648
       |        context = "/queue"
-      |      }
-      |      email {
-      |        host = localhost
-      |        port = 8300
-      |        context = /hmrc/email
       |      }
       |      customs-notification-metrics {
       |        host = localhost
@@ -91,18 +71,8 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val validMandatoryOnlyAppConfig: Config = ConfigFactory.parseString(
     """
       |{
-      |push.polling.delay.duration.milliseconds = 5000
-      |push.polling.enabled = true
-      |push.lock.duration.milliseconds = 1000
-      |push.fetch.maxRecords = 50
-      |
-      |pull.exclude.enabled = true
-      |pull.exclude.email.address = "some.address@domain.com"
-      |pull.exclude.older.milliseconds = 5000
-      |pull.exclude.email.delay.duration.seconds = 1
-      |pull.exclude.email.interval.duration.minutes = 30
       |push.retry.enabled = true
-      |push.retry.initialPollingInterval.milliseconds = 700
+      |push.retry.pollingInterval.milliseconds = 700
       |push.retry.retryAfterFailureInterval.seconds = 2
       |push.retry.inProgressRetryAfter.seconds = 3
       |push.retry.poller.instances = 3
@@ -121,11 +91,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |        host = localhost
       |        port = 9648
       |        context = "/queue"
-      |      }
-      |      email {
-      |        host = localhost
-      |        port = 8300
-      |        context = /hmrc/email
       |      }
       |      customs-notification-metrics {
       |        host = localhost
@@ -157,20 +122,13 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
       actual.pushNotificationConfig.internalClientIds shouldBe Seq("ClientIdOne", "ClientIdTwo")
-      actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
-      actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
-      actual.pullExcludeConfig.csIdsToExclude shouldBe Seq("eaca01f9-ec3b-4ede-b263-61b626dde232", "eaca01f9-ec3b-4ede-b263-61b626dde233")
-      actual.pullExcludeConfig.emailAddress shouldBe "some.address@domain.com"
-      actual.pullExcludeConfig.emailUrl shouldBe "http://localhost:8300/hmrc/email"
-      actual.pullExcludeConfig.pollingInterval shouldBe (30 minutes)
       actual.pushNotificationConfig.ttlInSeconds shouldBe 1
       actual.pushNotificationConfig.retryPollerEnabled shouldBe true
-      actual.pushNotificationConfig.retryInitialPollingInterval shouldBe (700 milliseconds)
+      actual.pushNotificationConfig.retryPollingInterval shouldBe (700 milliseconds)
       actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
       actual.pushNotificationConfig.retryInProgressRetryAfter shouldBe (3 seconds)
       actual.pushNotificationConfig.retryPollerInstances shouldBe 3
       actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
-      actual.logNotificationCountsPollingConfig.pollingInterval shouldBe (10 seconds)
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
@@ -178,14 +136,10 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
       actual.maybeBasicAuthToken shouldBe None
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
-      actual.pushNotificationConfig.lockDuration shouldBe org.joda.time.Duration.millis(THOUSAND)
-      actual.pushNotificationConfig.pollingDelay shouldBe (5000 milliseconds)
-      actual.pullExcludeConfig.notificationsOlderMillis shouldBe 5000
       actual.pushNotificationConfig.ttlInSeconds shouldBe 1
       actual.unblockPollingConfig.pollingDelay shouldBe (400 milliseconds)
-      actual.logNotificationCountsPollingConfig.pollingInterval shouldBe (10 seconds)
       actual.pushNotificationConfig.retryPollerEnabled shouldBe true
-      actual.pushNotificationConfig.retryInitialPollingInterval shouldBe (700 milliseconds)
+      actual.pushNotificationConfig.retryPollingInterval shouldBe (700 milliseconds)
       actual.pushNotificationConfig.retryAfterFailureInterval shouldBe (2 seconds)
       actual.pushNotificationConfig.retryInProgressRetryAfter shouldBe (3 seconds)
       actual.pushNotificationConfig.retryPollerInstances shouldBe 3
@@ -195,29 +149,16 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       val expected = """
                        |Could not find config notification-queue.host
                        |Service configuration not found for key: notification-queue.context
-                       |Could not find config key 'push.polling.enabled'
-                       |Could not find config key 'push.polling.delay.duration.milliseconds'
-                       |Could not find config key 'push.lock.duration.milliseconds'
-                       |Could not find config key 'push.fetch.maxRecords'
                        |Could not find config key 'ttlInSeconds'
                        |Could not find config key 'push.retry.enabled'
-                       |Could not find config key 'push.retry.initialPollingInterval.milliseconds'
+                       |Could not find config key 'push.retry.pollingInterval.milliseconds'
                        |Could not find config key 'push.retry.retryAfterFailureInterval.seconds'
                        |Could not find config key 'push.retry.inProgressRetryAfter.seconds'
                        |Could not find config key 'push.retry.poller.instances'
-                       |Could not find config key 'pull.exclude.enabled'
-                       |Could not find config key 'pull.exclude.email.address'
-                       |Could not find config key 'pull.exclude.older.milliseconds'
-                       |Could not find config email.host
-                       |Service configuration not found for key: email.context
-                       |Could not find config key 'pull.exclude.email.delay.duration.seconds'
-                       |Could not find config key 'pull.exclude.email.interval.duration.minutes'
                        |Could not find config customs-notification-metrics.host
                        |Service configuration not found for key: customs-notification-metrics.context
                        |Could not find config key 'unblock.polling.enabled'
-                       |Could not find config key 'unblock.polling.delay.duration.milliseconds'
-                       |Could not find config key 'logCounts.polling.enabled'
-                       |Could not find config key 'logCounts.polling.interval.duration.seconds'""".stripMargin
+                       |Could not find config key 'unblock.polling.delay.duration.milliseconds'""".stripMargin
 
       val caught = intercept[IllegalStateException]{ configService(emptyServicesConfig) }
 

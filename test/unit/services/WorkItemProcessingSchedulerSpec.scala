@@ -51,7 +51,7 @@ class WorkItemProcessingSchedulerSpec extends UnitSpec with MockitoSugar
 
     when(mockConfig.pushNotificationConfig).thenReturn(mockPushConfig)
     when(mockPushConfig.retryPollerEnabled).thenReturn(true)
-    when(mockPushConfig.retryInitialPollingInterval).thenReturn(1 second)
+    when(mockPushConfig.retryPollingInterval).thenReturn(1 second)
     when(mockPushConfig.retryAfterFailureInterval).thenReturn(2 second)
     when(mockPushConfig.retryInProgressRetryAfter).thenReturn(2 second)
     when(mockPushConfig.retryPollerInstances).thenReturn(1)

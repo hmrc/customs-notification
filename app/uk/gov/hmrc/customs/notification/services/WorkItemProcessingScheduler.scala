@@ -28,31 +28,26 @@ import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-class WorkItemProcessingScheduler @Inject()(
-  queueProcessor: WorkItemService,
-  config: CustomsNotificationConfig,
-  logger: CdsLogger
-)(
-  implicit actorSystem: ActorSystem,
-  applicationLifecycle: ApplicationLifecycle
-) {
+class WorkItemProcessingScheduler @Inject()(queueProcessor: WorkItemService,
+                                            config: CustomsNotificationConfig,
+                                            logger: CdsLogger)
+                                           (implicit actorSystem: ActorSystem,
+                                            applicationLifecycle: ApplicationLifecycle) {
 
   case object Poll
 
   class ContinuousPollingActor extends Actor {
 
     import context.dispatcher
-
     val log = Logging(context.system, this)
-
+    
     override def receive: Receive = {
-
       case Poll =>
         queueProcessor.processOne() andThen {
           case Success(true) =>
             self ! Poll
           case Success(false) =>
-            context.system.scheduler.scheduleOnce(config.pushNotificationConfig.retryInitialPollingInterval, self, Poll)
+            context.system.scheduler.scheduleOnce(config.pushNotificationConfig.retryPollingInterval, self, Poll)
           case Failure(e) =>
             logger.error("Queue processing failed", e)
             context.system.scheduler.scheduleOnce(config.pushNotificationConfig.retryAfterFailureInterval, self, Poll)
@@ -82,7 +77,7 @@ class WorkItemProcessingScheduler @Inject()(
 
     // Start the polling after a delay.
     Executors.newScheduledThreadPool(1).schedule(
-      bootstrap, config.pushNotificationConfig.retryInitialPollingInterval.toMillis, TimeUnit.MILLISECONDS)
+      bootstrap, config.pushNotificationConfig.retryPollingInterval.toMillis, TimeUnit.MILLISECONDS)
 
 
     applicationLifecycle.addStopHook { () =>

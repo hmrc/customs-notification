@@ -16,39 +16,48 @@
 
 package acceptance
 
-import java.util.UUID
+import java.time.Clock
 
-import org.scalatest.{Matchers, OptionValues}
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
+import org.joda.time.DateTime
+import play.api.Configuration
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
+import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.workitem.{WorkItemFieldNames, WorkItemRepository}
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 
 class NotificationResilienceSpec extends AcceptanceTestSpec
-  with Matchers with OptionValues
-  with ApiSubscriptionFieldsService with NotificationQueueService
+  with ApiSubscriptionFieldsService
+  with NotificationQueueService
   with InternalPushNotificationService
   with PushNotificationService
   with MongoSpecSupport {
 
-  private val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
-    collectionName = "notifications",
+  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
+    collectionName = "notifications-work-item",
     mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
-    domainFormat = ClientNotification.clientNotificationJF) {
-  }
+    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
+    config = Configuration().underlying) {
 
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
-    acceptanceTestConfigs +
-      ("push.polling.delay.duration.milliseconds" -> 2) +
-      ("push.polling.enabled" -> "true")
-    ).build()
+    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
+      val receivedAt = "createdAt"
+      val updatedAt = "lastUpdated"
+      val availableAt = "availableAt"
+      val status = "status"
+      val id = "_id"
+      val failureCount = "failures"
+    }
+    override def now: DateTime = Clock.systemUTC().nowAsJoda
+    override def inProgressRetryAfterProperty: String = ???
+  }
 
   override protected def beforeAll() {
     startMockServer()
@@ -56,13 +65,12 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    dropTestCollection("notifications")
+    await(repo.drop)
   }
 
   override protected def afterAll() {
     stopMockServer()
   }
-
 
   feature("Ensure call to customs notification gateway are made") {
 
@@ -71,28 +79,14 @@ class NotificationResilienceSpec extends AcceptanceTestSpec
       setupPushNotificationServiceToReturn()
       runNotificationQueueService(CREATED)
 
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
+      repo.insert(internalWorkItem)
 
       And("the notification gateway service was called correctly")
-      eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
-      eventually(verifyInternalServiceWasNotCalledWith(pushNotificationRequest))
-
-      eventually(verifyNotificationQueueServiceWasNotCalled())
-    }
-
-    scenario("when notifications are present in the database and push fails") {
-      startApiSubscriptionFieldsService(validFieldsId, callbackData)
-      setupPushNotificationServiceToReturn(NOT_FOUND)
-      runNotificationQueueService(CREATED)
-
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(pushNotificationRequest.body.conversationId)), pushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
-
-      And("the notification gateway service was called correctly")
-      eventually(verifyPushNotificationServiceWasCalledWith(pushNotificationRequest))
-      eventually(verifyInternalServiceWasNotCalledWith(pushNotificationRequest))
-      eventually(verifyNotificationQueueServiceWasCalledWith(pushNotificationRequest))
+      eventually {
+        verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
+        verifyInternalServiceWasNotCalledWith(pushNotificationRequest)
+        verifyNotificationQueueServiceWasNotCalled()
+      }
     }
   }
 }

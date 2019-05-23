@@ -19,12 +19,10 @@ package acceptance
 import java.time.Clock
 
 import org.joda.time.DateTime
-import org.scalatest.{Matchers, OptionValues}
-import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.Configuration
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.Result
 import play.api.test.Helpers._
-import play.api.{Application, Configuration}
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.ImplicitBSONHandlers._
@@ -40,8 +38,6 @@ import scala.xml.Utility.trim
 import scala.xml.XML.loadString
 
 class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
-  with Matchers
-  with OptionValues
   with MongoSpecSupport {
 
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
@@ -76,8 +72,6 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
 
     override def inProgressRetryAfterProperty: String = ???
   }
-
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
 
   override protected def beforeEach() {
     await(repo.drop)

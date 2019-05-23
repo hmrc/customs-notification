@@ -16,7 +16,6 @@
 
 package acceptance
 
-import org.scalatest.{Matchers, OptionValues}
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -30,9 +29,7 @@ import util._
 
 import scala.concurrent.Future
 
-class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
-  with Matchers
-  with OptionValues
+class CustomsNotificationFailureSpec extends AcceptanceTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService
@@ -41,7 +38,6 @@ class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
   private val endpoint = "/customs-notification/notify"
 
   private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
-
 
   private lazy val pollerConfigs = Map(
     "push.retry.initialPollingInterval.milliseconds" -> 100,

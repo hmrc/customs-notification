@@ -16,41 +16,56 @@
 
 package acceptance
 
-import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{Matchers, OptionValues}
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
+import java.time.Clock
+
+import org.joda.time.DateTime
+import play.api.Configuration
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
-import uk.gov.hmrc.customs.notification.domain.ClientNotification
-import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
+import reactivemongo.play.json.ImplicitBSONHandlers._
+import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus, WorkItemFieldNames, WorkItemRepository}
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
 import scala.concurrent.Future
-import scala.xml.NodeSeq
-import scala.xml.Utility.trim
-import scala.xml.XML.loadString
 
 class CustomsNotificationSpec extends AcceptanceTestSpec
-  with Matchers with OptionValues
-  with ApiSubscriptionFieldsService with NotificationQueueService with TableDrivenPropertyChecks
+  with ApiSubscriptionFieldsService
+  with NotificationQueueService
   with PushNotificationService
+  with CustomsNotificationMetricsService
   with MongoSpecSupport {
 
-  private val endpoint = "/customs-notification/notify-legacy"
+  private val endpoint = "/customs-notification/notify"
 
-  private val repo = new ReactiveRepository[ClientNotification, BSONObjectID](
-    collectionName = "notifications",
+  private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
+
+  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
+    collectionName = "notifications-work-item",
     mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
-    domainFormat = ClientNotification.clientNotificationJF) {
-  }
+    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
+    config = Configuration().underlying) {
 
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
-    acceptanceTestConfigs).build()
+    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
+      val receivedAt = "createdAt"
+      val updatedAt = "lastUpdated"
+      val availableAt = "availableAt"
+      val status = "status"
+      val id = "_id"
+      val failureCount = "failures"
+    }
+
+    override def now: DateTime = Clock.systemUTC().nowAsJoda
+
+    override def inProgressRetryAfterProperty: String = ???
+  }
 
   override protected def beforeAll() {
     await(repo.drop)
@@ -66,16 +81,32 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     resetMockServer()
   }
 
-  override protected def beforeEach(): Unit = {
-    startApiSubscriptionFieldsService(validFieldsId,callbackData)
-    setupApiSubscriptionFieldsServiceToReturn(NOT_FOUND, someFieldsId)
-    setupPushNotificationServiceToReturn()
-  }
-
-
   feature("Ensure call to push notification service is made when request is valid") {
 
-    scenario("backend submits a valid request") {
+    scenario("backend submits a valid request destined for push") {
+      startApiSubscriptionFieldsService(validFieldsId,callbackData)
+      setupPushNotificationServiceToReturn()
+
+      Given("the API is available")
+      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+
+      When("a POST request with data is sent to the API")
+      val result: Option[Future[Result]] = route(app = app, request)
+
+      Then("a response with a 202 status is received")
+      result shouldBe 'defined
+      val resultFuture: Future[Result] = result.value
+
+      status(resultFuture) shouldBe ACCEPTED
+
+      And("the response body is empty")
+      contentAsString(resultFuture) shouldBe 'empty
+    }
+
+    scenario("backend submits a valid request destined for pull") {
+      runNotificationQueueService(CREATED)
+      startApiSubscriptionFieldsService(validFieldsId, DeclarantCallbackDataOneForPull)
+
       Given("the API is available")
       val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
 
@@ -93,6 +124,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     }
 
     scenario("backend submits a valid request with incorrect callback details used") {
+      startApiSubscriptionFieldsService(validFieldsId,callbackData)
       setupPushNotificationServiceToReturn(NOT_FOUND)
       runNotificationQueueService(CREATED)
 
@@ -113,41 +145,42 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     }
   }
 
-  private val table =
-    Table(
-      ("description", "request", "expected response code", "expected response XML"),
-      ("accept header missing", MissingAcceptHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), NOT_ACCEPTABLE, errorResponseForMissingAcceptHeader),
-      ("content type invalid", InvalidContentTypeHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), UNSUPPORTED_MEDIA_TYPE, errorResponseForInvalidContentType),
-      ("unauthorized", InvalidAuthorizationHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), UNAUTHORIZED, errorResponseForUnauthorized),
-      ("client id invalid", InvalidClientIdHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForInvalidClientId),
-      ("client id missing", MissingClientIdHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForMissingClientId),
-      ("conversation id invalid", InvalidConversationIdHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForInvalidConversationId),
-      ("conversation id missing", MissingConversationIdHeaderRequest.copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForMissingConversationId),
-      ("empty payload", ValidRequest.withXmlBody(NodeSeq.Empty).copyFakeRequest(method = POST, uri = endpoint), BAD_REQUEST, errorResponseForPlayXmlBodyParserError)
-    )
+  feature("Ensure work item is saved as permanently failed when existing work item is permanently failed") {
 
-  feature("For invalid requests, ensure error payloads are correct") {
+    scenario("backend submits a valid request") {
 
-    forAll(table) { (description, request, httpCode, responseXML) =>
+      await(repo.drop)
+      await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
 
-      scenario(s"backend submits an invalid request with $description") {
+      startApiSubscriptionFieldsService(validFieldsId, callbackData)
+      setupPushNotificationServiceToReturn()
 
-        Given("the API is available")
+      Given("There is an existing work item that is permanently failed")
+      eventually(assertWorkItemRepoWithStatus(PermanentlyFailed, 1))
 
-        When("a POST request with data is sent to the API")
-        val result: Option[Future[Result]] = route(app = app, request)
+      Given("the API is available")
+      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
 
-        Then(s"a response with a $httpCode status is received")
-        result shouldBe 'defined
-        val resultFuture: Future[Result] = result.value
+      When("a POST request with data is sent to the API")
+      val result: Option[Future[Result]] = route(app = app, request)
 
-        status(resultFuture) shouldBe httpCode
+      Then("a response with a 202 status is received")
+      result shouldBe 'defined
+      val resultFuture: Future[Result] = result.value
 
-        And(s"the response body is $description XML")
-        trim(loadString(contentAsString(resultFuture))) shouldBe trim(responseXML)
-      }
+      status(resultFuture) shouldBe ACCEPTED
+
+      And("the response body is empty")
+      contentAsString(resultFuture) shouldBe 'empty
+
+      Then("the status is set to PermanentlyFailed")
+      eventually(assertWorkItemRepoWithStatus(PermanentlyFailed, 2))
     }
-
   }
 
+  private def assertWorkItemRepoWithStatus(status: ProcessingStatus, count: Int) = {
+    val workItems = await(repo.find())
+    workItems should have size count
+    workItems.head.status shouldBe status
+  }
 }

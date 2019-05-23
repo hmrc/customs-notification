@@ -16,43 +16,56 @@
 
 package acceptance
 
-import java.util.UUID
+import java.time.Clock
 
 import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlMatching, verify}
-import org.scalatest.{Matchers, OptionValues}
-import play.api.Application
+import org.joda.time.DateTime
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers._
+import play.api.{Application, Configuration}
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
+import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
+import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.workitem.{WorkItemFieldNames, WorkItemRepository}
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global // contains blocking code so uses standard scala ExecutionContext
-
 class InternalNotificationResilienceSpec extends AcceptanceTestSpec
-  with Matchers with OptionValues
-  with ApiSubscriptionFieldsService with NotificationQueueService
+  with ApiSubscriptionFieldsService
+  with NotificationQueueService
   with PushNotificationService
   with InternalPushNotificationService
   with MongoSpecSupport
   with AuditService {
 
-  val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
-    collectionName = "notifications",
+  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
+    collectionName = "notifications-work-item",
     mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
-    domainFormat = ClientNotification.clientNotificationJF) {
-  }
+    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
+    config = Configuration().underlying) {
 
+    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
+      val receivedAt = "createdAt"
+      val updatedAt = "lastUpdated"
+      val availableAt = "availableAt"
+      val status = "status"
+      val id = "_id"
+      val failureCount = "failures"
+    }
+    override def now: DateTime = Clock.systemUTC().nowAsJoda
+    override def inProgressRetryAfterProperty: String = ???
+  }
+  
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
-      ("push.polling.delay.duration.milliseconds" -> 2) +
       ("push.internal.clientIds.0" -> "aThirdPartyApplicationId") +
       ("auditing.enabled" -> "true") +
-      ("push.polling.enabled" -> "true") +
       ("auditing.consumer.baseUri.host" -> Host) +
       ("auditing.consumer.baseUri.port" -> Port) +
       ("customs-notification-metrics.host" -> Host) +
@@ -73,7 +86,6 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
     await(repo.drop)
   }
 
-
   feature("Ensure call to callback endpoint are made internally (ie bypass the gateway)") {
 
     scenario("when notifications are present in the database") {
@@ -82,9 +94,8 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
       setupAuditServiceToReturn(NO_CONTENT)
       runNotificationQueueService(CREATED)
 
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
-
+      repo.insert(internalWorkItem)
+      
       And("the callback endpoint was called internally, bypassing the gateway")
       eventually {
         verifyInternalServiceWasCalledWith(internalPushNotificationRequest)
@@ -93,22 +104,5 @@ class InternalNotificationResilienceSpec extends AcceptanceTestSpec
         verify(1, postRequestedFor(urlMatching("/write/audit")))
       }
     }
-
-    scenario("when notifications are present in the database and push fails") {
-      startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
-      setupInternalServiceToReturn(NOT_FOUND)
-      runNotificationQueueService(CREATED)
-
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
-
-      And("the callback endpoint was called internally, bypassing the gateway")
-      eventually {
-        verifyInternalServiceWasCalledWith(internalPushNotificationRequest)
-        verifyPushNotificationServiceWasNotCalled()
-        verifyNotificationQueueServiceWasCalledWith(internalPushNotificationRequest)
-      }
-    }
   }
-
 }

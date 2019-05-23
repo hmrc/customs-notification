@@ -19,11 +19,10 @@ package uk.gov.hmrc.customs.notification.modules
 import java.time.Clock
 
 import com.google.inject.AbstractModule
-import uk.gov.hmrc.customs.notification.services.{NotificationPollingService, UnblockPollingService, WorkItemProcessingScheduler}
+import uk.gov.hmrc.customs.notification.services.{UnblockPollingService, WorkItemProcessingScheduler}
 
 class NotificationPollingModule extends AbstractModule {
   override def configure(): Unit = {
-    bind(classOf[NotificationPollingService]).asEagerSingleton()
     bind(classOf[WorkItemProcessingScheduler]).asEagerSingleton()
     bind(classOf[UnblockPollingService]).asEagerSingleton()
     //TODO move this to another module
