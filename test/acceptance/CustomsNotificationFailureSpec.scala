@@ -49,9 +49,14 @@ class CustomsNotificationFailureSpec extends AcceptanceTestSpec
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs ++ pollerConfigs).build()
 
-  override protected def beforeEach() {
+  override protected def afterAll() {
+    stopMockServer()
     await(repo.drop)
+  }
+
+  override protected def beforeEach() {
     startMockServer()
+    await(repo.drop)
   }
 
   override protected def afterEach(): Unit = {
@@ -95,7 +100,7 @@ class CustomsNotificationFailureSpec extends AcceptanceTestSpec
       eventually(assertOneWorkItemRepoWithStatus(Succeeded))
 
       And("pull queue was not called")
-      verifyNotificationQueueServiceWasNotCalled()
+      eventually(verifyNotificationQueueServiceWasNotCalled())
     }
 
     scenario("backend submits a valid PULL request but pull queue is unavailable") {
