@@ -39,7 +39,6 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
 
-  // TODO: recover on failure to enqueue to notification queue
   def send(pushNotificationRequest: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
     doSend(pushNotificationRequest)
   }

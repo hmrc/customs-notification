@@ -177,20 +177,6 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
 
 }
 
-trait EmailService extends WireMockRunner with Eventually {
-
-  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.EmailServiceContext)
-
-  def setupEmailServiceToReturn(status: Int): Unit = {
-    stubFor(post(urlMatchingRequestPath).willReturn(aResponse().withStatus(status)))
-  }
-
-  def verifyEmailServiceWasCalled(): Unit = {
-    eventually(verify(1, postRequestedFor(urlMatchingRequestPath)))
-  }
-}
-
-
 trait NotificationQueueService extends WireMockRunner {
   self: Matchers =>
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.NotificationQueueContext)
@@ -329,7 +315,6 @@ object ExternalServicesConfiguration {
   val PushNotificationServiceContext = "/notify-customs-declarant"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"
-  val EmailServiceContext = "/hmrc/email"
   val CustomsNotificationMetricsContext = "/log-times"
   val AuditContext = "/write/audit.*"
   val InternalPushServiceContext = "/internal/notify"

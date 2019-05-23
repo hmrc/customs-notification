@@ -36,7 +36,7 @@ import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
 
-class InternalNotificationResilienceSpec extends AcceptanceTestSpec
+class InternalNotificationSpec extends AcceptanceTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService

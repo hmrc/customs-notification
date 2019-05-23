@@ -40,6 +40,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService
+  with InternalPushNotificationService
   with CustomsNotificationMetricsService
   with MongoSpecSupport {
 
@@ -101,6 +102,8 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
+      
+      eventually (verifyNotificationQueueServiceWasNotCalled())
     }
 
     scenario("backend submits a valid request destined for pull") {
@@ -178,6 +181,24 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
     }
   }
 
+  feature("Ensure call to customs notification gateway are made") {
+
+    scenario("when notifications are present in the database") {
+      startApiSubscriptionFieldsService(validFieldsId, callbackData)
+      setupPushNotificationServiceToReturn()
+      runNotificationQueueService(CREATED)
+
+      repo.insert(internalWorkItem)
+
+      And("the notification gateway service was called correctly")
+      eventually {
+        verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
+        verifyInternalServiceWasNotCalledWith(pushNotificationRequest)
+        verifyNotificationQueueServiceWasNotCalled()
+      }
+    }
+  }
+  
   private def assertWorkItemRepoWithStatus(status: ProcessingStatus, count: Int) = {
     val workItems = await(repo.find())
     workItems should have size count

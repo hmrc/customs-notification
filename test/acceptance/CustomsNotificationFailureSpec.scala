@@ -40,7 +40,7 @@ class CustomsNotificationFailureSpec extends AcceptanceTestSpec
   private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   private lazy val pollerConfigs = Map(
-    "push.retry.initialPollingInterval.milliseconds" -> 100,
+    "push.retry.pollingInterval.milliseconds" -> 100,
     "push.retry.retryAfterFailureInterval.seconds" -> 1,
     "push.retry.inProgressRetryAfter.seconds" -> 1,
     "push.retry.poller.instances" -> 10,

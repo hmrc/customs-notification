@@ -31,12 +31,10 @@ import scala.util.control.NonFatal
 import scala.xml.NodeSeq
 
 @Singleton
-class CustomsNotificationService @Inject()(
-  logger: NotificationLogger,
-  notificationWorkItemRepo: NotificationWorkItemRepo,
-  pushOrPullService: PushOrPullService,
-  metricsService: CustomsNotificationMetricsService
-) {
+class CustomsNotificationService @Inject()(logger: NotificationLogger,
+                                           notificationWorkItemRepo: NotificationWorkItemRepo,
+                                           pushOrPullService: PushOrPullService,
+                                           metricsService: CustomsNotificationMetricsService) {
 
   type HasSaved = Boolean
 
