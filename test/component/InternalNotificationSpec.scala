@@ -14,29 +14,19 @@
  * limitations under the License.
  */
 
-package acceptance
+package component
 
-import java.time.Clock
-
-import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlMatching, verify}
-import org.joda.time.DateTime
+import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers._
-import play.api.{Application, Configuration}
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.workitem.{WorkItemFieldNames, WorkItemRepository}
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
 
-class InternalNotificationSpec extends AcceptanceTestSpec
+class InternalNotificationSpec extends ComponentTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService
@@ -44,23 +34,7 @@ class InternalNotificationSpec extends AcceptanceTestSpec
   with MongoSpecSupport
   with AuditService {
 
-  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
-    collectionName = "notifications-work-item",
-    mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
-    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
-    config = Configuration().underlying) {
-
-    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
-      val receivedAt = "createdAt"
-      val updatedAt = "lastUpdated"
-      val availableAt = "availableAt"
-      val status = "status"
-      val id = "_id"
-      val failureCount = "failures"
-    }
-    override def now: DateTime = Clock.systemUTC().nowAsJoda
-    override def inProgressRetryAfterProperty: String = ???
-  }
+  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
   
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
@@ -91,7 +65,7 @@ class InternalNotificationSpec extends AcceptanceTestSpec
     scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
       setupInternalServiceToReturn()
-      setupAuditServiceToReturn(NO_CONTENT)
+      stubAuditService()
       runNotificationQueueService(CREATED)
 
       repo.insert(internalWorkItem)
@@ -101,7 +75,7 @@ class InternalNotificationSpec extends AcceptanceTestSpec
         verifyInternalServiceWasCalledWith(internalPushNotificationRequest)
         verifyPushNotificationServiceWasNotCalled()
         verifyNotificationQueueServiceWasNotCalled()
-        verify(1, postRequestedFor(urlMatching("/write/audit")))
+        verifyAuditWrite()
       }
     }
   }

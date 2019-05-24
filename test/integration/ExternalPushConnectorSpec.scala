@@ -26,10 +26,14 @@ import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
 import uk.gov.hmrc.customs.notification.domain.HttpResultError
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ExternalServicesConfiguration, PushNotificationService}
+import util.{ExternalServicesConfiguration, PushNotificationService, WireMockRunnerWithoutServer}
 
-class ExternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
-  with BeforeAndAfterAll with PushNotificationService {
+class ExternalPushConnectorSpec extends IntegrationTestSpec
+  with GuiceOneAppPerSuite
+  with MockitoSugar
+  with BeforeAndAfterAll
+  with PushNotificationService
+  with WireMockRunnerWithoutServer {
 
   private lazy val connector = app.injector.instanceOf[ExternalPushConnector]
 

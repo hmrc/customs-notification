@@ -29,13 +29,14 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import unit.logging.StubCdsLogger
 import util.TestData._
-import util.{ExternalServicesConfiguration, InternalPushNotificationService}
+import util.{ExternalServicesConfiguration, InternalPushNotificationService, WireMockRunnerWithoutServer}
 
 class InternalPushConnectorSpec extends IntegrationTestSpec
   with GuiceOneAppPerSuite
   with MockitoSugar
   with BeforeAndAfterAll
-  with InternalPushNotificationService {
+  with InternalPushNotificationService
+  with WireMockRunnerWithoutServer {
 
   private lazy val connector = app.injector.instanceOf[InternalPushConnector]
   private val stubCdsLogger = StubCdsLogger()

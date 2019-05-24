@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package acceptance
+package component
 
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -29,7 +29,7 @@ import util._
 
 import scala.concurrent.Future
 
-class CustomsNotificationFailureSpec extends AcceptanceTestSpec
+class CustomsNotificationFailureSpec extends ComponentTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService

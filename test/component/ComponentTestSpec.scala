@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package acceptance
+package component
 
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
@@ -24,7 +24,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import util.ExternalServicesConfiguration
 
-trait AcceptanceTestSpec extends FeatureSpec
+trait ComponentTestSpec extends FeatureSpec
   with GivenWhenThen
   with GuiceOneAppPerSuite
   with BeforeAndAfterAll

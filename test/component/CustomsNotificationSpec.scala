@@ -14,29 +14,22 @@
  * limitations under the License.
  */
 
-package acceptance
-
-import java.time.Clock
+package component
 
 import org.joda.time.DateTime
-import play.api.Configuration
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc._
 import play.api.test.Helpers._
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus, WorkItemFieldNames, WorkItemRepository}
+import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus}
 import util.TestData._
 import util._
 
 import scala.concurrent.Future
 
-class CustomsNotificationSpec extends AcceptanceTestSpec
+class CustomsNotificationSpec extends ComponentTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService
@@ -48,25 +41,7 @@ class CustomsNotificationSpec extends AcceptanceTestSpec
 
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
 
-  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
-    collectionName = "notifications-work-item",
-    mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
-    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
-    config = Configuration().underlying) {
-
-    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
-      val receivedAt = "createdAt"
-      val updatedAt = "lastUpdated"
-      val availableAt = "availableAt"
-      val status = "status"
-      val id = "_id"
-      val failureCount = "failures"
-    }
-
-    override def now: DateTime = Clock.systemUTC().nowAsJoda
-
-    override def inProgressRetryAfterProperty: String = ???
-  }
+  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   override protected def beforeAll() {
     await(repo.drop)

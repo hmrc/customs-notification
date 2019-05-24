@@ -23,6 +23,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.inject.guice.GuiceableModule
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.play.test.UnitSpec
+import util.WireMockRunner
 
 case class IntegrationTestModule(mockLogger: CdsLogger) extends AbstractModule {
   def configure(): Unit = {
@@ -33,7 +34,10 @@ case class IntegrationTestModule(mockLogger: CdsLogger) extends AbstractModule {
 }
 
 trait IntegrationTestSpec extends UnitSpec
-  with BeforeAndAfterEach with BeforeAndAfterAll with Eventually {
+  with WireMockRunner
+  with BeforeAndAfterEach
+  with BeforeAndAfterAll
+  with Eventually {
 
   override implicit def patienceConfig: PatienceConfig = super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
 }
