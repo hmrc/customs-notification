@@ -21,7 +21,7 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.http.Status.OK
 
-trait CustomsNotificationMetricsService extends WireMockRunner {
+trait CustomsNotificationMetricsService {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.CustomsNotificationMetricsContext)
 
   def setupCustomsNotificationMetricsServiceToReturn(status: Int = OK): Unit =

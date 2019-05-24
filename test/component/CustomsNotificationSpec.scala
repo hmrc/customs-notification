@@ -14,36 +14,26 @@
  * limitations under the License.
  */
 
-package acceptance
-
-import java.time.Clock
+package component
 
 import org.joda.time.DateTime
-import org.scalatest.{Matchers, OptionValues}
-import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc._
 import play.api.test.Helpers._
-import play.api.{Application, Configuration}
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.repo.WorkItemFormat
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus, WorkItemFieldNames, WorkItemRepository}
+import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus}
 import util.TestData._
 import util._
 
 import scala.concurrent.Future
 
-class CustomsNotificationRetrySpec extends AcceptanceTestSpec
-  with Matchers
-  with OptionValues
+class CustomsNotificationSpec extends ComponentTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService
+  with InternalPushNotificationService
   with CustomsNotificationMetricsService
   with MongoSpecSupport {
 
@@ -51,27 +41,7 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
 
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
 
-  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
-    collectionName = "notifications-work-item",
-    mongo = app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db,
-    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
-    config = Configuration().underlying) {
-
-    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
-      val receivedAt = "createdAt"
-      val updatedAt = "lastUpdated"
-      val availableAt = "availableAt"
-      val status = "status"
-      val id = "_id"
-      val failureCount = "failures"
-    }
-
-    override def now: DateTime = Clock.systemUTC().nowAsJoda
-
-    override def inProgressRetryAfterProperty: String = ???
-  }
-
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
+  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   override protected def beforeAll() {
     await(repo.drop)
@@ -107,6 +77,8 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
 
       And("the response body is empty")
       contentAsString(resultFuture) shouldBe 'empty
+      
+      eventually (verifyNotificationQueueServiceWasNotCalled())
     }
 
     scenario("backend submits a valid request destined for pull") {
@@ -151,8 +123,6 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
     }
   }
 
-
-
   feature("Ensure work item is saved as permanently failed when existing work item is permanently failed") {
 
     scenario("backend submits a valid request") {
@@ -186,6 +156,24 @@ class CustomsNotificationRetrySpec extends AcceptanceTestSpec
     }
   }
 
+  feature("Ensure call to customs notification gateway are made") {
+
+    scenario("when notifications are present in the database") {
+      startApiSubscriptionFieldsService(validFieldsId, callbackData)
+      setupPushNotificationServiceToReturn()
+      runNotificationQueueService(CREATED)
+
+      repo.insert(internalWorkItem)
+
+      And("the notification gateway service was called correctly")
+      eventually {
+        verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
+        verifyInternalServiceWasNotCalledWith(pushNotificationRequest)
+        verifyNotificationQueueServiceWasNotCalled()
+      }
+    }
+  }
+  
   private def assertWorkItemRepoWithStatus(status: ProcessingStatus, count: Int) = {
     val workItems = await(repo.find())
     workItems should have size count

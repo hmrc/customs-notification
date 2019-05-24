@@ -17,7 +17,6 @@
 package util
 
 import org.scalatest.Matchers
-import org.scalatest.concurrent.Eventually
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
@@ -29,7 +28,6 @@ import java.util
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.matching.UrlPattern
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
-import play.api.http.Status.OK
 
 trait PushNotificationService extends WireMockRunner {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
@@ -65,7 +63,7 @@ trait PushNotificationService extends WireMockRunner {
 
 }
 
-trait InternalPushNotificationService extends WireMockRunner {
+trait InternalPushNotificationService {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.InternalPushServiceContext)
 
   def startInternalService(): Unit = {
@@ -114,7 +112,7 @@ trait InternalPushNotificationService extends WireMockRunner {
 
 }
 
-trait ApiSubscriptionFieldsService extends WireMockRunner {
+trait ApiSubscriptionFieldsService {
 
   def apiSubscriptionFieldsUrl(fieldsId: String): String =
     s"${ExternalServicesConfiguration.ApiSubscriptionFieldsServiceContext}/$fieldsId"
@@ -176,20 +174,6 @@ trait ApiSubscriptionFieldsService extends WireMockRunner {
   }
 
 }
-
-trait EmailService extends WireMockRunner with Eventually {
-
-  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.EmailServiceContext)
-
-  def setupEmailServiceToReturn(status: Int): Unit = {
-    stubFor(post(urlMatchingRequestPath).willReturn(aResponse().withStatus(status)))
-  }
-
-  def verifyEmailServiceWasCalled(): Unit = {
-    eventually(verify(1, postRequestedFor(urlMatchingRequestPath)))
-  }
-}
-
 
 trait NotificationQueueService extends WireMockRunner {
   self: Matchers =>
@@ -308,29 +292,12 @@ trait NotificationQueueService extends WireMockRunner {
 
 }
 
-
-trait AuditService extends WireMockRunner {
-  private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.AuditContext)
-
-  def setupAuditServiceToReturn(status: Int = OK): Unit =
-    stubFor(post(urlMatchingRequestPath)
-      willReturn aResponse()
-      .withStatus(status))
-
-  def verifyAuditServiceWasNotCalled() {
-    verify(0, postRequestedFor(urlMatchingRequestPath))
-  }
-
-}
-
 object ExternalServicesConfiguration {
   val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "11111").toInt
   val Host = "localhost"
   val PushNotificationServiceContext = "/notify-customs-declarant"
   val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
   val NotificationQueueContext = "/queue"
-  val EmailServiceContext = "/hmrc/email"
   val CustomsNotificationMetricsContext = "/log-times"
-  val AuditContext = "/write/audit.*"
   val InternalPushServiceContext = "/internal/notify"
 }

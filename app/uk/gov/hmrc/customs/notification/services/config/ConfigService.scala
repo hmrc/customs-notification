@@ -22,7 +22,7 @@ import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{UnblockPollingConfig, _}
+import uk.gov.hmrc.customs.notification.domain.{UnblockPollerConfig, _}
 
 import scala.concurrent.duration._
 
@@ -41,11 +41,9 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
   private case class CustomsNotificationConfigImpl(maybeBasicAuthToken: Option[String],
                                                    notificationQueueConfig: NotificationQueueConfig,
-                                                   pushNotificationConfig: PushNotificationConfig,
-                                                   pullExcludeConfig: PullExcludeConfig,
+                                                   notificationConfig: NotificationConfig,
                                                    notificationMetricsConfig: NotificationMetricsConfig,
-                                                   unblockPollingConfig: UnblockPollingConfig,
-                                                   logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig) extends CustomsNotificationConfig
+                                                   unblockPollerConfig: UnblockPollerConfig) extends CustomsNotificationConfig
 
   private val root = configValidatedNel.root
 
@@ -61,93 +59,47 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       configValidatedNel.service("customs-notification-metrics").serviceUrl.map(NotificationMetricsConfig.apply)
 
     val internalClientIdsNel: CustomsValidatedNel[Seq[String]] =
-      root.stringSeq("push.internal.clientIds")
-    val pollingEnabledNel: CustomsValidatedNel[Boolean] =
-      root.boolean("push.polling.enabled")
-    val pollingDelayNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
-    val pushLockDurationNel: CustomsValidatedNel[org.joda.time.Duration] =
-      root.int("push.lock.duration.milliseconds").map(millis => org.joda.time.Duration.millis(millis))
-    val maxFetchRecordsNel: CustomsValidatedNel[Int] =
-      root.int("push.fetch.maxRecords")
+      root.stringSeq("internal.clientIds")
+
     val ttlInSecondsNel: CustomsValidatedNel[Int] =
       root.int("ttlInSeconds")
 
     val retryPollerEnabledNel: CustomsValidatedNel[Boolean] =
-      root.boolean("push.retry.enabled")
-    val retryInitialPollingIntervalNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.retry.initialPollingInterval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
-    val retryAfterFailureIntervalNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.retry.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
-    val retryInProgressRetryAfterNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("push.retry.inProgressRetryAfter.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+      root.boolean("retry.poller.enabled")
+    val retryPollerIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("retry.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+    val retryPollerAfterFailureIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("retry.poller.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
+    val retryPollerInProgressRetryAfterNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("retry.poller.inProgressRetryAfter.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
     val retryPollerInstancesNel: CustomsValidatedNel[Int] =
-      root.int("push.retry.poller.instances")
+      root.int("retry.poller.instances")
 
-    val pushNotificationConfig: CustomsValidatedNel[PushNotificationConfig] = (
+    val notificationConfig: CustomsValidatedNel[NotificationConfig] = (
       internalClientIdsNel,
-      pollingEnabledNel,
-      pollingDelayNel,
-      pushLockDurationNel,
-      maxFetchRecordsNel,
       ttlInSecondsNel,
-
       retryPollerEnabledNel,
-      retryInitialPollingIntervalNel,
-      retryAfterFailureIntervalNel,
-      retryInProgressRetryAfterNel,
+      retryPollerIntervalNel,
+      retryPollerAfterFailureIntervalNel,
+      retryPollerInProgressRetryAfterNel,
       retryPollerInstancesNel
-    ).mapN(PushNotificationConfig)
+    ).mapN(NotificationConfig)
 
-    val emailUrlNel = configValidatedNel.service("email").serviceUrl
-    val notificationsOlderMillisNel: CustomsValidatedNel[Int] =
-      root.int("pull.exclude.older.milliseconds")
-    val csIdsToExcludeNel: CustomsValidatedNel[Seq[String]] =
-      root.stringSeq("pull.exclude.csIds")
-    val pullExcludeEnabledNel: CustomsValidatedNel[Boolean] =
-      root.boolean("pull.exclude.enabled")
-    val emailAddressNel: CustomsValidatedNel[String] =
-      root.string("pull.exclude.email.address")
-    val pullExcludePollingDelayNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("pull.exclude.email.delay.duration.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
-    val pullExcludePollingIntervalNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("pull.exclude.email.interval.duration.minutes").map(minutes => Duration(minutes, TimeUnit.MINUTES))
-    val pullExcludeConfig: CustomsValidatedNel[PullExcludeConfig] = (
-      pullExcludeEnabledNel,
-      emailAddressNel,
-      notificationsOlderMillisNel,
-      csIdsToExcludeNel,
-      emailUrlNel,
-      pullExcludePollingDelayNel,
-      pullExcludePollingIntervalNel
-    ).mapN(PullExcludeConfig)
-
-    val unblockPollingEnabledNel: CustomsValidatedNel[Boolean] =
-      root.boolean("unblock.polling.enabled")
-    val unblockPollingDelayNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("unblock.polling.delay.duration.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
-    val unblockPollingConfigNel: CustomsValidatedNel[UnblockPollingConfig] =
-      (unblockPollingEnabledNel,
-        unblockPollingDelayNel
-    ).mapN(UnblockPollingConfig)
-
-    val logNotificationCountsEnabledNel: CustomsValidatedNel[Boolean] =
-      root.boolean("logCounts.polling.enabled")
-    val logNotificationCountsPollingIntervalNel: CustomsValidatedNel[FiniteDuration] =
-      root.int("logCounts.polling.interval.duration.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS))
-    val logNotificationCountsPollingConfigNel: CustomsValidatedNel[LogNotificationCountsPollingConfig] =
-      (logNotificationCountsEnabledNel,
-        logNotificationCountsPollingIntervalNel
-    ).mapN(LogNotificationCountsPollingConfig)
+    val unblockPollerEnabledNel: CustomsValidatedNel[Boolean] =
+      root.boolean("unblock.poller.enabled")
+    val unblockPollerIntervalNel: CustomsValidatedNel[FiniteDuration] =
+      root.int("unblock.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))
+    val unblockPollerConfigNel: CustomsValidatedNel[UnblockPollerConfig] =
+      (unblockPollerEnabledNel,
+        unblockPollerIntervalNel
+    ).mapN(UnblockPollerConfig)
 
     val validatedConfig: CustomsValidatedNel[CustomsNotificationConfig] = (
       authTokenInternalNel,
       notificationQueueConfigNel,
-      pushNotificationConfig,
-      pullExcludeConfig,
+      notificationConfig,
       notificationMetricsConfigNel,
-      unblockPollingConfigNel,
-      logNotificationCountsPollingConfigNel
+      unblockPollerConfigNel
     ).mapN(CustomsNotificationConfigImpl)
 
       /*
@@ -170,13 +122,9 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
 
   override val notificationQueueConfig: NotificationQueueConfig = config.notificationQueueConfig
 
-  override val pushNotificationConfig: PushNotificationConfig = config.pushNotificationConfig
-
-  override val pullExcludeConfig: PullExcludeConfig = config.pullExcludeConfig
+  override val notificationConfig: NotificationConfig = config.notificationConfig
 
   override val notificationMetricsConfig: NotificationMetricsConfig = config.notificationMetricsConfig
 
-  override val unblockPollingConfig: UnblockPollingConfig = config.unblockPollingConfig
-
-  override val logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig = config.logNotificationCountsPollingConfig
+  override val unblockPollerConfig: UnblockPollerConfig = config.unblockPollerConfig
 }

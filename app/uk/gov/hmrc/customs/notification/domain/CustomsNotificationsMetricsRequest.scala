@@ -20,12 +20,10 @@ import java.time.ZonedDateTime
 
 import play.api.libs.json.{Format, Json}
 
-case class CustomsNotificationsMetricsRequest(
-                                              eventType: String,
+case class CustomsNotificationsMetricsRequest(eventType: String,
                                               conversationId: ConversationId,
                                               eventStart: ZonedDateTime,
-                                              eventEnd: ZonedDateTime
-)
+                                              eventEnd: ZonedDateTime)
 
 object CustomsNotificationsMetricsRequest {
   implicit val format: Format[CustomsNotificationsMetricsRequest] = Json.format[CustomsNotificationsMetricsRequest]

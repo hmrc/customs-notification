@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package acceptance
+package component
 
-import org.scalatest.{Matchers, OptionValues}
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -30,9 +29,7 @@ import util._
 
 import scala.concurrent.Future
 
-class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
-  with Matchers
-  with OptionValues
+class CustomsNotificationFailureSpec extends ComponentTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
   with PushNotificationService
@@ -42,20 +39,24 @@ class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
 
   private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
-
   private lazy val pollerConfigs = Map(
-    "push.retry.initialPollingInterval.milliseconds" -> 100,
-    "push.retry.retryAfterFailureInterval.seconds" -> 1,
-    "push.retry.inProgressRetryAfter.seconds" -> 1,
-    "push.retry.poller.instances" -> 10,
-    "unblock.polling.delay.duration.milliseconds" -> 100
+    "retry.poller.interval.milliseconds" -> 100,
+    "retry.poller.retryAfterFailureInterval.seconds" -> 1,
+    "retry.poller.inProgressRetryAfter.seconds" -> 1,
+    "retry.poller.instances" -> 10,
+    "unblock.poller.interval.milliseconds" -> 100
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs ++ pollerConfigs).build()
 
-  override protected def beforeEach() {
+  override protected def afterAll() {
+    stopMockServer()
     await(repo.drop)
+  }
+
+  override protected def beforeEach() {
     startMockServer()
+    await(repo.drop)
   }
 
   override protected def afterEach(): Unit = {
@@ -99,7 +100,7 @@ class CustomsNotificationRetryFailureSpec extends AcceptanceTestSpec
       eventually(assertOneWorkItemRepoWithStatus(Succeeded))
 
       And("pull queue was not called")
-      verifyNotificationQueueServiceWasNotCalled()
+      eventually(verifyNotificationQueueServiceWasNotCalled())
     }
 
     scenario("backend submits a valid PULL request but pull queue is unavailable") {

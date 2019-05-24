@@ -20,8 +20,8 @@ import java.time.Clock
 
 import com.typesafe.config.Config
 import org.mockito.Mockito._
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
@@ -47,22 +47,17 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val stubCdsLogger = StubCdsLogger()
   private val clock: Clock = Clock.systemUTC()
   private val five = 5
-  private val mockUnblockPollingConfig = mock[UnblockPollingConfig]
-  private val mockLogNotificationCountsPollingConfig = mock[LogNotificationCountsPollingConfig]
+  private val mockUnblockPollerConfig = mock[UnblockPollerConfig]
   private val mockConfiguration = mock[Configuration]
   private val collectionName = "notifications-work-item"
 
-  private val pushConfig = PushNotificationConfig(
+  private val pushConfig = NotificationConfig(
     internalClientIds = Seq.empty,
-    pollingEnabled = true,
-    pollingDelay = 0 second,
-    lockDuration = org.joda.time.Duration.ZERO,
-    maxRecordsToFetch = five,
     ttlInSeconds = 1,
     retryPollerEnabled = true,
-    retryInitialPollingInterval = 1 second,
-    retryAfterFailureInterval = 2 seconds,
-    retryInProgressRetryAfter = 2 seconds,
+    retryPollerInterval = 1 second,
+    retryPollerAfterFailureInterval = 2 seconds,
+    retryPollerInProgressRetryAfter = 2 seconds,
     retryPollerInstances = 1
   )
 
@@ -75,11 +70,9 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     new CustomsNotificationConfig {
       override def maybeBasicAuthToken: Option[String] = None
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
-      override def pushNotificationConfig: PushNotificationConfig = pushConfig
-      override def pullExcludeConfig: PullExcludeConfig = mock[PullExcludeConfig]
+      override def notificationConfig: NotificationConfig = pushConfig
       override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]
-      override def unblockPollingConfig: UnblockPollingConfig = mockUnblockPollingConfig
-      override def logNotificationCountsPollingConfig: LogNotificationCountsPollingConfig = mockLogNotificationCountsPollingConfig
+      override def unblockPollerConfig: UnblockPollerConfig = mockUnblockPollerConfig
     }
   }
 
@@ -262,7 +255,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
-      val result = await(repository.toFailedByCsId(validClientSubscriptionId1))
+      val result = await(repository.fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1))
 
       result shouldBe 2
       await(repository.findById(changed.id)).get.status shouldBe Failed

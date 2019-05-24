@@ -1,9 +1,7 @@
 ->          /                                    health.Routes
 ->          /                                    definition.Routes
-# Old endpoint
-POST        /customs-notification/notify-legacy  @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationClientWorkerController.submit()
-# New endpoints
-POST        /customs-notification/notify         @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationRetryController.submit()
+
+POST        /customs-notification/notify         @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController.submit()
 GET         /customs-notification/blocked-count  @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController.blockedCount()
 DELETE      /customs-notification/blocked-flag   @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController.deleteBlocked()
 

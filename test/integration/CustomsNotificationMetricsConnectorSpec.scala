@@ -32,8 +32,12 @@ import util.ExternalServicesConfiguration.{Host, Port}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.{AuditService, CustomsNotificationMetricsService, ExternalServicesConfiguration}
 
-class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
-with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService {
+class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
+  with GuiceOneAppPerSuite
+  with MockitoSugar
+  with BeforeAndAfterAll
+  with CustomsNotificationMetricsService
+  with AuditService {
 
   private lazy val connector = app.injector.instanceOf[CustomsNotificationMetricsConnector]
   private implicit val mockLogger: CdsLogger = mock[CdsLogger]
@@ -44,7 +48,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
   override protected def beforeEach() {
     resetMockServer()
-    setupAuditServiceToReturn()
+    stubAuditService()
     Mockito.reset(mockLogger)
   }
 
@@ -69,7 +73,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       val response: Unit = await(sendValidRequest())
       response shouldBe (())
-      verifyAuditServiceWasNotCalled()
+      eventually(verifyNoAuditWrite())
     }
 
     "return a failed future when external service returns 404" in {
@@ -77,8 +81,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[NotFoundException]
 
-      verifyAuditServiceWasNotCalled()
-      //[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde232]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404
+      eventually(verifyNoAuditWrite())
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404", mockLogger)
     }
 
@@ -87,7 +90,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadRequestException]
 
-      verifyAuditServiceWasNotCalled()
+      eventually(verifyNoAuditWrite())
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=400", mockLogger)
     }
 
@@ -96,7 +99,7 @@ with BeforeAndAfterAll with CustomsNotificationMetricsService with AuditService 
 
       intercept[Upstream5xxResponse](await(sendValidRequest()))
 
-      verifyAuditServiceWasNotCalled()
+      eventually(verifyNoAuditWrite())
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times", mockLogger)
     }
 

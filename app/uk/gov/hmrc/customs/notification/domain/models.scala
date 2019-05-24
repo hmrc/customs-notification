@@ -78,4 +78,3 @@ trait HasMaybeSubmitter {
 trait HasMaybeCorrelationId {
   def maybeCorrelationId: Option[CorrelationId]
 }
-

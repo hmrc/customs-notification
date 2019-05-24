@@ -28,16 +28,16 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
-class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
-                                      actorSystem: ActorSystem,
-                                      notificationWorkItemRepo: NotificationWorkItemRepo,
-                                      pushOrPullService: PushOrPullService,
-                                      logger: CdsLogger)(implicit executionContext: ExecutionContext) {
+class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
+                                     actorSystem: ActorSystem,
+                                     notificationWorkItemRepo: NotificationWorkItemRepo,
+                                     pushOrPullService: PushOrPullService,
+                                     logger: CdsLogger)(implicit executionContext: ExecutionContext) {
 
-  if (config.unblockPollingConfig.pollingEnabled) {
-    val pollingDelay: FiniteDuration = config.unblockPollingConfig.pollingDelay
+  if (config.unblockPollerConfig.pollerEnabled) {
+    val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
 
-      actorSystem.scheduler.schedule(0.seconds, pollingDelay) {
+      actorSystem.scheduler.schedule(0.seconds, pollerInterval) {
         notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
           logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
           logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name})")
@@ -47,7 +47,8 @@ class UnblockPollingService @Inject()(config: CustomsNotificationConfig,
                 pushOrPull(workItem).foreach(ok =>
                   if (ok) {
                     // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
-                    notificationWorkItemRepo.toFailedByCsId(csid).foreach{ count =>
+                    //changing status to failed makes the item eligible for retry
+                    notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid).foreach{ count =>
                       logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
                     }
                   }
