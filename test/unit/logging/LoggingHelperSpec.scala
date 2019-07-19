@@ -46,25 +46,31 @@ class LoggingHelperSpec extends UnitSpec {
     "format Debug with URL" in {
       val actual = LoggingHelper.formatDebug(errorMsg, Some(url))(requestMetaData)
 
-      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] ERROR url=http://some-url\n"
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] ERROR url=http://some-url"
     }
 
     "format Debug with URL and Payload" in {
       val actual = LoggingHelper.formatDebug(errorMsg, Some(url), Some("PAYLOAD"))(requestMetaData)
 
-      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] ERROR url=http://some-url\n\npayload=\nPAYLOAD"
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] ERROR url=http://some-url\npayload=\nPAYLOAD"
     }
 
     "format DEBUG with url and payload" in {
       val actual = LoggingHelper.formatDebug(debugMsg, Some(url), Some(ValidXML.toString()))(requestMetaData)
 
-      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] DEBUG url=http://some-url\n\npayload=\n<Foo>Bar</Foo>"
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] DEBUG url=http://some-url\npayload=\n<Foo>Bar</Foo>"
     }
 
     "format with headers" in {
       val actual = LoggingHelper.formatWithHeaders(debugMsg, LoggingHeadersWithAuth)
 
       actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232][clientId=ClientId] DEBUG\nheaders=List((X-CDS-Client-ID,ffff01f9-ec3b-4ede-b263-61b626dde232), (X-Client-ID,ClientId), (X-Conversation-ID,eaca01f9-ec3b-4ede-b263-61b626dde231), (Authorization,Basic YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ=))"
+    }
+
+    "format without headers" in {
+      val actual = LoggingHelper.formatWithoutHeaders(debugMsg, LoggingHeadersWithAuth)
+
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=ffff01f9-ec3b-4ede-b263-61b626dde232][clientId=ClientId] DEBUG"
     }
 
   }
