@@ -19,6 +19,7 @@ package unit.logging
 import org.mockito.ArgumentMatchers.any
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -45,16 +46,26 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
       logger.debug("msg", "url")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] msg url=url\n")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] msg url=url")
         .verify()
     }
+
     "debug(s: => String, url: => String, payload: => String)" in new SetUp {
       logger.debug("msg", "url", "payload")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] msg url=url\n\npayload=\npayload")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234] msg url=url\npayload=\npayload")
         .verify()
     }
+
+    "debugWithoutHeaders(msg: => String, headers: => SeqOfHeader))" in new SetUp {
+      logger.debugWithoutHeaders("msg", Seq())
+
+      PassByNameVerifier(mockCdsLogger, "debug")
+        .withByNameParam(" msg")
+        .verify()
+    }
+
     "info(s: => String)" in new SetUp {
       logger.info("msg")
 
