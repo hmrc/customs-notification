@@ -40,7 +40,7 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
 
   def debugWithHeaders(msg: => String, headers: => SeqOfHeader): Unit = logger.debug(formatWithHeaders(msg, headers))
 
-  def debugWithoutHeaders(msg: => String, headers: => SeqOfHeader): Unit = logger.debug(formatWithoutHeaders(msg, headers))
+  def debugWithPrefixedHeaders(msg: => String, headers: => SeqOfHeader): Unit = logger.debug(formatWithoutHeaders(msg, headers))
 
   def info(msg: => String)(implicit rm: HasId): Unit = {
     logger.info(format(msg, rm))

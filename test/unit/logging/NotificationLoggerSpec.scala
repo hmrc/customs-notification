@@ -59,7 +59,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
     }
 
     "debugWithoutHeaders(msg: => String, headers: => SeqOfHeader))" in new SetUp {
-      logger.debugWithoutHeaders("msg", Seq())
+      logger.debugWithPrefixedHeaders("msg", Seq())
 
       PassByNameVerifier(mockCdsLogger, "debug")
         .withByNameParam(" msg")
