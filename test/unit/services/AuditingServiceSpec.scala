@@ -18,12 +18,11 @@ package unit.services
 
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.{verify, when}
+import org.mockito.Mockito.{reset, verify, when}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
-import uk.gov.hmrc.customs.api.common.config.ServicesConfig
+import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.AuditingService
@@ -42,19 +41,18 @@ import scala.language.postfixOps
 
 class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
 
+  implicit val ec = Helpers.stubControllerComponents().executionContext
   override implicit val patienceConfig = PatienceConfig(timeout = 5 seconds)
 
   private val mockLogger = mock[NotificationLogger]
-  private val mockServicesConfig = mock[ServicesConfig]
   private val mockAuditConnector = mock[AuditConnector]
   private implicit val rm = TestData.requestMetaData
 
   override def beforeEach(): Unit = {
-    org.mockito.Mockito.reset(mockServicesConfig)
-    org.mockito.Mockito.reset(mockAuditConnector)
+    reset(mockAuditConnector)
   }
 
-  val auditingService = new AuditingService(mockLogger, mockServicesConfig, mockAuditConnector)
+  val auditingService = new AuditingService(mockLogger, mockAuditConnector)
 
   "AuditingService" should {
 
@@ -113,7 +111,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
     "should log error when auditing fails" in {
 
-      val auditingService = new AuditingService(mockLogger, mockServicesConfig, mockAuditConnector)
+      val auditingService = new AuditingService(mockLogger, mockAuditConnector)
 
       when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.failed(new Exception))
 

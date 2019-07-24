@@ -17,8 +17,9 @@
 package component
 
 import org.joda.time.DateTime
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc._
+import play.api.mvc.request.RequestTarget
+import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
@@ -41,6 +42,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
 
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   override protected def beforeAll() {
@@ -64,7 +66,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       setupPushNotificationServiceToReturn()
 
       Given("the API is available")
-      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+      val request = ValidRequest.withMethod(POST).withTarget(RequestTarget(path = endpoint, uriString = ValidRequest.uri, queryString = ValidRequest.queryString))
 
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)
@@ -86,7 +88,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       startApiSubscriptionFieldsService(validFieldsId, DeclarantCallbackDataOneForPull)
 
       Given("the API is available")
-      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+      val request = ValidRequest.withMethod(POST).withTarget(RequestTarget(path = endpoint, uriString = ValidRequest.uri, queryString = ValidRequest.queryString))
 
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)
@@ -107,7 +109,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       runNotificationQueueService(CREATED)
 
       Given("the API is available")
-      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+      val request = ValidRequest.withMethod(POST).withTarget(RequestTarget(path = endpoint, uriString = ValidRequest.uri, queryString = ValidRequest.queryString))
 
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)
@@ -137,7 +139,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       eventually(assertWorkItemRepoWithStatus(PermanentlyFailed, 1))
 
       Given("the API is available")
-      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+      val request = ValidRequest.withMethod(POST).withTarget(RequestTarget(path = endpoint, uriString = ValidRequest.uri, queryString = ValidRequest.queryString))
 
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)

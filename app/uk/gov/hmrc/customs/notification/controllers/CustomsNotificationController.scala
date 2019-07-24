@@ -28,7 +28,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
-import uk.gov.hmrc.play.bootstrap.controller.BaseController
+import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
@@ -60,15 +60,17 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
 }
 
 @Singleton
-class CustomsNotificationController @Inject()(val logger: NotificationLogger,
-                                              val customsNotificationService: CustomsNotificationService,
+class CustomsNotificationController @Inject()(val customsNotificationService: CustomsNotificationService,
                                               val callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                               val configService: CustomsNotificationConfig,
-                                              val dateTimeService: DateTimeService)
-                                                      (implicit ec: ExecutionContext)
-               extends BaseController with HeaderValidator {
+                                              val dateTimeService: DateTimeService,
+                                              val cc: ControllerComponents,
+                                              val logger: NotificationLogger)
+                                             (implicit ec: ExecutionContext)
+               extends BackendController(cc) with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
+  override val controllerComponents: ControllerComponents = cc
   private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private lazy val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
 

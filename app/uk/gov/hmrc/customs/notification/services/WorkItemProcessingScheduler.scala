@@ -40,7 +40,7 @@ class WorkItemProcessingScheduler @Inject()(queueProcessor: WorkItemService,
 
     import context.dispatcher
     val log = Logging(context.system, this)
-    
+
     override def receive: Receive = {
       case Poll =>
         queueProcessor.processOne() andThen {

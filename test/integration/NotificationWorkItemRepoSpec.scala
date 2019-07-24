@@ -23,8 +23,8 @@ import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
+import play.api.test.Helpers
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem, _}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
@@ -44,12 +44,11 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with MockitoSugar
   with MongoSpecSupport {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val stubCdsLogger = StubCdsLogger()
   private val clock: Clock = Clock.systemUTC()
-  private val five = 5
   private val mockUnblockPollerConfig = mock[UnblockPollerConfig]
   private val mockConfiguration = mock[Configuration]
-  private val collectionName = "notifications-work-item"
 
   private val pushConfig = NotificationConfig(
     internalClientIds = Seq.empty,

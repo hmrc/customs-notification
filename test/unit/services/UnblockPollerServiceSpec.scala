@@ -22,7 +22,6 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
@@ -42,6 +41,8 @@ class UnblockPollerServiceSpec extends UnitSpec
   with MockitoSugar
   with Eventually
   with BeforeAndAfterEach {
+
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
 
   trait Setup {
     private[UnblockPollerServiceSpec] val csIdSetOfOne = Set(validClientSubscriptionId1)

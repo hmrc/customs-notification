@@ -24,7 +24,6 @@ import org.joda.time.DateTimeZone
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain.{HasId, HttpResultError}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -38,6 +37,8 @@ import util.TestData._
 import scala.concurrent.Future
 
 class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
+
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
 
   trait SetUp {
     private[WorkItemServiceImplSpec] val mockRepo = mock[NotificationWorkItemMongoRepo]
