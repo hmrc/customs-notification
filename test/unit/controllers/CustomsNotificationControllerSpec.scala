@@ -20,9 +20,9 @@ import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.{JsObject, JsString}
 import play.api.mvc._
+import play.api.test.Helpers
 import play.api.test.Helpers._
 import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPORTED_MEDIA_TYPE}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
@@ -40,6 +40,7 @@ import scala.concurrent.Future
 
 class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
   private val mockConfigService = mock[ConfigService]
@@ -47,11 +48,12 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val mockDateTimeService = mock[DateTimeService]
 
   private def controller() = new CustomsNotificationController(
-    mockNotificationLogger,
     mockCustomsNotificationService,
     mockCallbackDetailsConnector,
     mockConfigService,
-    mockDateTimeService
+    mockDateTimeService,
+    Helpers.stubControllerComponents(),
+    mockNotificationLogger
   )
 
   private val wrongPayloadErrorResult = ErrorResponse.errorBadRequest("Request body does not contain well-formed XML.").XmlResult

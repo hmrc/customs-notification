@@ -138,7 +138,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     logger.debug(s"deleting blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
     val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> PermanentlyFailed)
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> Failed))
-    
+
     collection.update(ordered = false).one(selector, update, multi = true).map {result =>
       logger.debug(s"deleted ${result.n} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
       result.n

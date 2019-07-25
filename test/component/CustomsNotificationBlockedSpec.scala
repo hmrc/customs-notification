@@ -17,8 +17,8 @@
 package component
 
 import org.joda.time.DateTime
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc.Result
+import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
@@ -33,6 +33,7 @@ import scala.xml.XML.loadString
 class CustomsNotificationBlockedSpec extends ComponentTestSpec
   with MongoSpecSupport {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
   private val missingClientIdError =
     <errorResponse>

@@ -42,7 +42,9 @@ class WorkItemProcessingSchedulerSpec extends UnitSpec with MockitoSugar
     private[WorkItemProcessingSchedulerSpec] implicit val actorSystem = ActorSystem.create("WorkItemProcessingSchedulerSpec")
 
     private[WorkItemProcessingSchedulerSpec] implicit val applicationLifecycle = new ApplicationLifecycle {
+      
       override def addStopHook(hook: () => Future[_]): Unit = {}
+      override def stop(): Future[_] = {}
     }
 
     private[WorkItemProcessingSchedulerSpec] val mockConfig = mock[CustomsNotificationConfig]

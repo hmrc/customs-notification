@@ -22,7 +22,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Span}
 import org.scalatestplus.mockito.MockitoSugar
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.test.Helpers
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.domain.{HasId, HttpResultError}
@@ -41,6 +40,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
   override implicit def patienceConfig: PatienceConfig =
     super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
 
   private val eventuallyRightOfPush = Future.successful(Right(Push))
   private val exception = new Exception("Boom")

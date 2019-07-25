@@ -18,7 +18,7 @@ package component
 
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoSpecSupport
@@ -34,6 +34,7 @@ class InternalNotificationSpec extends ComponentTestSpec
   with MongoSpecSupport
   with AuditService {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
   
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(

@@ -7,16 +7,16 @@ addSbtPlugin("uk.gov.hmrc" % "sbt-artifactory" % "0.19.0")
 
 addSbtPlugin("uk.gov.hmrc" % "sbt-git-versioning" % "1.19.0")
 
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "0.8.4")
+addSbtPlugin("com.github.gseitz" % "sbt-release" % "0.8.5")
 
-addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.5.19")
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.23")
 
 addSbtPlugin("uk.gov.hmrc" % "sbt-settings" % "3.11.0")
 
-addSbtPlugin("uk.gov.hmrc" % "sbt-distributables" % "1.5.0")
+addSbtPlugin("uk.gov.hmrc" % "sbt-distributables" % "1.6.0")
 
 addSbtPlugin("uk.gov.hmrc" % "sbt-git-stamp" % "5.7.0")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.0")
 
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")

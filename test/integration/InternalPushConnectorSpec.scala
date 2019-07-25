@@ -16,8 +16,6 @@
 
 package integration
 
-import java.net.MalformedURLException
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -110,10 +108,10 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(NonHttpError) when malformed URL is supplied" in {
       setupInternalServiceToReturn(NO_CONTENT)
 
-      val Left(NonHttpError(e)) = await(connector.send(pnr("INVALID_URL")))
+      val Left(NonHttpError(e)) = await(connector.send(pnr("some-broken-url")))
 
-      e.getClass shouldBe classOf[MalformedURLException]
-      e.getMessage shouldBe "no protocol: INVALID_URL"
+      e.getClass shouldBe classOf[IllegalArgumentException]
+      e.getMessage shouldBe "Invalid URL some-broken-url"
     }
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in

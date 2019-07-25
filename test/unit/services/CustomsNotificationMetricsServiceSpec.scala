@@ -21,6 +21,7 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
+import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, HasId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -31,11 +32,11 @@ import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
 import scala.concurrent.Future
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
 
   trait SetUp {
+    private implicit val ec = Helpers.stubControllerComponents().executionContext
     private[CustomsNotificationMetricsServiceSpec] val mockLogger = mock[NotificationLogger]
     private[CustomsNotificationMetricsServiceSpec] lazy val mockMetricsConnector = mock[CustomsNotificationMetricsConnector]
     private[CustomsNotificationMetricsServiceSpec] lazy val mockDateTimeService = mock[DateTimeService]

@@ -18,8 +18,9 @@ package component
 
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.mvc._
+import play.api.mvc.request.RequestTarget
+import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoSpecSupport
@@ -47,6 +48,7 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
     "unblock.poller.interval.milliseconds" -> 100
   )
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs ++ pollerConfigs).build()
 
   override protected def afterAll() {
@@ -73,8 +75,8 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
       setupPushNotificationServiceToReturn(NOT_FOUND)
 
       And("the API is available")
-      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
-
+      val request = ValidRequest.withMethod(POST).withTarget(RequestTarget(path = endpoint, uriString = ValidRequest.uri, queryString = ValidRequest.queryString))
+      
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)
 
@@ -110,7 +112,7 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
       runNotificationQueueService(NOT_FOUND)
 
       And("the API is available")
-      val request = ValidRequest.copyFakeRequest(method = POST, uri = endpoint)
+      val request = ValidRequest.withMethod(POST).withTarget(RequestTarget(path = endpoint, uriString = ValidRequest.uri, queryString = ValidRequest.queryString))
 
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)

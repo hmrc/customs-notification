@@ -18,7 +18,6 @@ package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{HasId, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -26,7 +25,7 @@ import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, Succeeded, WorkItem}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.xml.NodeSeq
 
@@ -34,7 +33,8 @@ import scala.xml.NodeSeq
 class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            notificationWorkItemRepo: NotificationWorkItemRepo,
                                            pushOrPullService: PushOrPullService,
-                                           metricsService: CustomsNotificationMetricsService) {
+                                           metricsService: CustomsNotificationMetricsService)
+                                          (implicit ec: ExecutionContext) {
 
   type HasSaved = Boolean
 
