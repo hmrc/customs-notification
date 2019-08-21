@@ -18,10 +18,12 @@ package unit.services
 
 import java.time.{ZoneId, ZonedDateTime}
 
+import com.codahale.metrics.{Counter, MetricRegistry}
+import com.kenshoo.play.metrics.Metrics
 import org.joda.time.DateTimeZone
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain.{HasId, HttpResultError}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -32,18 +34,22 @@ import uk.gov.hmrc.workitem.{Failed, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
+
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
 
   trait SetUp {
     private[WorkItemServiceImplSpec] val mockRepo = mock[NotificationWorkItemMongoRepo]
     private[WorkItemServiceImplSpec] val mockPushOrPull = mock[PushOrPullService]
     private[WorkItemServiceImplSpec] val mockDateTime = mock[DateTimeService]
     private[WorkItemServiceImplSpec] val mockLogger = mock[NotificationLogger]
+    private[WorkItemServiceImplSpec] val mockMetrics = mock[Metrics]
+    private[WorkItemServiceImplSpec] val mockMetricRegistry: MetricRegistry = mock[MetricRegistry]
+    private[WorkItemServiceImplSpec] val mockCounter: Counter = mock[Counter]
     private[WorkItemServiceImplSpec] val service = new WorkItemServiceImpl(
-      mockRepo, mockPushOrPull, mockDateTime, mockLogger
+      mockRepo, mockPushOrPull, mockDateTime, mockLogger, mockMetrics
     )
     private[WorkItemServiceImplSpec] val UtcZoneId = ZoneId.of("UTC")
     private[WorkItemServiceImplSpec] val now: ZonedDateTime = ZonedDateTime.now(UtcZoneId)
@@ -55,7 +61,10 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val httpResultError = HttpResultError(Helpers.NOT_FOUND, exception)
     private[WorkItemServiceImplSpec] val eventualFailed = Future.failed(exception)
 
-    def verifyErrorLog(msg: String) = {
+    when(mockMetrics.defaultRegistry).thenReturn(mockMetricRegistry)
+    when(mockMetricRegistry.counter("declaration-digital-notification-retry-total-counter")).thenReturn(mockCounter)
+
+    private[WorkItemServiceImplSpec] def verifyErrorLog(msg: String) = {
       PassByNameVerifier(mockLogger, "error")
         .withByNameParam(msg)
         .withByNameParamMatcher(any[Throwable])
@@ -63,7 +72,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
         .verify()
     }
 
-    def verifyInfoLog(msg: String) = {
+    private[WorkItemServiceImplSpec] def verifyInfoLog(msg: String) = {
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam(msg)
         .withParamMatcher(any[HasId])
@@ -82,7 +91,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe false
       verifyZeroInteractions(mockPushOrPull)
-      verify(mockRepo, times(0)).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
+      verify(mockRepo, times(0)).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verify(mockRepo, times(0)).setCompletedStatus(WorkItem1.id, Failed)
     }
 
@@ -96,7 +105,8 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Succeeded)
-      verifyInfoLog("Retry succeeded for Push")
+      verify(mockCounter).inc()
+      verifyInfoLog("Push retry succeeded for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
     }
 
     "return Future of true and set WorkItem status to Success when PULL returns 2XX" in new SetUp {
@@ -108,7 +118,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       val actual = await(service.processOne())
 
       actual shouldBe true
-      verifyInfoLog("Retry succeeded for Pull")
+      verifyInfoLog("Pull retry succeeded for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
     }
 
     "return Future of true and set WorkItem status to PermanentlyFailed when ApiSubscriptionFields connector returns an error" in new SetUp {
@@ -117,14 +127,14 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val fieldsError = PushOrPullError(GetApiSubscriptionFields, httpResultError)
       when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(fieldsError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByClientId(WorkItem1.item.clientId)).thenReturn(Future.successful(1))
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
-      verifyInfoLog("Retry failed for GetApiSubscriptionFields with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+      verifyInfoLog("GetApiSubscriptionFields retry failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
     "return Future of true and set WorkItem status to PermanentlyFailed when PUSH returns an error" in new SetUp {
@@ -133,14 +143,14 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pushError = PushOrPullError(Push, httpResultError)
       when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(pushError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByClientId(WorkItem1.item.clientId)).thenReturn(Future.successful(1))
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
-      verifyInfoLog("Retry failed for Push with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+      verifyInfoLog("Push retry failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
     "return Future of true and set WorkItem status to PermanentlyFailed when PULL returns an error" in new SetUp {
@@ -149,14 +159,14 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pullError = PushOrPullError(Pull, httpResultError)
       when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(pullError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByClientId(WorkItem1.item.clientId)).thenReturn(Future.successful(1))
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
-      verifyInfoLog("Retry failed for Pull with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientId ClientId")
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+      verifyInfoLog("Pull retry failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
     "return Future of true and log database error when PUSH returns an error and call to repository setCompletedStatus fails" in new SetUp {
@@ -170,7 +180,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo, times(0)).toPermanentlyFailedByClientId(WorkItem1.item.clientId)
+      verify(mockRepo, times(0)).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyErrorLog("Error updating database")
     }
 

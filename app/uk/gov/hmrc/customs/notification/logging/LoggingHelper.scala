@@ -40,12 +40,17 @@ object LoggingHelper {
   def formatDebug(msg: String, maybeUrl: Option[String] = None, maybePayload: Option[String] = None)(implicit rm: HasId): String = {
     val urlPart = maybeUrl.fold("")(url => s" url=$url")
     val payloadPart = maybePayload.fold("")(payload => s"\npayload=\n$payload")
-    s"${formatLogPrefix(rm)} $msg$urlPart\n$payloadPart"
+    s"${formatLogPrefix(rm)} $msg$urlPart$payloadPart"
   }
 
   def formatWithHeaders(msg: String, headers: SeqOfHeader): String = {
     s"${formatLogPrefixWithHeaders(headers)} $msg\nheaders=${overwriteHeaderValues(headers,headersToOverwrite - AUTHORIZATION)}"
   }
+
+  def formatWithoutHeaders(msg: String, headers: SeqOfHeader): String = {
+    s"${formatLogPrefixWithHeaders(headers)} $msg"
+  }
+
   private def formatLogPrefixWithHeaders(headers: SeqOfHeader): String = {
     val maybeClientId = findHeaderValue(CustomHeaderNames.X_CLIENT_ID_HEADER_NAME, headers)
     val maybeFieldsId = findHeaderValue(CustomHeaderNames.X_CDS_CLIENT_ID_HEADER_NAME, headers)
@@ -72,13 +77,13 @@ object LoggingHelper {
         formatOptional("badgeId", has.mayBeBadgeId)
       case _ => ""
     }
-    def eori = rm match {
-      case has: HasMaybeEori =>
-        formatOptional("eoriIdentifier", has.mayBeEoriNumber)
+    def submitter = rm match {
+      case has: HasMaybeSubmitter =>
+        formatOptional("submitterIdentifier", has.mayBeSubmitterNumber)
       case _ => ""
     }
 
-    s"[${rm.idName}=${rm.idValue}]$fieldsId$badgeId$eori$correlationId"
+    s"[${rm.idName}=${rm.idValue}]$fieldsId$badgeId$submitter$correlationId"
   }
 
   private def formatOptional[T](name: String, maybeValue: Option[T]) = {

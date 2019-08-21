@@ -16,18 +16,17 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import cats.data.OptionT
-import cats.implicits._
+import com.codahale.metrics.MetricRegistry
 import com.google.inject.ImplementedBy
+import com.kenshoo.play.metrics.Metrics
 import javax.inject.Inject
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @ImplementedBy(classOf[WorkItemServiceImpl])
@@ -37,49 +36,62 @@ trait WorkItemService {
 }
 
 class WorkItemServiceImpl @Inject()(
-                                             repository: NotificationWorkItemMongoRepo,
-                                             pushOrPullService: PushOrPullService,
-                                             dateTimeService: DateTimeService,
-                                             logger: NotificationLogger
-  ) extends WorkItemService {
+    repository: NotificationWorkItemMongoRepo,
+    pushOrPullService: PushOrPullService,
+    dateTimeService: DateTimeService,
+    logger: NotificationLogger,
+    metrics: Metrics
+  )
+  (implicit ec: ExecutionContext) extends WorkItemService {
+
+  private val metricName = "declaration-digital-notification-retry-total"
 
   def processOne(): Future[Boolean] = {
 
     val failedBefore = dateTimeService.zonedDateTimeUtc.toDateTime
     val availableBefore = failedBefore
+    val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap{
+      case Some(firstOutstandingItem) =>
+        incrementCountMetric(metricName, firstOutstandingItem)
+        pushOrPull(firstOutstandingItem).map{_ =>
+          true
+        }
+      case None =>
+        Future.successful(false)
+    }
+    eventuallyProcessedOne
+  }
 
-    val result: OptionT[Future, Unit] = for {
-      firstOutstandingItem <- OptionT(
-        repository.pullOutstanding(failedBefore, availableBefore))
-      _ <- OptionT.liftF(pushOrPull(firstOutstandingItem))
-    } yield ()
+  lazy val registry: MetricRegistry = metrics.defaultRegistry
 
-    val somethingHasBeenProcessed = result.value.map(_.isDefined)
-
-    somethingHasBeenProcessed
+  def incrementCountMetric(metric: String, workItem: WorkItem[NotificationWorkItem]): Unit = {
+    implicit val loggingContext = workItem.item
+    logger.debug(s"incrementing counter for metric: $metric")
+    registry.counter(s"$metric-counter").inc()
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
 
     implicit val loggingContext = workItem.item
 
+    logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap{
       case Right(connector) =>
-        logger.info(s"Retry succeeded for $connector")
+        logger.info(s"$connector retry succeeded for $workItem")
         repository.setCompletedStatus(workItem.id, Succeeded)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Retry failed for $connector with error $resultError. Setting status to " +
-          s"PermanentlyFailed for all notifications with clientId ${workItem.item.clientId.toString}")
+        logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
+          s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (for {
           _ <- repository.setCompletedStatus(workItem.id, Failed) // increase failure count
-          _ <- repository.toPermanentlyFailedByClientId(workItem.item.clientId)
+          _ <- repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId)
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
         }
     }.recover{
       case NonFatal(e) => // this should never happen as exceptions are recovered in all above code paths
-        logger.error(s"error processing notification ${workItem.item}", e)
+        logger.error(s"error processing work item $workItem", e)
         Future.failed(e)
     }
 

@@ -26,15 +26,16 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CLIENT_I
 import uk.gov.hmrc.customs.notification.domain.{ClientId, HasId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
-import uk.gov.hmrc.play.bootstrap.controller.BaseController
+import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class CustomsNotificationBlockedController @Inject()(val logger: NotificationLogger,
-                                                     val customsNotificationBlockedService: CustomsNotificationBlockedService)
-  extends BaseController {
+class CustomsNotificationBlockedController @Inject()(val customsNotificationBlockedService: CustomsNotificationBlockedService,
+                                                     val cc: ControllerComponents,
+                                                     val logger: NotificationLogger)
+                                                    (implicit ec: ExecutionContext)
+  extends BackendController(cc) {
 
   def blockedCount(): Action[AnyContent] = Action.async {
     implicit request: Request[AnyContent] =>

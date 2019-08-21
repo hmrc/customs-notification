@@ -14,35 +14,26 @@
  * limitations under the License.
  */
 
-package acceptance
-
-import java.time.Clock
+package component
 
 import org.joda.time.DateTime
-import org.scalatest.{Matchers, OptionValues}
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc.Result
+import play.api.test.Helpers
 import play.api.test.Helpers._
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, WorkItemFormat}
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoSpecSupport
 import uk.gov.hmrc.workitem._
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.xml.Utility.trim
 import scala.xml.XML.loadString
 
-class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
-  with Matchers
-  with OptionValues
+class CustomsNotificationBlockedSpec extends ComponentTestSpec
   with MongoSpecSupport {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
   private val missingClientIdError =
     <errorResponse>
@@ -56,28 +47,9 @@ class CustomsNotificationBlockedSpec extends AcceptanceTestSpec
       <message>Resource was not found</message>
     </errorResponse>
 
-  private val repo: WorkItemRepository[NotificationWorkItem, BSONObjectID] = new WorkItemRepository[NotificationWorkItem, BSONObjectID](
-    collectionName = "notifications-work-item",
-    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
-    itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem]) {
+  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
-    override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
-      val receivedAt = "createdAt"
-      val updatedAt = "lastUpdated"
-      val availableAt = "availableAt"
-      val status = "status"
-      val id = "_id"
-      val failureCount = "failures"
-    }
-
-    override def now: DateTime = Clock.systemUTC().nowAsJoda
-
-    override def inProgressRetryAfterProperty: String = ???
-  }
-
-  override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
-
-  override protected def beforeAll() {
+  override protected def beforeEach() {
     await(repo.drop)
   }
 

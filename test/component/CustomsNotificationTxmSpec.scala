@@ -14,43 +14,32 @@
  * limitations under the License.
  */
 
-package acceptance
+package component
 
-import java.util.UUID
-
-import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlMatching, verify}
-import org.scalatest.{Matchers, OptionValues}
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.test.Helpers
 import play.api.test.Helpers._
-import reactivemongo.bson.BSONObjectID
-import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.repo.MongoDbProvider
-import uk.gov.hmrc.mongo.{MongoSpecSupport, ReactiveRepository}
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
+import uk.gov.hmrc.mongo.MongoSpecSupport
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
-class CustomsNotificationTxmSpec extends AcceptanceTestSpec
-  with Matchers with OptionValues
-  with ApiSubscriptionFieldsService with NotificationQueueService
+class CustomsNotificationTxmSpec extends ComponentTestSpec
+  with ApiSubscriptionFieldsService
+  with NotificationQueueService
   with PushNotificationService
   with InternalPushNotificationService
   with MongoSpecSupport
   with AuditService {
 
-  private val repo: ReactiveRepository[ClientNotification, BSONObjectID] = new ReactiveRepository[ClientNotification, BSONObjectID](
-    collectionName = "notifications",
-    mongo = app.injector.instanceOf[MongoDbProvider].mongo,
-    domainFormat = ClientNotification.clientNotificationJF) {
-  }
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
-      ("push.polling.delay.duration.milliseconds" -> 2) +
-      ("push.internal.clientIds.0" -> "aThirdPartyApplicationId") +
+      ("internal.clientIds.0" -> "aThirdPartyApplicationId") +
       ("auditing.enabled" -> "true") +
       ("auditing.consumer.baseUri.host" -> Host) +
       ("auditing.consumer.baseUri.port" -> Port) +
@@ -69,6 +58,7 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
 
   override protected def afterAll() {
     stopMockServer()
+    await(repo.drop)
   }
 
 
@@ -77,19 +67,21 @@ class CustomsNotificationTxmSpec extends AcceptanceTestSpec
     scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
       setupInternalServiceToReturn()
-      setupAuditServiceToReturn(NO_CONTENT)
+      stubAuditService()
       runNotificationQueueService(CREATED)
 
-      repo.insert(ClientNotification(ClientSubscriptionId(UUID.fromString(validFieldsId)),
-        Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml"), Some(TimeReceivedDateTime), Some(MetricsStartTimeDateTime)))
+      repo.insert(internalWorkItem)
 
       And("the callback endpoint was called internally, bypassing the gateway")
-      eventually(verifyInternalServiceWasCalledWith(internalPushNotificationRequest))
-      eventually(verifyPushNotificationServiceWasNotCalled())
-      eventually(verifyNotificationQueueServiceWasNotCalled())
+      
+      eventually {
+        verifyInternalServiceWasCalledWith(internalPushNotificationRequest)
+        verifyPushNotificationServiceWasNotCalled()
+        verifyNotificationQueueServiceWasNotCalled()
+      }
 
       And("A call is made to the audit service")
-      eventually(verify(1, postRequestedFor(urlMatching("/write/audit"))))
+      eventually(verifyAuditWrite())
 
     }
   }

@@ -24,13 +24,13 @@ import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, Custo
 import uk.gov.hmrc.customs.notification.http.NoAuditHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
                                                     logger: CdsLogger,
-                                                    config: CustomsNotificationConfig) {
+                                                    config: CustomsNotificationConfig)
+                                                   (implicit ec: ExecutionContext) {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier(
     extraHeaders = Seq(ACCEPT -> JSON, CONTENT_TYPE -> JSON)

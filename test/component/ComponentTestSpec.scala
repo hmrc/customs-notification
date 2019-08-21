@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package acceptance
+package component
 
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
@@ -24,9 +24,14 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import util.ExternalServicesConfiguration
 
-
-trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneAppPerSuite
-   with BeforeAndAfterAll with BeforeAndAfterEach with Eventually {
+trait ComponentTestSpec extends FeatureSpec
+  with GivenWhenThen
+  with GuiceOneAppPerSuite
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach
+  with Eventually
+  with Matchers
+  with OptionValues {
 
   private val Wait = 5
 
@@ -44,9 +49,10 @@ trait AcceptanceTestSpec extends FeatureSpec with GivenWhenThen with GuiceOneApp
     "microservice.services.notification-queue.port" -> ExternalServicesConfiguration.Port,
     "microservice.services.notification-queue.context" -> ExternalServicesConfiguration.NotificationQueueContext,
     "auditing.enabled" -> false,
-    "mongodb.uri" -> "mongodb://localhost:27017/customs-notification"
+    "mongodb.uri" -> "mongodb://localhost:27017/customs-notification",
+    "metrics.jvm" -> false,
+    "metrics.logback" -> false
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
-
 }

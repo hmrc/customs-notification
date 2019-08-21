@@ -17,34 +17,39 @@
 package integration
 
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.InternalPushConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{Header, HttpResultError, PushNotificationRequest, PushNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.domain._
 import unit.logging.StubCdsLogger
-import unit.services.ClientWorkerTestData.CsidOne
 import util.TestData._
-import util.{ExternalServicesConfiguration, InternalPushNotificationService}
+import util.{ExternalServicesConfiguration, InternalPushNotificationService, WireMockRunnerWithoutServer}
 
-class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
-  with BeforeAndAfterAll with InternalPushNotificationService {
+class InternalPushConnectorSpec extends IntegrationTestSpec
+  with GuiceOneAppPerSuite
+  with MockitoSugar
+  with BeforeAndAfterAll
+  with InternalPushNotificationService
+  with WireMockRunnerWithoutServer {
 
   private lazy val connector = app.injector.instanceOf[InternalPushConnector]
   private val stubCdsLogger = StubCdsLogger()
+  private val validUrl = s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}"
 
-  private val pnr = PushNotificationRequest(
+  def pnr(url: String = validUrl): PushNotificationRequest = PushNotificationRequest(
     CsidOne.id.toString,
-    PushNotificationRequestBody(s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}",
+    PushNotificationRequestBody(
+      url,
       "SECURITY_TOKEN",
       conversationId.id.toString,
       Seq(
         X_CORRELATION_ID_HEADER_NAME -> correlationId,
         X_BADGE_ID_HEADER_NAME -> badgeId,
-        X_SUBMITTER_ID_HEADER_NAME -> eoriNumber
+        X_SUBMITTER_ID_HEADER_NAME -> submitterNumber
       ).map(t => Header(t._1, t._2)),
       ValidXML.toString())
   )
@@ -71,15 +76,15 @@ class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
     "make a correct request" in {
       setupInternalServiceToReturn(NO_CONTENT)
 
-      val Right(_) = await(connector.send(pnr))
+      val Right(_) = await(connector.send(pnr()))
 
-      verifyInternalServiceWasCalledWithOutboundHeaders(pnr)
+      verifyInternalServiceWasCalledWithOutboundHeaders(pnr())
     }
 
     "return a Left(HttpResultError) with status 404 and a wrapped HttpVerb NotFoundException when external service returns 404" in {
       setupInternalServiceToReturn(NOT_FOUND)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
 
       httpResultError.status shouldBe NOT_FOUND
     }
@@ -87,7 +92,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
     "return a Left(HttpResultError) with status 400 and a wrapped HttpVerb BadRequestException when external service returns 400" in {
       setupInternalServiceToReturn(BAD_REQUEST)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
 
       httpResultError.status shouldBe BAD_REQUEST
     }
@@ -95,15 +100,23 @@ class InternalPushConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerS
     "return a Left(HttpResultError) with status 500 and a wrapped HttpVerb Upstream5xxResponse when external service returns 500" in {
       setupInternalServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
 
       httpResultError.status shouldBe INTERNAL_SERVER_ERROR
     }
 
+    "return a Left(NonHttpError) when malformed URL is supplied" in {
+      setupInternalServiceToReturn(NO_CONTENT)
+
+      val Left(NonHttpError(e)) = await(connector.send(pnr("some-broken-url")))
+
+      e.getClass shouldBe classOf[IllegalArgumentException]
+      e.getMessage shouldBe "Invalid URL some-broken-url"
+    }
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in
       withoutWireMockServer {
-        val Left(httpResultError: HttpResultError) = await(connector.send(pnr))
+        val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
 
         httpResultError.status shouldBe BAD_GATEWAY
       }

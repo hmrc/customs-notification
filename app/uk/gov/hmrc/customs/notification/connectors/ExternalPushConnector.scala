@@ -26,20 +26,19 @@ import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, PushNot
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
 class ExternalPushConnector @Inject()(http: HttpClient,
                                       logger: CdsLogger,
-                                      serviceConfigProvider: ServiceConfigProvider) extends MapResultError {
+                                      serviceConfigProvider: ServiceConfigProvider)
+                                     (implicit ec: ExecutionContext) extends MapResultError {
 
   private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
 
-  // TODO: recover on failure to enqueue to notification queue
   def send(pushNotificationRequest: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
     doSend(pushNotificationRequest)
   }

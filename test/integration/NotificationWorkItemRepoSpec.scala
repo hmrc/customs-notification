@@ -18,20 +18,23 @@ package integration
 
 import java.time.Clock
 
+import com.typesafe.config.Config
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import reactivemongo.api.DB
+import org.scalatestplus.mockito.MockitoSugar
+import play.api.Configuration
+import play.api.libs.json.Json
+import play.api.test.Helpers
+import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationWorkItem, _}
-import uk.gov.hmrc.customs.notification.repo.{MongoDbProvider, NotificationWorkItemMongoRepo}
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
-import uk.gov.hmrc.mongo.MongoSpecSupport
+import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.workitem._
 import unit.logging.StubCdsLogger
 import util.TestData._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -39,48 +42,43 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with BeforeAndAfterAll
   with BeforeAndAfterEach
   with MockitoSugar
-  with MongoSpecSupport { self =>
+  with MongoSpecSupport {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val stubCdsLogger = StubCdsLogger()
   private val clock: Clock = Clock.systemUTC()
-  private val five = 5
-  private val mockUnblockPollingConfig = mock[UnblockPollingConfig]
+  private val mockUnblockPollerConfig = mock[UnblockPollerConfig]
+  private val mockConfiguration = mock[Configuration]
 
-  private val pushConfig = PushNotificationConfig(
+  private val pushConfig = NotificationConfig(
     internalClientIds = Seq.empty,
-    pollingEnabled = true,
-    pollingDelay = 0 second,
-    lockDuration = org.joda.time.Duration.ZERO,
-    maxRecordsToFetch = five,
     ttlInSeconds = 1,
-    retryDelay = 500 milliseconds,
-    retryDelayFactor = 2,
-    retryMaxAttempts = 3,
     retryPollerEnabled = true,
-    retryInitialPollingInterval = 1 second,
-    retryAfterFailureInterval = 2 seconds,
-    retryInProgressRetryAfter = 2 seconds,
+    retryPollerInterval = 1 second,
+    retryPollerAfterFailureInterval = 2 seconds,
+    retryPollerInProgressRetryAfter = 2 seconds,
     retryPollerInstances = 1
   )
 
-  private val mongoDbProvider: MongoDbProvider = new MongoDbProvider{
-    override val mongo: () => DB = self.mongo
-  }
+  private val reactiveMongoComponent: ReactiveMongoComponent =
+    new ReactiveMongoComponent {
+      override def mongoConnector: MongoConnector = mongoConnectorForTest
+    }
 
-  private val config: CustomsNotificationConfig = {
+  private val customsNotificationConfig: CustomsNotificationConfig = {
     new CustomsNotificationConfig {
       override def maybeBasicAuthToken: Option[String] = None
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
-      override def pushNotificationConfig: PushNotificationConfig = pushConfig
-      override def pullExcludeConfig: PullExcludeConfig = mock[PullExcludeConfig]
+      override def notificationConfig: NotificationConfig = pushConfig
       override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]
-      override def unblockPollingConfig: UnblockPollingConfig = mockUnblockPollingConfig
+      override def unblockPollerConfig: UnblockPollerConfig = mockUnblockPollerConfig
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoDbProvider, clock, config, stubCdsLogger)
+  private val repository = new NotificationWorkItemMongoRepo(reactiveMongoComponent, clock, customsNotificationConfig, stubCdsLogger, mockConfiguration)
 
   override def beforeEach() {
+    when(mockConfiguration.underlying).thenReturn(mock[Config])
     await(repository.drop)
   }
 
@@ -89,7 +87,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   }
 
   private def collectionSize: Int = {
-    await(repository.collection.count())
+    await(repository.count(Json.obj()))
   }
 
   def failed(item: NotificationWorkItem): ProcessingStatus = Failed
@@ -101,6 +99,15 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result = await(repository.saveWithLock(NotificationWorkItem1))
 
       result.status shouldBe InProgress
+      result.item shouldBe NotificationWorkItem1
+      result.failureCount shouldBe 0
+      collectionSize shouldBe 1
+    }
+
+    "successfully save a single notification work item with specified status" in {
+      val result = await(repository.saveWithLock(NotificationWorkItem1, PermanentlyFailed))
+
+      result.status shouldBe PermanentlyFailed
       result.item shouldBe NotificationWorkItem1
       result.failureCount shouldBe 0
       collectionSize shouldBe 1
@@ -173,7 +180,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
-      val result = await(repository.toPermanentlyFailedByClientId(clientId1))
+      val result = await(repository.toPermanentlyFailedByCsId(validClientSubscriptionId1))
 
       result shouldBe 0
     }
@@ -185,7 +192,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val wiClient1Two = await(repository.pushNew(NotificationWorkItem1, nowAsJoda, failed _))
       val wiClient3One = await(repository.pushNew(NotificationWorkItem3, nowAsJoda, failed _))
 
-      val result = await(repository.toPermanentlyFailedByClientId(clientId1))
+      val result = await(repository.toPermanentlyFailedByCsId(validClientSubscriptionId1))
 
       result shouldBe 2
       await(repository.findById(wiClient1One.id)).get.status shouldBe PermanentlyFailed
@@ -193,22 +200,64 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.findById(wiClient3One.id)).get.status shouldBe Failed
     }
 
-
-    //TODO: verify updatedAt
-    "update all blocked notifications to unblocked" in {
-
-      when(mockUnblockPollingConfig.pollingDelay).thenReturn(1 second)
+    "return true when at least one permanently failed items exist for client id" in {
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
-      val item2 = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
-      Thread.sleep(1000)
-      val item3 = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
 
-      val result = await(repository.unblock())
+      val result = await(repository.permanentlyFailedByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+
+      result shouldBe true
+    }
+
+    "return count of notifications that are changed from failed to permanently failed by client id" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+
+      val result = await(repository.toPermanentlyFailedByCsId(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe 2
-      await(repository.findById(item2.id)).get.status shouldBe Failed
-      await(repository.findById(item3.id)).get.status shouldBe PermanentlyFailed
+    }
+
+    "return list of distinct clientIds" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+
+      val result = await(repository.distinctPermanentlyFailedByCsId())
+
+      result should contain (ClientSubscriptionId(validClientSubscriptionId1UUID))
+      result should not contain ClientSubscriptionId(validClientSubscriptionId2UUID)
+    }
+
+    "return a modified permanently failed notification with specified csid" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+
+      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1))
+
+      result.get.status shouldBe InProgress
+      result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
+    }
+
+    "return count of notifications that are changed from permanently failed to failed by csid" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      val changed = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+
+      val result = await(repository.fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1))
+
+      result shouldBe 2
+      await(repository.findById(changed.id)).get.status shouldBe Failed
     }
   }
 }

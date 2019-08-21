@@ -19,7 +19,8 @@ package unit.services
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
+import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
 import uk.gov.hmrc.play.test.UnitSpec
@@ -33,6 +34,7 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
   with Eventually
   with BeforeAndAfterEach {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val stubCdsLogger = StubCdsLogger()
   private val mockRepo = mock[NotificationWorkItemRepo]
   private val service = new CustomsNotificationBlockedService(stubCdsLogger, mockRepo)

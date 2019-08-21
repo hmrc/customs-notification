@@ -23,34 +23,17 @@ import scala.concurrent.duration.FiniteDuration
 
 case class NotificationQueueConfig(url: String)
 
-case class PushNotificationConfig(
-  internalClientIds: Seq[String],
-  pollingEnabled: Boolean,
-  pollingDelay: FiniteDuration,
-  lockDuration: org.joda.time.Duration,
-  maxRecordsToFetch: Int,
-  ttlInSeconds: Int,
-
-  //TODO: remove these online retry properties
-  retryDelay: FiniteDuration,
-  retryDelayFactor: Int,
-  retryMaxAttempts: Int,
-
-  retryPollerEnabled: Boolean,
-  retryInitialPollingInterval: FiniteDuration,
-  retryAfterFailureInterval: FiniteDuration,
-  retryInProgressRetryAfter: FiniteDuration,
-  retryPollerInstances: Int
-)
-
-/* TODO: remove this - it was introduced for DesCartes when we thought they had no PULL capability*/
-case class PullExcludeConfig(pullExcludeEnabled: Boolean, emailAddress: String,
-                             notificationsOlderMillis: Int, csIdsToExclude: Seq[String], emailUrl: String,
-                             pollingDelay: FiniteDuration, pollingInterval: FiniteDuration)
+case class NotificationConfig(internalClientIds: Seq[String],
+                              ttlInSeconds: Int,
+                              retryPollerEnabled: Boolean,
+                              retryPollerInterval: FiniteDuration,
+                              retryPollerAfterFailureInterval: FiniteDuration,
+                              retryPollerInProgressRetryAfter: FiniteDuration,
+                              retryPollerInstances: Int)
 
 case class NotificationMetricsConfig(baseUrl: String)
 
-case class UnblockPollingConfig(pollingEnabled: Boolean, pollingDelay: FiniteDuration)
+case class UnblockPollerConfig(pollerEnabled: Boolean, pollerInterval: FiniteDuration)
 
 // TODO: pull up all other service config into here
 @ImplementedBy(classOf[ConfigService])
@@ -59,11 +42,9 @@ trait CustomsNotificationConfig {
 
   def notificationQueueConfig: NotificationQueueConfig
 
-  def pushNotificationConfig: PushNotificationConfig
-
-  def pullExcludeConfig: PullExcludeConfig
+  def notificationConfig: NotificationConfig
 
   def notificationMetricsConfig: NotificationMetricsConfig
 
-  def unblockPollingConfig: UnblockPollingConfig
+  def unblockPollerConfig: UnblockPollerConfig
 }

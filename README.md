@@ -1,4 +1,4 @@
-# customs-notification
+# Customs Notification
 
 The objective of this service is 
 
@@ -8,7 +8,9 @@ The objective of this service is
 
 3. Notify the CDS Client with the given payload by calling the notification gateway service with the payload or sending it to the pull queue
 
-4. Provide two endpoints for the counting and deleting of blocked flags which prevents notifications from being pushed.  
+4. Provide two endpoints for the counting and deleting of blocked flags which prevents notifications from being pushed.
+
+5. Provide retry for notifications that have failed to be sent. This applies to notifications destined for the HMRC pull queue as well as pushing to external clients. 
 
 ## Configuration for Internal Clients
 
@@ -55,7 +57,7 @@ The entries should be in the following format:
 | X-CDS-Client-ID   | M                  |The client id which was passed to Messaging when client submitted the declaration earlier. This must be a type 4 UUID|
 | X-Conversation-ID | M                  |This id was passed to Messaging when the declaration was passed onto Messaging earlier. This must be a UUID|
 | X-Client-ID       | M                  |The client id used to identify notifications for count and delete blocked flag operations.|
-| X-Submitter-Identifier | O             |The submitter EORI which was passed to CDS when the  declaration or inventory linking request was submitted.  The submitter EORI supports the identification of the trader using the CSP service|                                                                       |
+| X-Submitter-Identifier | O             |The submitter identifier which was passed to CDS when the  declaration or inventory linking request was submitted.  The submitter identifier supports the identification of the trader using the CSP service|
 
 ### Body
 The body of the request will contain the XML payload. 
@@ -142,12 +144,6 @@ that `default` configuration is declared directly inside the `api-subscription-f
       "url": "http://currenturl/api-subscription-fields"
       "bearerToken": "current token"
     }
-
-
-## Scheduled Email
-A warning email is sent when the scheduler finds notifications for configurable clientIds (`pull.exclude.csIds`) in the database that are more than `pull.exclude.older.milliseconds` plus `push.polling.delay.duration.milliseconds` old.
-The check is currently configured (`pull.exclude.email.interval.duration.minutes`) to run every 30 minutes. The set of email "to" addresses are configured with `pull.exclude.email.addresses`.
-
 
 ## License
 

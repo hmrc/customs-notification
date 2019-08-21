@@ -23,8 +23,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.http.HttpResponse
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class OutboundSwitchService @Inject()(configService: ConfigService,
@@ -32,12 +31,13 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
                                       internalPush: InternalPushConnector,
                                       auditingService: AuditingService,
                                       logger: NotificationLogger
-                                     ) {
+                                     )
+                                     (implicit ec: ExecutionContext) {
 
   def send(clientId: ClientId, pnr: PushNotificationRequest)(implicit rm: HasId): Future[Either[ResultError, HttpResponse]] = {
 
     val response: (String, Future[Either[ResultError, HttpResponse]]) =
-      if (configService.pushNotificationConfig.internalClientIds.contains(clientId.toString)) {
+      if (configService.notificationConfig.internalClientIds.contains(clientId.toString)) {
         logger.info(s"About to push internally")
         ("internal", internalPushWithAuditing(pnr))
       } else {

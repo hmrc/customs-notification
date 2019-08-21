@@ -16,12 +16,12 @@
 
 package unit.controllers
 
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.http.HeaderNames._
 import play.api.mvc.Results._
-import play.api.mvc.{Action, AnyContent}
-import play.api.test.FakeRequest
+import play.api.mvc.{Action, AnyContent, ControllerComponents}
+import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
@@ -37,6 +37,7 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
 
   private val validator = new HeaderValidator {
     override val notificationLogger: NotificationLogger = mock[NotificationLogger]
+    override val controllerComponents: ControllerComponents = Helpers.stubControllerComponents()
   }
 
   private val withAuthTokenConfigured: Action[AnyContent] = validator.validateHeaders(Some(basicAuthTokenValue)) async {

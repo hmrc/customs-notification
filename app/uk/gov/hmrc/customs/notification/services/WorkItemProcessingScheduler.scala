@@ -28,40 +28,35 @@ import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-class WorkItemProcessingScheduler @Inject()(
-  queueProcessor: WorkItemService,
-  config: CustomsNotificationConfig,
-  logger: CdsLogger
-)(
-  implicit actorSystem: ActorSystem,
-  applicationLifecycle: ApplicationLifecycle
-) {
+class WorkItemProcessingScheduler @Inject()(queueProcessor: WorkItemService,
+                                            config: CustomsNotificationConfig,
+                                            logger: CdsLogger)
+                                           (implicit actorSystem: ActorSystem,
+                                            applicationLifecycle: ApplicationLifecycle) {
 
   case object Poll
 
   class ContinuousPollingActor extends Actor {
 
     import context.dispatcher
-
     val log = Logging(context.system, this)
 
     override def receive: Receive = {
-
       case Poll =>
         queueProcessor.processOne() andThen {
           case Success(true) =>
             self ! Poll
           case Success(false) =>
-            context.system.scheduler.scheduleOnce(config.pushNotificationConfig.retryInitialPollingInterval, self, Poll)
+            context.system.scheduler.scheduleOnce(config.notificationConfig.retryPollerInterval, self, Poll)
           case Failure(e) =>
             logger.error("Queue processing failed", e)
-            context.system.scheduler.scheduleOnce(config.pushNotificationConfig.retryAfterFailureInterval, self, Poll)
+            context.system.scheduler.scheduleOnce(config.notificationConfig.retryPollerAfterFailureInterval, self, Poll)
         }
     }
 
   }
 
-  private lazy val pollingActors = List.fill(config.pushNotificationConfig.retryPollerInstances)(actorSystem.actorOf(Props(new ContinuousPollingActor())))
+  private lazy val pollingActors = List.fill(config.notificationConfig.retryPollerInstances)(actorSystem.actorOf(Props(new ContinuousPollingActor())))
 
   private val bootstrap = new Runnable {
     override def run(): Unit = {
@@ -77,13 +72,12 @@ class WorkItemProcessingScheduler @Inject()(
     }
   }
 
-  if (config.pushNotificationConfig.retryPollerEnabled) {
+  if (config.notificationConfig.retryPollerEnabled) {
     logger.info("about to start retry poller")
 
-    // Start the polling after a delay.
+    // Start the poller after a delay.
     Executors.newScheduledThreadPool(1).schedule(
-      bootstrap, config.pushNotificationConfig.retryInitialPollingInterval.toMillis, TimeUnit.MILLISECONDS)
-
+      bootstrap, config.notificationConfig.retryPollerInterval.toMillis, TimeUnit.MILLISECONDS)
 
     applicationLifecycle.addStopHook { () =>
       shutDown()

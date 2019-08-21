@@ -1,21 +1,17 @@
 import sbt._
 
 object AppDependencies {
-
-  private val hmrcTestVersion = "3.4.0-play-25"
-  private val scalaTestVersion = "3.0.5"
-  private val scalatestplusVersion = "2.0.1"
-  private val mockitoVersion = "2.23.4"
-  private val wireMockVersion = "2.20.0"
-  private val customsApiCommonVersion = "1.36.0"
-  private val workItemRepoVersion = "5.2.0"
-  private val playReactivemongoVersion = "6.2.0"
-  private val mongoLockVersion = "5.1.0"
+  
+  private val hmrcTestVersion = "3.9.0-play-26"
+  private val scalaTestVersion = "3.0.8"
+  private val scalatestplusVersion = "3.1.2"
+  private val mockitoVersion = "3.0.0"
+  private val wireMockVersion = "2.23.2"
+  private val customsApiCommonVersion = "1.42.0"
+  private val workItemRepoVersion = "6.6.0-play-26"
+  private val simpleReactiveMongoVersion = "7.20.0-play-26"
+  private val reactiveMongoTestVersion = "4.15.0-play-26"
   private val testScope = "test,it"
-
-  val playReactiveMongo = "uk.gov.hmrc" %% "play-reactivemongo" % playReactivemongoVersion
-
-  val mongoLock = "uk.gov.hmrc" %% "mongo-lock" % mongoLockVersion
 
   val hmrcTest = "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % testScope
 
@@ -23,7 +19,7 @@ object AppDependencies {
 
   val scalaTestPlusPlay = "org.scalatestplus.play" %% "scalatestplus-play" % scalatestplusVersion % testScope
 
-  val wireMock = "com.github.tomakehurst" % "wiremock" % wireMockVersion % testScope exclude("org.apache.httpcomponents","httpclient") exclude("org.apache.httpcomponents","httpcore")
+  val wireMock = "com.github.tomakehurst" % "wiremock-jre8" % wireMockVersion % testScope
 
   val mockito =  "org.mockito" % "mockito-core" % mockitoVersion % testScope
 
@@ -33,6 +29,7 @@ object AppDependencies {
 
   val customsApiCommonTests = "uk.gov.hmrc" %% "customs-api-common" % customsApiCommonVersion % testScope classifier "tests"
 
-  val reactiveMongoTest = "uk.gov.hmrc" %% "reactivemongo-test" % "3.1.0" % testScope
+  val simpleReactiveMongo = "uk.gov.hmrc" %% "simple-reactivemongo" % simpleReactiveMongoVersion
 
+  val reactiveMongoTest = "uk.gov.hmrc" %% "reactivemongo-test" % reactiveMongoTestVersion % testScope
 }

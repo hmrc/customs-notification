@@ -27,13 +27,13 @@ import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
                                                logger: CdsLogger,
-                                               serviceConfigProvider: ServiceConfigProvider) {
+                                               serviceConfigProvider: ServiceConfigProvider)
+                                              (implicit ec: ExecutionContext) {
 
   private val headers = Seq(
     (CONTENT_TYPE, MimeTypes.JSON),

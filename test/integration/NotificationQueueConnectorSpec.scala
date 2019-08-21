@@ -17,7 +17,7 @@
 package integration
 
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -27,10 +27,14 @@ import uk.gov.hmrc.customs.notification.domain.ClientNotification
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ExternalServicesConfiguration, NotificationQueueService}
+import util.{ExternalServicesConfiguration, NotificationQueueService, WireMockRunnerWithoutServer}
 
-class NotificationQueueConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
-  with BeforeAndAfterAll with NotificationQueueService {
+class NotificationQueueConnectorSpec extends IntegrationTestSpec
+  with GuiceOneAppPerSuite
+  with MockitoSugar
+  with BeforeAndAfterAll
+  with NotificationQueueService
+  with WireMockRunnerWithoutServer {
 
   private lazy val connector = app.injector.instanceOf[NotificationQueueConnector]
 

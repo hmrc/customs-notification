@@ -21,18 +21,18 @@ import play.api.http.HeaderNames.{ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGEN
 import play.mvc.Http.MimeTypes.XML
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, ResultError}
+import uk.gov.hmrc.customs.notification.domain.{NonHttpError, PushNotificationRequest, ResultError}
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 
 @Singleton
 class InternalPushConnector @Inject()(http: HttpClient,
-                                      logger: CdsLogger) extends MapResultError {
+                                      logger: CdsLogger)
+                                     (implicit ec: ExecutionContext) extends MapResultError {
 
   def send(pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
 
@@ -50,13 +50,18 @@ class InternalPushConnector @Inject()(http: HttpClient,
 
     logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=$headers \npayload= ${pnr.body.xmlPayload}")
 
-    val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, headers)
-    val eventualEither: Future[Either[ResultError, HttpResponse]] = eventualHttpResponse.map(httpResponse => Right(httpResponse))
+    try {
+      val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, headers)
+      val eventualEither: Future[Either[ResultError, HttpResponse]] = eventualHttpResponse.map(httpResponse => Right(httpResponse))
 
-    eventualEither.recoverWith{
-      case NonFatal(e) =>
-        val resultError = mapResultError(e)
-        Future.successful(Left(resultError))
+      eventualEither.recoverWith {
+        case NonFatal(e) =>
+          val resultError = mapResultError(e)
+          Future.successful(Left(resultError))
+      }
+    } catch {
+      case NonFatal(e) => // if pnr.body.url is a malformed URL then HTTP VERBs throws an exception before it generates a Future
+        Future.successful(Left(NonHttpError(e)))
     }
   }
 

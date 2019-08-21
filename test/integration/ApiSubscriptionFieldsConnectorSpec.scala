@@ -17,7 +17,7 @@
 package integration
 
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -27,10 +27,14 @@ import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
 import uk.gov.hmrc.http.{BadGatewayException, HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
-import util.{ApiSubscriptionFieldsService, ExternalServicesConfiguration}
+import util.{ApiSubscriptionFieldsService, ExternalServicesConfiguration, WireMockRunnerWithoutServer}
 
-class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec with GuiceOneAppPerSuite with MockitoSugar
-  with BeforeAndAfterAll with ApiSubscriptionFieldsService {
+class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
+  with GuiceOneAppPerSuite
+  with MockitoSugar
+  with BeforeAndAfterAll
+  with ApiSubscriptionFieldsService
+  with WireMockRunnerWithoutServer {
 
   private lazy val connector = app.injector.instanceOf[ApiSubscriptionFieldsConnector]
 

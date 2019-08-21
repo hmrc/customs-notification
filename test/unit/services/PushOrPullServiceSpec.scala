@@ -17,10 +17,12 @@
 package unit.services
 
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
+import play.api.test.Helpers
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields => _, _}
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.HttpResponse
 import uk.gov.hmrc.play.test.UnitSpec
@@ -31,15 +33,17 @@ import scala.concurrent.Future
 class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 
   trait SetUp {
+    private implicit val ec = Helpers.stubControllerComponents().executionContext
     private[PushOrPullServiceSpec] val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
     private[PushOrPullServiceSpec] val mockOutboundSwitchService = mock[OutboundSwitchService]
     private[PushOrPullServiceSpec] val mockNotificationQueueConnector = mock[NotificationQueueConnector]
+    private[PushOrPullServiceSpec] val mockNotificationLogger = mock[NotificationLogger]
 
     private[PushOrPullServiceSpec] val service = new PushOrPullService(
       mockApiSubscriptionFieldsConnector,
       mockOutboundSwitchService,
-      mockNotificationQueueConnector
-    )
+      mockNotificationQueueConnector,
+      mockNotificationLogger)
 
     private[PushOrPullServiceSpec] val mockResultError = mock[ResultError]
     private[PushOrPullServiceSpec] val eventualHttpResponse = Future.successful(mock[HttpResponse])

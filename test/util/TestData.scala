@@ -50,6 +50,7 @@ object TestData {
   val validFieldsId = "ffff01f9-ec3b-4ede-b263-61b626dde232"
   val someFieldsId = "ccc9f676-c752-4e77-b86a-b27a3b33fceb"
   val clientSubscriptionId = ClientSubscriptionId(UUID.fromString(validFieldsId))
+  val CsidOne = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde231"))
   val invalidFieldsId = "I-am-not-a-valid-type-4-uuid"
 
   val basicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
@@ -61,6 +62,8 @@ object TestData {
   val clientId1 = ClientId(clientIdString1)
   val clientIdString2 = "ClientId2"
   val clientId2 = ClientId(clientIdString2)
+  val ClientIdStringOne = "ClientIdOne"
+  val ClientIdOne = ClientId(ClientIdStringOne)
 
   type EmulatedServiceFailure = UnsupportedOperationException
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
@@ -80,7 +83,7 @@ object TestData {
   val debugMsg = "DEBUG"
 
   val badgeId = "ABCDEF1234"
-  val eoriNumber = "IAMEORI"
+  val submitterNumber = "IAMSUBMITTER"
   val userAgent = "Customs Declaration Service"
   val correlationId = "CORRID2234"
 
@@ -112,8 +115,9 @@ object TestData {
   val payload1 = "<foo1></foo1>"
   val payload2 = "<foo2></foo2>"
   val payload3 = "<foo3></foo3>"
+  val ValidXML: Elem = <Foo>Bar</Foo>
 
-  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, eoriNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
+  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
   val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   val notification1 = Notification(conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
   val notification2 = Notification(conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
@@ -127,7 +131,7 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(BadgeId(badgeId)), Some(Eori(eoriNumber)), Some(CorrelationId(correlationId)), TimeReceivedZoned)
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), TimeReceivedZoned)
 
   val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId1, None, notification = notification1)
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
@@ -136,6 +140,10 @@ object TestData {
   val WorkItem1 = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
+  val internalNotification = Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")
+  val internalNotificationWorkItem = NotificationWorkItem(clientSubscriptionId, clientId1, None, internalNotification)
+  val internalWorkItem = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, internalNotificationWorkItem)
+  
   val NotUsedBsonId = "123456789012345678901234"
 
   val DeclarantCallbackDataOneForPush = DeclarantCallbackData("URL", "SECURITY_TOKEN")
@@ -196,8 +204,6 @@ object TestData {
     val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
-
-  val ValidXML: Elem = <Foo>Bar</Foo>
 
   lazy val ValidRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
     .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_SUBMITTER_ID_HEADER)
@@ -330,7 +336,7 @@ object RequestHeaders {
 
   lazy val X_BADGE_ID_HEADER: (String, String) = X_BADGE_ID_HEADER_NAME -> badgeId
 
-  lazy val X_SUBMITTER_ID_HEADER: (String, String) = X_SUBMITTER_ID_HEADER_NAME -> eoriNumber
+  lazy val X_SUBMITTER_ID_HEADER: (String, String) = X_SUBMITTER_ID_HEADER_NAME -> submitterNumber
 
   lazy val X_CORRELATION_ID_HEADER: (String, String) = X_CORRELATION_ID_HEADER_NAME -> correlationId
 

@@ -17,18 +17,19 @@
 package uk.gov.hmrc.customs.notification.controllers
 
 import play.api.http.HeaderNames._
-import play.api.mvc.{ActionBuilder, Headers, Request, Result}
+import play.api.mvc._
 import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 trait HeaderValidator {
 
   val notificationLogger: NotificationLogger
+  val controllerComponents: ControllerComponents
 
   private val uuidRegex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
@@ -36,8 +37,10 @@ trait HeaderValidator {
 
   private val basicAuthTokenScheme = "Basic "
 
-  def validateHeaders(maybeBasicAuthToken: Option[String]): ActionBuilder[Request] = new ActionBuilder[Request] {
+  def validateHeaders(maybeBasicAuthToken: Option[String]): ActionBuilder[Request, AnyContent] = new ActionBuilder[Request, AnyContent] {
 
+    override protected def executionContext: ExecutionContext = controllerComponents.executionContext
+    override def parser: BodyParser[AnyContent] = controllerComponents.parsers.defaultBodyParser
     def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
       implicit val headers: Headers = request.headers
       val logMessage = "Received notification"
@@ -124,7 +127,7 @@ trait HeaderValidator {
   private def logValidationResult(headerName: => String, validationResult: => Boolean)(implicit h: Headers): Unit = {
     val resultText = if (validationResult) "passed" else "failed"
     val msg = s"$headerName header $resultText validation"
-    notificationLogger.debugWithHeaders(msg, h.headers)
+    notificationLogger.debugWithPrefixedHeaders(msg, h.headers)
     if (!validationResult) notificationLogger.errorWithHeaders(msg, h.headers)
   }
 }

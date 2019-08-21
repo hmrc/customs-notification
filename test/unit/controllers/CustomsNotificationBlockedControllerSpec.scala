@@ -18,8 +18,9 @@ package unit.controllers
 
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.mvc._
+import play.api.test.Helpers
 import play.api.test.Helpers._
 import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
@@ -37,9 +38,10 @@ class CustomsNotificationBlockedControllerSpec
     with BeforeAndAfterEach
     with ControllerSpecHelper {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val mockService = mock[CustomsNotificationBlockedService]
   private val mockLogger = mock[NotificationLogger]
-  private val controller = new CustomsNotificationBlockedController(mockLogger, mockService)
+  private val controller = new CustomsNotificationBlockedController(mockService, Helpers.stubControllerComponents(), mockLogger)
 
   override protected def beforeEach() {
     reset(mockService, mockLogger)

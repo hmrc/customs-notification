@@ -46,7 +46,7 @@ object ClientId {
   }
 }
 
-case class Eori(id: String) extends AnyVal {
+case class Submitter(id: String) extends AnyVal {
   override def toString: String = id.toString
 }
 
@@ -71,11 +71,10 @@ trait HasMaybeBadgeId {
   def mayBeBadgeId: Option[BadgeId]
 }
 
-trait HasMaybeEori {
-  def mayBeEoriNumber: Option[Eori]
+trait HasMaybeSubmitter {
+  def mayBeSubmitterNumber: Option[Submitter]
 }
 
 trait HasMaybeCorrelationId {
   def maybeCorrelationId: Option[CorrelationId]
 }
-

@@ -27,28 +27,27 @@ import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCd
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationClientWorkerService, CustomsNotificationRetryService, CustomsNotificationService, DateTimeService}
-import uk.gov.hmrc.play.bootstrap.controller.BaseController
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
+import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
                            mayBeBadgeId: Option[BadgeId],
-                           mayBeEoriNumber: Option[Eori],
+                           mayBeSubmitterNumber: Option[Submitter],
                            maybeCorrelationId: Option[CorrelationId],
                            startTime: ZonedDateTime)
   extends HasId
   with HasClientSubscriptionId
   with HasMaybeBadgeId
   with HasMaybeCorrelationId
-  with HasMaybeEori
+  with HasMaybeSubmitter
 {
   def mayBeBadgeIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME, mayBeBadgeId)
 
-  def mayBeEoriHeader: Option[Header] = asHeader(CustomHeaderNames.X_SUBMITTER_ID_HEADER_NAME, mayBeEoriNumber)
+  def mayBeSubmitterHeader: Option[Header] = asHeader(CustomHeaderNames.X_SUBMITTER_ID_HEADER_NAME, mayBeSubmitterNumber)
 
   def mayBeCorrelationIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_CORRELATION_ID_HEADER_NAME, maybeCorrelationId)
 
@@ -60,14 +59,18 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
   override def idValue: String = conversationId.toString
 }
 
-abstract class CustomsNotificationController @Inject()(val logger: NotificationLogger,
-                                                       val customsNotificationService: CustomsNotificationService,
-                                                       val callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                                       val configService: CustomsNotificationConfig,
-                                                       val dateTimeService: DateTimeService)
-               extends BaseController with HeaderValidator {
+@Singleton
+class CustomsNotificationController @Inject()(val customsNotificationService: CustomsNotificationService,
+                                              val callbackDetailsConnector: ApiSubscriptionFieldsConnector,
+                                              val configService: CustomsNotificationConfig,
+                                              val dateTimeService: DateTimeService,
+                                              val cc: ControllerComponents,
+                                              val logger: NotificationLogger)
+                                             (implicit ec: ExecutionContext)
+               extends BackendController(cc) with HeaderValidator {
 
   override val notificationLogger: NotificationLogger = logger
+  override val controllerComponents: ControllerComponents = cc
   private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private lazy val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
 
@@ -87,10 +90,10 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
   }
 
   private def requestMetaData(headers: Headers, startTime: ZonedDateTime): RequestMetaData = {
-    // headers have been validated so safe to do a naked get except badgeId, eori and correlation id which are optional
+    // headers have been validated so safe to do a naked get except badgeId, submitter and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
-      headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Eori),
+      headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter),
       headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
       startTime)
   }
@@ -119,35 +122,10 @@ abstract class CustomsNotificationController @Inject()(val logger: NotificationL
 
     }.recover {
       case ex: Throwable =>
-        notificationLogger.error("Failed to fetch Declarant data " + ex.getMessage)
+        notificationLogger.error("Failed to fetch declarant data " + ex.getMessage)
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }
-
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean]
-}
-
-@Singleton
-class CustomsNotificationClientWorkerController @Inject()(logger: NotificationLogger,
-                                                          customsNotificationService: CustomsNotificationClientWorkerService,
-                                                          callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                                          configService: CustomsNotificationConfig,
-                                                          dateTimeService: DateTimeService)
-  extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
-
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
-    customsNotificationService.handleNotification(xml, md)
-  }
-
-}
-
-@Singleton
-class CustomsNotificationRetryController @Inject()(logger: NotificationLogger,
-                                                   customsNotificationService: CustomsNotificationRetryService,
-                                                   callbackDetailsConnector: ApiSubscriptionFieldsConnector,
-                                                   configService: CustomsNotificationConfig,
-                                                   dateTimeService: DateTimeService)
-  extends CustomsNotificationController(logger, customsNotificationService, callbackDetailsConnector, configService, dateTimeService) {
 
   def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)

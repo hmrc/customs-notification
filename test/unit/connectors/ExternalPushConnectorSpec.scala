@@ -19,8 +19,9 @@ package unit.connectors
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.mockito.{ArgumentCaptor, ArgumentMatchers}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Writes
+import play.api.test.Helpers
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
 import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody
@@ -38,12 +39,12 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
   private val mockHttpClient = mock[HttpClient]
   private val stubCdsLogger = StubCdsLogger()
   private val serviceConfigProvider = mock[ServiceConfigProvider]
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
 
   private val connector = new ExternalPushConnector(
     mockHttpClient,
     stubCdsLogger,
-    serviceConfigProvider
-  )
+    serviceConfigProvider)
 
   private val url = "the-url"
 

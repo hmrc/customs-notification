@@ -16,8 +16,8 @@
 
 package unit.logging
 
-import uk.gov.hmrc.customs.api.common.config.ServicesConfig
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 case class StubCdsLogger() extends CdsLogger(MockitoSugarHelper.mock[ServicesConfig]) {
 
