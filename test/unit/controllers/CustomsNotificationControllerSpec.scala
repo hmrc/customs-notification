@@ -37,7 +37,7 @@ import util.TestData._
 
 import scala.concurrent.Future
 
-class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach {
+class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach with ControllerSpecHelper {
 
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationClientWorkerService]
@@ -86,8 +86,9 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       testSubmitResult(ValidRequestWithMixedCaseCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
-
+      
       verify(mockCustomsNotificationService).handleNotification(meq(ValidXML),  meq(expectedRequestMetaData))
+      verifyLog("info","Notification sent to callback url provided", mockNotificationLogger)
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
