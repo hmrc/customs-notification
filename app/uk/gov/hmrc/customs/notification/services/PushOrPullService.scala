@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.services
 import javax.inject.Inject
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MapResultError, NotificationQueueConnector}
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, DeclarantCallbackData, HasId, NonHttpError, NotificationWorkItem, PushNotificationRequest, PushNotificationRequestBody, ResultError}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
 import scala.concurrent.{ExecutionContext, Future}
