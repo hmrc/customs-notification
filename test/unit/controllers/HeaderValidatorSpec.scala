@@ -16,8 +16,8 @@
 
 package unit.controllers
 
-import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.prop.TableDrivenPropertyChecks
 import play.api.http.HeaderNames._
 import play.api.mvc.Results._
 import play.api.mvc.{Action, AnyContent, ControllerComponents}

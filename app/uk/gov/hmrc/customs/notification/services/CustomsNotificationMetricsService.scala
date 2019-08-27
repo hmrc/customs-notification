@@ -21,9 +21,8 @@ import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsCon
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
-
-import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class CustomsNotificationMetricsService @Inject() (
