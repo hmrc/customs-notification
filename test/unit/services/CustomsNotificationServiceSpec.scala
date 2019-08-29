@@ -143,7 +143,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         val returnTimeOfSavedToDb = System.currentTimeMillis()
         eventually(verify(mockNotificationWorkItemRepo).permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId))
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
-        eventually(verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
+        eventually(verify(mockNotificationWorkItemRepo, times(1)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
         eventually(assert(returnTimeOfPush > returnTimeOfSavedToDb, "Save to database did not happen before push"))
       }
     }
