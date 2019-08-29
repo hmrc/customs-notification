@@ -78,7 +78,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     val startTime = dateTimeService.zonedDateTimeUtc
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
-        implicit val rd = requestMetaData(request.headers, startTime)
+        implicit val rd: RequestMetaData = requestMetaData(request.headers, startTime)
         request.body.asXml match {
           case Some(xml) =>
             process(xml)
@@ -109,7 +109,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
             ErrorInternalServerError.XmlResult
         }.map {
           case true =>
-            logger.info("Notification processed successfully")
+            logger.info("Notification sent to callback url provided")
             Results.Accepted
           case false =>
             logger.error("Notification processing failed")
