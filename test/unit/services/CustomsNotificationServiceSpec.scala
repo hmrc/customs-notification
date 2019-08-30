@@ -65,7 +65,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private implicit val implicitRequestMetaData = requestMetaData
 
   override protected def beforeEach() {
-    reset(mockNotificationWorkItemRepo, mockNotificationLogger, mockPushOrPullService)
+    reset(mockNotificationWorkItemRepo, mockNotificationLogger, mockPushOrPullService, mockMetricsService)
   }
 
   "CustomsNotificationService" should {
@@ -129,22 +129,19 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         when(mockNotificationWorkItemRepo.permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
         when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
-        var returnTimeOfPush = 0L
         when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId])).thenReturn(
           Future{
-            Thread.sleep(1000)
-            returnTimeOfPush = System.currentTimeMillis()
-            Right(Pull)
+            Right(Push)
           })
 
         val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
 
         await(result) shouldBe true
-        val returnTimeOfSavedToDb = System.currentTimeMillis()
+
         eventually(verify(mockNotificationWorkItemRepo).permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId))
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
         eventually(verify(mockNotificationWorkItemRepo, times(1)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
-        eventually(assert(returnTimeOfPush > returnTimeOfSavedToDb, "Save to database did not happen before push"))
+
       }
     }
 
