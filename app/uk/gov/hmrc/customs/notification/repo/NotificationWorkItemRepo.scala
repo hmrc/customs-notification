@@ -27,7 +27,7 @@ import play.api.libs.json._
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.ReadConcern
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
+import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
@@ -90,13 +90,21 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   override lazy val inProgressRetryAfter: Duration =
     customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toJodaDuration
 
+  private val ttlIndexName = "createdAt-ttl-index"
+  private val ttlInSeconds = customsNotificationConfig.notificationConfig.ttlInSeconds
+  private val ttlIndex = Index(
+    key = Seq("createdAt" -> IndexType.Descending),
+    name = Some(ttlIndexName),
+    unique = false,
+    options = BSONDocument("expireAfterSeconds" -> ttlInSeconds)
+  )
+
+  dropInvalidIndexes.flatMap { _ =>
+    collection.indexesManager.ensure(ttlIndex)
+  }
+
   override def indexes: Seq[Index] = super.indexes ++ Seq(
-    Index(
-      key = Seq("createdAt" -> IndexType.Descending),
-      name = Some("createdAt-ttl-index"),
-      unique = false,
-      options = BSONDocument("expireAfterSeconds" -> BSONLong(customsNotificationConfig.notificationConfig.ttlInSeconds.toLong))
-    ),
+    ttlIndex,
     Index(
       key = Seq("clientNotification.clientId" -> IndexType.Descending),
       name = Some("clientNotification-clientId-index"),
@@ -192,6 +200,21 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> InProgress, workItemFields.updatedAt -> now))
     collection.findAndUpdate(selector, update, fetchNewObject = true).map(_.result[WorkItem[NotificationWorkItem]])
   }
+
+  private def dropInvalidIndexes: Future[_] =
+    collection.indexesManager.list().flatMap { indexes =>
+      indexes
+        .find { index =>
+          index.name.contains(ttlIndexName) &&
+            !index.options.getAs[Int]("expireAfterSeconds").contains(ttlInSeconds)
+        }
+        .map { _ =>
+          logger.debug(s"dropping $ttlIndexName index as ttl value is incorrect")
+          collection.indexesManager.drop(ttlIndexName)
+        }
+        .getOrElse(Future.successful(()))
+    }
+  
 }
 
 object WorkItemFormat {
