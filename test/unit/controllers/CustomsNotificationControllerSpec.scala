@@ -90,7 +90,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       }
       
       verify(mockCustomsNotificationService).handleNotification(meq(ValidXML),  meq(expectedRequestMetaData), meq(apiSubscriptionFields))
-      verifyLog("info","Notification sent to callback url provided", mockNotificationLogger)
+      verifyLog("info","Saved notification with FunctionCode: [absent] and IssueDateTime: [absent]", mockNotificationLogger)
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {

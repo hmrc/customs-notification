@@ -100,34 +100,44 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
+    val notificationPayloadExtract = extractForLog(xml)
+    
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
-
       case Some(apiSubscriptionFields) =>
         handleNotification(xml, md, apiSubscriptionFields).recover{
           case t: Throwable =>
-            logger.error(s"Notification processing failed due to: ${t.getMessage}")
+            logger.error(s"Processing failed for notification with $notificationPayloadExtract due to: ${t.getMessage}")
             ErrorInternalServerError.XmlResult
         }.map {
           case true =>
-            logger.info("Notification sent to callback url provided")
+            logger.info(s"Saved notification with $notificationPayloadExtract")
             Results.Accepted
           case false =>
-            logger.error("Notification processing failed")
+            logger.error(s"Processing failed for notification with $notificationPayloadExtract")
             ErrorInternalServerError.XmlResult
         }
-
       case None =>
-        logger.error("Declarant data not found")
+        logger.error(s"Declarant data not found for notification with $notificationPayloadExtract")
         Future.successful(ErrorCdsClientIdNotFound.XmlResult)
-
     }.recover {
       case ex: Throwable =>
-        notificationLogger.error("Failed to fetch declarant data " + ex.getMessage)
+        notificationLogger.error(s"Failed to fetch declarant data for notification with $notificationPayloadExtract " + ex.getMessage)
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }
 
   def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)
+  }
+  
+  def extractForLog(xml: NodeSeq)(implicit md: RequestMetaData): String = {
+    
+    val functionCode = (xml \ "Response" \ "FunctionCode")
+    val issueDateTime = (xml \ "Response" \ "IssueDateTime" \ "DateTimeString")
+    s"FunctionCode: ${extractOrEmpty(functionCode)} and IssueDateTime: ${extractOrEmpty(issueDateTime)}"
+  }
+  
+  def extractOrEmpty(xmlNode: NodeSeq): String = {
+    s"${if (xmlNode.nonEmpty && xmlNode.text.trim.nonEmpty) s"${xmlNode.head.text}" else "[absent]"}"
   }
 }
