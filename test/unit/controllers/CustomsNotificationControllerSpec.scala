@@ -68,8 +68,9 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val apiSubscriptionFields = ApiSubscriptionFields(validFieldsId, DeclarantCallbackDataOneForPush)
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), mockDateTimeService.zonedDateTimeUtc)
-  
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)),
+    Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), None, None, None, mockDateTimeService.zonedDateTimeUtc)
+
   private val eventualTrue = Future.successful(true)
 
   private val eventualFalse = Future.successful(false)
@@ -90,25 +91,25 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       }
       
       verify(mockCustomsNotificationService).handleNotification(meq(ValidXML),  meq(expectedRequestMetaData), meq(apiSubscriptionFields))
-      verifyLog("info","Saved notification with FunctionCode: [absent] and IssueDateTime: [absent]", mockNotificationLogger)
+      verifyLog("info","Saved notification", mockNotificationLogger)
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeSubmitterNumber = None)), meq(apiSubscriptionFields))).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))).thenReturn(eventualTrue)
 
       testSubmitResult(MissingAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeSubmitterNumber = None)), meq(apiSubscriptionFields))
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(mayBeBadgeId = None, mayBeSubmitterNumber = None)), meq(apiSubscriptionFields))).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))).thenReturn(eventualTrue)
 
       testSubmitResult(InvalidAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED

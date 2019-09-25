@@ -48,7 +48,7 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
 
     val notification = request.notification
 
-    logger.debug(s"Attempting to send notification to queue\nheaders=$headers\npayload=\n${notification.payload}")
+    logger.debug(s"Attempting to send notification to queue\nheaders=$headers}")
 
     http.POSTString[HttpResponse](url, notification.payload, headers)
       .recoverWith {

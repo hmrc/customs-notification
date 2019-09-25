@@ -74,16 +74,31 @@ object LoggingHelper {
     }
     def badgeId = rm match {
       case has: HasMaybeBadgeId =>
-        formatOptional("badgeId", has.mayBeBadgeId)
+        formatOptional("badgeId", has.maybeBadgeId)
       case _ => ""
     }
     def submitter = rm match {
       case has: HasMaybeSubmitter =>
-        formatOptional("submitterIdentifier", has.mayBeSubmitterNumber)
+        formatOptional("submitterIdentifier", has.maybeSubmitterNumber)
+      case _ => ""
+    }
+    def functionCode = rm match {
+      case has: HasMaybeFunctionCode =>
+        formatOptional("functionCode", has.maybeFunctionCode)
+      case _ => ""
+    }
+    def issueDateTime = rm match {
+      case has: HasMaybeIssueDateTime =>
+        formatOptional("issueDateTime", has.maybeIssueDateTime)
+      case _ => ""
+    }
+    def mrn = rm match {
+      case has: HasMaybeMrn =>
+        formatOptional("mrn", has.maybeMrn)
       case _ => ""
     }
 
-    s"[${rm.idName}=${rm.idValue}]$fieldsId$badgeId$submitter$correlationId"
+    s"[${rm.idName}=${rm.idValue}]$fieldsId$badgeId$submitter$correlationId$functionCode$issueDateTime$mrn"
   }
 
   private def formatOptional[T](name: String, maybeValue: Option[T]) = {

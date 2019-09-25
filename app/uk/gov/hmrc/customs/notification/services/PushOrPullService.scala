@@ -104,12 +104,12 @@ class PushOrPullService @Inject()(
     val clientNotification = clientNotificationFrom(n)
 
     pull.enqueue(clientNotification).map[Either[PushOrPullError, ConnectorSource]] { _ =>
-      logger.debug(s"successfully sent to pull queue $n")
+      logger.debug(s"successfully sent notification to pull queue")
       Right(Pull)
     }
     .recover {
       case NonFatal(t) =>
-        logger.debug(s"failed to send to pull queue $n")
+        logger.debug(s"failed to send notification to pull queue")
         Left(PushOrPullError(Pull, mapResultError(t)))
     }
   }

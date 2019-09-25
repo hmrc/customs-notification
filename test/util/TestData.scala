@@ -86,6 +86,10 @@ object TestData {
   val submitterNumber = "IAMSUBMITTER"
   val userAgent = "Customs Declaration Service"
   val correlationId = "CORRID2234"
+  
+  val functionCode = "01"
+  val issueDateTime = "20190925104103Z"
+  val mrn = "19GB3955NQ36213969"
 
   lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
   lazy val pushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML)
@@ -131,7 +135,9 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), TimeReceivedZoned)
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(BadgeId(badgeId)),
+    Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)),
+    Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned)
 
   val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId1, None, notification = notification1)
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
