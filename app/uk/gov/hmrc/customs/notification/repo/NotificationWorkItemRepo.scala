@@ -214,7 +214,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         }
         .getOrElse(Future.successful(()))
     }
-  
+
 }
 
 object WorkItemFormat {

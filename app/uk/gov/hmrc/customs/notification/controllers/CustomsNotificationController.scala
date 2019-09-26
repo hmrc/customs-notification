@@ -107,12 +107,12 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
-    
+
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>
         handleNotification(xml, md, apiSubscriptionFields).recover{
           case t: Throwable =>
-            logger.error(s"Processing failed for notification due to: ${t.getMessage}")
+            logger.error(s"Processing failed for notification due to: $t")
             ErrorInternalServerError.XmlResult
         }.map {
           case true =>
@@ -127,7 +127,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
         Future.successful(ErrorCdsClientIdNotFound.XmlResult)
     }.recover {
       case t: Throwable =>
-        notificationLogger.error(s"Failed to fetch declarant data for notification due to: ${t.getMessage}")
+        notificationLogger.error(s"Failed to fetch declarant data for notification due to: $t")
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }
@@ -135,7 +135,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)
   }
-  
+
   def extractFunctionCode(maybeXml: Option[NodeSeq]): Option[FunctionCode]= {
     maybeXml match {
       case Some(xml) => extractValues(xml \ "Response" \ "FunctionCode").fold{val tmp : Option[FunctionCode] = None; tmp}(x => Some(FunctionCode(x)))
@@ -156,7 +156,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
       case _ => None
     }
   }
-  
+
   def extractValues(xmlNode: NodeSeq): Option[String] = {
     val values = xmlNode.iterator.collect {
       case node if node.nonEmpty && xmlNode.text.trim.nonEmpty => node.text.trim

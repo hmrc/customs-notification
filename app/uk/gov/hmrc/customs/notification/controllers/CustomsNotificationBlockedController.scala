@@ -48,7 +48,7 @@ class CustomsNotificationBlockedController @Inject()(val customsNotificationBloc
             blockedCountResponse(count)
           }.recover {
             case t: Throwable =>
-              logger.error(s"unable to get blocked count due to ${t.getMessage}")
+              logger.error(s"unable to get blocked count due to $t")
               ErrorInternalServerError.XmlResult
           }
       }
@@ -70,7 +70,7 @@ class CustomsNotificationBlockedController @Inject()(val customsNotificationBloc
             }
           }.recover {
             case t: Throwable =>
-              logger.error(s"unable to delete blocked flags due to ${t.getMessage}")
+              logger.error(s"unable to delete blocked flags due to $t")
               ErrorInternalServerError.XmlResult
           }
       }
