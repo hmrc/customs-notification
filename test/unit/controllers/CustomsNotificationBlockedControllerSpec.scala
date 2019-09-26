@@ -77,7 +77,7 @@ class CustomsNotificationBlockedControllerSpec
           status(result) shouldBe INTERNAL_SERVER_ERROR
           await(result) shouldBe ErrorInternalServerError.XmlResult
         }
-        verifyLog("error", "unable to get blocked count due to Emulated service failure.", mockLogger)
+        verifyLog("error", "unable to get blocked count due to java.lang.UnsupportedOperationException: Emulated service failure.", mockLogger)
       }
     }
 
@@ -118,7 +118,7 @@ class CustomsNotificationBlockedControllerSpec
           status(result) shouldBe INTERNAL_SERVER_ERROR
           await(result) shouldBe ErrorInternalServerError.XmlResult
         }
-        verifyLog("error", s"unable to delete blocked flags due to Emulated service failure.", mockLogger)
+        verifyLog("error", s"unable to delete blocked flags due to java.lang.UnsupportedOperationException: Emulated service failure.", mockLogger)
       }
     }
 }

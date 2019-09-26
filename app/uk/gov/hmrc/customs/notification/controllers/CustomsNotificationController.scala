@@ -35,19 +35,25 @@ import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
-                           mayBeBadgeId: Option[BadgeId],
-                           mayBeSubmitterNumber: Option[Submitter],
+                           maybeBadgeId: Option[BadgeId],
+                           maybeSubmitterNumber: Option[Submitter],
                            maybeCorrelationId: Option[CorrelationId],
+                           maybeFunctionCode: Option[FunctionCode],
+                           maybeIssueDateTime: Option[IssueDateTime],
+                           maybeMrn: Option[Mrn],
                            startTime: ZonedDateTime)
   extends HasId
   with HasClientSubscriptionId
   with HasMaybeBadgeId
   with HasMaybeCorrelationId
   with HasMaybeSubmitter
+  with HasMaybeFunctionCode
+  with HasMaybeIssueDateTime
+  with HasMaybeMrn
 {
-  def mayBeBadgeIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME, mayBeBadgeId)
+  def mayBeBadgeIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME, maybeBadgeId)
 
-  def mayBeSubmitterHeader: Option[Header] = asHeader(CustomHeaderNames.X_SUBMITTER_ID_HEADER_NAME, mayBeSubmitterNumber)
+  def mayBeSubmitterHeader: Option[Header] = asHeader(CustomHeaderNames.X_SUBMITTER_ID_HEADER_NAME, maybeSubmitterNumber)
 
   def mayBeCorrelationIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_CORRELATION_ID_HEADER_NAME, maybeCorrelationId)
 
@@ -78,8 +84,9 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     val startTime = dateTimeService.zonedDateTimeUtc
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
-        implicit val rd: RequestMetaData = requestMetaData(request.headers, startTime)
-        request.body.asXml match {
+        val maybeXml = request.body.asXml
+        implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, startTime)
+        maybeXml match {
           case Some(xml) =>
             process(xml)
           case None =>
@@ -89,39 +96,38 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     }
   }
 
-  private def requestMetaData(headers: Headers, startTime: ZonedDateTime): RequestMetaData = {
+  private def requestMetaData(maybeXml: Option[NodeSeq], headers: Headers, startTime: ZonedDateTime) = {
     // headers have been validated so safe to do a naked get except badgeId, submitter and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
       headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter),
-      headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
-      startTime)
+      headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId), extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml),
+      extractMrn(maybeXml), startTime)
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
-    val notificationPayloadExtract = extractForLog(xml)
-    
+
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>
         handleNotification(xml, md, apiSubscriptionFields).recover{
           case t: Throwable =>
-            logger.error(s"Processing failed for notification with $notificationPayloadExtract due to: ${t.getMessage}")
+            logger.error(s"Processing failed for notification due to: $t")
             ErrorInternalServerError.XmlResult
         }.map {
           case true =>
-            logger.info(s"Saved notification with $notificationPayloadExtract")
+            logger.info(s"Saved notification")
             Results.Accepted
           case false =>
-            logger.error(s"Processing failed for notification with $notificationPayloadExtract")
+            logger.error(s"Processing failed for notification")
             ErrorInternalServerError.XmlResult
         }
       case None =>
-        logger.error(s"Declarant data not found for notification with $notificationPayloadExtract")
+        logger.error(s"Declarant data not found for notification")
         Future.successful(ErrorCdsClientIdNotFound.XmlResult)
     }.recover {
-      case ex: Throwable =>
-        notificationLogger.error(s"Failed to fetch declarant data for notification with $notificationPayloadExtract " + ex.getMessage)
+      case t: Throwable =>
+        notificationLogger.error(s"Failed to fetch declarant data for notification due to: $t")
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }
@@ -129,15 +135,32 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)
   }
-  
-  def extractForLog(xml: NodeSeq)(implicit md: RequestMetaData): String = {
-    
-    val functionCode = (xml \ "Response" \ "FunctionCode")
-    val issueDateTime = (xml \ "Response" \ "IssueDateTime" \ "DateTimeString")
-    s"FunctionCode: ${extractOrEmpty(functionCode)} and IssueDateTime: ${extractOrEmpty(issueDateTime)}"
+
+  def extractFunctionCode(maybeXml: Option[NodeSeq]): Option[FunctionCode]= {
+    maybeXml match {
+      case Some(xml) => extractValues(xml \ "Response" \ "FunctionCode").fold{val tmp : Option[FunctionCode] = None; tmp}(x => Some(FunctionCode(x)))
+      case _ => None
+    }
   }
-  
-  def extractOrEmpty(xmlNode: NodeSeq): String = {
-    s"${if (xmlNode.nonEmpty && xmlNode.text.trim.nonEmpty) s"${xmlNode.head.text}" else "[absent]"}"
+
+  def extractIssueDateTime(maybeXml: Option[NodeSeq]): Option[IssueDateTime]= {
+    maybeXml match {
+      case Some(xml) => extractValues(xml \ "Response" \ "IssueDateTime" \ "DateTimeString").fold{val tmp : Option[IssueDateTime] = None; tmp}(x => Some(IssueDateTime(x)))
+      case _ => None
+    }
+  }
+
+  def extractMrn(maybeXml: Option[NodeSeq]): Option[Mrn]= {
+    maybeXml match {
+      case Some(xml) => extractValues(xml \ "Response" \ "Declaration" \ "ID").fold{val tmp : Option[Mrn] = None; tmp}(x => Some(Mrn(x)))
+      case _ => None
+    }
+  }
+
+  def extractValues(xmlNode: NodeSeq): Option[String] = {
+    val values = xmlNode.iterator.collect {
+      case node if node.nonEmpty && xmlNode.text.trim.nonEmpty => node.text.trim
+    }.mkString("|")
+    if (values.isEmpty) None else Some(values)
   }
 }

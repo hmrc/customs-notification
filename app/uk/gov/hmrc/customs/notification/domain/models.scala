@@ -58,6 +58,18 @@ case class CorrelationId(id: String) extends AnyVal {
   override def toString: String = id.toString
 }
 
+case class FunctionCode(value: String) extends AnyVal {
+  override def toString: String = value.toString
+}
+
+case class IssueDateTime(value: String) extends AnyVal {
+  override def toString: String = value.toString
+}
+
+case class Mrn(value: String) extends AnyVal {
+  override def toString: String = value.toString
+}
+
 trait HasId {
   def idName: String
   def idValue: String
@@ -68,13 +80,25 @@ trait HasClientSubscriptionId {
 }
 
 trait HasMaybeBadgeId {
-  def mayBeBadgeId: Option[BadgeId]
+  def maybeBadgeId: Option[BadgeId]
 }
 
 trait HasMaybeSubmitter {
-  def mayBeSubmitterNumber: Option[Submitter]
+  def maybeSubmitterNumber: Option[Submitter]
 }
 
 trait HasMaybeCorrelationId {
   def maybeCorrelationId: Option[CorrelationId]
+}
+
+trait HasMaybeFunctionCode {
+  def maybeFunctionCode: Option[FunctionCode]
+}
+
+trait HasMaybeIssueDateTime {
+  def maybeIssueDateTime: Option[IssueDateTime]
+}
+
+trait HasMaybeMrn {
+  def maybeMrn: Option[Mrn]
 }

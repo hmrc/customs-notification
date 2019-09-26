@@ -55,7 +55,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     } yield hasSaved)
       .recover {
         case NonFatal(e) =>
-          logger.error(s"A problem occurred while handling notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
+          logger.error(s"A problem occurred while handling notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
           false
       }
   }
@@ -84,7 +84,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
       }
     ).recover {
       case NonFatal(e) =>
-        logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: ${e.getMessage}")
+        logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
         false
     }
   }
@@ -108,7 +108,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         true
     }.recover {
       case NonFatal(e) =>
-        logger.error(s"failed saving notification work item with csid: ${workItem.item.id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: ${e.getMessage}")
+        logger.error(s"failed saving notification work item with csid: ${workItem.item.id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
         false
     }
   }
