@@ -40,6 +40,7 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
   private val stubCdsLogger = StubCdsLogger()
   private val serviceConfigProvider = mock[ServiceConfigProvider]
   private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   private val connector = new ExternalPushConnector(
     mockHttpClient,

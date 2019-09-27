@@ -134,6 +134,6 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
   }
 
   private def postToQueue(request: ClientNotification) = {
-    connector.enqueue(request)
+    connector.enqueue(request)(HeaderCarrier())
   }
 }

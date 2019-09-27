@@ -21,7 +21,7 @@ import uk.gov.hmrc.customs.notification.connectors._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.http.HttpResponse
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -34,7 +34,7 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
                                      )
                                      (implicit ec: ExecutionContext) {
 
-  def send(clientId: ClientId, pnr: PushNotificationRequest)(implicit rm: HasId): Future[Either[ResultError, HttpResponse]] = {
+  def send(clientId: ClientId, pnr: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
 
     val response: (String, Future[Either[ResultError, HttpResponse]]) =
       if (configService.notificationConfig.internalClientIds.contains(clientId.toString)) {
@@ -55,7 +55,7 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
     }
   }
 
-  private def internalPushWithAuditing(pnr: PushNotificationRequest)(implicit rm: HasId): Future[Either[ResultError, HttpResponse]] = {
+  private def internalPushWithAuditing(pnr: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
 
     val eventuallyEither: Future[Either[ResultError, HttpResponse]] = internalPush.send(pnr).map{
       case r@Right(_) =>

@@ -21,6 +21,7 @@ import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MapResultError, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, DeclarantCallbackData, HasId, NonHttpError, NotificationWorkItem, PushNotificationRequest, PushNotificationRequestBody, ResultError}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -39,7 +40,7 @@ class PushOrPullService @Inject()(
 )
 (implicit ec: ExecutionContext) extends MapResultError {
 
-  def send(n: NotificationWorkItem): Future[Either[PushOrPullError, ConnectorSource]] = {
+  def send(n: NotificationWorkItem)(implicit hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
     implicit val hasId = n
 
     clientData(n.id).flatMap{
@@ -51,7 +52,7 @@ class PushOrPullService @Inject()(
 
   }
 
-  private def clientData(csId: ClientSubscriptionId): Future[Either[PushOrPullError, ApiSubscriptionFields]] = {
+  private def clientData(csId: ClientSubscriptionId)(implicit hc: HeaderCarrier): Future[Either[PushOrPullError, ApiSubscriptionFields]] = {
     callbackDetailsConnector.getClientData(csId.toString).map[Either[PushOrPullError, ApiSubscriptionFields]]{
       case Some(fields) =>
         Right(fields)
@@ -66,7 +67,7 @@ class PushOrPullService @Inject()(
 
 
   // existing controllers can reuse this method
-  def send(n: NotificationWorkItem, apiSubscriptionFields: ApiSubscriptionFields)(implicit hasId: HasId): Future[Either[PushOrPullError, ConnectorSource]] = {
+  def send(n: NotificationWorkItem, apiSubscriptionFields: ApiSubscriptionFields)(implicit hasId: HasId, hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
     if (apiSubscriptionFields.isPush) {
       val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, n)
       pushOutboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pnr).map[Either[PushOrPullError, ConnectorSource]]{
@@ -100,7 +101,7 @@ class PushOrPullService @Inject()(
       ))
   }
 
-  private def pull(n: NotificationWorkItem)(implicit hasId: HasId): Future[Either[PushOrPullError, ConnectorSource]] = {
+  private def pull(n: NotificationWorkItem)(implicit hasId: HasId, hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
     val clientNotification = clientNotificationFrom(n)
 
     pull.enqueue(clientNotification).map[Either[PushOrPullError, ConnectorSource]] { _ =>

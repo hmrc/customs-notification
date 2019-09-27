@@ -27,6 +27,7 @@ import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsReque
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationMetricsService, DateTimeService}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
@@ -34,6 +35,8 @@ import util.TestData._
 import scala.concurrent.Future
 
 class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
+
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   trait SetUp {
     private implicit val ec = Helpers.stubControllerComponents().executionContext
@@ -49,7 +52,7 @@ class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
     )
     private[CustomsNotificationMetricsServiceSpec] def verifyMetricsConnector(): Unit = {
       val metricsRequestCaptor: ArgumentCaptor[CustomsNotificationsMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationsMetricsRequest])
-      Eventually.eventually(verify(mockMetricsConnector, times(1)).post(metricsRequestCaptor.capture()))
+      Eventually.eventually(verify(mockMetricsConnector, times(1)).post(metricsRequestCaptor.capture())(any[HeaderCarrier]()))
       val metricsRequest = metricsRequestCaptor.getValue
       metricsRequest.conversationId.toString shouldBe conversationId.id.toString
       ()

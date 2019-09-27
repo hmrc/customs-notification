@@ -25,10 +25,11 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.domain.{HasId, HttpResultError}
+import uk.gov.hmrc.customs.notification.domain.{HasId, HttpResultError, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.services._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import uk.gov.hmrc.workitem.{Failed, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -39,6 +40,7 @@ import scala.concurrent.Future
 class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   trait SetUp {
     private[WorkItemServiceImplSpec] val mockRepo = mock[NotificationWorkItemMongoRepo]
@@ -98,7 +100,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     "return Future of true and set WorkItem status to Success when PUSH returns 2XX" in new SetUp {
       when(mockDateTime.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
-      when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Right(Push)))
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Right(Push)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(eventuallyUnit)
 
       val actual = await(service.processOne())
@@ -112,7 +114,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     "return Future of true and set WorkItem status to Success when PULL returns 2XX" in new SetUp {
       when(mockDateTime.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
-      when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Right(Pull)))
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Right(Pull)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(eventuallyUnit)
 
       val actual = await(service.processOne())
@@ -125,7 +127,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       when(mockDateTime.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
       private val fieldsError = PushOrPullError(GetApiSubscriptionFields, httpResultError)
-      when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(fieldsError)))
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(fieldsError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
       when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
@@ -141,7 +143,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       when(mockDateTime.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
       private val pushError = PushOrPullError(Push, httpResultError)
-      when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(pushError)))
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(pushError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
       when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
@@ -157,7 +159,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       when(mockDateTime.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
       private val pullError = PushOrPullError(Pull, httpResultError)
-      when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(pullError)))
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(pullError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
       when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
@@ -173,7 +175,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       when(mockDateTime.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
       private val pullError = PushOrPullError(Push, httpResultError)
-      when(mockPushOrPull.send(WorkItem1.item)).thenReturn(Future.successful(Left(pullError)))
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(pullError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventualFailed)
 
       val actual = await(service.processOne())

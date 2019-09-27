@@ -25,6 +25,7 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.InternalPushConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.http.HeaderCarrier
 import unit.logging.StubCdsLogger
 import util.TestData._
 import util.{ExternalServicesConfiguration, InternalPushNotificationService, WireMockRunnerWithoutServer}
@@ -76,7 +77,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "make a correct request" in {
       setupInternalServiceToReturn(NO_CONTENT)
 
-      val Right(_) = await(connector.send(pnr()))
+      val Right(_) = await(connector.send(pnr())(HeaderCarrier()))
 
       verifyInternalServiceWasCalledWithOutboundHeaders(pnr())
     }
@@ -84,7 +85,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 404 and a wrapped HttpVerb NotFoundException when external service returns 404" in {
       setupInternalServiceToReturn(NOT_FOUND)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
 
       httpResultError.status shouldBe NOT_FOUND
     }
@@ -92,7 +93,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 400 and a wrapped HttpVerb BadRequestException when external service returns 400" in {
       setupInternalServiceToReturn(BAD_REQUEST)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
 
       httpResultError.status shouldBe BAD_REQUEST
     }
@@ -100,7 +101,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 500 and a wrapped HttpVerb Upstream5xxResponse when external service returns 500" in {
       setupInternalServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
+      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
 
       httpResultError.status shouldBe INTERNAL_SERVER_ERROR
     }
@@ -108,7 +109,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(NonHttpError) when malformed URL is supplied" in {
       setupInternalServiceToReturn(NO_CONTENT)
 
-      val Left(NonHttpError(e)) = await(connector.send(pnr("some-broken-url")))
+      val Left(NonHttpError(e)) = await(connector.send(pnr("some-broken-url"))(HeaderCarrier()))
 
       e.getClass shouldBe classOf[IllegalArgumentException]
       e.getMessage shouldBe "Invalid URL some-broken-url"
@@ -116,7 +117,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in
       withoutWireMockServer {
-        val Left(httpResultError: HttpResultError) = await(connector.send(pnr()))
+        val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
 
         httpResultError.status shouldBe BAD_GATEWAY
       }

@@ -28,6 +28,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -105,7 +106,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
       extractMrn(maybeXml), startTime)
   }
 
-  private def process(xml: NodeSeq)(implicit md: RequestMetaData): Future[Result] = {
+  private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
@@ -132,7 +133,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     }
   }
 
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)
   }
 

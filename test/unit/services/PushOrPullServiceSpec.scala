@@ -16,6 +16,7 @@
 
 package unit.services
 
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
@@ -24,13 +25,15 @@ import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnect
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields => _, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.http.HttpResponse
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
 
 import scala.concurrent.Future
 
 class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
+
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   trait SetUp {
     private implicit val ec = Helpers.stubControllerComponents().executionContext
@@ -69,7 +72,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
   "PushOrPullService" should {
     "PUSH when callback details are found and callbackUrl is present" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallySomePushClientCallbackData)
-      when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1)).thenReturn(eventualRightHttpResponse)
+      when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1, hc)).thenReturn(eventualRightHttpResponse)
 
       val actual: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
@@ -107,7 +110,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
     }
     "when some callback URL is returned, return Left with source of Push when OutboundSwitchService throws an exception" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallySomePushClientCallbackData)
-      when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1)).thenReturn(eventualEmulatedServiceFailure)
+      when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1, hc)).thenReturn(eventualEmulatedServiceFailure)
 
       val Left(pushOrPullError) = await(service.send(NotificationWorkItem1))
 
@@ -117,7 +120,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
     }
     "when some callback URL is returned, return Left with source of Push when OutboundSwitchService returns Left" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallySomePushClientCallbackData)
-      when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1)).thenReturn(eventualLeftResultError)
+      when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1, hc)).thenReturn(eventualLeftResultError)
 
       val Left(pushOrPullError) = await(service.send(NotificationWorkItem1))
 
