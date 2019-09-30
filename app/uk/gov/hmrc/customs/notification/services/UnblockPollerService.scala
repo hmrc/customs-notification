@@ -22,6 +22,7 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.logging.RequestId
 import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded, WorkItem}
 
 import scala.concurrent.duration._
@@ -33,6 +34,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                                      actorSystem: ActorSystem,
                                      notificationWorkItemRepo: NotificationWorkItemRepo,
                                      pushOrPullService: PushOrPullService,
+                                     uuidService: UuidService,
                                      logger: CdsLogger)(implicit executionContext: ExecutionContext) {
 
   if (config.unblockPollerConfig.pollerEnabled) {
@@ -66,7 +68,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Boolean] = {
 
     implicit val loggingContext: NotificationWorkItem = workItem.item
-    implicit val hc: HeaderCarrier = HeaderCarrier()
+    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(uuidService.uuid().toString)))
 
     pushOrPullService.send(workItem.item).map[Boolean]{
       case Right(connector) =>

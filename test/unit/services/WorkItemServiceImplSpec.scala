@@ -17,6 +17,7 @@
 package unit.services
 
 import java.time.{ZoneId, ZonedDateTime}
+import java.util.UUID
 
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.kenshoo.play.metrics.Metrics
@@ -50,8 +51,9 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val mockMetrics = mock[Metrics]
     private[WorkItemServiceImplSpec] val mockMetricRegistry: MetricRegistry = mock[MetricRegistry]
     private[WorkItemServiceImplSpec] val mockCounter: Counter = mock[Counter]
+    private[WorkItemServiceImplSpec] val mockUuidService = mock[UuidService]
     private[WorkItemServiceImplSpec] val service = new WorkItemServiceImpl(
-      mockRepo, mockPushOrPull, mockDateTime, mockLogger, mockMetrics
+      mockRepo, mockPushOrPull, mockDateTime, mockLogger, mockUuidService, mockMetrics
     )
     private[WorkItemServiceImplSpec] val UtcZoneId = ZoneId.of("UTC")
     private[WorkItemServiceImplSpec] val now: ZonedDateTime = ZonedDateTime.now(UtcZoneId)
@@ -65,6 +67,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
     when(mockMetrics.defaultRegistry).thenReturn(mockMetricRegistry)
     when(mockMetricRegistry.counter("declaration-digital-notification-retry-total-counter")).thenReturn(mockCounter)
+    when(mockUuidService.uuid()).thenReturn(UUID.randomUUID())
 
     private[WorkItemServiceImplSpec] def verifyErrorLog(msg: String) = {
       PassByNameVerifier(mockLogger, "error")

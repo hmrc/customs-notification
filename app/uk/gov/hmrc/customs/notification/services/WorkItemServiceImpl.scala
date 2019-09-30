@@ -25,6 +25,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.logging.RequestId
 import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -41,6 +42,7 @@ class WorkItemServiceImpl @Inject()(
     pushOrPullService: PushOrPullService,
     dateTimeService: DateTimeService,
     logger: NotificationLogger,
+    uuidService: UuidService,
     metrics: Metrics
   )
   (implicit ec: ExecutionContext) extends WorkItemService {
@@ -74,7 +76,7 @@ class WorkItemServiceImpl @Inject()(
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
 
     implicit val loggingContext = workItem.item
-    implicit val hc = HeaderCarrier()
+    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(uuidService.uuid().toString)))
 
     logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap{

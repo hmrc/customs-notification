@@ -16,6 +16,8 @@
 
 package unit.services
 
+import java.util.UUID
+
 import akka.actor.ActorSystem
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
@@ -58,6 +60,7 @@ class UnblockPollerServiceSpec extends UnitSpec
     private[UnblockPollerServiceSpec] val testActorSystem = ActorSystem("UnblockPollerService")
     private[UnblockPollerServiceSpec] val mockUnblockPollerConfig = mock[UnblockPollerConfig]
     private[UnblockPollerServiceSpec] val mockPushOrPullService = mock[PushOrPullService]
+    private[UnblockPollerServiceSpec] val mockUuidService = mock[UuidService]
 
     private[UnblockPollerServiceSpec] def verifyInfoLog(msg: String) = {
       PassByNameVerifier(mockCdsLogger, "info")
@@ -73,6 +76,7 @@ class UnblockPollerServiceSpec extends UnitSpec
     }
 
     when(configServiceMock.unblockPollerConfig).thenReturn(mockUnblockPollerConfig)
+    when(mockUuidService.uuid()).thenReturn(UUID.randomUUID())
   }
 
   "UnblockPollerService" should {
@@ -89,6 +93,7 @@ class UnblockPollerServiceSpec extends UnitSpec
           testActorSystem,
           notificationWorkItemRepoMock,
           mockPushOrPullService,
+          mockUuidService,
           mockCdsLogger)
 
       eventually {
@@ -112,6 +117,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         testActorSystem,
         notificationWorkItemRepoMock,
         mockPushOrPullService,
+        mockUuidService,
         mockCdsLogger)
 
       eventually {
@@ -131,6 +137,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         testActorSystem,
         notificationWorkItemRepoMock,
         mockPushOrPullService,
+        mockUuidService,
         mockCdsLogger)
 
       eventually {
@@ -151,6 +158,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         testActorSystem,
         notificationWorkItemRepoMock,
         mockPushOrPullService,
+        mockUuidService,
         mockCdsLogger)
 
       eventually {
@@ -175,6 +183,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         testActorSystem,
         notificationWorkItemRepoMock,
         mockPushOrPullService,
+        mockUuidService,
         mockCdsLogger)
 
       eventually {
