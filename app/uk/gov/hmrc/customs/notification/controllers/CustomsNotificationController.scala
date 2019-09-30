@@ -27,8 +27,9 @@ import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCd
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.logging.RequestId
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -71,6 +72,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
                                               val callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                               val configService: CustomsNotificationConfig,
                                               val dateTimeService: DateTimeService,
+                                              val uuidService: UuidService,
                                               val cc: ControllerComponents,
                                               val logger: NotificationLogger)
                                              (implicit ec: ExecutionContext)
@@ -85,11 +87,12 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     val startTime = dateTimeService.zonedDateTimeUtc
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
+        implicit val headerCarrier: HeaderCarrier = hc(request).copy(requestId = Some(RequestId(uuidService.uuid().toString)))
         val maybeXml = request.body.asXml
         implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, startTime)
         maybeXml match {
           case Some(xml) =>
-            process(xml)
+            process(xml)(rd, headerCarrier)
           case None =>
             notificationLogger.error(xmlValidationErrorMessage)
             Future.successful(errorBadRequest(xmlValidationErrorMessage).XmlResult)

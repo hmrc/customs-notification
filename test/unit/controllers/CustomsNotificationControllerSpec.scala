@@ -16,6 +16,8 @@
 
 package unit.controllers
 
+import java.util.UUID
+
 import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers}
@@ -32,7 +34,7 @@ import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationControll
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
@@ -48,12 +50,14 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val mockConfigService = mock[ConfigService]
   private val mockCallbackDetailsConnector = mock[ApiSubscriptionFieldsConnector]
   private val mockDateTimeService = mock[DateTimeService]
+  private val mockUuidService = mock[UuidService]
 
   private def controller() = new CustomsNotificationController(
     mockCustomsNotificationService,
     mockCallbackDetailsConnector,
     mockConfigService,
     mockDateTimeService,
+    mockUuidService,
     Helpers.stubControllerComponents(),
     mockNotificationLogger
   )
@@ -80,6 +84,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
+    when(mockUuidService.uuid()).thenReturn(UUID.randomUUID())
     when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData), meq(apiSubscriptionFields))(any[HeaderCarrier]())).thenReturn(eventualTrue)
   }
 
