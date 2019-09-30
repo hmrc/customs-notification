@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
+import java.util.UUID
+
 import play.api.http.HeaderNames._
 import play.api.mvc.{ActionBuilder, AnyContent, BodyParser, ControllerComponents, Headers, Request, Result}
 import play.mvc.Http.MimeTypes
@@ -23,6 +25,8 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHead
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.logging.RequestId
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -42,6 +46,10 @@ trait HeaderValidator {
     override protected def executionContext: ExecutionContext = controllerComponents.executionContext
     override def parser: BodyParser[AnyContent] = controllerComponents.parsers.defaultBodyParser
     def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
+      val requestId = UUID.randomUUID().toString
+      implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(requestId)))
+      notificationLogger.debugWithHeaders("a request id in customs-notification " + requestId, headerCarrier.headers)
+
       implicit val headers: Headers = request.headers
       val logMessage = "Received notification"
       notificationLogger.debugWithHeaders(logMessage, headers.headers)
