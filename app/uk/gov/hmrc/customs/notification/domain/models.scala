@@ -33,6 +33,19 @@ object ConversationId {
   }
 }
 
+case class RequestId(id: UUID) extends AnyVal {
+  override def toString: String = id.toString
+}
+object RequestId {
+  implicit val requestIdJF: Format[RequestId] = new Format[RequestId] {
+    def writes(requestId: RequestId) = JsString(requestId.id.toString)
+    def reads(json: JsValue): JsResult[RequestId] = json match {
+      case JsNull => JsError()
+      case _ => JsSuccess(RequestId(json.as[UUID]))
+    }
+  }
+}
+
 case class ClientId(id: String) extends AnyVal {
   override def toString: String = id.toString
 }
@@ -77,6 +90,10 @@ trait HasId {
 
 trait HasClientSubscriptionId {
   def clientSubscriptionId: ClientSubscriptionId
+}
+
+trait HasRequestId {
+  def requestId: uk.gov.hmrc.customs.notification.domain.RequestId
 }
 
 trait HasMaybeBadgeId {

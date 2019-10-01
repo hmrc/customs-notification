@@ -68,16 +68,17 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Boolean] = {
 
     implicit val loggingContext: NotificationWorkItem = workItem.item
-    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(uuidService.uuid().toString)))
+    val requestIdValue = uuidService.uuid()
+    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(requestIdValue.toString)))
 
     pushOrPullService.send(workItem.item).map[Boolean]{
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-        logger.info(s"Unblock pilot send for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
+        logger.info(s"Unblock pilot send with requestId ${requestIdValue.toString} for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
         true
       case Left(PushOrPullError(connector, resultError)) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
+        logger.info(s"Unblock pilot send with requestId ${requestIdValue.toString} for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
         false
     }.recover{
       case NonFatal(e) => // Should never happen

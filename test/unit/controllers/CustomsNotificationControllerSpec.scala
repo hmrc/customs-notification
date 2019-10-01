@@ -74,7 +74,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val apiSubscriptionFields = ApiSubscriptionFields(validFieldsId, DeclarantCallbackDataOneForPush)
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)),
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(BadgeId(badgeId)),
     Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), None, None, None, mockDateTimeService.zonedDateTimeUtc)
 
   private val eventualTrue = Future.successful(true)
@@ -84,7 +84,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
-    when(mockUuidService.uuid()).thenReturn(UUID.randomUUID())
+    when(mockUuidService.uuid()).thenReturn(UUID.fromString(validRequestId))
     when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData), meq(apiSubscriptionFields))(any[HeaderCarrier]())).thenReturn(eventualTrue)
   }
 

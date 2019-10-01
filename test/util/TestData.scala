@@ -53,6 +53,9 @@ object TestData {
   val CsidOne = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde231"))
   val invalidFieldsId = "I-am-not-a-valid-type-4-uuid"
 
+  val validRequestId = "880f1f3d-0cf5-459b-89bc-0e682551db94"
+  val requestId = RequestId(UUID.fromString(validRequestId))
+  
   val basicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
   val validBasicAuthToken = s"Basic $basicAuthTokenValue"
   val invalidBasicAuthToken = "I-am-not-a-valid-auth-token"
@@ -135,7 +138,7 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, Some(BadgeId(badgeId)),
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, requestId, Some(BadgeId(badgeId)),
     Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)),
     Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned)
 

@@ -76,15 +76,16 @@ class WorkItemServiceImpl @Inject()(
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
 
     implicit val loggingContext = workItem.item
-    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(uuidService.uuid().toString)))
+    val requestIdValue = uuidService.uuid()
+    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(requestIdValue.toString)))
 
     logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap{
       case Right(connector) =>
-        logger.info(s"$connector retry succeeded for $workItem")
+        logger.info(s"$connector retry with requestId ${requestIdValue.toString} succeeded for $workItem")
         repository.setCompletedStatus(workItem.id, Succeeded)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
+        logger.info(s"$connector retry with requestId ${requestIdValue.toString} failed for $workItem with error $resultError. Setting status to " +
           s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (for {
           _ <- repository.setCompletedStatus(workItem.id, Failed) // increase failure count
