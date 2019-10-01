@@ -45,7 +45,7 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
       (SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString())
     ) ++ extract(maybeBadgeId) ++ extract(maybeCorrelationId)
     implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(headers: _*)
-    
+
     val notification = request.notification
 
     logger.debug(s"Attempting to send notification to queue\nheaders=${headerCarrier.headers}}")

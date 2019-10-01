@@ -45,7 +45,7 @@ class InternalPushConnector @Inject()(http: HttpClient,
       X_CONVERSATION_ID_HEADER_NAME -> pnr.body.conversationId,
       USER_AGENT -> "Customs Declaration Service"
     ) ++ outBoundHeaders
-    
+
     implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(headers:_*)
 
     logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${headerCarrier.headers} \npayload= ${pnr.body.xmlPayload}")
