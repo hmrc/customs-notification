@@ -32,15 +32,12 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
                                                     config: CustomsNotificationConfig)
                                                    (implicit ec: ExecutionContext) {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier(
-    extraHeaders = Seq(ACCEPT -> JSON, CONTENT_TYPE -> JSON)
-  )
-
-  def post[A](request: CustomsNotificationsMetricsRequest): Future[Unit] = {
-    post(request, config.notificationMetricsConfig.baseUrl)
+  def post[A](request: CustomsNotificationsMetricsRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
+    implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders((ACCEPT, JSON), (CONTENT_TYPE, JSON))
+    post(request, config.notificationMetricsConfig.baseUrl)(headerCarrier)
   }
 
-  private def post[A](request: CustomsNotificationsMetricsRequest, url: String): Future[Unit] = {
+  private def post[A](request: CustomsNotificationsMetricsRequest, url: String)(implicit hc: HeaderCarrier): Future[Unit] = {
 
     logger.debug(s"Sending request to customs notification metrics service. Url: $url Payload: ${request.toString}")
     http.POST[CustomsNotificationsMetricsRequest, HttpResponse](url, request).map{ _ =>

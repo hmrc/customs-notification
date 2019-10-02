@@ -21,6 +21,8 @@ import javax.inject._
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.logging.RequestId
 import uk.gov.hmrc.workitem.{PermanentlyFailed, Succeeded, WorkItem}
 
 import scala.concurrent.duration._
@@ -32,6 +34,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                                      actorSystem: ActorSystem,
                                      notificationWorkItemRepo: NotificationWorkItemRepo,
                                      pushOrPullService: PushOrPullService,
+                                     uuidService: UuidService,
                                      logger: CdsLogger)(implicit executionContext: ExecutionContext) {
 
   if (config.unblockPollerConfig.pollerEnabled) {
@@ -65,15 +68,17 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Boolean] = {
 
     implicit val loggingContext: NotificationWorkItem = workItem.item
+    val requestIdValue = uuidService.uuid()
+    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(requestIdValue.toString)))
 
     pushOrPullService.send(workItem.item).map[Boolean]{
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-        logger.info(s"Unblock pilot send for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
+        logger.info(s"Unblock pilot send with requestId ${requestIdValue.toString} for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
         true
       case Left(PushOrPullError(connector, resultError)) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
-        logger.info(s"Unblock pilot send for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
+        logger.info(s"Unblock pilot send with requestId ${requestIdValue.toString} for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
         false
     }.recover{
       case NonFatal(e) => // Should never happen

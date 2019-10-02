@@ -23,6 +23,7 @@ import uk.gov.hmrc.customs.notification.domain.{HasId, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, Succeeded, WorkItem}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,7 +41,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
   def handleNotification(xml: NodeSeq,
                          metaData: RequestMetaData,
-                         apiSubscriptionFields: ApiSubscriptionFields): Future[HasSaved] = {
+                         apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[HasSaved] = {
 
     implicit val hasId: RequestMetaData = metaData
 
@@ -66,7 +67,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
   private def saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem: NotificationWorkItem,
                                                                 isAnyPF: Boolean,
-                                                                apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId): Future[HasSaved] = {
+                                                                apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
 
     val status = if (isAnyPF) {
         logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
@@ -90,7 +91,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
-                         apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId): Future[HasSaved] = {
+                         apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>

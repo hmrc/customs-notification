@@ -34,9 +34,7 @@ class InternalPushConnector @Inject()(http: HttpClient,
                                       logger: CdsLogger)
                                      (implicit ec: ExecutionContext) extends MapResultError {
 
-  def send(pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
-
-    implicit val hc: HeaderCarrier = HeaderCarrier()
+  def send(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
 
     val outBoundHeaders: Seq[(String, String)] = pnr.body.outboundCallHeaders.map(h => (h.name, h.value))
 
@@ -48,10 +46,12 @@ class InternalPushConnector @Inject()(http: HttpClient,
       USER_AGENT -> "Customs Declaration Service"
     ) ++ outBoundHeaders
 
-    logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=$headers \npayload= ${pnr.body.xmlPayload}")
+    implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(headers:_*)
+
+    logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${headerCarrier.headers} \npayload= ${pnr.body.xmlPayload}")
 
     try {
-      val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, headers)
+      val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, headers)(RawReads.readRaw, headerCarrier, ec)
       val eventualEither: Future[Either[ResultError, HttpResponse]] = eventualHttpResponse.map(httpResponse => Right(httpResponse))
 
       eventualEither.recoverWith {

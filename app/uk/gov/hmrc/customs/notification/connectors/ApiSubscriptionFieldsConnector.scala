@@ -40,7 +40,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     (ACCEPT, MimeTypes.JSON)
   )
 
-  def getClientData(fieldsId: String): Future[Option[ApiSubscriptionFields]] = {
+  def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
     logger.debug("calling api-subscription-fields service")
     callApiSubscriptionFields(fieldsId) map { response =>
       logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
@@ -62,14 +62,14 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     response
   }
 
-  private def callApiSubscriptionFields(fieldsId: String): Future[HttpResponse] = {
-    implicit val hc = HeaderCarrier(extraHeaders = headers)
+  private def callApiSubscriptionFields(fieldsId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
+    implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(headers: _*)
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
     val fullUrl = s"$baseUrl/$fieldsId"
 
-    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=${fullUrl} \nheaders=$headers")
+    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headerCarrier.headers}")
 
-    http.GET[HttpResponse](fullUrl)
+    http.GET[HttpResponse](fullUrl)(RawReads.readRaw, headerCarrier, ec)
       .recoverWith {
         case _ : NotFoundException => Future.successful(HttpResponse(NOT_FOUND))
       }

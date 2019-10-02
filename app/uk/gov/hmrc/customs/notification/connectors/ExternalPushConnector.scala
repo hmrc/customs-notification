@@ -39,16 +39,16 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
 
-  def send(pushNotificationRequest: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
-    doSend(pushNotificationRequest)
+  def send(pushNotificationRequest: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
+    implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(outboundHeaders: _*)
+    doSend(pushNotificationRequest)(headerCarrier)
   }
 
-  private def doSend(pnr: PushNotificationRequest): Future[Either[ResultError, HttpResponse]] = {
+  private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
     val url = serviceConfigProvider.getConfig("public-notification").url
 
-    implicit val hc: HeaderCarrier = HeaderCarrier(extraHeaders = outboundHeaders)
     val msg = "Calling external push notification service"
-    logger.debug(s"$msg url=${pnr.body.url} \nheaders=$outboundHeaders \npayload= ${pnr.body.xmlPayload}")
+    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body.xmlPayload}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
       .map[Either[ResultError, HttpResponse]]{ httpResponse =>

@@ -16,7 +16,7 @@
 
 package integration
 
-import org.mockito.ArgumentMatchers._
+import org.mockito.ArgumentMatchers.{any, _}
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.mockito.MockitoSugar
@@ -115,7 +115,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
   }
 
   private def sendValidRequest() = {
-    connector.post(ValidCustomsNotificationMetricsRequest)
+    connector.post(ValidCustomsNotificationMetricsRequest)(HeaderCarrier())
   }
 
   private def verifyCdsLoggerWarn(message: String, logger: CdsLogger): Unit = {

@@ -16,6 +16,8 @@
 
 package unit.controllers
 
+import java.util.UUID
+
 import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers}
@@ -32,7 +34,8 @@ import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationControll
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
 
@@ -41,17 +44,20 @@ import scala.concurrent.Future
 class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach with ControllerSpecHelper {
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
   private val mockConfigService = mock[ConfigService]
   private val mockCallbackDetailsConnector = mock[ApiSubscriptionFieldsConnector]
   private val mockDateTimeService = mock[DateTimeService]
+  private val mockUuidService = mock[UuidService]
 
   private def controller() = new CustomsNotificationController(
     mockCustomsNotificationService,
     mockCallbackDetailsConnector,
     mockConfigService,
     mockDateTimeService,
+    mockUuidService,
     Helpers.stubControllerComponents(),
     mockNotificationLogger
   )
@@ -68,7 +74,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val apiSubscriptionFields = ApiSubscriptionFields(validFieldsId, DeclarantCallbackDataOneForPush)
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, Some(BadgeId(badgeId)),
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(BadgeId(badgeId)),
     Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), None, None, None, mockDateTimeService.zonedDateTimeUtc)
 
   private val eventualTrue = Future.successful(true)
@@ -78,7 +84,8 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
-    when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData), meq(apiSubscriptionFields))).thenReturn(eventualTrue)
+    when(mockUuidService.uuid()).thenReturn(UUID.fromString(validRequestId))
+    when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData), meq(apiSubscriptionFields))(any[HeaderCarrier]())).thenReturn(eventualTrue)
   }
 
   "CustomsNotificationController" should {
@@ -90,26 +97,26 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
         status(result) shouldBe ACCEPTED
       }
       
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML),  meq(expectedRequestMetaData), meq(apiSubscriptionFields))
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData), meq(apiSubscriptionFields))(any[HeaderCarrier]())
       verifyLog("info","Saved notification", mockNotificationLogger)
     }
 
     "respond with status 202 for missing Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))(any[HeaderCarrier]())).thenReturn(eventualTrue)
 
       testSubmitResult(MissingAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
       }
 
-      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))
+      verify(mockCustomsNotificationService).handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))(any[HeaderCarrier]())
     }
 
     "respond with status 202 for invalid Authorization when auth token is not configured" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
       when(mockConfigService.maybeBasicAuthToken).thenReturn(None)
-      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))).thenReturn(eventualTrue)
+      when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData.copy(maybeBadgeId = None, maybeSubmitterNumber = None)), meq(apiSubscriptionFields))(any[HeaderCarrier]())).thenReturn(eventualTrue)
 
       testSubmitResult(InvalidAuthorizationHeaderRequestWithCorrelationId) { result =>
         status(result) shouldBe ACCEPTED
@@ -117,7 +124,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "respond with 400 when declarant callback data not found by ApiSubscriptionFields service" in {
-      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))).thenReturn(Future.successful(None))
+      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier]())).thenReturn(Future.successful(None))
 
       testSubmitResult(ValidRequestWithMixedCaseCorrelationId) { result =>
         status(result) shouldBe BAD_REQUEST
@@ -182,7 +189,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "respond with 500 when unexpected failure happens" in {
-      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId)))
+      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any()))
         .thenReturn(Future.failed(emulatedServiceFailure))
 
 
@@ -194,7 +201,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 500 when handle notification fails" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
-      when(mockCustomsNotificationService.handleNotification(any(), any(), any()))
+      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
         .thenReturn(eventualFalse)
 
       testSubmitResult(ValidRequest) { result =>
@@ -204,7 +211,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
     "respond with status 500 when handle notification fails unexpectedly" in {
       returnMockedCallbackDetailsForTheClientIdInRequest()
-      when(mockCustomsNotificationService.handleNotification(any(), any(), any()))
+      when(mockCustomsNotificationService.handleNotification(any(), any(), any())(any()))
         .thenThrow(emulatedServiceFailure)
 
       testSubmitResult(ValidRequest) { result =>
@@ -215,7 +222,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   }
 
   private def returnMockedCallbackDetailsForTheClientIdInRequest() = {
-    when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))).
+    when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any[HeaderCarrier]())).
       thenReturn(Future.successful(Some(apiSubscriptionFields)))
   }
 

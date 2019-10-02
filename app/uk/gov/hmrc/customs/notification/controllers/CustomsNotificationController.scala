@@ -27,7 +27,8 @@ import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCd
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,6 +36,7 @@ import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
+                           requestId: RequestId,
                            maybeBadgeId: Option[BadgeId],
                            maybeSubmitterNumber: Option[Submitter],
                            maybeCorrelationId: Option[CorrelationId],
@@ -44,6 +46,7 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            startTime: ZonedDateTime)
   extends HasId
   with HasClientSubscriptionId
+  with HasRequestId
   with HasMaybeBadgeId
   with HasMaybeCorrelationId
   with HasMaybeSubmitter
@@ -70,6 +73,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
                                               val callbackDetailsConnector: ApiSubscriptionFieldsConnector,
                                               val configService: CustomsNotificationConfig,
                                               val dateTimeService: DateTimeService,
+                                              val uuidService: UuidService,
                                               val cc: ControllerComponents,
                                               val logger: NotificationLogger)
                                              (implicit ec: ExecutionContext)
@@ -84,11 +88,13 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     val startTime = dateTimeService.zonedDateTimeUtc
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
+        val requestIdValue = uuidService.uuid()
+        implicit val headerCarrier: HeaderCarrier = hc(request).copy(requestId = Some(uk.gov.hmrc.http.logging.RequestId(requestIdValue.toString)))
         val maybeXml = request.body.asXml
-        implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, startTime)
+        implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, RequestId(requestIdValue), startTime)
         maybeXml match {
           case Some(xml) =>
-            process(xml)
+            process(xml)(rd, headerCarrier)
           case None =>
             notificationLogger.error(xmlValidationErrorMessage)
             Future.successful(errorBadRequest(xmlValidationErrorMessage).XmlResult)
@@ -96,16 +102,16 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     }
   }
 
-  private def requestMetaData(maybeXml: Option[NodeSeq], headers: Headers, startTime: ZonedDateTime) = {
+  private def requestMetaData(maybeXml: Option[NodeSeq], headers: Headers, requestId: RequestId, startTime: ZonedDateTime) = {
     // headers have been validated so safe to do a naked get except badgeId, submitter and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
-      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
+      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)), requestId,
       headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter),
       headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId), extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml),
       extractMrn(maybeXml), startTime)
   }
 
-  private def process(xml: NodeSeq)(implicit md: RequestMetaData): Future[Result] = {
+  private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
@@ -132,7 +138,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     }
   }
 
-  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields): Future[Boolean] = {
+  def handleNotification(xml: NodeSeq, md: RequestMetaData, apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Boolean] = {
     customsNotificationService.handleNotification(xml, md, apiSubscriptionFields)
   }
 

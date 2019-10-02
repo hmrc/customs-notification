@@ -40,25 +40,25 @@ class LoggingHelperSpec extends UnitSpec {
     "format" in {
       val actual = LoggingHelper.format(errorMsg, requestMetaData)
 
-      actual shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] $errorMsg"
+      actual shouldBe s"[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][requestId=880f1f3d-0cf5-459b-89bc-0e682551db94][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] $errorMsg"
     }
 
     "format Debug with URL" in {
       val actual = LoggingHelper.formatDebug(errorMsg, Some(url))(requestMetaData)
 
-      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] ERROR url=http://some-url"
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][requestId=880f1f3d-0cf5-459b-89bc-0e682551db94][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] ERROR url=http://some-url"
     }
 
     "format Debug with URL and Payload" in {
       val actual = LoggingHelper.formatDebug(errorMsg, Some(url), Some("PAYLOAD"))(requestMetaData)
 
-      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] ERROR url=http://some-url\npayload=\nPAYLOAD"
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][requestId=880f1f3d-0cf5-459b-89bc-0e682551db94][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] ERROR url=http://some-url\npayload=\nPAYLOAD"
     }
 
     "format DEBUG with url and payload" in {
       val actual = LoggingHelper.formatDebug(debugMsg, Some(url), Some(ValidXML.toString()))(requestMetaData)
 
-      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] DEBUG url=http://some-url\npayload=\n<Foo>Bar</Foo>"
+      actual shouldBe "[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][requestId=880f1f3d-0cf5-459b-89bc-0e682551db94][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] DEBUG url=http://some-url\npayload=\n<Foo>Bar</Foo>"
     }
 
     "format with headers" in {

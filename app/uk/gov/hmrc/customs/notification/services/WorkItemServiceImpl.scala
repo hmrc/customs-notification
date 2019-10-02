@@ -24,6 +24,8 @@ import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.logging.RequestId
 import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,6 +42,7 @@ class WorkItemServiceImpl @Inject()(
     pushOrPullService: PushOrPullService,
     dateTimeService: DateTimeService,
     logger: NotificationLogger,
+    uuidService: UuidService,
     metrics: Metrics
   )
   (implicit ec: ExecutionContext) extends WorkItemService {
@@ -73,14 +76,16 @@ class WorkItemServiceImpl @Inject()(
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
 
     implicit val loggingContext = workItem.item
+    val requestIdValue = uuidService.uuid()
+    implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(requestIdValue.toString)))
 
     logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap{
       case Right(connector) =>
-        logger.info(s"$connector retry succeeded for $workItem")
+        logger.info(s"$connector retry with requestId ${requestIdValue.toString} succeeded for $workItem")
         repository.setCompletedStatus(workItem.id, Succeeded)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
+        logger.info(s"$connector retry with requestId ${requestIdValue.toString} failed for $workItem with error $resultError. Setting status to " +
           s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (for {
           _ <- repository.setCompletedStatus(workItem.id, Failed) // increase failure count

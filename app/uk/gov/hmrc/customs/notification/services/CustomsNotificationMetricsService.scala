@@ -21,6 +21,8 @@ import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsCon
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.http.HeaderCarrier
+
 import scala.util.control.NonFatal
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -31,7 +33,7 @@ class CustomsNotificationMetricsService @Inject() (
   dateTimeService: DateTimeService
 )(implicit ec: ExecutionContext) {
 
-  def notificationMetric(notificationWorkItem: NotificationWorkItem): Future[Unit] = {
+  def notificationMetric(notificationWorkItem: NotificationWorkItem)(implicit hc: HeaderCarrier): Future[Unit] = {
     implicit val hasId = notificationWorkItem
 
     notificationWorkItem.metricsStartDateTime.fold(Future.successful(())) { startTime =>
