@@ -51,11 +51,10 @@ class InternalPushConnector @Inject()(http: HttpClient,
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
 
-    val withoutPathHeaders = hc.headers.filterNot(_._1.compareToIgnoreCase( "path") == 0)
-    logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${withoutPathHeaders} \npayload= ${pnr.body.xmlPayload}")
+    logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body.xmlPayload}")
 
     try {
-      val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, withoutPathHeaders)
+      val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload)
       val eventualEither: Future[Either[ResultError, HttpResponse]] = eventualHttpResponse.map(httpResponse => Right(httpResponse))
 
       eventualEither.recoverWith {
