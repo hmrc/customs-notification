@@ -82,10 +82,10 @@ class WorkItemServiceImpl @Inject()(
     logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap{
       case Right(connector) =>
-        logger.info(s"$connector retry with requestId ${requestIdValue.toString} succeeded for $workItem")
+        logger.info(s"$connector retry succeeded with requestId ${requestIdValue.toString} for $workItem")
         repository.setCompletedStatus(workItem.id, Succeeded)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"$connector retry with requestId ${requestIdValue.toString} failed for $workItem with error $resultError. Setting status to " +
+        logger.info(s"$connector retry failed with requestId ${requestIdValue.toString} for $workItem with error $resultError. Setting status to " +
           s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (for {
           _ <- repository.setCompletedStatus(workItem.id, Failed) // increase failure count
