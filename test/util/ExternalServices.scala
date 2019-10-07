@@ -105,7 +105,6 @@ trait InternalPushNotificationService {
 
   }
 
-
   def verifyInternalServiceWasNotCalledWith(pnr: PushNotificationRequest) {
     verify(0, postRequestedFor(urlMatchingRequestPath))
   }
@@ -170,6 +169,7 @@ trait ApiSubscriptionFieldsService {
     verify(1, getRequestedFor(urlMatchingRequestPath(fieldsId))
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
+      .withHeader(HeaderNames.AUTHORIZATION, absent())
     )
   }
 
@@ -203,21 +203,6 @@ trait NotificationQueueService extends WireMockRunner {
 
   def actualCallsMadeToPullQ(): util.List[LoggedRequest] = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
-  def setupNotificationQueueServiceToReturn(status: Int,
-                                            request: PushNotificationRequest,
-                                            fieldsId: String = validFieldsId): Unit = {
-
-    stubFor(post(urlMatchingRequestPath)
-      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.body.authHeaderToken))
-      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.body.conversationId))
-      .withHeader(X_BADGE_ID_HEADER_NAME, equalTo(getBadgeIdHeader(request).get))
-      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(fieldsId))
-      willReturn aResponse()
-      .withStatus(status))
-  }
-
   def setupPullQueueServiceToReturn(status: Int,
                                     request: ClientNotification): Unit = {
 
@@ -244,26 +229,6 @@ trait NotificationQueueService extends WireMockRunner {
       .withStatus(status))
   }
 
-  def verifyNotificationQueueServiceWasCalledWith(request: PushNotificationRequest,
-                                                  fieldsId: String = validFieldsId): Unit = {
-
-    val allRequestsMade = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath)
-      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-//      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.body.authHeaderToken))
-      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.body.conversationId))
-      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(fieldsId))
-      .withRequestBody(equalToXml(request.body.xmlPayload))
-    )
-
-    assert(allRequestsMade.size() == 1)
-
-    getBadgeIdHeader(request) match {
-      case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(X_BADGE_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
-      case None => allRequestsMade.get(0).containsHeader(X_BADGE_ID_HEADER_NAME) shouldBe false
-    }
-  }
-
   def verifyPullQueueServiceWasCalledWith(request: ClientNotification): Unit = {
 
     val allRequestsMade = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath)
@@ -271,6 +236,7 @@ trait NotificationQueueService extends WireMockRunner {
       .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.id.toString))
       .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.id.toString))
+      .withHeader(HeaderNames.AUTHORIZATION, absent())
       .withRequestBody(equalToXml(request.notification.payload))
     )
 

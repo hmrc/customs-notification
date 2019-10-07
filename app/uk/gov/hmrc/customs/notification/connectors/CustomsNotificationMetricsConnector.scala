@@ -17,8 +17,8 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-import play.mvc.Http.HeaderNames.{ACCEPT, CONTENT_TYPE}
-import play.mvc.Http.MimeTypes.JSON
+import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
+import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, CustomsNotificationsMetricsRequest}
 import uk.gov.hmrc.customs.notification.http.NoAuditHttpClient
@@ -32,8 +32,13 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
                                                     config: CustomsNotificationConfig)
                                                    (implicit ec: ExecutionContext) {
 
+  private val headers = Seq(
+    (CONTENT_TYPE, MimeTypes.JSON),
+    (ACCEPT, MimeTypes.JSON)
+  )
+
   def post[A](request: CustomsNotificationsMetricsRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
-    implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders((ACCEPT, JSON), (CONTENT_TYPE, JSON))
+    implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
     post(request, config.notificationMetricsConfig.baseUrl)(headerCarrier)
   }
 
