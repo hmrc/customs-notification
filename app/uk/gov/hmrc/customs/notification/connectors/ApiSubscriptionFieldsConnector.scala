@@ -63,7 +63,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
   }
 
   private def callApiSubscriptionFields(fieldsId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
-    implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(headers: _*)
+    implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
     val fullUrl = s"$baseUrl/$fieldsId"
 

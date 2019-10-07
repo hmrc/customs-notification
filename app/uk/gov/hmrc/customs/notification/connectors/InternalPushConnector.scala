@@ -17,12 +17,13 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-import play.api.http.HeaderNames.{ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT}
+import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE, USER_AGENT}
 import play.mvc.Http.MimeTypes.XML
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{NonHttpError, PushNotificationRequest, ResultError}
 import uk.gov.hmrc.http._
+import uk.gov.hmrc.http.logging.Authorization
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -38,14 +39,13 @@ class InternalPushConnector @Inject()(http: HttpClient,
     val outBoundHeaders: Seq[(String, String)] = pnr.body.outboundCallHeaders.map(h => (h.name, h.value))
 
     val headers: Seq[(String, String)] = Seq(
-      AUTHORIZATION -> pnr.body.authHeaderToken,
       CONTENT_TYPE -> XML,
       ACCEPT -> XML,
       X_CONVERSATION_ID_HEADER_NAME -> pnr.body.conversationId,
       USER_AGENT -> "Customs Declaration Service"
     ) ++ outBoundHeaders
 
-    implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(headers:_*)
+    implicit val headerCarrier: HeaderCarrier = hc.copy(authorization = Some(Authorization(pnr.body.authHeaderToken))).withExtraHeaders(headers:_*)
     doSend(pnr)(headerCarrier)
   }
 
@@ -54,7 +54,7 @@ class InternalPushConnector @Inject()(http: HttpClient,
     logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body.xmlPayload}")
 
     try {
-      val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload, hc.headers)
+      val eventualHttpResponse = http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload)
       val eventualEither: Future[Either[ResultError, HttpResponse]] = eventualHttpResponse.map(httpResponse => Right(httpResponse))
 
       eventualEither.recoverWith {
@@ -67,5 +67,4 @@ class InternalPushConnector @Inject()(http: HttpClient,
         Future.successful(Left(NonHttpError(e)))
     }
   }
-  
 }
