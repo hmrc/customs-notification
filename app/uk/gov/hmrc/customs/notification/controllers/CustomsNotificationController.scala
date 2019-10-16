@@ -37,6 +37,7 @@ import scala.xml.NodeSeq
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
                            requestId: RequestId,
+                           notificationId: NotificationId,
                            maybeClientId: Option[ClientId],
                            maybeBadgeId: Option[BadgeId],
                            maybeSubmitterNumber: Option[Submitter],
@@ -48,6 +49,7 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
   extends HasId
   with HasClientSubscriptionId
   with HasRequestId
+  with HasNotificationId
   with HasMaybeClientId
   with HasMaybeBadgeId
   with HasMaybeCorrelationId
@@ -107,10 +109,10 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   private def requestMetaData(maybeXml: Option[NodeSeq], headers: Headers, requestId: RequestId, startTime: ZonedDateTime) = {
     // headers have been validated so safe to do a naked get except badgeId, submitter and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
-      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)), requestId, None,
-      headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter),
-      headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId), extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml),
-      extractMrn(maybeXml), startTime)
+      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)), requestId,
+      NotificationId(uuidService.uuid()), None, headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId),
+      headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter), headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
+      extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml), extractMrn(maybeXml), startTime)
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {

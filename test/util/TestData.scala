@@ -55,7 +55,10 @@ object TestData {
 
   val validRequestId = "880f1f3d-0cf5-459b-89bc-0e682551db94"
   val requestId = RequestId(UUID.fromString(validRequestId))
-  
+
+  val validNotificationId = "58373a04-2c45-4f43-9ea2-74e56be2c6d7"
+  val notificationId = NotificationId(UUID.fromString(validNotificationId))
+
   val basicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
   val validBasicAuthToken = s"Basic $basicAuthTokenValue"
   val invalidBasicAuthToken = "I-am-not-a-valid-auth-token"
@@ -138,9 +141,8 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, requestId, Some(clientId1), Some(BadgeId(badgeId)),
-    Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)),
-    Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned)
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, requestId, notificationId, Some(clientId1),Some(BadgeId(badgeId)),
+    Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)), Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned)
 
   val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId1, None, notification = notification1)
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
