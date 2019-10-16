@@ -96,6 +96,10 @@ trait HasRequestId {
   def requestId: uk.gov.hmrc.customs.notification.domain.RequestId
 }
 
+trait HasMaybeClientId {
+  def maybeClientId: Option[ClientId]
+}
+
 trait HasMaybeBadgeId {
   def maybeBadgeId: Option[BadgeId]
 }

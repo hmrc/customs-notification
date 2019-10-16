@@ -37,6 +37,7 @@ import scala.xml.NodeSeq
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
                            requestId: RequestId,
+                           maybeClientId: Option[ClientId],
                            maybeBadgeId: Option[BadgeId],
                            maybeSubmitterNumber: Option[Submitter],
                            maybeCorrelationId: Option[CorrelationId],
@@ -47,6 +48,7 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
   extends HasId
   with HasClientSubscriptionId
   with HasRequestId
+  with HasMaybeClientId
   with HasMaybeBadgeId
   with HasMaybeCorrelationId
   with HasMaybeSubmitter
@@ -105,7 +107,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   private def requestMetaData(maybeXml: Option[NodeSeq], headers: Headers, requestId: RequestId, startTime: ZonedDateTime) = {
     // headers have been validated so safe to do a naked get except badgeId, submitter and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
-      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)), requestId,
+      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)), requestId, None,
       headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId), headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter),
       headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId), extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml),
       extractMrn(maybeXml), startTime)
@@ -116,16 +118,17 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>
-        handleNotification(xml, md, apiSubscriptionFields).recover{
+        val requestMetaData: RequestMetaData = md.copy(maybeClientId = Some(ClientId(apiSubscriptionFields.clientId)))
+        handleNotification(xml, requestMetaData, apiSubscriptionFields).recover{
           case t: Throwable =>
-            logger.error(s"Processing failed for notification due to: $t")
+            logger.error(s"Processing failed for notification due to: $t")(requestMetaData)
             ErrorInternalServerError.XmlResult
         }.map {
           case true =>
-            logger.info(s"Saved notification")
+            logger.info(s"Saved notification")(requestMetaData)
             Results.Accepted
           case false =>
-            logger.error(s"Processing failed for notification")
+            logger.error(s"Processing failed for notification")(requestMetaData)
             ErrorInternalServerError.XmlResult
         }
       case None =>

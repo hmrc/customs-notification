@@ -138,7 +138,7 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, requestId, Some(BadgeId(badgeId)),
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, requestId, Some(clientId1), Some(BadgeId(badgeId)),
     Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)),
     Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned)
 

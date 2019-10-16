@@ -72,6 +72,11 @@ object LoggingHelper {
         s"[requestId=${has.requestId}]"
       case _ => ""
     }
+    def clientId = rm match {
+      case has: HasMaybeClientId =>
+        formatOptional("clientId", has.maybeClientId)
+      case _ => ""
+    }
     def correlationId = rm match {
       case has: HasMaybeCorrelationId =>
         formatOptional("correlationId", has.maybeCorrelationId)
@@ -103,7 +108,7 @@ object LoggingHelper {
       case _ => ""
     }
 
-    s"[${rm.idName}=${rm.idValue}]$fieldsId$requestId$badgeId$submitter$correlationId$functionCode$issueDateTime$mrn"
+    s"[${rm.idName}=${rm.idValue}]$clientId$fieldsId$requestId$badgeId$submitter$correlationId$functionCode$issueDateTime$mrn"
   }
 
   private def formatOptional[T](name: String, maybeValue: Option[T]) = {

@@ -34,26 +34,26 @@ class PushNotificationRequestServiceSpec extends UnitSpec with MockitoSugar {
   private val service = new PushNotificationRequestService(mockApiSubscriptionFieldsConnector)
   val testDate: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
 
-  val metaData = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(BadgeId(badgeId)),
+  val metaData = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(clientId1), Some(BadgeId(badgeId)),
     Some(Submitter(submitterNumber)), None, Some(FunctionCode(functionCode)),
     Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), testDate)
 
   "PushNotificationRequestService" should {
 
     "return valid request when badgeId is provided" in {
-      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(BadgeId(badgeId)), None,
+      val metaDataWithSomeBadgeId = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(clientId1), Some(BadgeId(badgeId)), None,
         None, Some(FunctionCode(functionCode)), Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), testDate)
       service.createRequest(ValidXML, callbackData, metaDataWithSomeBadgeId) shouldBe expectedRequest(Some(badgeId), None)
     }
 
     "request does not contain badgeId or submitterNumber headers when not provided" in {
-      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, requestId, None, None, None,
+      val metaDataWithNoBadgeId = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(clientId1), None, None, None,
         Some(FunctionCode(functionCode)), Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), testDate)
       service.createRequest(ValidXML, callbackData, metaDataWithNoBadgeId) shouldBe expectedRequest(None, None)
     }
 
     "return valid request when submitterNumber is provided" in {
-      val metaDataWithSomeSubmitterNumber = RequestMetaData(clientSubscriptionId, conversationId, requestId, None, Some(Submitter(submitterNumber)),
+      val metaDataWithSomeSubmitterNumber = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(clientId1), None, Some(Submitter(submitterNumber)),
         None, Some(FunctionCode(functionCode)), Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), testDate)
       service.createRequest(ValidXML, callbackData, metaDataWithSomeSubmitterNumber) shouldBe expectedRequest(None, Some(submitterNumber))
     }
