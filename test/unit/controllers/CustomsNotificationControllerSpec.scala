@@ -72,9 +72,9 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val unauthorizedResult = ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized").XmlResult
 
-  private val apiSubscriptionFields = ApiSubscriptionFields(validFieldsId, DeclarantCallbackDataOneForPush)
+  private val apiSubscriptionFields = ApiSubscriptionFields(clientIdString1, DeclarantCallbackDataOneForPush)
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(BadgeId(badgeId)),
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, requestId, Some(clientId1), Some(BadgeId(badgeId)),
     Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), None, None, None, mockDateTimeService.zonedDateTimeUtc)
 
   private val eventualTrue = Future.successful(true)
