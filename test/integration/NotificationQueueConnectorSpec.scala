@@ -61,7 +61,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
       "microservice.services.notification-queue.context" -> ExternalServicesConfiguration.NotificationQueueContext
     )).build()
 
-  "PullNotificationServiceConnector" should {
+  "NotificationQueueConnector" should {
 
     "make a correct request with badgeId header" in {
       val notificationWithBadgeId = clientNotification(withBadgeId = true)
@@ -81,6 +81,26 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
       await(postToQueue(clientNotification(withBadgeId = false)))
 
       verifyPullQueueServiceWasCalledWith(notificationWithoutBadgeId)
+    }
+
+    "make a correct request with notificationId header" in {
+      val notificationWithNotificationId = clientNotification(withNotificationId = true)
+
+      setupPullQueueServiceToReturn(CREATED, notificationWithNotificationId)
+
+      await(postToQueue(notificationWithNotificationId))
+
+      verifyPullQueueServiceWasCalledWith(notificationWithNotificationId)
+    }
+    
+    "make a correct request when notificationId is not provided" in {
+      val notificationWithoutNotificationId = clientNotification(withNotificationId = false)
+
+      setupPullQueueServiceToReturn(CREATED, notificationWithoutNotificationId)
+
+      await(postToQueue(clientNotification(withNotificationId = false)))
+
+      verifyPullQueueServiceWasCalledWith(notificationWithoutNotificationId)
     }
 
     "make a correct request with correlationId header" in {

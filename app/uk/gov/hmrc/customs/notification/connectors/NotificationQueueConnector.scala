@@ -21,7 +21,7 @@ import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.{CONTENT_TYPE, USER_AGENT}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig, NotificationId}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse, RawReads}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
@@ -43,14 +43,14 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
       (USER_AGENT, "Customs Declaration Service"),
       (X_CONVERSATION_ID_HEADER_NAME, request.notification.conversationId.toString()),
       (SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString())
-    ) ++ extract(maybeBadgeId) ++ extract(maybeCorrelationId)
+    ) ++ extract(maybeBadgeId) ++ extract(maybeCorrelationId) ++ maybeAddNotificationId(request.notification.notificationId)
     implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
 
     val notification = request.notification
 
     logger.debug(s"Attempting to send notification to queue\nheaders=${headerCarrier.headers}}")
 
-    http.POSTString[HttpResponse](url, notification.payload, headers)(RawReads.readRaw, headerCarrier, ec)
+    http.POSTString[HttpResponse](url, notification.payload)(RawReads.readRaw, headerCarrier, ec)
       .recoverWith {
         case httpError: HttpException => Future.failed(new RuntimeException(httpError))
       }
@@ -62,4 +62,9 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
   }
 
   private def extract(maybeValue: Option[(String, String)]) = maybeValue.fold(Seq.empty[(String, String)])(Seq(_))
+
+  private def maybeAddNotificationId(maybeNotificationId: Option[NotificationId]): Seq[(String, String)] = {
+    maybeNotificationId.fold(Seq.empty[(String, String)]){id => Seq((NOTIFICATION_ID_HEADER_NAME, id.toString)) }
+  }
+
 }

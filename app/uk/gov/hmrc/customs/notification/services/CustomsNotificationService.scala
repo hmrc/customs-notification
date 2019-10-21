@@ -48,7 +48,8 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
       Some(metaData.startTime.toDateTime),
-      Notification(metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
+      //Saving notificationId as optional to accommodate existing data. Remove optionality later.
+      Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     (for {
       isAnyPF <- notificationWorkItemRepo.permanentlyFailedByCsIdExists(notificationWorkItem.clientSubscriptionId)

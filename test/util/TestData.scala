@@ -129,9 +129,9 @@ object TestData {
 
   val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
   val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
-  val notification1 = Notification(conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
-  val notification2 = Notification(conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
-  val notification3 = Notification(conversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
+  val notification1 = Notification(Some(notificationId), conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
+  val notification2 = Notification(Some(notificationId), conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
+  val notification3 = Notification(Some(notificationId), conversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
 
   val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1, None, Some(TimeReceivedDateTime))
   val client1Notification2 = ClientNotification(validClientSubscriptionId1, notification2, None, Some(TimeReceivedDateTime))
@@ -151,7 +151,7 @@ object TestData {
   val WorkItem1 = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
 
-  val internalNotification = Notification(ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")
+  val internalNotification = Notification(Some(notificationId), ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")
   val internalNotificationWorkItem = NotificationWorkItem(clientSubscriptionId, clientId1, None, internalNotification)
   val internalWorkItem = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, internalNotificationWorkItem)
   
@@ -166,7 +166,7 @@ object TestData {
 
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
 
-  def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true): ClientNotification = {
+  def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true, withNotificationId: Boolean = true): ClientNotification = {
 
     lazy val correlationIdHeader = Header("x-cOrRelaTion-iD", correlationId)
 
@@ -177,9 +177,11 @@ object TestData {
       case _ => Seq.empty[Header]
     }
 
+    val maybeNotificationId = if (withNotificationId) Some(notificationId) else None
     ClientNotification(
       csid = clientSubscriptionId,
       Notification(
+        maybeNotificationId,
         conversationId = conversationId,
         headers = finalHeaders,
         payload = ValidXML.toString(),
