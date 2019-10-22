@@ -46,6 +46,19 @@ object RequestId {
   }
 }
 
+case class NotificationId(id: UUID) extends AnyVal {
+  override def toString: String = id.toString
+}
+object NotificationId {
+  implicit val notificationIdJF: Format[NotificationId] = new Format[NotificationId] {
+    def writes(notificationId: NotificationId) = JsString(notificationId.id.toString)
+    def reads(json: JsValue): JsResult[NotificationId] = json match {
+      case JsNull => JsError()
+      case _ => JsSuccess(NotificationId(json.as[UUID]))
+    }
+  }
+}
+
 case class ClientId(id: String) extends AnyVal {
   override def toString: String = id.toString
 }
@@ -94,6 +107,10 @@ trait HasClientSubscriptionId {
 
 trait HasRequestId {
   def requestId: uk.gov.hmrc.customs.notification.domain.RequestId
+}
+
+trait HasNotificationId {
+  def notificationId: NotificationId
 }
 
 trait HasMaybeClientId {

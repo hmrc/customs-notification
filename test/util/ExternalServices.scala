@@ -251,6 +251,11 @@ trait NotificationQueueService extends WireMockRunner {
       case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(X_CORRELATION_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
       case None => allRequestsMade.get(0).containsHeader(X_CORRELATION_ID_HEADER_NAME) shouldBe false
     }
+
+    request.notification.notificationId match {
+      case Some(notificationId) => allRequestsMade.get(0).getHeader(NOTIFICATION_ID_HEADER_NAME) shouldBe notificationId.toString
+      case None => allRequestsMade.get(0).getAllHeaderKeys.contains(NOTIFICATION_ID_HEADER_NAME) shouldBe false
+    }
   }
 
   def verifyNotificationQueueServiceWasNotCalled(): Unit =

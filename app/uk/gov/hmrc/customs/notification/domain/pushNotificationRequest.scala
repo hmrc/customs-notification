@@ -35,7 +35,7 @@ object PushNotificationRequestBody {
 
 case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotificationRequestBody)
 
-case class Notification(conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String) {
+case class Notification(notificationId: Option[NotificationId], conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String) {
 
   private lazy val caseInsensitiveHeaders = Headers(headers.map { h => h.name -> h.value }: _*)
 
