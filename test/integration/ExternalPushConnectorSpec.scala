@@ -23,6 +23,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.domain.HttpResultError
 import uk.gov.hmrc.http.HeaderCarrier
 import util.ExternalServicesConfiguration.{Host, Port}
@@ -63,7 +64,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     "make a correct request" in {
       setupPushNotificationServiceToReturn(NO_CONTENT)
 
-      val Right(_) = await(connector.send(pushNotificationRequest)(HeaderCarrier()))
+      val Right(_) = await(connector.send(pushNotificationRequest)(HeaderCarrier().withExtraHeaders((NOTIFICATION_ID_HEADER_NAME,notificationId.toString))))
 
       verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
     }

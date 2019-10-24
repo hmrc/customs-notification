@@ -20,7 +20,8 @@ import com.codahale.metrics.MetricRegistry
 import com.google.inject.ImplementedBy
 import com.kenshoo.play.metrics.Metrics
 import javax.inject.Inject
-import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
+import uk.gov.hmrc.customs.notification.domain.{NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
@@ -78,6 +79,7 @@ class WorkItemServiceImpl @Inject()(
     implicit val loggingContext = workItem.item
     val requestIdValue = uuidService.uuid()
     implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId(requestIdValue.toString)))
+      .withExtraHeaders(maybeAddNotificationId(workItem.item.notification.notificationId):_*)
 
     logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap{
@@ -101,5 +103,10 @@ class WorkItemServiceImpl @Inject()(
     }
 
   }
+
+  private def maybeAddNotificationId(maybeNotificationId: Option[NotificationId]): Seq[(String, String)] = {
+    maybeNotificationId.fold(Seq.empty[(String, String)]){id => Seq((NOTIFICATION_ID_HEADER_NAME, id.toString)) }
+  }
+
 
 }

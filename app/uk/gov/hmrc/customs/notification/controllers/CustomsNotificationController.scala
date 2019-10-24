@@ -93,9 +93,11 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
         val requestIdValue = uuidService.uuid()
-        implicit val headerCarrier: HeaderCarrier = hc(request).copy(requestId = Some(uk.gov.hmrc.http.logging.RequestId(requestIdValue.toString)))
         val maybeXml = request.body.asXml
         implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, RequestId(requestIdValue), startTime)
+        implicit val headerCarrier: HeaderCarrier = hc(request)
+          .copy(requestId = Some(uk.gov.hmrc.http.logging.RequestId(requestIdValue.toString)))
+          .withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, rd.notificationId.toString))
         maybeXml match {
           case Some(xml) =>
             process(xml)(rd, headerCarrier)
