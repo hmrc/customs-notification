@@ -43,6 +43,7 @@ trait PushNotificationService extends WireMockRunner {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
+      .withHeader(NOTIFICATION_ID_HEADER_NAME, equalTo(notificationId.toString))
       .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest.body).toString()))
     )
   }
