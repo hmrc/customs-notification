@@ -61,6 +61,7 @@ class UnblockPollerServiceSpec extends UnitSpec
     private[UnblockPollerServiceSpec] val mockUnblockPollerConfig = mock[UnblockPollerConfig]
     private[UnblockPollerServiceSpec] val mockPushOrPullService = mock[PushOrPullService]
     private[UnblockPollerServiceSpec] val mockUuidService = mock[UuidService]
+    private[UnblockPollerServiceSpec] val eventuallyUnit = Future.successful(())
 
     private[UnblockPollerServiceSpec] def verifyInfoLog(msg: String) = {
       PassByNameVerifier(mockCdsLogger, "info")
@@ -123,7 +124,7 @@ class UnblockPollerServiceSpec extends UnitSpec
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus])
-        verifyZeroInteractions(mockPushOrPullService)
+        verifyNoInteractions(mockPushOrPullService)
       }
     }
 
@@ -141,7 +142,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         mockCdsLogger)
 
       eventually {
-        verifyZeroInteractions(mockPushOrPullService)
+        verifyNoInteractions(mockPushOrPullService)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
         verifyInfoLog("Unblock found no PermanentlyFailed notifications for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
       }
@@ -153,6 +154,8 @@ class UnblockPollerServiceSpec extends UnitSpec
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.NOT_FOUND, BoomException)))))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
+      when(notificationWorkItemRepoMock.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
+      when(notificationWorkItemRepoMock.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(eventuallyUnit)
 
       new UnblockPollerService(configServiceMock,
         testActorSystem,
@@ -165,6 +168,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any[HeaderCarrier]())
+        verify(notificationWorkItemRepoMock, times(1)).incrementFailureCount(WorkItem1.id)
         verify(notificationWorkItemRepoMock, times(1)).setCompletedStatus(WorkItem1.id, PermanentlyFailed)
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")

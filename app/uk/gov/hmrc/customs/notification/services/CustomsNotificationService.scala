@@ -96,22 +96,32 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
-        if (connector == Push) {
-          metricsService.notificationMetric(workItem.item)
-        }
+        logFirstTimePushNotificationMetric(workItem, connector)
 
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.stringify}")
         true
       case Left(pushOrPullError) =>
-        notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
         val msg = s"${pushOrPullError.source} error ${pushOrPullError.toString} for workItemId ${workItem.id.stringify}"
         logger.error(msg, pushOrPullError.resultError.cause)
+        (for {
+          _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
+          _ <- notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+        } yield ()).recover {
+          case NonFatal(e) =>
+            logger.error("Error updating database", e)
+        }
         true
     }.recover {
       case NonFatal(e) =>
         logger.error(s"failed saving notification work item with csid: ${workItem.item.id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
         false
+    }
+  }
+
+  private def logFirstTimePushNotificationMetric(workItem: WorkItem[NotificationWorkItem], connector: ConnectorSource)(implicit hc: HeaderCarrier): Unit = {
+    if (connector == Push && workItem.failureCount == 0) {
+      metricsService.notificationMetric(workItem.item)
     }
   }
 }

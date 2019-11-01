@@ -95,7 +95,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       val actual = await(service.processOne())
 
       actual shouldBe false
-      verifyZeroInteractions(mockPushOrPull)
+      verifyNoInteractions(mockPushOrPull)
       verify(mockRepo, times(0)).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verify(mockRepo, times(0)).setCompletedStatus(WorkItem1.id, Failed)
     }

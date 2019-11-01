@@ -77,8 +77,14 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         logger.info(s"Unblock pilot send with requestId ${requestIdValue.toString} for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
         true
       case Left(PushOrPullError(connector, resultError)) =>
-        notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
         logger.info(s"Unblock pilot send with requestId ${requestIdValue.toString} for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
+        (for {
+          _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
+          _ <- notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+        } yield ()).recover {
+          case NonFatal(e) =>
+            logger.error("Error updating database", e)
+        }
         false
     }.recover{
       case NonFatal(e) => // Should never happen
