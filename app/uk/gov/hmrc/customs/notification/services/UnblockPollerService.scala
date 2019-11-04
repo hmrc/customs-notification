@@ -84,6 +84,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
+            false
         }
         false
     }.recover{

@@ -259,5 +259,15 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       result shouldBe 2
       await(repository.findById(changed.id)).get.status shouldBe Failed
     }
+
+    "successfully increment failure count" in {
+      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+
+      await(repository.incrementFailureCount(result.id))
+
+      val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
+      failedItem.get.failureCount shouldBe 1
+    }
+    
   }
 }

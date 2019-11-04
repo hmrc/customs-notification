@@ -45,7 +45,7 @@ object CustomHeaderNames {
   val X_CLIENT_ID_HEADER_NAME = "X-Client-ID"
 
   val SUBSCRIPTION_FIELDS_ID_HEADER_NAME: String = "api-subscription-fields-id"
-  
+
   val NOTIFICATION_ID_HEADER_NAME: String = "notification-id"
 
   val X_CONVERSATION_ID_HEADER_NAME: String = "X-Conversation-ID"

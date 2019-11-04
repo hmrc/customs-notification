@@ -58,7 +58,7 @@ trait NotificationWorkItemRepo {
   def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
 
   def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int]
-  
+
   def incrementFailureCount(id: BSONObjectID): Future[Unit]
 }
 

@@ -110,6 +110,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
+            false
         }
         true
     }.recover {

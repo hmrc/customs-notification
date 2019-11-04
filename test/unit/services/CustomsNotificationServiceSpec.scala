@@ -88,6 +88,22 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1))
         infoLogVerifier("Push succeeded for workItemId 5c46f7d70100000100ef835a")
       }
+      
+      "send notification to third party when url present and don't call metrics service when failure count is not zero" in {
+        when(mockNotificationWorkItemRepo.permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem3))
+        when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any[HeaderCarrier])).thenReturn(eventuallyRightOfPush)
+        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(Future.successful(()))
+        when(mockMetricsService.notificationMetric(NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(()))
+
+        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
+
+        await(result) shouldBe true
+        eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
+        eventually(verify(mockPushOrPullService).send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any[HeaderCarrier]))
+        eventually(verifyNoInteractions(mockMetricsService))
+        infoLogVerifier("Push succeeded for workItemId 5c46f7d70100000100ef835a")
+      }
 
       "returned HasSaved is false when it was unable to save notification to repository" in {
         when(mockNotificationWorkItemRepo.permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
