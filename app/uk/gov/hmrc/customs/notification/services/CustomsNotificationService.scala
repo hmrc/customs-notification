@@ -115,7 +115,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         true
     }.recover {
       case NonFatal(e) =>
-        logger.error(s"failed saving notification work item with csid: ${workItem.item.id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
+        logger.error(s"failed push/pulling notification work item with csid: ${workItem.item.id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
         false
     }
   }
