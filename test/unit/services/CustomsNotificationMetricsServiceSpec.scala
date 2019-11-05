@@ -73,8 +73,8 @@ class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
 
       await(service.notificationMetric(NotificationWorkItem1))
 
-      verifyZeroInteractions(mockMetricsConnector)
-      verifyZeroInteractions(mockDateTimeService)
+      verifyNoInteractions(mockMetricsConnector)
+      verifyNoInteractions(mockDateTimeService)
     }
 
     "log error when metrics connector returns failed Future" in new SetUp {

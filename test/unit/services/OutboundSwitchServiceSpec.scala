@@ -68,7 +68,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
       actual shouldBe Right(mockHttpResponse)
-      verifyZeroInteractions(mockExternalConnector)
+      verifyNoInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))(any[HeaderCarrier]())
       eventually {
         verify(mockAuditingService).auditSuccessfulNotification(pnrOne)
@@ -88,7 +88,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
       actual shouldBe Left(httpResultError)
-      verifyZeroInteractions(mockExternalConnector)
+      verifyNoInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))(any[HeaderCarrier]())
       eventually {
 
@@ -110,10 +110,10 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
       actual shouldBe Left(nonHttpError)
-      verifyZeroInteractions(mockExternalConnector)
+      verifyNoInteractions(mockExternalConnector)
       verify(mockInternalPushService).send(ameq(pnrOne))(any[HeaderCarrier]())
       eventually {
-        verifyZeroInteractions(mockAuditingService)
+        verifyNoInteractions(mockAuditingService)
       }
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam("About to push internally")
@@ -131,7 +131,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
 
       actual shouldBe Right(mockHttpResponse)
       verify(mockExternalConnector).send(ameq(pnrOne))(any[HeaderCarrier]())
-      verifyZeroInteractions(mockInternalPushService)
+      verifyNoInteractions(mockInternalPushService)
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam("About to push externally")
         .withParamMatcher(any[HasId])

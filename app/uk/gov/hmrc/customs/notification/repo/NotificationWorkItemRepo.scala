@@ -58,6 +58,8 @@ trait NotificationWorkItemRepo {
   def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
 
   def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int]
+
+  def incrementFailureCount(id: BSONObjectID): Future[Unit]
 }
 
 @Singleton
@@ -199,6 +201,15 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     val selector = Json.obj("clientNotification._id" -> csid.toString, workItemFields.status -> PermanentlyFailed)
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> InProgress, workItemFields.updatedAt -> now))
     collection.findAndUpdate(selector, update, fetchNewObject = true).map(_.result[WorkItem[NotificationWorkItem]])
+  }
+
+  override def incrementFailureCount(id: BSONObjectID): Future[Unit] = {
+    logger.debug(s"incrementing failure count for notification work item id: ${id.stringify}")
+
+    val selector = Json.obj(workItemFields.id -> Json.toJsFieldJsValueWrapper(id))
+    val update = Json.obj("$inc" -> Json.obj(workItemFields.failureCount -> 1))
+
+    collection.findAndUpdate(selector, update).map(_ => ())
   }
 
   private def dropInvalidIndexes: Future[_] =

@@ -16,7 +16,6 @@
 
 package unit.services
 
-import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
@@ -77,7 +76,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
       val actual: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
       actual shouldBe Right(Push)
-      verifyZeroInteractions(mockNotificationQueueConnector)
+      verifyNoInteractions(mockNotificationQueueConnector)
     }
     "PULL when callback details are empty and callbackUrl is present" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallySomePullClientCallbackData)
@@ -86,7 +85,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
       val actual: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
       actual shouldBe Right(Pull)
-      verifyZeroInteractions(mockOutboundSwitchService)
+      verifyNoInteractions(mockOutboundSwitchService)
     }
     "return Left with source of ApiSubscriptionFields when callback details are not found" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallyNone)
@@ -95,8 +94,8 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 
       pushOrPullError.source shouldBe GetApiSubscriptionFields
       pushOrPullError.resultError.cause.getMessage shouldBe "Error getting client subscription fields data"
-      verifyZeroInteractions(mockOutboundSwitchService)
-      verifyZeroInteractions(mockNotificationQueueConnector)
+      verifyNoInteractions(mockOutboundSwitchService)
+      verifyNoInteractions(mockNotificationQueueConnector)
     }
     "return Left with source of ApiSubscriptionFields when ApiSubscriptionFieldsConnector throws an exception" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventualEmulatedServiceFailure)
@@ -105,8 +104,8 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 
       pushOrPullError.source shouldBe GetApiSubscriptionFields
       pushOrPullError.resultError.cause.getMessage shouldBe "Emulated service failure."
-      verifyZeroInteractions(mockOutboundSwitchService)
-      verifyZeroInteractions(mockNotificationQueueConnector)
+      verifyNoInteractions(mockOutboundSwitchService)
+      verifyNoInteractions(mockNotificationQueueConnector)
     }
     "when some callback URL is returned, return Left with source of Push when OutboundSwitchService throws an exception" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallySomePushClientCallbackData)
@@ -116,7 +115,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 
       pushOrPullError.source shouldBe Push
       pushOrPullError.resultError.cause.getMessage shouldBe "Emulated service failure."
-      verifyZeroInteractions(mockNotificationQueueConnector)
+      verifyNoInteractions(mockNotificationQueueConnector)
     }
     "when some callback URL is returned, return Left with source of Push when OutboundSwitchService returns Left" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallySomePushClientCallbackData)
@@ -126,7 +125,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 
       pushOrPullError.source shouldBe Push
       pushOrPullError.resultError shouldBe mockResultError
-      verifyZeroInteractions(mockNotificationQueueConnector)
+      verifyNoInteractions(mockNotificationQueueConnector)
     }
     "when callback URL is empty, return Left with source of Pull when NotificationQueueConnector throws EmulatedService exception" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1.id.toString)).thenReturn(eventuallySomePullClientCallbackData)
@@ -136,7 +135,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
 
       pushOrPullError.source shouldBe Pull
       pushOrPullError.resultError.cause.getMessage shouldBe "Emulated service failure."
-      verifyZeroInteractions(mockOutboundSwitchService)
+      verifyNoInteractions(mockOutboundSwitchService)
     }
   }
 
