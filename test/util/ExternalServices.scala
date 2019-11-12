@@ -84,7 +84,7 @@ trait InternalPushNotificationService {
       .withHeader(ACCEPT, equalTo(XML))
       .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(pnr.body.conversationId))
-      .withHeader(USER_AGENT, equalTo("Customs Declaration Service"))
+      .withHeader(USER_AGENT, equalTo("customs-notification"))
       .withRequestBody(equalToXml(pnr.body.xmlPayload))
     )
 
@@ -97,7 +97,7 @@ trait InternalPushNotificationService {
       .withHeader(ACCEPT, equalTo(XML))
       .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(conversationId.toString))
-      .withHeader(USER_AGENT, equalTo("Customs Declaration Service"))
+      .withHeader(USER_AGENT, equalTo("customs-notification"))
       .withHeader(X_CORRELATION_ID_HEADER_NAME, equalTo(correlationId))
       .withHeader(X_SUBMITTER_ID_HEADER_NAME, equalTo(submitterNumber))
       .withHeader(X_BADGE_ID_HEADER_NAME, equalTo(badgeId))

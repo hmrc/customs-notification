@@ -90,7 +90,7 @@ object TestData {
 
   val badgeId = "ABCDEF1234"
   val submitterNumber = "IAMSUBMITTER"
-  val userAgent = "Customs Declaration Service"
+  val userAgent = "customs-notification"
   val correlationId = "CORRID2234"
   
   val functionCode = "01"

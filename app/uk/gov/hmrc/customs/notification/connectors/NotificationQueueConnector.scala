@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
-import play.mvc.Http.HeaderNames.{CONTENT_TYPE, USER_AGENT}
+import play.mvc.Http.HeaderNames.CONTENT_TYPE
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig, NotificationId}
@@ -40,7 +40,6 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
 
     val headers: Seq[(String, String)] = Seq(
       (CONTENT_TYPE, MimeTypes.XML),
-      (USER_AGENT, "Customs Declaration Service"),
       (X_CONVERSATION_ID_HEADER_NAME, request.notification.conversationId.toString()),
       (SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString())
     ) ++ extract(maybeBadgeId) ++ extract(maybeCorrelationId) ++ maybeAddNotificationId(request.notification.notificationId)

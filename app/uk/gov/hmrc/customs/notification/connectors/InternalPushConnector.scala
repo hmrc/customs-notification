@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import javax.inject.{Inject, Singleton}
-import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE, USER_AGENT}
+import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.mvc.Http.MimeTypes.XML
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
@@ -41,8 +41,7 @@ class InternalPushConnector @Inject()(http: HttpClient,
     val headers: Seq[(String, String)] = Seq(
       CONTENT_TYPE -> XML,
       ACCEPT -> XML,
-      X_CONVERSATION_ID_HEADER_NAME -> pnr.body.conversationId,
-      USER_AGENT -> "Customs Declaration Service"
+      X_CONVERSATION_ID_HEADER_NAME -> pnr.body.conversationId
     ) ++ outBoundHeaders
 
     implicit val headerCarrier: HeaderCarrier = hc.copy(authorization = Some(Authorization(pnr.body.authHeaderToken))).withExtraHeaders(headers:_*)
