@@ -269,5 +269,16 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       failedItem.get.failureCount shouldBe 1
     }
     
+    "successfully delete all notifications" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem2, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+      collectionSize shouldBe 3
+      
+      await(repository.deleteAll())
+
+      collectionSize shouldBe 0
+    }
+    
   }
 }

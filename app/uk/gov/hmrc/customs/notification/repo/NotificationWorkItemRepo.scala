@@ -60,6 +60,8 @@ trait NotificationWorkItemRepo {
   def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int]
 
   def incrementFailureCount(id: BSONObjectID): Future[Unit]
+  
+  def deleteAll(): Future[Unit]
 }
 
 @Singleton
@@ -226,6 +228,13 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
         .getOrElse(Future.successful(()))
     }
 
+  override def deleteAll(): Future[Unit] = {
+    logger.debug(s"deleting all notifications")
+
+    removeAll().map {result =>
+      logger.debug(s"deleted ${result.n} notifications")
+    }
+  }
 }
 
 object WorkItemFormat {
