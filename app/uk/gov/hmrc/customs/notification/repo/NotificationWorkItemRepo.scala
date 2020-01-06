@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import java.time.Clock
+import java.time.{Clock, ZonedDateTime}
+import java.util.TimeZone
 
 import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
-import org.joda.time.{DateTime, Duration}
+import org.joda.time.{DateTime, DateTimeZone, Duration}
 import play.api.Configuration
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json._
@@ -32,6 +33,7 @@ import reactivemongo.play.json.ImplicitBSONHandlers._
 import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
@@ -44,6 +46,8 @@ trait NotificationWorkItemRepo {
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus): Future[WorkItem[NotificationWorkItem]]
 
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit]
+
+  def setCompletedStatusWithAvailableAt(id: BSONObjectID, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
 
@@ -138,6 +142,11 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify}")
     complete(id, status).map(_ => () )
+  }
+
+  def setCompletedStatusWithAvailableAt(id: BSONObjectID, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit] = {
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify}")
+    markAs(id, status, Some(availableAt.toDateTime)).map(_ => () )
   }
 
   override def blockedCount(clientId: ClientId): Future[Int] = {

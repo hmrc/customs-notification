@@ -21,7 +21,7 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.mvc.Http.MimeTypes.XML
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{NonHttpError, PushNotificationRequest, ResultError}
+import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError, PushNotificationRequest, ResultError}
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.logging.Authorization
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
@@ -57,6 +57,15 @@ class InternalPushConnector @Inject()(http: HttpClient,
       val eventualEither: Future[Either[ResultError, HttpResponse]] = eventualHttpResponse.map(httpResponse => Right(httpResponse))
 
       eventualEither.recoverWith {
+        case upstream4xx: Upstream4xxResponse =>
+          logger.error(upstream4xx.message, upstream4xx)
+          Future.successful(Left(HttpResultError(upstream4xx.upstreamResponseCode, upstream4xx)))
+        case upstream5xx: Upstream5xxResponse =>
+          logger.error(upstream5xx.message, upstream5xx)
+          Future.successful(Left(HttpResultError(upstream5xx.upstreamResponseCode, upstream5xx)))
+        case httpException: HttpException =>
+          logger.error(httpException.message, httpException)
+          Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
         case NonFatal(e) =>
           val resultError = mapResultError(e)
           Future.successful(Left(resultError))

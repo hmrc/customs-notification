@@ -57,7 +57,8 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     retryPollerInterval = 1 second,
     retryPollerAfterFailureInterval = 2 seconds,
     retryPollerInProgressRetryAfter = 2 seconds,
-    retryPollerInstances = 1
+    retryPollerInstances = 1,
+    nonBlockingRetryAfterMinutes = 60
   )
 
   private val reactiveMongoComponent: ReactiveMongoComponent =

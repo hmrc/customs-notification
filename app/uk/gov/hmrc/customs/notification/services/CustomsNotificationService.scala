@@ -17,6 +17,8 @@
 package uk.gov.hmrc.customs.notification.services
 
 import javax.inject.{Inject, Singleton}
+import org.joda.time.DateTime
+import play.api.Configuration
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.{HasId, _}
@@ -34,7 +36,9 @@ import scala.xml.NodeSeq
 class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            notificationWorkItemRepo: NotificationWorkItemRepo,
                                            pushOrPullService: PushOrPullService,
-                                           metricsService: CustomsNotificationMetricsService)
+                                           metricsService: CustomsNotificationMetricsService,
+                                           configService: CustomsNotificationConfig,
+                                           dateTimeService: DateTimeService)
                                           (implicit ec: ExecutionContext) {
 
   type HasSaved = Boolean
@@ -97,7 +101,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
         logFirstTimePushNotificationMetric(workItem, connector)
-
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.stringify}")
         true
@@ -106,7 +109,16 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         logger.error(msg, pushOrPullError.resultError.cause)
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
-          _ <- notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+          _ <- {
+            pushOrPullError.resultError match {
+              case httpResultError: HttpResultError =>
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(configService.notificationConfig.nonBlockingRetryAfterMinutes)
+                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, availableAt)
+              case _ =>
+                notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+            }
+          }
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)

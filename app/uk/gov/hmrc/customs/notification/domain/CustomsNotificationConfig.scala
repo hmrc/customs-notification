@@ -29,7 +29,8 @@ case class NotificationConfig(internalClientIds: Seq[String],
                               retryPollerInterval: FiniteDuration,
                               retryPollerAfterFailureInterval: FiniteDuration,
                               retryPollerInProgressRetryAfter: FiniteDuration,
-                              retryPollerInstances: Int)
+                              retryPollerInstances: Int,
+                              nonBlockingRetryAfterMinutes: Int)
 
 case class NotificationMetricsConfig(baseUrl: String)
 
