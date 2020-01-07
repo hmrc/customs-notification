@@ -40,6 +40,7 @@ import uk.gov.hmrc.play.test.UnitSpec
 import util.TestData._
 
 import scala.concurrent.Future
+import scala.xml.{Elem, NodeSeq}
 
 class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach with ControllerSpecHelper {
 
@@ -220,6 +221,26 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       }
     }
 
+    "extractFunctionCode from xml payload when present" in {
+      controller.extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+
+      val functionCodeXml = <Too><Response><FunctionCode>Bar</FunctionCode></Response></Too>
+      controller.extractFunctionCode(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(FunctionCode("Bar"))
+    }
+
+    "extractIssueDateTime from xml payload when present" in {
+      controller.extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+
+      val functionCodeXml = <Too><Response><IssueDateTime><DateTimeString>20000101</DateTimeString></IssueDateTime></Response></Too>
+      controller.extractIssueDateTime(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(IssueDateTime("20000101"))
+    }
+
+    "extractMrn from xml payload when present" in {
+      controller.extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+
+      val functionCodeXml = <Too><Response><Declaration><ID>123456</ID></Declaration></Response></Too>
+      controller.extractMrn(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(Mrn("123456"))
+    }
   }
 
   private def returnMockedCallbackDetailsForTheClientIdInRequest() = {
@@ -232,4 +253,5 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     test(result)
   }
 
+  private def elementToOptionalNodeSeq(el: Elem): Option[NodeSeq] = Some(el)
 }
