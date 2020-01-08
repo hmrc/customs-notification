@@ -21,13 +21,13 @@ import com.google.inject.ImplementedBy
 import com.kenshoo.play.metrics.Metrics
 import javax.inject.Inject
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.{NotificationId, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.logging.RequestId
-import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
+import uk.gov.hmrc.workitem.{Failed, PermanentlyFailed, Succeeded, WorkItem}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -44,7 +44,8 @@ class WorkItemServiceImpl @Inject()(
     dateTimeService: DateTimeService,
     logger: NotificationLogger,
     uuidService: UuidService,
-    metrics: Metrics
+    metrics: Metrics,
+    customsNotificationConfig: CustomsNotificationConfig
   )
   (implicit ec: ExecutionContext) extends WorkItemService {
 
@@ -90,7 +91,16 @@ class WorkItemServiceImpl @Inject()(
         logger.info(s"$connector retry failed with requestId ${requestIdValue.toString} for $workItem with error $resultError. Setting status to " +
           s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (for {
-          _ <- repository.setCompletedStatus(workItem.id, Failed) // increase failure count
+          _ <- {
+              resultError match {
+                case httpResultError: HttpResultError =>
+                  val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
+                  logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+                  repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, availableAt) // increase failure count
+                case _ =>
+                  repository.setCompletedStatus(workItem.id, Failed) // increase failure count
+              }
+            }
           _ <- repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId)
         } yield ()).recover {
           case NonFatal(e) =>
@@ -107,6 +117,4 @@ class WorkItemServiceImpl @Inject()(
   private def maybeAddNotificationId(maybeNotificationId: Option[NotificationId]): Seq[(String, String)] = {
     maybeNotificationId.fold(Seq.empty[(String, String)]){id => Seq((NOTIFICATION_ID_HEADER_NAME, id.toString)) }
   }
-
-
 }

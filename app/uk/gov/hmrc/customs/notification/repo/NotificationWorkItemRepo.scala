@@ -64,7 +64,7 @@ trait NotificationWorkItemRepo {
   def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int]
 
   def incrementFailureCount(id: BSONObjectID): Future[Unit]
-  
+
   def deleteAll(): Future[Unit]
 }
 

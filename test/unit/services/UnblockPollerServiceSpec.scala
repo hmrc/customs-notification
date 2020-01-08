@@ -16,6 +16,7 @@
 
 package unit.services
 
+import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
 
 import akka.actor.ActorSystem
@@ -27,7 +28,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, HttpResultError, NotificationWorkItem, UnblockPollerConfig}
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, HttpResultError, NotificationConfig, NotificationWorkItem, UnblockPollerConfig}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
@@ -62,6 +63,19 @@ class UnblockPollerServiceSpec extends UnitSpec
     private[UnblockPollerServiceSpec] val mockPushOrPullService = mock[PushOrPullService]
     private[UnblockPollerServiceSpec] val mockUuidService = mock[UuidService]
     private[UnblockPollerServiceSpec] val eventuallyUnit = Future.successful(())
+    private[UnblockPollerServiceSpec] lazy val mockDateTimeService = mock[DateTimeService]
+    private[UnblockPollerServiceSpec] lazy val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
+    private[UnblockPollerServiceSpec] val currentTime = ZonedDateTime.of(2020, 1, 1, 0, 0, 0, 0, ZoneId.of("UTC"))
+    private[UnblockPollerServiceSpec] val currentTimePlus1Hour = currentTime.plusMinutes(60)
+
+    private[UnblockPollerServiceSpec] val notificationConfig = NotificationConfig(Seq[String](""),
+      60,
+      false,
+      FiniteDuration(30, SECONDS),
+      FiniteDuration(30, SECONDS),
+      FiniteDuration(30, SECONDS),
+      1,
+      60)
 
     private[UnblockPollerServiceSpec] def verifyInfoLog(msg: String) = {
       PassByNameVerifier(mockCdsLogger, "info")
@@ -78,6 +92,8 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     when(configServiceMock.unblockPollerConfig).thenReturn(mockUnblockPollerConfig)
     when(mockUuidService.uuid()).thenReturn(UUID.fromString(validRequestId))
+    when(mockCustomsNotificationConfig.notificationConfig).thenReturn(notificationConfig)
+    when(mockDateTimeService.zonedDateTimeUtc).thenReturn(currentTime)
   }
 
   "UnblockPollerService" should {
@@ -95,7 +111,9 @@ class UnblockPollerServiceSpec extends UnitSpec
           notificationWorkItemRepoMock,
           mockPushOrPullService,
           mockUuidService,
-          mockCdsLogger)
+          mockCdsLogger,
+          mockDateTimeService,
+          mockCustomsNotificationConfig)
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
@@ -119,7 +137,9 @@ class UnblockPollerServiceSpec extends UnitSpec
         notificationWorkItemRepoMock,
         mockPushOrPullService,
         mockUuidService,
-        mockCdsLogger)
+        mockCdsLogger,
+        mockDateTimeService,
+        mockCustomsNotificationConfig)
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
@@ -139,7 +159,9 @@ class UnblockPollerServiceSpec extends UnitSpec
         notificationWorkItemRepoMock,
         mockPushOrPullService,
         mockUuidService,
-        mockCdsLogger)
+        mockCdsLogger,
+        mockDateTimeService,
+        mockCustomsNotificationConfig)
 
       eventually {
         verifyNoInteractions(mockPushOrPullService)
@@ -155,21 +177,23 @@ class UnblockPollerServiceSpec extends UnitSpec
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
       when(notificationWorkItemRepoMock.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-      when(notificationWorkItemRepoMock.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(eventuallyUnit)
+      when(notificationWorkItemRepoMock.setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, currentTimePlus1Hour)).thenReturn(eventuallyUnit)
 
       new UnblockPollerService(configServiceMock,
         testActorSystem,
         notificationWorkItemRepoMock,
         mockPushOrPullService,
         mockUuidService,
-        mockCdsLogger)
+        mockCdsLogger,
+        mockDateTimeService,
+        mockCustomsNotificationConfig)
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any[HeaderCarrier]())
         verify(notificationWorkItemRepoMock, times(1)).incrementFailureCount(WorkItem1.id)
-        verify(notificationWorkItemRepoMock, times(1)).setCompletedStatus(WorkItem1.id, PermanentlyFailed)
+        verify(notificationWorkItemRepoMock, times(1)).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, currentTimePlus1Hour)
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
         verifyInfoLog("Unblock pilot send with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status back to permanently-failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml)))")
@@ -188,7 +212,9 @@ class UnblockPollerServiceSpec extends UnitSpec
         notificationWorkItemRepoMock,
         mockPushOrPullService,
         mockUuidService,
-        mockCdsLogger)
+        mockCdsLogger,
+        mockDateTimeService,
+        mockCustomsNotificationConfig)
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()

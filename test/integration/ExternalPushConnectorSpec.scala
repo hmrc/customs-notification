@@ -56,7 +56,8 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
       "auditing.enabled" -> false,
       "microservice.services.public-notification.host" -> Host,
       "microservice.services.public-notification.port" -> Port,
-      "microservice.services.public-notification.context" -> ExternalServicesConfiguration.PushNotificationServiceContext
+      "microservice.services.public-notification.context" -> ExternalServicesConfiguration.PushNotificationServiceContext,
+      "nonBlockingRetryAfterMinutes" -> 60
     )).build()
 
   "ExternalPushConnector" should {
@@ -67,6 +68,14 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
       val Right(_) = await(connector.send(pushNotificationRequest)(HeaderCarrier().withExtraHeaders((NOTIFICATION_ID_HEADER_NAME,notificationId.toString))))
 
       verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
+    }
+
+    "return a Left(HttpResultError) with status 300 when external service returns 300" in {
+      setupPushNotificationServiceToReturn(MULTIPLE_CHOICES)
+
+      val Left(httpResultError: HttpResultError) = await(connector.send(pushNotificationRequest)(HeaderCarrier()))
+
+      httpResultError.status shouldBe MULTIPLE_CHOICES
     }
 
     "return a Left(HttpResultError) with status 404 and a wrapped HttpVerb NotFoundException when external service returns 404" in {
