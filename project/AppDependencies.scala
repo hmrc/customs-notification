@@ -9,7 +9,7 @@ object AppDependencies {
   private val wireMockVersion = "2.25.1"
   private val customsApiCommonVersion = "1.43.0"
   private val workItemRepoVersion = "6.9.0-play-26"
-  private val reactiveMongoTestVersion = "4.15.0-play-26"
+  private val reactiveMongoTestVersion = "4.16.0-play-26"
   private val testScope = "test,it"
 
   val hmrcTest = "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % testScope
