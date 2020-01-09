@@ -35,6 +35,7 @@ import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, 
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
+import uk.gov.hmrc.mongo.ReactiveRepository
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -202,7 +203,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
 
     val selector = Json.obj("clientNotification._id" -> csid.toString, workItemFields.status -> PermanentlyFailed)
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> InProgress, workItemFields.updatedAt -> now))
-    collection.findAndUpdate(selector, update, fetchNewObject = true).map(_.result[WorkItem[NotificationWorkItem]])
+    findAndUpdate(selector, update, fetchNewObject = true).map(_.result[WorkItem[NotificationWorkItem]])
   }
 
   override def incrementFailureCount(id: BSONObjectID): Future[Unit] = {
@@ -211,9 +212,9 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     val selector = Json.obj(workItemFields.id -> Json.toJsFieldJsValueWrapper(id))
     val update = Json.obj("$inc" -> Json.obj(workItemFields.failureCount -> 1))
 
-    collection.findAndUpdate(selector, update).map(_ => ())
+    findAndUpdate(selector, update, false).map(_ => ())
   }
-
+  
   private def dropInvalidIndexes: Future[_] =
     collection.indexesManager.list().flatMap { indexes =>
       indexes
