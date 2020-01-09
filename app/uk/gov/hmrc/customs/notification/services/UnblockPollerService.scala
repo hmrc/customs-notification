@@ -84,7 +84,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
           _ <- {
             resultError match {
-              case httpResultError: HttpResultError =>
+              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response ${httpResultError.status} received while trying unblock pilot, setting availableAt to $availableAt")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, availableAt)

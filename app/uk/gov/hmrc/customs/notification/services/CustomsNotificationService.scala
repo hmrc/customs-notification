@@ -111,7 +111,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
           _ <- {
             pushOrPullError.resultError match {
-              case httpResultError: HttpResultError =>
+              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, availableAt)

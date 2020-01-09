@@ -74,6 +74,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val eventuallyUnit = Future.successful(())
     private[WorkItemServiceImplSpec] val exception = new IllegalStateException("BOOM!")
     private[WorkItemServiceImplSpec] val httpResultError = HttpResultError(Helpers.NOT_FOUND, exception)
+    private[WorkItemServiceImplSpec] val httpResultError500 = HttpResultError(Helpers.INTERNAL_SERVER_ERROR, exception)
     private[WorkItemServiceImplSpec] val eventualFailed = Future.failed(exception)
 
     when(mockMetrics.defaultRegistry).thenReturn(mockMetricRegistry)
@@ -154,7 +155,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       verifyInfoLog("GetApiSubscriptionFields retry failed with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
-    "return Future of true and set WorkItem status to PermanentlyFailed when PUSH returns an error" in new SetUp {
+    "return Future of true and set WorkItem status to PermanentlyFailed when PUSH returns a 404" in new SetUp {
       when(mockDateTimeService.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
       private val pushError = PushOrPullError(Push, httpResultError)
@@ -170,7 +171,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       verifyInfoLog("Push retry failed with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
-    "return Future of true and set WorkItem status to PermanentlyFailed when PULL returns an error" in new SetUp {
+    "return Future of true and set WorkItem status to PermanentlyFailed when PULL returns a 404" in new SetUp {
       when(mockDateTimeService.zonedDateTimeUtc).thenReturn(now)
       when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
       private val pullError = PushOrPullError(Pull, httpResultError)
@@ -184,6 +185,36 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       verify(mockRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, nowPlus1Hour)
       verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyInfoLog("Pull retry failed with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
+    }
+
+    "return Future of true and set WorkItem status to PermanentlyFailed when PUSH returns a 500" in new SetUp {
+      when(mockDateTimeService.zonedDateTimeUtc).thenReturn(now)
+      when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
+      private val pushError = PushOrPullError(Push, httpResultError500)
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(pushError)))
+      when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
+
+      val actual = await(service.processOne())
+
+      actual shouldBe true
+      verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+    }
+
+    "return Future of true and set WorkItem status to PermanentlyFailed when PULL returns a 500" in new SetUp {
+      when(mockDateTimeService.zonedDateTimeUtc).thenReturn(now)
+      when(mockRepo.pullOutstanding(failedBefore = nowAsDateTime, availableBefore = nowAsDateTime)).thenReturn(eventualMaybeWorkItem1)
+      private val pullError = PushOrPullError(Pull, httpResultError500)
+      when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(pullError)))
+      when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
+      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
+
+      val actual = await(service.processOne())
+
+      actual shouldBe true
+      verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
+      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
     }
 
     "return Future of true and log database error when PUSH returns an error and call to repository setCompletedStatus fails" in new SetUp {
