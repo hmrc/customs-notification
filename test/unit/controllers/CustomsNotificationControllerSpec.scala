@@ -222,24 +222,24 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "extractFunctionCode from xml payload when present" in {
-      controller.extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+      controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
 
       val functionCodeXml = <Too><Response><FunctionCode>Bar</FunctionCode></Response></Too>
-      controller.extractFunctionCode(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(FunctionCode("Bar"))
+      controller().extractFunctionCode(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(FunctionCode("Bar"))
     }
 
     "extractIssueDateTime from xml payload when present" in {
-      controller.extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+      controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
 
       val functionCodeXml = <Too><Response><IssueDateTime><DateTimeString>20000101</DateTimeString></IssueDateTime></Response></Too>
-      controller.extractIssueDateTime(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(IssueDateTime("20000101"))
+      controller().extractIssueDateTime(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(IssueDateTime("20000101"))
     }
 
     "extractMrn from xml payload when present" in {
-      controller.extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+      controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
 
       val functionCodeXml = <Too><Response><Declaration><ID>123456</ID></Declaration></Response></Too>
-      controller.extractMrn(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(Mrn("123456"))
+      controller().extractMrn(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(Mrn("123456"))
     }
   }
 

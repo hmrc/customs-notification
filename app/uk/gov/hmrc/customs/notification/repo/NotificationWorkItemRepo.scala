@@ -212,7 +212,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     val selector = Json.obj(workItemFields.id -> Json.toJsFieldJsValueWrapper(id))
     val update = Json.obj("$inc" -> Json.obj(workItemFields.failureCount -> 1))
 
-    findAndUpdate(selector, update, false).map(_ => ())
+    findAndUpdate(selector, update, fetchNewObject = false).map(_ => ())
   }
   
   private def dropInvalidIndexes: Future[_] =
