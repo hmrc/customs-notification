@@ -98,10 +98,18 @@ class WorkItemServiceImpl @Inject()(
                   logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                   repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, availableAt) // increase failure count
                 case _ =>
-                  repository.setCompletedStatus(workItem.id, Failed) // increase failure count
+                  Future.successful(())
               }
             }
-          _ <- repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId)
+          _ <- {
+            resultError match {
+              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+                Future.successful(())
+              case _ =>
+                repository.setCompletedStatus(workItem.id, Failed) // increase failure count
+                repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId)
+            }
+          }
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)

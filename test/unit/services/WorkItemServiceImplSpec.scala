@@ -145,13 +145,11 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val fieldsError = PushOrPullError(GetApiSubscriptionFields, httpResultError)
       when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(fieldsError)))
       when(mockRepo.setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, nowPlus1Hour)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, nowPlus1Hour)
-      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyInfoLog("GetApiSubscriptionFields retry failed with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
@@ -161,13 +159,11 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pushError = PushOrPullError(Push, httpResultError)
       when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(pushError)))
       when(mockRepo.setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, nowPlus1Hour)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, nowPlus1Hour)
-      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyInfoLog("Push retry failed with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
@@ -177,13 +173,11 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pullError = PushOrPullError(Pull, httpResultError)
       when(mockPushOrPull.send(any[NotificationWorkItem]())(any[HeaderCarrier]())).thenReturn(Future.successful(Left(pullError)))
       when(mockRepo.setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, nowPlus1Hour)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, nowPlus1Hour)
-      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyInfoLog("Pull retry failed with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234)),<foo1></foo1>,application/xml))) with error HttpResultError(404,java.lang.IllegalStateException: BOOM!). Setting status to PermanentlyFailed for all notifications with clientSubscriptionId eaca01f9-ec3b-4ede-b263-61b626dde232")
     }
 
