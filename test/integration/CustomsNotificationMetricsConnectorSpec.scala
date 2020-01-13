@@ -63,7 +63,8 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
       "auditing.enabled" -> true,
       "microservice.services.customs-notification-metrics.host" -> Host,
       "microservice.services.customs-notification-metrics.port" -> Port,
-      "microservice.services.customs-notification-metrics.context" -> ExternalServicesConfiguration.CustomsNotificationMetricsContext
+      "microservice.services.customs-notification-metrics.context" -> ExternalServicesConfiguration.CustomsNotificationMetricsContext,
+      "non.blocking.retry.after.minutes" -> 120
     )).build()
 
   "MetricsConnector" should {

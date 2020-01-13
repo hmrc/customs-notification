@@ -22,8 +22,10 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{PushNotificationRequest, PushNotificationRequestBody, ResultError}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.customs.notification.connectors.CustomsHttpReads.readRaw
+import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonFormat
+import uk.gov.hmrc.customs.notification.domain.{HttpResultError, PushNotificationRequest, PushNotificationRequestBody, ResultError}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse, Upstream4xxResponse, Upstream5xxResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -55,10 +57,18 @@ class ExternalPushConnector @Inject()(http: HttpClient,
       Right(httpResponse)
     }
     .recoverWith{
+      case upstream4xx: Upstream4xxResponse =>
+        logger.error(upstream4xx.message, upstream4xx)
+        Future.successful(Left(HttpResultError(upstream4xx.upstreamResponseCode, upstream4xx)))
+      case upstream5xx: Upstream5xxResponse =>
+        logger.error(upstream5xx.message, upstream5xx)
+        Future.successful(Left(HttpResultError(upstream5xx.upstreamResponseCode, upstream5xx)))
+      case httpException: HttpException =>
+        logger.error(httpException.message, httpException)
+        Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
       case NonFatal(e) =>
         val error: ResultError = mapResultError(e)
         Future.successful(Left(error))
     }
   }
-
 }

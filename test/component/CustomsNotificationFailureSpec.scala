@@ -68,15 +68,16 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
   }
 
   feature("Ensure offline retry") {
-    scenario("backend submits a valid PUSH request with incorrect callback details used resulting in endpoint returning a 404") {
+
+    scenario("backend submits a valid PUSH request with incorrect callback details used resulting in endpoint returning a 500") {
 
       startApiSubscriptionFieldsService(validFieldsId,callbackData)
       Given("the Push endpoint is setup to return NOT_FOUND")
-      setupPushNotificationServiceToReturn(NOT_FOUND)
+      setupPushNotificationServiceToReturn(INTERNAL_SERVER_ERROR)
 
       And("the API is available")
       val request = ValidRequest.withMethod(POST).withTarget(RequestTarget(path = endpoint, uriString = ValidRequest.uri, queryString = ValidRequest.queryString))
-      
+
       When("a POST request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, request)
 

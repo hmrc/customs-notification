@@ -69,7 +69,8 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
 
   override implicit lazy val app: Application =
     GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(stubCdsLogger).asGuiceableModule)).configure(Map(
-      "auditing.enabled" -> false
+      "auditing.enabled" -> false,
+      "non.blocking.retry.after.minutes" -> 120
     )).build()
 
   "InternalPushConnector" should {
@@ -80,6 +81,14 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
       val Right(_) = await(connector.send(pnr())(HeaderCarrier()))
 
       verifyInternalServiceWasCalledWithOutboundHeaders(pnr())
+    }
+
+    "return a Left(HttpResultError) with status 300 when external service returns 300" in {
+      setupInternalServiceToReturn(MULTIPLE_CHOICES)
+
+      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
+
+      httpResultError.status shouldBe MULTIPLE_CHOICES
     }
 
     "return a Left(HttpResultError) with status 404 and a wrapped HttpVerb NotFoundException when external service returns 404" in {

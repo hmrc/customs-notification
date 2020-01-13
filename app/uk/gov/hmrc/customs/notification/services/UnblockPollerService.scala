@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.services
 import akka.actor.ActorSystem
 import javax.inject._
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, HttpResultError, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.logging.RequestId
@@ -35,7 +35,9 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                                      notificationWorkItemRepo: NotificationWorkItemRepo,
                                      pushOrPullService: PushOrPullService,
                                      uuidService: UuidService,
-                                     logger: CdsLogger)(implicit executionContext: ExecutionContext) {
+                                     logger: CdsLogger,
+                                     dateTimeService: DateTimeService,
+                                     customsNotificationConfig: CustomsNotificationConfig)(implicit executionContext: ExecutionContext) {
 
   if (config.unblockPollerConfig.pollerEnabled) {
     val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
@@ -80,7 +82,16 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         logger.info(s"Unblock pilot send with requestId ${requestIdValue.toString} for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
-          _ <- notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+          _ <- {
+            resultError match {
+              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
+                logger.error(s"Status response ${httpResultError.status} received while trying unblock pilot, setting availableAt to $availableAt")
+                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, availableAt)
+              case _ =>
+                notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
+            }
+          }
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)

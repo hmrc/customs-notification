@@ -57,7 +57,8 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     retryPollerInterval = 1 second,
     retryPollerAfterFailureInterval = 2 seconds,
     retryPollerInProgressRetryAfter = 2 seconds,
-    retryPollerInstances = 1
+    retryPollerInstances = 1,
+    nonBlockingRetryAfterMinutes = 120
   )
 
   private val reactiveMongoComponent: ReactiveMongoComponent =
@@ -179,6 +180,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     "return zero when no notifications with clientId are present when setting to PermanentlyFailed" in {
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda.plusMinutes(120), failed _))
 
       val result = await(repository.toPermanentlyFailedByCsId(validClientSubscriptionId1))
 
@@ -191,6 +193,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val wiClient1One = await(repository.pushNew(NotificationWorkItem1, nowAsJoda, failed _))
       val wiClient1Two = await(repository.pushNew(NotificationWorkItem1, nowAsJoda, failed _))
       val wiClient3One = await(repository.pushNew(NotificationWorkItem3, nowAsJoda, failed _))
+      await(repository.pushNew(NotificationWorkItem1, nowAsJoda.plusMinutes(120), failed _))
 
       val result = await(repository.toPermanentlyFailedByCsId(validClientSubscriptionId1))
 
@@ -211,11 +214,22 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       result shouldBe true
     }
 
+    "return false when all permanently failed items for client id are availableAt in the future" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda.plusMinutes(120), permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda.plusMinutes(120), permanentlyFailed _))
+
+      val result = await(repository.permanentlyFailedByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+
+      result shouldBe false
+    }
+
     "return count of notifications that are changed from failed to permanently failed by client id" in {
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda.plusMinutes(120), failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
       val result = await(repository.toPermanentlyFailedByCsId(NotificationWorkItem1.clientSubscriptionId))
@@ -226,6 +240,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     "return list of distinct clientIds" in {
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem2, clock.nowAsJoda.plusMinutes(120), permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
 
       val result = await(repository.distinctPermanentlyFailedByCsId())
@@ -247,9 +262,21 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
     }
 
+    "not return a modified permanently failed notification with specified csid when availableAt is in the future" in {
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda.plusMinutes(120), permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
+
+      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1))
+
+      result.size shouldBe 0
+    }
+
     "return count of notifications that are changed from permanently failed to failed by csid" in {
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, inProgress _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
+      await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda.plusMinutes(120), permanentlyFailed _))
       val changed = await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, permanentlyFailed _))
       await(repository.pushNew(NotificationWorkItem1, clock.nowAsJoda, failed _))
       await(repository.pushNew(NotificationWorkItem3, clock.nowAsJoda, failed _))
