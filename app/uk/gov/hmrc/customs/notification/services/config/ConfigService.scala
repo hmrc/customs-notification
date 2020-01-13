@@ -75,7 +75,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
     val retryPollerInstancesNel: CustomsValidatedNel[Int] =
       root.int("retry.poller.instances")
     val nonBlockingRetryAfterMinutesNel: CustomsValidatedNel[Int] =
-      root.int("nonBlockingRetryAfterMinutes")
+      root.int("non.blocking.retry.after.minutes")
 
     val notificationConfig: CustomsValidatedNel[NotificationConfig] = (
       internalClientIdsNel,

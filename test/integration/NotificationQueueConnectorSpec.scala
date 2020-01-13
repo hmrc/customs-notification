@@ -59,7 +59,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
       "microservice.services.notification-queue.host" -> Host,
       "microservice.services.notification-queue.port" -> Port,
       "microservice.services.notification-queue.context" -> ExternalServicesConfiguration.NotificationQueueContext,
-      "nonBlockingRetryAfterMinutes" -> 60
+      "non.blocking.retry.after.minutes" -> 120
     )).build()
 
   "NotificationQueueConnector" should {

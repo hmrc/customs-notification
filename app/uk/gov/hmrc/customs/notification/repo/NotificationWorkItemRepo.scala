@@ -145,7 +145,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   def setCompletedStatusWithAvailableAt(id: BSONObjectID, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify}")
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify} with availableAt: $availableAt")
     markAs(id, status, Some(availableAt.toDateTime)).map(_ => () )
   }
 

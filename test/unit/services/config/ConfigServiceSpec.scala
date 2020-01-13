@@ -43,7 +43,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |retry.poller.retryAfterFailureInterval.seconds = 2
       |retry.poller.inProgressRetryAfter.seconds = 3
       |retry.poller.instances = 3
-      |nonBlockingRetryAfterMinutes = 60
+      |non.blocking.retry.after.minutes = 120
       |unblock.poller.enabled = true
       |unblock.poller.interval.milliseconds = 400
       |
@@ -77,7 +77,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |retry.poller.retryAfterFailureInterval.seconds = 2
       |retry.poller.inProgressRetryAfter.seconds = 3
       |retry.poller.instances = 3
-      |nonBlockingRetryAfterMinutes = 60
+      |non.blocking.retry.after.minutes = 120
       |unblock.poller.enabled = true
       |unblock.poller.interval.milliseconds = 400
       |
@@ -151,7 +151,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config key 'retry.poller.retryAfterFailureInterval.seconds'
                        |Could not find config key 'retry.poller.inProgressRetryAfter.seconds'
                        |Could not find config key 'retry.poller.instances'
-                       |Could not find config key 'nonBlockingRetryAfterMinutes'
+                       |Could not find config key 'non.blocking.retry.after.minutes'
                        |Could not find config customs-notification-metrics.host
                        |Service configuration not found for key: customs-notification-metrics.context
                        |Could not find config key 'unblock.poller.enabled'
