@@ -11,7 +11,7 @@ object AppDependencies {
   private val workItemRepoVersion = "6.9.0-play-26"
   private val reactiveMongoTestVersion = "4.16.0-play-26"
 
-  private val forceAkkaVersion     = "2.5.23" //this is the version last that works with ReactiveMongo bootstrap-play-26
+  private val forceAkkaVersion     = "2.5.23" //this is the last version that works with ReactiveMongo bootstrap-play-26
   private val forceAkkaHttpVersion = "10.0.15"
 
   private val testScope = "test,it"

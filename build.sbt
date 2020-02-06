@@ -113,7 +113,6 @@ val testDependencies = Seq(hmrcTest, scalaTest, scalaTestPlusPlay, wireMock, moc
 
 libraryDependencies ++= compileDependencies ++ testDependencies
 
-//@see https://confluence.tools.tax.service.gov.uk/pages/viewpage.action?pageId=176632503&focusedCommentId=176644332#comment-176644332
 dependencyOverrides ++= Set(overrideAkkaStream, overrideAkkaProtobuf, overrideAkkaSlf4j, overrideAkkaActor, overrideAkkaHttpCore)
 
 evictionWarningOptions in update := EvictionWarningOptions.default.withWarnTransitiveEvictions(false)
