@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import uk.gov.hmrc.customs.api.common.http.ExtensibleHttpErrorFunctions
-import uk.gov.hmrc.http._
+import uk.gov.hmrc.http.{HttpException, HttpResponse}
 
 object RawReads extends ExtensibleHttpErrorFunctions {
   override def handle3xxResponse(httpMethod: String, url: String, response: HttpResponse): HttpResponse =
