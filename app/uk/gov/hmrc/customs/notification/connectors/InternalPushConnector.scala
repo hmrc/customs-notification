@@ -20,7 +20,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.mvc.Http.MimeTypes.XML
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.CustomsHttpReads.readRaw
+import uk.gov.hmrc.customs.notification.connectors.RawReads.readRaw
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError, PushNotificationRequest, ResultError}
 import uk.gov.hmrc.http._

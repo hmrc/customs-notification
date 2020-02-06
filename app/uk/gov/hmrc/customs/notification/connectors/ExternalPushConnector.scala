@@ -22,7 +22,7 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.CustomsHttpReads.readRaw
+import uk.gov.hmrc.customs.notification.connectors.RawReads.readRaw
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonFormat
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, PushNotificationRequest, PushNotificationRequestBody, ResultError}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse, Upstream4xxResponse, Upstream5xxResponse}

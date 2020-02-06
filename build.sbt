@@ -105,12 +105,14 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
 
 scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 
+unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
+
 val compileDependencies = Seq(customsApiCommon, workItemRepo)
 
 val testDependencies = Seq(hmrcTest, scalaTest, scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
 
-unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
-
 libraryDependencies ++= compileDependencies ++ testDependencies
+
+dependencyOverrides ++= Set(overrideAkkaStream, overrideAkkaProtobuf, overrideAkkaSlf4j, overrideAkkaActor, overrideAkkaHttpCore)
 
 evictionWarningOptions in update := EvictionWarningOptions.default.withWarnTransitiveEvictions(false)

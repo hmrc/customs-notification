@@ -16,19 +16,10 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import uk.gov.hmrc.http.{HttpReads, HttpResponse, JsonHttpReads, OptionHttpReads}
+import uk.gov.hmrc.customs.api.common.http.ExtensibleHttpErrorFunctions
+import uk.gov.hmrc.http.{HttpException, HttpResponse}
 
-object CustomsHttpReads extends OptionHttpReads with JsonHttpReads {
-  // readRaw is brought in like this rather than in a trait as this gives it
-  // compilation priority during implicit resolution. This means, unless
-  // specified otherwise a verb call will return a plain HttpResponse
-  implicit val readRaw: HttpReads[HttpResponse] = RawReads.readRaw
+object RawReads extends ExtensibleHttpErrorFunctions {
+  override def handle3xxResponse(httpMethod: String, url: String, response: HttpResponse): HttpResponse =
+    throw new HttpException(response.body, response.status)
 }
-
-trait RawReads extends CustomsHttpErrorFunctions {
-  implicit val readRaw: HttpReads[HttpResponse] = new HttpReads[HttpResponse] {
-    def read(method: String, url: String, response: HttpResponse) = handleResponse(method, url)(response)
-  }
-}
-
-object RawReads extends RawReads
