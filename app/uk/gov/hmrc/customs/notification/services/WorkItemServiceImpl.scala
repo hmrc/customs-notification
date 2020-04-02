@@ -27,7 +27,7 @@ import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.logging.RequestId
-import uk.gov.hmrc.workitem.{Failed, PermanentlyFailed, Succeeded, WorkItem}
+import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal

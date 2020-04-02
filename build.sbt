@@ -2,14 +2,15 @@ import AppDependencies._
 import sbt.Keys._
 import sbt.Tests.{Group, SubProcess}
 import sbt._
-import uk.gov.hmrc.DefaultBuildSettings.{addTestReportOption, defaultSettings, scalaSettings, targetJvm}
+import uk.gov.hmrc.DefaultBuildSettings.{addTestReportOption, targetJvm}
 import uk.gov.hmrc.PublishingSettings._
+import uk.gov.hmrc.gitstamp.GitStampPlugin._
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
 import scala.language.postfixOps
 
 name := "customs-notification"
-
+scalaVersion := "2.12.11"
 targetJvm := "jvm-1.8"
 
 resolvers ++= Seq(
@@ -80,13 +81,9 @@ lazy val componentTestSettings =
       addTestReportOption(ComponentTest, "component-reports")
     )
 
-lazy val commonSettings: Seq[Setting[_]] = scalaSettings ++
-  publishingSettings ++
-  defaultSettings() ++
-  gitStampSettings
+lazy val commonSettings: Seq[Setting[_]] = publishingSettings ++ gitStampSettings
 
-lazy val playPublishingSettings: Seq[sbt.Setting[_]] = sbtrelease.ReleasePlugin.releaseSettings ++
-  Seq(credentials += SbtCredentials) ++
+lazy val playPublishingSettings: Seq[sbt.Setting[_]] = Seq(credentials += SbtCredentials) ++
   publishAllArtefacts
 
 lazy val scoverageSettings: Seq[Setting[_]] = Seq(
@@ -97,7 +94,7 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
     ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
     ,".*(Reverse|AuthService|BuildInfo|Routes).*"
   ).mkString(";"),
-  coverageMinimum := 95,
+  coverageMinimum := 99,
   coverageFailOnMinimum := true,
   coverageHighlighting := true,
   parallelExecution in Test := false
@@ -109,10 +106,8 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
 
 val compileDependencies = Seq(customsApiCommon, workItemRepo)
 
-val testDependencies = Seq(hmrcTest, scalaTest, scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
+val testDependencies = Seq(hmrcTest, scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
 
 libraryDependencies ++= compileDependencies ++ testDependencies
-
-dependencyOverrides ++= Set(overrideAkkaStream, overrideAkkaProtobuf, overrideAkkaSlf4j, overrideAkkaActor, overrideAkkaHttpCore)
 
 evictionWarningOptions in update := EvictionWarningOptions.default.withWarnTransitiveEvictions(false)
