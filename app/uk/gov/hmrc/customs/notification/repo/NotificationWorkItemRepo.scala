@@ -17,11 +17,10 @@
 package uk.gov.hmrc.customs.notification.repo
 
 import java.time.{Clock, ZonedDateTime}
-import java.util.TimeZone
 
 import com.google.inject.ImplementedBy
 import javax.inject.{Inject, Singleton}
-import org.joda.time.{DateTime, DateTimeZone, Duration}
+import org.joda.time.{DateTime, Duration}
 import play.api.Configuration
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json._
@@ -33,11 +32,9 @@ import reactivemongo.play.json.ImplicitBSONHandlers._
 import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
-import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import uk.gov.hmrc.workitem._
-import uk.gov.hmrc.mongo.ReactiveRepository
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -227,7 +224,7 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
 
     findAndUpdate(selector, update, fetchNewObject = false).map(_ => ())
   }
-  
+
   private def dropInvalidIndexes: Future[_] =
     collection.indexesManager.list().flatMap { indexes =>
       indexes
