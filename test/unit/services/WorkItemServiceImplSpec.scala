@@ -31,7 +31,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import uk.gov.hmrc.workitem.{Failed, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._

@@ -30,7 +30,7 @@ import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, Notif
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.ClockJodaExtensions
 import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import uk.gov.hmrc.workitem._
 import unit.logging.StubCdsLogger
 import util.TestData._

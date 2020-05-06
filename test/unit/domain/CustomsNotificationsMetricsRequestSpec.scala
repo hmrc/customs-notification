@@ -18,7 +18,7 @@ package unit.domain
 
 import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import util.CustomsNotificationMetricsTestData.{EventEnd, EventStart}
 import util.TestData.conversationId
 

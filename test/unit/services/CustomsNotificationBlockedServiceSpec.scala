@@ -23,7 +23,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import unit.logging.StubCdsLogger
 import util.TestData._
 

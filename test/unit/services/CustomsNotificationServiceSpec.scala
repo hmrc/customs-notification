@@ -31,7 +31,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, ResultStatus, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
@@ -52,7 +52,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
   private val eventuallyLeftOfPush = Future.successful(Left(PushOrPullError(Push, HttpResultError(Helpers.NOT_FOUND, exception))))
   private val eventuallyLeftOfPush500 = Future.successful(Left(PushOrPullError(Push, HttpResultError(Helpers.INTERNAL_SERVER_ERROR, exception))))
   private val eventuallyLeftOfPull = Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.NOT_FOUND, exception))))
-  private val eventuallyLeftOfApiSubsFields = Future.successful(Left(PushOrPullError(GetApiSubscriptionFields, HttpResultError(Helpers.NOT_FOUND, exception))))
   private val eventuallyRightOfPull = Future.successful(Right(Pull))
   private val eventuallyUnit = Future.successful(())
 

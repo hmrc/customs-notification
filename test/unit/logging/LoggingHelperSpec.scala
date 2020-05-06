@@ -17,7 +17,7 @@
 package unit.logging
 
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import util.RequestHeaders.LoggingHeadersWithAuth
 import util.TestData._
 

@@ -18,7 +18,7 @@ package unit.connectors
 
 import uk.gov.hmrc.customs.notification.connectors.MapResultError
 import uk.gov.hmrc.http.{BadRequestException, Upstream4xxResponse, Upstream5xxResponse}
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError}
 
