@@ -26,7 +26,7 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationConfig}
 import uk.gov.hmrc.customs.notification.services.{WorkItemProcessingScheduler, WorkItemService}
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 
 import scala.concurrent.Future

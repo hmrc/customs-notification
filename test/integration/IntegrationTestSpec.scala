@@ -22,7 +22,7 @@ import org.scalatest.time.{Millis, Span}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.inject.guice.GuiceableModule
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import util.WireMockRunner
 
 case class IntegrationTestModule(mockLogger: CdsLogger) extends AbstractModule {

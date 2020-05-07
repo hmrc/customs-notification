@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.bootstrap.config.{RunMode, ServicesConfig}
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import unit.logging.StubCdsLogger
 import util.TestData.basicAuthTokenValue
 
@@ -111,7 +111,6 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
   private val stubCdsLogger = StubCdsLogger()
 
   "ConfigService" should {
-    val THOUSAND = 1000
     "return config as object model when configuration is valid" in {
       val actual = configService(validServicesConfig)
 

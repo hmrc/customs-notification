@@ -27,7 +27,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.HeaderValidator
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 import util.RequestHeaders._
 import util.TestData.basicAuthTokenValue
 

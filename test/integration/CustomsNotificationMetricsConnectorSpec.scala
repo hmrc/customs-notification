@@ -16,7 +16,7 @@
 
 package integration
 
-import org.mockito.ArgumentMatchers.{any, _}
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.mockito.MockitoSugar

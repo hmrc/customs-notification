@@ -17,7 +17,7 @@
 package unit.services
 
 import uk.gov.hmrc.customs.notification.services.UuidService
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 
 class UuidServiceSpec extends UnitSpec {
 

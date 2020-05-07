@@ -57,7 +57,6 @@ lazy val unitTestSettings =
       addTestReportOption(Test, "test-reports")
     )
 
-
 lazy val integrationComponentTestSettings =
   inConfig(CdsIntegrationComponentTest)(Defaults.testTasks) ++
     Seq(
@@ -96,7 +95,7 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
 
 val compileDependencies = Seq(customsApiCommon, workItemRepo)
 
-val testDependencies = Seq(hmrcTest, scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
+val testDependencies = Seq(scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
 
 libraryDependencies ++= compileDependencies ++ testDependencies
 

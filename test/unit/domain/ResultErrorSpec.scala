@@ -18,7 +18,7 @@ package unit.domain
 
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError}
-import uk.gov.hmrc.play.test.UnitSpec
+import util.UnitSpec
 
 class ResultErrorSpec extends UnitSpec {
   val exception = new Exception("BOOM")
