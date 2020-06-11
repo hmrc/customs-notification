@@ -50,7 +50,8 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
       Seq(
         X_CORRELATION_ID_HEADER_NAME -> correlationId,
         X_BADGE_ID_HEADER_NAME -> badgeId,
-        X_SUBMITTER_ID_HEADER_NAME -> submitterNumber
+        X_SUBMITTER_ID_HEADER_NAME -> submitterNumber,
+        ISSUE_DATE_TIME_HEADER -> issueDateTime
       ).map(t => Header(t._1, t._2)),
       ValidXML.toString())
   )

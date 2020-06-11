@@ -58,11 +58,13 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
   with HasMaybeIssueDateTime
   with HasMaybeMrn
 {
-  def mayBeBadgeIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_BADGE_ID_HEADER_NAME, maybeBadgeId)
+  def maybeBadgeIdHeader: Option[Header] = asHeader(X_BADGE_ID_HEADER_NAME, maybeBadgeId)
 
-  def mayBeSubmitterHeader: Option[Header] = asHeader(CustomHeaderNames.X_SUBMITTER_ID_HEADER_NAME, maybeSubmitterNumber)
+  def maybeSubmitterHeader: Option[Header] = asHeader(X_SUBMITTER_ID_HEADER_NAME, maybeSubmitterNumber)
 
-  def mayBeCorrelationIdHeader: Option[Header] = asHeader(CustomHeaderNames.X_CORRELATION_ID_HEADER_NAME, maybeCorrelationId)
+  def maybeCorrelationIdHeader: Option[Header] = asHeader(X_CORRELATION_ID_HEADER_NAME, maybeCorrelationId)
+    
+  def maybeIssueDateTimeHeader: Option[Header] = asHeader(ISSUE_DATE_TIME_HEADER, maybeIssueDateTime)
 
   private def asHeader[T](name: String, maybeHeaderValue: Option[T]) =
     maybeHeaderValue.map(v => Header(name = name, value = v.toString))
@@ -114,7 +116,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)), requestId,
       NotificationId(uuidService.uuid()), None, headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId),
       headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter), headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
-      extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml), extractMrn(maybeXml), startTime)
+      extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml, headers.get(ISSUE_DATE_TIME_HEADER)), extractMrn(maybeXml), startTime)
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
@@ -151,21 +153,25 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
 
   def extractFunctionCode(maybeXml: Option[NodeSeq]): Option[FunctionCode]= {
     maybeXml match {
-      case Some(xml) => extractValues(xml \ "Response" \ "FunctionCode").fold{val tmp : Option[FunctionCode] = None; tmp}(x => Some(FunctionCode(x)))
+      case Some(xml) => extractValues(xml \ "Response" \ "FunctionCode").fold{val tmp: Option[FunctionCode] = None; tmp}(x => Some(FunctionCode(x)))
       case _ => None
     }
   }
 
-  def extractIssueDateTime(maybeXml: Option[NodeSeq]): Option[IssueDateTime]= {
+  def extractIssueDateTime(maybeXml: Option[NodeSeq], maybeDateHeader: Option[String]): Option[IssueDateTime]= {
+    
+    def dateXml(xml: NodeSeq): Option[IssueDateTime] = extractValues(xml \ "Response" \ "IssueDateTime" \ "DateTimeString").fold(dateHeader)(x => Some(IssueDateTime(x)))
+    def dateHeader: Option[IssueDateTime] = if (maybeDateHeader.isDefined) Some(IssueDateTime(maybeDateHeader.get)) else None
+    
     maybeXml match {
-      case Some(xml) => extractValues(xml \ "Response" \ "IssueDateTime" \ "DateTimeString").fold{val tmp : Option[IssueDateTime] = None; tmp}(x => Some(IssueDateTime(x)))
-      case _ => None
+      case Some(xml) => dateXml(xml)
+      case _ => dateHeader
     }
   }
 
   def extractMrn(maybeXml: Option[NodeSeq]): Option[Mrn]= {
     maybeXml match {
-      case Some(xml) => extractValues(xml \ "Response" \ "Declaration" \ "ID").fold{val tmp : Option[Mrn] = None; tmp}(x => Some(Mrn(x)))
+      case Some(xml) => extractValues(xml \ "Response" \ "Declaration" \ "ID").fold{val tmp: Option[Mrn] = None; tmp}(x => Some(Mrn(x)))
       case _ => None
     }
   }

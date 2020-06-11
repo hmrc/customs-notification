@@ -127,7 +127,7 @@ object TestData {
   val payload3 = "<foo3></foo3>"
   val ValidXML: Elem = <Foo>Bar</Foo>
 
-  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId))
+  val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId), Header(ISSUE_DATE_TIME_HEADER, issueDateTime))
   val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   val notification1 = Notification(Some(notificationId), conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
   val notification2 = Notification(Some(notificationId), conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
@@ -166,13 +166,14 @@ object TestData {
   val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
+  lazy val dateHeader = Header(ISSUE_DATE_TIME_HEADER, issueDateTime)
 
   def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true, withNotificationId: Boolean = true): ClientNotification = {
 
     lazy val correlationIdHeader = Header("x-cOrRelaTion-iD", correlationId)
 
     val finalHeaders = (withBadgeId, withCorrelationId) match {
-      case (true, true) => Seq[Header](badgeIdHeader, correlationIdHeader)
+      case (true, true) => Seq[Header](badgeIdHeader, correlationIdHeader, dateHeader)
       case (true, false) => Seq[Header](badgeIdHeader)
       case (false, true) => Seq[Header](correlationIdHeader)
       case _ => Seq.empty[Header]
@@ -210,7 +211,7 @@ object TestData {
     """.stripMargin)
 
   def pushNotificationRequest(xml: NodeSeq, cd: DeclarantCallbackData = callbackData): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(cd.callbackUrl, cd.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
+    val body = PushNotificationRequestBody(cd.callbackUrl, cd.securityToken, validConversationId, Seq(badgeIdHeader, dateHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 
