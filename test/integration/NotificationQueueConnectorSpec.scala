@@ -65,7 +65,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
   "NotificationQueueConnector" should {
 
     "make a correct request with badgeId header" in {
-      val notificationWithBadgeId = clientNotification(withBadgeId = true)
+      val notificationWithBadgeId = clientNotification()
 
       setupPullQueueServiceToReturn(CREATED, notificationWithBadgeId)
 

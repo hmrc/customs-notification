@@ -44,6 +44,7 @@ trait PushNotificationService extends WireMockRunner {
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       .withHeader(NOTIFICATION_ID_HEADER_NAME, equalTo(notificationId.toString))
+      .withoutHeader(ISSUE_DATE_TIME_HEADER)
       .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest.body).toString()))
     )
   }
@@ -101,6 +102,7 @@ trait InternalPushNotificationService {
       .withHeader(X_CORRELATION_ID_HEADER_NAME, equalTo(correlationId))
       .withHeader(X_SUBMITTER_ID_HEADER_NAME, equalTo(submitterNumber))
       .withHeader(X_BADGE_ID_HEADER_NAME, equalTo(badgeId))
+      .withHeader(ISSUE_DATE_TIME_HEADER, equalTo(issueDateTime))
       .withRequestBody(equalToXml(pnr.body.xmlPayload))
     )
 
@@ -238,6 +240,7 @@ trait NotificationQueueService extends WireMockRunner {
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.id.toString))
       .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.id.toString))
       .withHeader(HeaderNames.AUTHORIZATION, absent())
+      .withoutHeader(ISSUE_DATE_TIME_HEADER)
       .withRequestBody(equalToXml(request.notification.payload))
     )
 

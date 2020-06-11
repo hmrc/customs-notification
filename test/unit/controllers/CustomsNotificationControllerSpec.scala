@@ -221,21 +221,33 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       }
     }
 
-    "extractFunctionCode from xml payload when present" in {
+    "extract FunctionCode from xml payload when present" in {
       controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
 
       val functionCodeXml = <Too><Response><FunctionCode>Bar</FunctionCode></Response></Too>
       controller().extractFunctionCode(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(FunctionCode("Bar"))
     }
 
-    "extractIssueDateTime from xml payload when present" in {
+    "extract IssueDateTime from xml payload when present" in {
       controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
 
       val functionCodeXml = <Too><Response><IssueDateTime><DateTimeString>20000101</DateTimeString></IssueDateTime></Response></Too>
-      controller().extractIssueDateTime(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(IssueDateTime("20000101"))
+      controller().extractIssueDateTime(elementToOptionalNodeSeq(functionCodeXml), None) shouldBe Some(IssueDateTime("20000101"))
     }
 
-    "extractMrn from xml payload when present" in {
+    "extract IssueDateTime from header when present and no issueDateTime in xml" in {
+      val functionCodeXml = <Too><Response></Response></Too>
+      val issueDateTimeHeader = Some(issueDateTime)
+      controller().extractIssueDateTime(elementToOptionalNodeSeq(functionCodeXml), issueDateTimeHeader) shouldBe Some(IssueDateTime(issueDateTime))
+    }
+
+    "extract IssueDateTime from xml and not from header" in {
+      val functionCodeXml = <Too><Response><IssueDateTime><DateTimeString>20000101</DateTimeString></IssueDateTime></Response></Too>
+      val issueDateTimeHeader = Some(issueDateTime)
+      controller().extractIssueDateTime(elementToOptionalNodeSeq(functionCodeXml), issueDateTimeHeader) shouldBe Some(IssueDateTime("20000101"))
+    }
+
+    "extract Mrn from xml payload when present" in {
       controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
 
       val functionCodeXml = <Too><Response><Declaration><ID>123456</ID></Declaration></Response></Too>

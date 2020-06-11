@@ -65,7 +65,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   }
 
   def buildHeaders(metaData: RequestMetaData): Seq[Header] = {
-    (metaData.mayBeBadgeIdHeader ++ metaData.mayBeSubmitterHeader ++ metaData.mayBeCorrelationIdHeader).toSeq
+    (metaData.maybeBadgeIdHeader ++ metaData.maybeSubmitterHeader ++ metaData.maybeCorrelationIdHeader ++ metaData.maybeIssueDateTimeHeader).toSeq
   }
 
   private def saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem: NotificationWorkItem,
