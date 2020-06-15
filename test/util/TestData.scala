@@ -81,6 +81,8 @@ object TestData {
   val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
   val internalCallbackData = DeclarantCallbackData(internalCallbackUrl, securityToken)
   val invalidCallbackData = DeclarantCallbackData(invalidCallbackUrl, securityToken)
+  lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
+  lazy val dateHeader = Header(ISSUE_DATE_TIME_HEADER, issueDateTime)
 
   val url = "http://some-url"
   val errorMsg = "ERROR"
@@ -97,9 +99,11 @@ object TestData {
   val issueDateTime = "20190925104103Z"
   val mrn = "19GB3955NQ36213969"
 
-  lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(pushNotificationRequest)
-  lazy val pushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML)
-  lazy val internalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, internalCallbackData)
+  val externalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader)
+  val internalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader, dateHeader)
+  lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(externalPushNotificationRequest)
+  lazy val externalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, headers = externalPushNotificationRequestBodyHeaders)
+  lazy val internalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, internalCallbackData, internalPushNotificationRequestBodyHeaders)
 
   val Year = 2017
   val MonthOfYear = 7
@@ -165,9 +169,6 @@ object TestData {
 
   val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
-  lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
-  lazy val dateHeader = Header(ISSUE_DATE_TIME_HEADER, issueDateTime)
-
   def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true, withNotificationId: Boolean = true): ClientNotification = {
 
     lazy val correlationIdHeader = Header("x-cOrRelaTion-iD", correlationId)
@@ -210,8 +211,8 @@ object TestData {
          |}
     """.stripMargin)
 
-  def pushNotificationRequest(xml: NodeSeq, cd: DeclarantCallbackData = callbackData): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(cd.callbackUrl, cd.securityToken, validConversationId, Seq(badgeIdHeader, dateHeader), xml.toString())
+  def pushNotificationRequest(xml: NodeSeq, cd: DeclarantCallbackData = callbackData, headers: Seq[Header]): PushNotificationRequest = {
+    val body = PushNotificationRequestBody(cd.callbackUrl, cd.securityToken, validConversationId, headers, xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 

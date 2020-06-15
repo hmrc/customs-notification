@@ -169,8 +169,8 @@ class CustomsNotificationSpec extends ComponentTestSpec
 
       And("the notification gateway service was called correctly")
       eventually {
-        verifyPushNotificationServiceWasCalledWith(pushNotificationRequest)
-        verifyInternalServiceWasNotCalledWith(pushNotificationRequest)
+        verifyPushNotificationServiceWasCalledWith(externalPushNotificationRequest)
+        verifyInternalServiceWasNotCalledWith(externalPushNotificationRequest)
         verifyNotificationQueueServiceWasNotCalled()
       }
     }

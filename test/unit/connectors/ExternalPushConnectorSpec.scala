@@ -29,7 +29,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import util.UnitSpec
 import unit.logging.StubCdsLogger
-import util.TestData.pushNotificationRequest
+import util.TestData.externalPushNotificationRequest
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
@@ -59,13 +59,13 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
         any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]()))
         .thenReturn(Future.successful(mock[HttpResponse]))
 
-      await(connector.send(pushNotificationRequest))
+      await(connector.send(externalPushNotificationRequest))
 
       val requestBody = ArgumentCaptor.forClass(classOf[PushNotificationRequestBody])
       verify(mockHttpClient).POST(ArgumentMatchers.eq(url), requestBody.capture(), any[Seq[(String,String)]]())(
         any[Writes[PushNotificationRequestBody]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]())
       val body = requestBody.getValue.asInstanceOf[PushNotificationRequestBody]
-      body shouldEqual pushNotificationRequest.body
+      body shouldEqual externalPushNotificationRequest.body
     }
 
     "propagate exception in HTTP VERBS post" in {
@@ -74,7 +74,7 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
         .thenThrow(emulatedHttpVerbsException)
 
       val caught = intercept[RuntimeException] {
-        await(connector.send(pushNotificationRequest))
+        await(connector.send(externalPushNotificationRequest))
       }
 
       caught shouldBe emulatedHttpVerbsException

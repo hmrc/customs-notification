@@ -23,9 +23,10 @@ import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.RawReads.readRaw
+import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.ISSUE_DATE_TIME_HEADER
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonFormat
-import uk.gov.hmrc.customs.notification.domain.{HttpResultError, PushNotificationRequest, PushNotificationRequestBody, ResultError}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse, Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -43,14 +44,14 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
   def send(pushNotificationRequest: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
     implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(outboundHeaders: _*)
-    doSend(pushNotificationRequest)(headerCarrier)
+    doSend(removeDateHeaderFromRequestBody(pushNotificationRequest))(headerCarrier)
   }
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     val msg = "Calling external push notification service"
-    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body.xmlPayload}")
+    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
       .map[Either[ResultError, HttpResponse]]{ httpResponse =>
@@ -70,5 +71,10 @@ class ExternalPushConnector @Inject()(http: HttpClient,
         val error: ResultError = mapResultError(e)
         Future.successful(Left(error))
     }
+  }
+  
+  private def removeDateHeaderFromRequestBody(pushNotificationRequest: PushNotificationRequest): PushNotificationRequest = {
+    val headersWithoutDate: Seq[Header] = pushNotificationRequest.body.outboundCallHeaders.filterNot(h => h.name.equals(ISSUE_DATE_TIME_HEADER))
+    pushNotificationRequest.copy(body = pushNotificationRequest.body.copy(outboundCallHeaders = headersWithoutDate))
   }
 }

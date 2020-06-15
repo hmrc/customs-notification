@@ -72,7 +72,7 @@ class PushOrPullService @Inject()(
       val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, n)
       pushOutboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pnr).map[Either[PushOrPullError, ConnectorSource]]{
         case Right(_) =>
-          logger.debug(s"successfully pushed $n")
+          logger.debug(s"successfully pushed notification id ${n.notification.notificationId}")
           Right(Push)
         case Left(resultError) =>
           logger.debug(s"failed to push $n")
