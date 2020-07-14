@@ -19,11 +19,13 @@ package uk.gov.hmrc.customs.notification.controllers
 import play.api.http.HeaderNames._
 import play.api.mvc.{ActionBuilder, AnyContent, BodyParser, ControllerComponents, Headers, Request, Result}
 import play.mvc.Http.MimeTypes
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
 trait HeaderValidator {
@@ -43,92 +45,98 @@ trait HeaderValidator {
     override def parser: BodyParser[AnyContent] = controllerComponents.parsers.defaultBodyParser
     def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
       implicit val headers: Headers = request.headers
-      val logMessage = "Received notification"
-      notificationLogger.debugWithHeaders(logMessage, headers.headers)
 
-      if (!hasAccept) {
-        Future.successful(ErrorAcceptHeaderInvalid.XmlResult)
-      } else if (!hasContentType) {
-        Future.successful(ErrorContentTypeHeaderInvalid.XmlResult)
-      } else if (missingClientId) {
-        Future.successful(ErrorCdsClientIdMissing.XmlResult)
-      } else if (!hasValidClientId) {
-        Future.successful(ErrorCdsClientIdInvalid.XmlResult)
-      } else if (missingConversationId) {
-        Future.successful(ErrorConversationIdMissing.XmlResult)
-      } else if (!hasValidConversationId) {
-        Future.successful(ErrorConversationIdInvalid.XmlResult)
-      } else if (!hasAuth(maybeBasicAuthToken)) {
-        Future.successful(ErrorUnauthorized.XmlResult)
-      } else if(!correlationIdIsValidIfPresent) {
-        Future.successful(ErrorGenericBadRequest.XmlResult)
+      notificationLogger.debugWithHeaders("Received notification", headers.headers)
+
+      def collect(validation: Headers => Option[String], logMessage: String, error: ErrorResponse)(implicit h: Headers) = {
+        val maybeString = validation(h)
+        maybeString match {
+          // Wrap the Error in an exception - should not be using Error https://stackoverflow.com/questions/912334/differences-between-exception-and-error
+          // https://stackoverflow.com/questions/17265022/what-is-a-boxed-error-in-scala
+          case None =>
+            notificationLogger.debugWithPrefixedHeaders(logMessage, headers.headers)
+            Future.failed(new Exception(error))
+          case Some(msg) =>
+            Future.successful(logMessage + "\n" + msg)
+        }
       }
-      else {
+
+      val logOutput: Future[String] = for {
+        a <- collect(hasAccept, "", ErrorAcceptHeaderInvalid)
+        b <- collect(hasContentType, a, ErrorContentTypeHeaderInvalid)
+        c <- collect(missingClientId, b, ErrorCdsClientIdMissing)
+        d <- collect(hasValidClientId, c, ErrorCdsClientIdInvalid)
+        e <- collect(missingConversationId, d, ErrorConversationIdMissing)
+        f <- collect(hasValidConversationId, e, ErrorConversationIdInvalid)
+        g <- collect(hasAuth(maybeBasicAuthToken), f, ErrorUnauthorized)
+        h <- collect(correlationIdIsValidIfPresent, g, ErrorGenericBadRequest)
+      } yield h
+
+      logOutput.flatMap(
+        msg => {
+        notificationLogger.debugWithPrefixedHeaders(msg, headers.headers)
         block(request)
+      }).recover {
+        case e: Exception => e.getCause.asInstanceOf[ErrorResponse].XmlResult
       }
     }
   }
 
-  private def hasAccept(implicit h: Headers) = {
+  private def hasAccept(h: Headers) = {
     val result = h.get(ACCEPT).fold(false)(_ == MimeTypes.XML)
-    logValidationResult(ACCEPT, result)
-    result
+    logValidationResult(ACCEPT, result)(h)
   }
 
-  private def hasContentType(implicit h: Headers) = {
+  private def hasContentType(h: Headers) = {
     val result = h.get(CONTENT_TYPE).fold(false)(_.equalsIgnoreCase(CustomMimeType.XmlCharsetUtf8))
-    logValidationResult(CONTENT_TYPE, result)
-    result
+    logValidationResult(CONTENT_TYPE, result)(h)
   }
 
-  private def missingClientId(implicit h: Headers) = {
+  private def missingClientId(h: Headers) = {
     val result = h.get(X_CDS_CLIENT_ID_HEADER_NAME).isEmpty
-    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, !result)
-    result
+    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, !result)(h)
   }
 
-  private def hasValidClientId(implicit h: Headers) = {
+  private def hasValidClientId(h: Headers) = {
     val result = h.get(X_CDS_CLIENT_ID_HEADER_NAME).exists(_.matches(uuidRegex))
-    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, result)
-    result
+    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, result)(h)
   }
 
-  private def missingConversationId(implicit h: Headers) = {
+  private def missingConversationId(h: Headers) = {
     val result = h.get(X_CONVERSATION_ID_HEADER_NAME).isEmpty
-    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, !result)
-    result
+    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, !result)(h)
   }
 
-  private def hasValidConversationId(implicit h: Headers) = {
+  private def hasValidConversationId(h: Headers) = {
     val result = h.get(X_CONVERSATION_ID_HEADER_NAME).exists(_.matches(uuidRegex))
-    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, result)
-    result
+    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, result)(h)
   }
 
-
-  private def correlationIdIsValidIfPresent(implicit h: Headers) = {
-    val result = h.get(X_CORRELATION_ID_HEADER_NAME).forall { cid =>
-      val correct = cid.matches(correlationIdRegex)
-      logValidationResult(X_CORRELATION_ID_HEADER_NAME, correct)
-      correct
+  private def correlationIdIsValidIfPresent(h: Headers) = {
+    h.get(X_CORRELATION_ID_HEADER_NAME) match {
+      case Some(cid) =>
+        val correct = cid.matches(correlationIdRegex)
+        logValidationResult(X_CORRELATION_ID_HEADER_NAME, correct)(h)
+      case None => Some(s"$X_CORRELATION_ID_HEADER_NAME not present")
     }
-
-    result
   }
 
-  private def hasAuth(maybeBasicAuthToken: Option[String])(implicit h: Headers) = {
+  private def hasAuth(maybeBasicAuthToken: Option[String])(h: Headers) = {
     val result = maybeBasicAuthToken.fold(ifEmpty = true) {
       basicAuthToken => h.get(AUTHORIZATION).fold(false)(_ == basicAuthTokenScheme + basicAuthToken)
     }
-    logValidationResult(AUTHORIZATION, result)
-    result
+    logValidationResult(AUTHORIZATION, result)(h)
   }
 
-  private def logValidationResult(headerName: => String, validationResult: => Boolean)(implicit h: Headers): Unit = {
+  private def logValidationResult(headerName: => String, validationResult: => Boolean)(implicit h: Headers) = {
     val resultText = if (validationResult) "passed" else "failed"
     val msg = s"$headerName header $resultText validation"
-    notificationLogger.debugWithPrefixedHeaders(msg, h.headers)
-    if (!validationResult) notificationLogger.errorWithHeaders(msg, h.headers)
+    if (!validationResult) {
+      notificationLogger.errorWithHeaders(msg, h.headers)
+      None
+    } else {
+      Some(msg)
+    }
   }
 }
 
