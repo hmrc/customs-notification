@@ -60,15 +60,15 @@ trait HeaderValidator {
       }
 
       val logOutput: Either[ErrorResponse,String] = for {
-        a <- collect(hasAccept, "", ErrorAcceptHeaderInvalid)
-        b <- collect(hasContentType, a, ErrorContentTypeHeaderInvalid)
-        c <- collect(missingClientId, b, ErrorCdsClientIdMissing)
-        d <- collect(hasValidClientId, c, ErrorCdsClientIdInvalid)
-        e <- collect(missingConversationId, d, ErrorConversationIdMissing)
-        f <- collect(hasValidConversationId, e, ErrorConversationIdInvalid)
-        g <- collect(hasAuth(maybeBasicAuthToken), f, ErrorUnauthorized)
-        h <- collect(correlationIdIsValidIfPresent, g, ErrorGenericBadRequest)
-      } yield h
+        logAccumulatorA <- collect(hasAccept, "", ErrorAcceptHeaderInvalid)
+        logAccumulatorB <- collect(hasContentType, logAccumulatorA, ErrorContentTypeHeaderInvalid)
+        logAccumulatorC <- collect(missingClientId, logAccumulatorB, ErrorCdsClientIdMissing)
+        logAccumulatorD <- collect(hasValidClientId, logAccumulatorC, ErrorCdsClientIdInvalid)
+        logAccumulatorE <- collect(missingConversationId, logAccumulatorD, ErrorConversationIdMissing)
+        logAccumulatorF <- collect(hasValidConversationId, logAccumulatorE, ErrorConversationIdInvalid)
+        logAccumulatorG <- collect(hasAuth(maybeBasicAuthToken), logAccumulatorF, ErrorUnauthorized)
+        logAccumulatorH <- collect(correlationIdIsValidIfPresent, logAccumulatorG, ErrorGenericBadRequest)
+      } yield logAccumulatorH
 
       logOutput match {
         case Right(msg) =>
