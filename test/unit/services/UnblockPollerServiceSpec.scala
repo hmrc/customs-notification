@@ -122,7 +122,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).setCompletedStatus(WorkItem1.id, Succeeded)
         verify(notificationWorkItemRepoMock, times(1)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
-        verifyInfoLog("Unblock pilot send with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for Push succeeded. CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status succeeded for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(Date,20190925104103Z)),<foo1></foo1>,application/xml)))")
+        verifyInfoLog("Unblock pilot send with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for Push succeeded. CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status succeeded for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)),<foo1></foo1>,application/xml)))")
         verifyInfoLog("Unblock - number of notifications set from PermanentlyFailed to Failed = 2 for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
       }
     }
@@ -196,7 +196,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, currentTimePlus2Hour)
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
-        verifyInfoLog("Unblock pilot send with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status back to permanently-failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(Date,20190925104103Z)),<foo1></foo1>,application/xml)))")
+        verifyInfoLog("Unblock pilot send with requestId 880f1f3d-0cf5-459b-89bc-0e682551db94 for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status back to permanently-failed for WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)),<foo1></foo1>,application/xml)))")
       }
     }
 
@@ -222,7 +222,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any[HeaderCarrier]())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus])
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
-        verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(Date,20190925104103Z)),<foo1></foo1>,application/xml)))")
+        verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)),<foo1></foo1>,application/xml)))")
       }
     }
 
@@ -251,7 +251,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any[HeaderCarrier]())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatusWithAvailableAt(any[BSONObjectID], any[ResultStatus], any[ZonedDateTime])
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
-        verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(Date,20190925104103Z)),<foo1></foo1>,application/xml)))")
+        verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)),<foo1></foo1>,application/xml)))")
       }
     }
 
@@ -280,7 +280,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any[HeaderCarrier]())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatusWithAvailableAt(any[BSONObjectID], any[ResultStatus], any[ZonedDateTime])
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
-        verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(Date,20190925104103Z)),<foo1></foo1>,application/xml)))")
+        verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(BSONObjectID(\"5c46f7d70100000100ef835a\"),2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,2016-01-30T23:46:59.000Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),Notification(Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7),eaca01f9-ec3b-4ede-b263-61b626dde231,List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)),<foo1></foo1>,application/xml)))")
       }
     }
   }
