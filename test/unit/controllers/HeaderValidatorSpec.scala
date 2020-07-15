@@ -16,27 +16,29 @@
 
 package unit.controllers
 
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.http.HeaderNames._
 import play.api.mvc.Results._
-import play.api.mvc.{Action, AnyContent, ControllerComponents}
+import play.api.mvc.{Action, AnyContent, ControllerComponents, Result}
 import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.controllers.HeaderValidator
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import util.UnitSpec
 import util.RequestHeaders._
 import util.TestData.basicAuthTokenValue
+import util.UnitSpec
 
 import scala.util.Random
 
-class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPropertyChecks {
+class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPropertyChecks with ControllerSpecHelper {
+
+  private val mockLogger: NotificationLogger = mock[NotificationLogger]
 
   private val validator = new HeaderValidator {
-    override val notificationLogger: NotificationLogger = mock[NotificationLogger]
+    override val notificationLogger: NotificationLogger = mockLogger
     override val controllerComponents: ControllerComponents = Helpers.stubControllerComponents()
   }
 
@@ -66,7 +68,8 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
       ("return ErrorAcceptHeaderInvalid result for all headers missing", withAuthTokenConfigured, NoHeaders, ErrorAcceptHeaderInvalid.XmlResult),
       ("return Bad Request if correlation id header is provided but too long", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.nextString(40)), ErrorGenericBadRequest.XmlResult),
       ("return Bad Request if correlation id header is present but empty", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> ""), ErrorGenericBadRequest.XmlResult),
-      ("return OK if correlation id header is provided and valid", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.nextString(36)), Ok))
+      ("return OK if correlation id header is provided and valid", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.nextString(36)), Ok)
+        )
 
   private def requestWithHeaders(headers: Map[String, String]) =
     FakeRequest().withHeaders(headers.toSeq: _*)
@@ -74,7 +77,6 @@ class HeaderValidatorSpec extends UnitSpec with MockitoSugar with TableDrivenPro
   "HeaderValidatorAction" should {
     forAll(headersTable) { (description, action, headers, response) =>
       s"$description" in {
-
         await(action.apply(requestWithHeaders(headers))) shouldBe response
       }
     }
