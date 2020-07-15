@@ -48,20 +48,18 @@ trait HeaderValidator {
 
       notificationLogger.debugWithHeaders("Received notification", headers.headers)
 
-      def collect(validation: Headers => Option[String], logMessage: String, error: ErrorResponse)(implicit h: Headers) = {
+      def collect(validation: Headers => Option[String], logMessage: String, error: ErrorResponse)(implicit h: Headers): Either[ErrorResponse,String]  = {
         val maybeString = validation(h)
         maybeString match {
-          // Wrap the Error in an exception - should not be using Error https://stackoverflow.com/questions/912334/differences-between-exception-and-error
-          // https://stackoverflow.com/questions/17265022/what-is-a-boxed-error-in-scala
           case None =>
             notificationLogger.debugWithPrefixedHeaders(logMessage, headers.headers)
-            Future.failed(new Exception(error))
+            Left(error)
           case Some(msg) =>
-            Future.successful(logMessage + "\n" + msg)
+            Right(logMessage + "\n" + msg)
         }
       }
 
-      val logOutput: Future[String] = for {
+      val logOutput: Either[ErrorResponse,String] = for {
         a <- collect(hasAccept, "", ErrorAcceptHeaderInvalid)
         b <- collect(hasContentType, a, ErrorContentTypeHeaderInvalid)
         c <- collect(missingClientId, b, ErrorCdsClientIdMissing)
@@ -72,12 +70,12 @@ trait HeaderValidator {
         h <- collect(correlationIdIsValidIfPresent, g, ErrorGenericBadRequest)
       } yield h
 
-      logOutput.flatMap(
-        msg => {
-        notificationLogger.debugWithPrefixedHeaders(msg, headers.headers)
-        block(request)
-      }).recover {
-        case e: Exception => e.getCause.asInstanceOf[ErrorResponse].XmlResult
+      logOutput match {
+        case Right(msg) =>
+          notificationLogger.debugWithPrefixedHeaders(msg, headers.headers)
+          block(request)
+        case Left(error) =>
+          Future.successful(error.XmlResult)
       }
     }
   }
