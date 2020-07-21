@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError, ResultError}
-import uk.gov.hmrc.http.{HttpException, Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.http.HttpException
 
 trait MapResultError {
 
@@ -25,12 +25,7 @@ trait MapResultError {
   def mapResultError(e: Throwable): ResultError = e match {
     case e: HttpException =>
       HttpResultError(e.responseCode, e)
-    case e: Upstream4xxResponse =>
-      HttpResultError(e.upstreamResponseCode, e)
-    case e: Upstream5xxResponse =>
-      HttpResultError(e.upstreamResponseCode, e)
     case e: Throwable =>
       NonHttpError(e)
   }
-
 }

@@ -45,7 +45,6 @@ import scala.xml.{Elem, NodeSeq}
 class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach with ControllerSpecHelper {
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
   private val mockConfigService = mock[ConfigService]

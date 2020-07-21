@@ -22,12 +22,13 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.RawReads.readRaw
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.ISSUE_DATE_TIME_HEADER
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonFormat
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -36,7 +37,7 @@ import scala.util.control.NonFatal
 class ExternalPushConnector @Inject()(http: HttpClient,
                                       logger: CdsLogger,
                                       serviceConfigProvider: ServiceConfigProvider)
-                                     (implicit ec: ExecutionContext) extends MapResultError {
+                                     (implicit ec: ExecutionContext) extends MapResultError with HttpErrorFunctions {
 
   private val outboundHeaders = Seq(
     (ACCEPT, MimeTypes.JSON),
@@ -54,16 +55,18 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     logger.debug(s"$msg url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
-      .map[Either[ResultError, HttpResponse]]{ httpResponse =>
-      Right(httpResponse)
+      .map[Either[ResultError, HttpResponse]]{ response =>
+        response.status match {
+          case status if is2xx(status) =>
+            Right(response)
+
+          case status => //1xx, 3xx, 4xx, 5xx
+            val httpException = new Non2xxResponseException(status)
+            logger.error(httpException.message, httpException)
+            Left(HttpResultError(status, httpException))
+        }
     }
     .recoverWith{
-      case upstream4xx: Upstream4xxResponse =>
-        logger.error(upstream4xx.message, upstream4xx)
-        Future.successful(Left(HttpResultError(upstream4xx.upstreamResponseCode, upstream4xx)))
-      case upstream5xx: Upstream5xxResponse =>
-        logger.error(upstream5xx.message, upstream5xx)
-        Future.successful(Left(HttpResultError(upstream5xx.upstreamResponseCode, upstream5xx)))
       case httpException: HttpException =>
         logger.error(httpException.message, httpException)
         Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))

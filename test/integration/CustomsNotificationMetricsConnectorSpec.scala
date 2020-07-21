@@ -26,6 +26,7 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers.{BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
+import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.http._
 import util.CustomsNotificationMetricsTestData.ValidCustomsNotificationMetricsRequest
 import util.ExternalServicesConfiguration.{Host, Port}
@@ -80,7 +81,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
     "return a failed future when external service returns 404" in {
       setupCustomsNotificationMetricsServiceToReturn(NOT_FOUND)
 
-      intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[NotFoundException]
+      verifyExpectedErrorCaught(NOT_FOUND)
 
       eventually(verifyNoAuditWrite())
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404", mockLogger)
@@ -89,7 +90,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
     "return a failed future when external service returns 400" in {
       setupCustomsNotificationMetricsServiceToReturn(BAD_REQUEST)
 
-      intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadRequestException]
+      verifyExpectedErrorCaught(BAD_REQUEST)
 
       eventually(verifyNoAuditWrite())
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=400", mockLogger)
@@ -98,10 +99,10 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
     "return a failed future when external service returns 500" in {
       setupCustomsNotificationMetricsServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      intercept[Upstream5xxResponse](await(sendValidRequest()))
+      verifyExpectedErrorCaught(INTERNAL_SERVER_ERROR)
 
       eventually(verifyNoAuditWrite())
-      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times", mockLogger)
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=500", mockLogger)
     }
 
     "return a failed future when fail to connect the external service" in {
@@ -112,7 +113,6 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
       startMockServer()
       verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=502", mockLogger)
     }
-
   }
 
   private def sendValidRequest() = {
@@ -126,4 +126,9 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
       .verify()
   }
 
+  private def verifyExpectedErrorCaught(expectedStatusCode: Int): Unit = {
+    val thrown = intercept[RuntimeException](await(sendValidRequest()))
+    thrown.getCause.getClass shouldBe classOf[Non2xxResponseException]
+    thrown.getCause.asInstanceOf[Non2xxResponseException].responseCode shouldBe expectedStatusCode
+  }
 }

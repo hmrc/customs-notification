@@ -24,8 +24,10 @@ import play.mvc.Http.Status._
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
+import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -42,7 +44,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
 
   def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
     logger.debug("calling api-subscription-fields service")
-    callApiSubscriptionFields(fieldsId) map { response =>
+    callApiSubscriptionFields(fieldsId, hc) map { response =>
       logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
 
       response.status match {
@@ -51,7 +53,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
         case status =>
           val msg = s"unexpected subscription information service response status=$status"
           logger.error(msg)
-          throw new IllegalStateException(msg)
+          throw new Non2xxResponseException(status)
       }
     }
   }
@@ -62,29 +64,21 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     response
   }
 
-  private def callApiSubscriptionFields(fieldsId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
+  private def callApiSubscriptionFields(fieldsId: String, hc: HeaderCarrier): Future[HttpResponse] = {
     implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
     val fullUrl = s"$baseUrl/$fieldsId"
 
     logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headerCarrier.headers}")
 
-    http.GET[HttpResponse](fullUrl)(RawReads.readRaw, headerCarrier, ec)
+    http.GET[HttpResponse](fullUrl)
       .recoverWith {
-        case _ : NotFoundException => Future.successful(HttpResponse(NOT_FOUND))
-      }
-      .recoverWith {
-        case bre : BadRequestException => Future.failed(new IllegalStateException(bre.message))
-      }
-      .recoverWith {
-        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
-      }
-      .recoverWith {
+        case httpError: HttpException =>
+          Future.failed(new RuntimeException(httpError)) //reserved for problems in making the request
+
         case e: Throwable =>
           logger.error(s"call to subscription information service failed. GET url=$fullUrl")
           Future.failed(e)
       }
-
   }
-
 }
