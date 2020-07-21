@@ -20,7 +20,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.http.HeaderNames._
 import play.api.mvc.Results._
-import play.api.mvc.{Action, AnyContent, ControllerComponents, Result}
+import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._

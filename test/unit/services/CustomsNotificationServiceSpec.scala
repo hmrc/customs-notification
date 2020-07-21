@@ -83,8 +83,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     mockDateTimeService
   )
 
-  private implicit val implicitRequestMetaData = requestMetaData
-
   override protected def beforeEach() {
     reset(mockNotificationWorkItemRepo, mockNotificationLogger, mockPushOrPullService, mockMetricsService, mockCustomsNotificationConfig)
     when(mockCustomsNotificationConfig.notificationConfig).thenReturn(notificationConfig)

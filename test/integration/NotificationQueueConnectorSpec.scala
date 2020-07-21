@@ -24,6 +24,7 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
 import uk.gov.hmrc.customs.notification.domain.ClientNotification
+import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
@@ -128,23 +129,19 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
     "return a failed future with wrapped HttpVerb NotFoundException when external service returns 404" in {
       setupPullQueueServiceToReturn(NOT_FOUND, clientNotification())
 
-      val caught = intercept[Throwable](await(postToQueue(clientNotification())))
-
-      caught.getCause.getClass shouldBe classOf[NotFoundException]
+      verifyExpectedErrorCaught(NOT_FOUND)
     }
 
     "return a failed future with wrapped HttpVerbs BadRequestException when external service returns 400" in {
       setupPullQueueServiceToReturn(BAD_REQUEST, clientNotification())
 
-      val caught = intercept[RuntimeException](await(postToQueue(clientNotification())))
-
-      caught.getCause.getClass shouldBe classOf[BadRequestException]
+      verifyExpectedErrorCaught(BAD_REQUEST)
     }
 
     "return a failed future with Upstream5xxResponse when external service returns 500" in {
       setupPullQueueServiceToReturn(INTERNAL_SERVER_ERROR, clientNotification())
 
-      intercept[Upstream5xxResponse](await(postToQueue(clientNotification())))
+      verifyExpectedErrorCaught(INTERNAL_SERVER_ERROR)
     }
 
     "return a failed future with wrapped HttpVerbs BadRequestException when it fails to connect the external service" in withoutWireMockServer {
@@ -156,5 +153,11 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
 
   private def postToQueue(request: ClientNotification) = {
     connector.enqueue(request)(HeaderCarrier())
+  }
+
+  private def verifyExpectedErrorCaught(expectedStatusCode: Int): Unit = {
+    val thrown = intercept[RuntimeException](await(postToQueue(clientNotification())))
+    thrown.getCause.getClass shouldBe classOf[Non2xxResponseException]
+    thrown.getCause.asInstanceOf[Non2xxResponseException].responseCode shouldBe expectedStatusCode
   }
 }

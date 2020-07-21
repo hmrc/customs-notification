@@ -16,11 +16,11 @@
 
 package unit.connectors
 
-import uk.gov.hmrc.customs.notification.connectors.MapResultError
-import uk.gov.hmrc.http.{BadRequestException, Upstream4xxResponse, Upstream5xxResponse}
-import util.UnitSpec
 import play.api.test.Helpers._
+import uk.gov.hmrc.customs.notification.connectors.MapResultError
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError}
+import uk.gov.hmrc.http.BadRequestException
+import util.UnitSpec
 
 class MapResultErrorSpec extends UnitSpec with MapResultError {
 
@@ -29,16 +29,6 @@ class MapResultErrorSpec extends UnitSpec with MapResultError {
       val exception = new BadRequestException("BOOM")
 
       mapResultError(exception) shouldBe HttpResultError(BAD_REQUEST, exception)
-    }
-    "map Upstream4xxResponse to HttpResultError" in {
-      val exception = Upstream4xxResponse(message ="BOOM", upstreamResponseCode = BAD_REQUEST, reportAs = BAD_REQUEST)
-
-      mapResultError(exception) shouldBe HttpResultError(BAD_REQUEST, exception)
-    }
-    "map Upstream5xxResponse to HttpResultError" in {
-      val exception = Upstream5xxResponse(message ="BOOM", upstreamResponseCode = INTERNAL_SERVER_ERROR, reportAs = INTERNAL_SERVER_ERROR)
-
-      mapResultError(exception) shouldBe HttpResultError(INTERNAL_SERVER_ERROR, exception)
     }
     "map exceptions that are not HttpResultError, Upstream4xxResponse, Upstream5xxResponse to NonHttpError" in {
       val exception = new Exception("BOOM")

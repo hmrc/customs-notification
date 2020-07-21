@@ -24,7 +24,8 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
-import uk.gov.hmrc.http.{BadGatewayException, HeaderCarrier, Upstream4xxResponse, Upstream5xxResponse}
+import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util.{ApiSubscriptionFieldsService, ExternalServicesConfiguration, WireMockRunnerWithoutServer}
@@ -40,8 +41,6 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
 
   private val unexpectedHttpResponseStatus = NO_CONTENT
   private val badRequestMessage = """{"code": "BAD_REQUEST", "message": "Validation failed}"""
-
-  private val apiSubscriptionFieldsFullUrl = wireMockUrl + apiSubscriptionFieldsUrl(validFieldsId)
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
@@ -85,37 +84,47 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
       verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)
     }
 
-    "return a failed future with IllegalStateException when external service responds with an unexpected non-error status" in {
+    "return a failed future with Non2xxResponseException when external service responds with an unexpected non-error status" in {
       setupApiSubscriptionFieldsServiceToReturn(unexpectedHttpResponseStatus, validFieldsId)
 
-      val caught = intercept[IllegalStateException](await(connector.getClientData(validFieldsId)))
+      val thrown = intercept[Non2xxResponseException](await(connector.getClientData(validFieldsId)))
+      thrown.responseCode shouldBe unexpectedHttpResponseStatus
 
-      caught.getMessage shouldBe s"unexpected subscription information service response status=$unexpectedHttpResponseStatus"
       verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)
     }
 
-    "return a failed future with IllegalStateException when external service responds with BAD REQUEST (400)" in {
+    "return a failed future with Non2xxResponseException when external service responds with BAD REQUEST (400)" in {
       setupApiSubscriptionFieldsServiceToReturn(BAD_REQUEST, validFieldsId, responseBody = badRequestMessage)
 
-      val caught = intercept[IllegalStateException](await(connector.getClientData(validFieldsId)))
+      val thrown = intercept[Non2xxResponseException](await(connector.getClientData(validFieldsId)))
+      thrown.responseCode shouldBe BAD_REQUEST
 
-      caught.getMessage shouldBe
-        s"GET of '$apiSubscriptionFieldsFullUrl' returned 400 (Bad Request). Response body '$badRequestMessage'"
       verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)
     }
 
-    "return a failed future with Upstream4xxResponse when external service responds with 401" in {
+    "return a failed future with Non2xxResponseException when external service responds with 301" in {
+      setupApiSubscriptionFieldsServiceToReturn(MOVED_PERMANENTLY, validFieldsId)
+
+      val thrown = intercept[Non2xxResponseException](await(connector.getClientData(validFieldsId)))
+      thrown.responseCode shouldBe MOVED_PERMANENTLY
+
+      verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)
+    }
+
+    "return a failed future with Non2xxResponseException when external service responds with 401" in {
       setupApiSubscriptionFieldsServiceToReturn(UNAUTHORIZED, validFieldsId)
 
-      intercept[Upstream4xxResponse](await(connector.getClientData(validFieldsId)))
+      val thrown = intercept[Non2xxResponseException](await(connector.getClientData(validFieldsId)))
+      thrown.responseCode shouldBe UNAUTHORIZED
 
       verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)
     }
 
-    "return a failed future with Upstream5xxResponse when external service responds with 500" in {
+    "return a failed future with Non2xxResponseException when external service responds with 500" in {
       setupApiSubscriptionFieldsServiceToReturn(INTERNAL_SERVER_ERROR, validFieldsId)
 
-      intercept[Upstream5xxResponse](await(connector.getClientData(validFieldsId)))
+      val thrown = intercept[Non2xxResponseException](await(connector.getClientData(validFieldsId)))
+      thrown.responseCode shouldBe INTERNAL_SERVER_ERROR
 
       verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)
     }
@@ -126,5 +135,4 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
       caught.getCause.getClass shouldBe classOf[BadGatewayException]
     }
   }
-
 }

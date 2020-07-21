@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.connectors
+package uk.gov.hmrc.customs.notification.http
 
-import uk.gov.hmrc.customs.api.common.http.ExtensibleHttpErrorFunctions
-import uk.gov.hmrc.http.{HttpException, HttpResponse}
+import uk.gov.hmrc.http.HttpException
 
-object RawReads extends ExtensibleHttpErrorFunctions {
-  override def handle3xxResponse(httpMethod: String, url: String, response: HttpResponse): HttpResponse =
-    throw new HttpException(response.body, response.status)
-}
+/**
+  * Exception we raise for any HTTPResponse we receive that are not a 2xx statuses.
+  *
+  * Used only to maintain legacy code that previously relied upon http-verbs throwing
+  * UpstreamErrorResponse exceptions for non 2xx statuses
+  *
+  * @param status that we received
+  */
+class Non2xxResponseException(status: Int) extends HttpException("Received a non 2XX response", status)

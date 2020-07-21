@@ -22,14 +22,16 @@ import play.mvc.Http.HeaderNames.CONTENT_TYPE
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig, NotificationId}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
+import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.http.{HeaderCarrier, HttpErrorFunctions, HttpException, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, configServices: CustomsNotificationConfig)
-                                          (implicit ec: ExecutionContext) {
+                                          (implicit ec: ExecutionContext) extends HttpErrorFunctions {
 
   //TODO: handle POST failure scenario after Trade Test
   def enqueue(request: ClientNotification)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
@@ -43,17 +45,24 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
       (X_CONVERSATION_ID_HEADER_NAME, request.notification.conversationId.toString()),
       (SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString())
     ) ++ extract(maybeBadgeId) ++ extract(maybeCorrelationId) ++ maybeAddNotificationId(request.notification.notificationId)
-    implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
+    val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
 
     val notification = request.notification
 
     logger.debug(s"Attempting to send notification to queue\nheaders=${headerCarrier.headers}} \npayload=${notification.payload}")
 
-    http.POSTString[HttpResponse](url, notification.payload)(RawReads.readRaw, headerCarrier, ec)
-      .recoverWith {
-        case httpError: HttpException => Future.failed(new RuntimeException(httpError))
-      }
-      .recoverWith {
+    http.POSTString[HttpResponse](url, notification.payload)(readRaw, headerCarrier, ec).flatMap { response =>
+        response.status match {
+          case status if is2xx(status) =>
+            Future.successful(response)
+
+          case status =>
+            Future.failed(new Non2xxResponseException(status))
+        }
+      }.recoverWith {
+        case httpError: HttpException =>
+          Future.failed(new RuntimeException(httpError))
+
         case e: Throwable =>
           logger.error(s"Call to notification queue failed. url=$url")
           Future.failed(e)

@@ -47,7 +47,6 @@ class UnblockPollerServiceSpec extends UnitSpec
   with BeforeAndAfterEach {
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   trait Setup {
     private[UnblockPollerServiceSpec] val csIdSetOfOne = Set(validClientSubscriptionId1)

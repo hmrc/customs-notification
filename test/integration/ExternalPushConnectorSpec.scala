@@ -78,7 +78,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
       httpResultError.status shouldBe MULTIPLE_CHOICES
     }
 
-    "return a Left(HttpResultError) with status 404 and a wrapped HttpVerb NotFoundException when external service returns 404" in {
+    "return a Left(HttpResultError) with status 404 when external service returns a 404" in {
       setupPushNotificationServiceToReturn(NOT_FOUND)
 
       val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier()))
@@ -86,7 +86,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
       httpResultError.status shouldBe NOT_FOUND
     }
 
-    "return a Left(HttpResultError) with status 400 and a wrapped HttpVerb BadRequestException when external service returns 400" in {
+    "return a Left(HttpResultError) with status 400 when external service returns a 400" in {
       setupPushNotificationServiceToReturn(BAD_REQUEST)
 
       val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier()))
@@ -94,7 +94,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
       httpResultError.status shouldBe BAD_REQUEST
     }
 
-    "return a Left(HttpResultError) with status 500 and a wrapped HttpVerb Upstream5xxResponse when external service returns 500" in {
+    "return a Left(HttpResultError) with status 500 when external service returns a 500" in {
       setupPushNotificationServiceToReturn(INTERNAL_SERVER_ERROR)
 
       val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier()))
