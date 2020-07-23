@@ -83,7 +83,8 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
       workItem => {
-         if (status == InProgress) pushOrPull(workItem, apiSubscriptionFields)
+        recordNotificationEndTimeMetric(workItem)
+        if (status == InProgress) pushOrPull(workItem, apiSubscriptionFields)
          true
       }
     ).recover {
@@ -98,7 +99,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
-        logFirstTimePushNotificationMetric(workItem, connector)
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.stringify}")
         true
@@ -130,9 +130,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     }
   }
 
-  private def logFirstTimePushNotificationMetric(workItem: WorkItem[NotificationWorkItem], connector: ConnectorSource)(implicit hc: HeaderCarrier): Unit = {
-    if (connector == Push && workItem.failureCount == 0) {
+  private def recordNotificationEndTimeMetric(workItem: WorkItem[NotificationWorkItem])(implicit hc: HeaderCarrier): Unit = {
       metricsService.notificationMetric(workItem.item)
-    }
   }
 }
