@@ -39,6 +39,10 @@ trait HeaderValidator {
 
   private val basicAuthTokenScheme = "Basic "
 
+  private val validText = "header passed validation"
+
+  private val invalidText = "header failed validation"
+
   def validateHeaders(maybeBasicAuthToken: Option[String]): ActionBuilder[Request, AnyContent] = new ActionBuilder[Request, AnyContent] {
 
     override protected def executionContext: ExecutionContext = controllerComponents.executionContext
@@ -92,7 +96,7 @@ trait HeaderValidator {
 
   private def missingClientId(h: Headers) = {
     val result = h.get(X_CDS_CLIENT_ID_HEADER_NAME).isEmpty
-    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, !result)(h)
+    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, !result, s"$X_CDS_CLIENT_ID_HEADER_NAME is present", s"$X_CDS_CLIENT_ID_HEADER_NAME is not present")(h)
   }
 
   private def hasValidClientId(h: Headers) = {
@@ -102,7 +106,7 @@ trait HeaderValidator {
 
   private def missingConversationId(h: Headers) = {
     val result = h.get(X_CONVERSATION_ID_HEADER_NAME).isEmpty
-    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, !result)(h)
+    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, !result, s"$X_CONVERSATION_ID_HEADER_NAME is present", s"$X_CONVERSATION_ID_HEADER_NAME is not present")(h)
   }
 
   private def hasValidConversationId(h: Headers) = {
@@ -126,14 +130,12 @@ trait HeaderValidator {
     logValidationResult(AUTHORIZATION, result)(h)
   }
 
-  private def logValidationResult(headerName: => String, validationResult: => Boolean)(implicit h: Headers) = {
-    val resultText = if (validationResult) "passed" else "failed"
-    val msg = s"$headerName header $resultText validation"
+  private def logValidationResult(headerName: => String, validationResult: => Boolean, validText: => String = validText, invalidText: String = invalidText)(implicit h: Headers) = {
     if (!validationResult) {
-      notificationLogger.errorWithHeaders(msg, h.headers)
+      notificationLogger.errorWithHeaders(s"$headerName $invalidText", h.headers)
       None
     } else {
-      Some(msg)
+      Some(s"$headerName $validText")
     }
   }
 }
