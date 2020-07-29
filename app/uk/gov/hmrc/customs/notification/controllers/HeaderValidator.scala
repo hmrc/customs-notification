@@ -39,9 +39,11 @@ trait HeaderValidator {
 
   private val basicAuthTokenScheme = "Basic "
 
-  private val validText = "header passed validation"
+  private val validHeaderText = "header passed validation"
+  private val headerPresentText = "header is present"
 
-  private val invalidText = "header failed validation"
+  private val invalidHeaderText = "header failed validation"
+  private val headerNotPresentText = "header is not present"
 
   def validateHeaders(maybeBasicAuthToken: Option[String]): ActionBuilder[Request, AnyContent] = new ActionBuilder[Request, AnyContent] {
 
@@ -96,7 +98,7 @@ trait HeaderValidator {
 
   private def missingClientId(h: Headers) = {
     val result = h.get(X_CDS_CLIENT_ID_HEADER_NAME).isEmpty
-    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, !result, s"$X_CDS_CLIENT_ID_HEADER_NAME is present", s"$X_CDS_CLIENT_ID_HEADER_NAME is not present")(h)
+    logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, !result, headerPresentText, headerNotPresentText)(h)
   }
 
   private def hasValidClientId(h: Headers) = {
@@ -106,7 +108,7 @@ trait HeaderValidator {
 
   private def missingConversationId(h: Headers) = {
     val result = h.get(X_CONVERSATION_ID_HEADER_NAME).isEmpty
-    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, !result, s"$X_CONVERSATION_ID_HEADER_NAME is present", s"$X_CONVERSATION_ID_HEADER_NAME is not present")(h)
+    logValidationResult(X_CONVERSATION_ID_HEADER_NAME, !result, headerPresentText, headerNotPresentText)(h)
   }
 
   private def hasValidConversationId(h: Headers) = {
@@ -130,7 +132,7 @@ trait HeaderValidator {
     logValidationResult(AUTHORIZATION, result)(h)
   }
 
-  private def logValidationResult(headerName: => String, validationResult: => Boolean, validText: => String = validText, invalidText: String = invalidText)(implicit h: Headers) = {
+  private def logValidationResult(headerName: => String, validationResult: => Boolean, validText: => String = validHeaderText, invalidText: String = invalidHeaderText)(implicit h: Headers) = {
     if (!validationResult) {
       notificationLogger.errorWithHeaders(s"$headerName $invalidText", h.headers)
       None
