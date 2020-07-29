@@ -16,9 +16,10 @@
 
 package integration
 
-import java.time.Clock
+import java.time.{Clock, ZoneId, ZonedDateTime}
 
 import com.typesafe.config.Config
+import org.joda.time.DateTimeZone
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.mockito.MockitoSugar
@@ -133,6 +134,19 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       failedItem.get.status shouldBe Failed
       failedItem.get.failureCount shouldBe 1
+    }
+
+    "update status of an item of work to Failed with a future availableAt when failed to complete" in {
+      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+      result.status shouldBe InProgress
+
+      val availableAt = ZonedDateTime.now(ZoneId.of("UTC")).plusSeconds(300)
+      await(repository.setCompletedStatusWithAvailableAt(result.id, Failed, availableAt))
+
+      val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
+      failedItem.get.status shouldBe Failed
+      failedItem.get.failureCount shouldBe 1
+      failedItem.get.availableAt.toLocalDateTime.toString shouldBe availableAt.toLocalDateTime.toString
     }
 
     "return correct count of permanently failed items" in {
