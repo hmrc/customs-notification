@@ -16,20 +16,53 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
+import java.net.URL
 import java.util.UUID
 
 import play.api.libs.json.Format._
 import play.api.libs.json.{Format, Json, OFormat, _}
 import play.api.mvc.Headers
 
+import scala.util.Try
+
 case class Header(name: String, value: String)
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
 
-case class PushNotificationRequestBody(url: String, authHeaderToken: String, conversationId: String,
+case class PushNotificationRequestBody(url: Option[URL], authHeaderToken: String, conversationId: String,
                                        outboundCallHeaders: Seq[Header], xmlPayload: String)
 object PushNotificationRequestBody {
+
+  implicit object HttpOptionUrlFormat extends Format[Option[URL]] {
+
+    override def reads(json: JsValue): JsResult[Option[URL]] = json match {
+      case JsString(s) =>
+        if(s.isEmpty) {
+          JsSuccess(None)
+        } else {
+          parseUrl(s).map(url => JsSuccess(Some(url))).getOrElse(JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url")))))
+        }
+      case _ => JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url"))))
+    }
+
+    private def parseUrl(s: String): Option[URL] = Try(new URL(s)).toOption
+
+    override def writes(o: Option[URL]): JsValue = JsString(o.getOrElse("").toString)
+  }
+
+  implicit object HttpUrlFormat extends Format[URL] {
+
+    override def reads(json: JsValue): JsResult[URL] = json match {
+      case JsString(s) => parseUrl(s).map(url => JsSuccess(url)).getOrElse(JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url")))))
+      case _ => JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url"))))
+    }
+
+    private def parseUrl(s: String): Option[URL] = Try(new URL(s)).toOption
+
+    override def writes(o: URL): JsValue = JsString(o.toString)
+  }
+
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
 }
 

@@ -64,7 +64,7 @@ class InternalPushConnector @Inject()(http: HttpClient,
     }
 
     unexpectedExceptionCatcher { () =>
-      http.POSTString[HttpResponse](pnr.body.url, pnr.body.xmlPayload)
+      http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
         .map[Either[ResultError, HttpResponse]] { response =>
           response.status match {
             case status if is2xx(status) =>

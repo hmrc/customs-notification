@@ -60,13 +60,13 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
 
     val detail: JsObject = failureReason.fold(
       JsObject(Map[String, JsValue](
-      outboundCallUrl -> JsString(pnr.body.url),
+      outboundCallUrl -> JsString(pnr.body.url.toString),
       outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
       result -> JsString(successOrFailure),
       generatedAt -> JsString(DateTimeUtils.now.toString)
       )))(reason => {
         JsObject(Map[String, JsValue](
-          outboundCallUrl -> JsString(pnr.body.url),
+          outboundCallUrl -> JsString(pnr.body.url.toString),
           outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
           result -> JsString(successOrFailure),
           generatedAt -> JsString(DateTimeUtils.now.toString),

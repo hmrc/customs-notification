@@ -21,7 +21,7 @@ import play.api.libs.json.Json
 case class ApiSubscriptionFields(clientId: String,
                                  fields: DeclarantCallbackData) {
 
-  def isPush: Boolean = !fields.callbackUrl.isEmpty
+  def isPush: Boolean = fields.callbackUrl.isEmpty
 }
 
 object ApiSubscriptionFields {
