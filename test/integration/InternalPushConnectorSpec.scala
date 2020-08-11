@@ -16,6 +16,8 @@
 
 package integration
 
+import java.net.URL
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -39,12 +41,12 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
 
   private lazy val connector = app.injector.instanceOf[InternalPushConnector]
   private val stubCdsLogger = StubCdsLogger()
-  private val validUrl = s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}"
+  private val validUrl = Some(new URL(s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}"))
 
-  def pnr(url: String = validUrl): PushNotificationRequest = PushNotificationRequest(
+  def pnr(url: Option[URL] = validUrl): PushNotificationRequest = PushNotificationRequest(
     CsidOne.id.toString,
     PushNotificationRequestBody(
-      url,
+      CallbackUrl(url),
       "SECURITY_TOKEN",
       conversationId.id.toString,
       Seq(
@@ -114,15 +116,6 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
       val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
 
       httpResultError.status shouldBe INTERNAL_SERVER_ERROR
-    }
-
-    "return a Left(NonHttpError) when malformed URL is supplied" in {
-      setupInternalServiceToReturn(NO_CONTENT)
-
-      val Left(NonHttpError(e)) = await(connector.send(pnr("some-broken-url"))(HeaderCarrier()))
-
-      e.getClass shouldBe classOf[IllegalArgumentException]
-      e.getMessage shouldBe "Invalid URL some-broken-url"
     }
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in

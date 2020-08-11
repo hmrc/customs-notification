@@ -16,6 +16,7 @@
 
 package util
 
+import java.net.URL
 import java.time.ZonedDateTime
 import java.util.UUID
 
@@ -74,13 +75,12 @@ object TestData {
   type EmulatedServiceFailure = UnsupportedOperationException
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
 
-  val callbackUrl = "http://callback"
-  val internalCallbackUrl = "http://localhost:11111" + ExternalServicesConfiguration.InternalPushServiceContext
+  val callbackUrl = CallbackUrl(Some(new URL("http://callback")))
+  val internalCallbackUrl = new URL("http://localhost:11111" + ExternalServicesConfiguration.InternalPushServiceContext)
   val invalidCallbackUrl = "Im-Invalid"
   val securityToken = "securityToken"
   val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
-  val internalCallbackData = DeclarantCallbackData(internalCallbackUrl, securityToken)
-  val invalidCallbackData = DeclarantCallbackData(invalidCallbackUrl, securityToken)
+  val internalCallbackData = DeclarantCallbackData(CallbackUrl(Some(internalCallbackUrl)), securityToken)
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
   lazy val dateHeader = Header(ISSUE_DATE_TIME_HEADER, issueDateTime)
 
@@ -162,12 +162,12 @@ object TestData {
   
   val NotUsedBsonId = "123456789012345678901234"
 
-  val DeclarantCallbackDataOneForPush = DeclarantCallbackData("URL", "SECURITY_TOKEN")
-  val DeclarantCallbackDataOneForPull = DeclarantCallbackData("", "SECURITY_TOKEN")
+  val DeclarantCallbackDataOneForPush = DeclarantCallbackData(CallbackUrl(Some(new URL("http://URL"))), "SECURITY_TOKEN")
+  val DeclarantCallbackDataOneForPull = DeclarantCallbackData(CallbackUrl(None), "SECURITY_TOKEN")
   val ApiSubscriptionFieldsOneForPush = ApiSubscriptionFields(clientId1.toString, DeclarantCallbackDataOneForPush)
   val ApiSubscriptionFieldsOneForPull = ApiSubscriptionFields(clientId1.toString, DeclarantCallbackDataOneForPull)
 
-  val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody("URL", "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
+  val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody(CallbackUrl(Some(new URL("http://URL"))), "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
   def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true, withNotificationId: Boolean = true): ClientNotification = {
 
@@ -195,7 +195,7 @@ object TestData {
     )
   }
 
-  def createPushNotificationRequestPayload(outboundUrl: String = callbackData.callbackUrl, securityToken: String = callbackData.securityToken,
+  def createPushNotificationRequestPayload(outboundUrl: CallbackUrl = callbackData.callbackUrl, securityToken: String = callbackData.securityToken,
                                            mayBeBadgeId: Option[String] = Some(badgeId), notificationPayload: NodeSeq = ValidXML,
                                            conversationId: String = validConversationId): JsValue = Json.parse(
     s"""
@@ -213,11 +213,6 @@ object TestData {
 
   def pushNotificationRequest(xml: NodeSeq, cd: DeclarantCallbackData = callbackData, headers: Seq[Header]): PushNotificationRequest = {
     val body = PushNotificationRequestBody(cd.callbackUrl, cd.securityToken, validConversationId, headers, xml.toString())
-    PushNotificationRequest(validFieldsId, body)
-  }
-
-  def failedPushNotificationRequest(xml: NodeSeq): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(invalidCallbackData.callbackUrl, callbackData.securityToken, validConversationId, Seq(badgeIdHeader), xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
 

@@ -16,9 +16,41 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import play.api.libs.json.Json
+import java.net.URL
 
-case class DeclarantCallbackData(callbackUrl: String, securityToken: String)
-object DeclarantCallbackData {
-  implicit val jsonFormat = Json.format[DeclarantCallbackData]
+import play.api.libs.json._
+
+import scala.util.Try
+
+case class CallbackUrl(url: Option[URL]) extends AnyVal {
+  override def toString: String = url.fold("")(_.toString)
+
+  def isPush: Boolean = url.isDefined
+  def isPull: Boolean = url.isEmpty
 }
+
+case class DeclarantCallbackData(callbackUrl: CallbackUrl, securityToken: String)
+
+object DeclarantCallbackData {
+
+  implicit object CallbackUrlFormat extends Format[CallbackUrl] {
+
+    override def reads(json: JsValue): JsResult[CallbackUrl] = json match {
+      case JsString(s) =>
+        if(s.isEmpty) {
+          JsSuccess(CallbackUrl(None))
+        } else {
+          parseUrl(s).map(url => JsSuccess(CallbackUrl(Some(url)))).getOrElse(JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url")))))
+        }
+      case _ => JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url"))))
+    }
+
+    private def parseUrl(s: String): Option[URL] = Try(new URL(s)).toOption
+
+    override def writes(o: CallbackUrl): JsValue = JsString(o.toString)
+  }
+
+  implicit val jsonFormat: OFormat[DeclarantCallbackData] = Json.format[DeclarantCallbackData]
+
+}
+

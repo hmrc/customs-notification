@@ -27,9 +27,11 @@ object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
 
-case class PushNotificationRequestBody(url: String, authHeaderToken: String, conversationId: String,
+case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String, conversationId: String,
                                        outboundCallHeaders: Seq[Header], xmlPayload: String)
 object PushNotificationRequestBody {
+
+  implicit val callbackUrlFormat: DeclarantCallbackData.CallbackUrlFormat.type = DeclarantCallbackData.CallbackUrlFormat
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
 }
 
