@@ -54,35 +54,24 @@ class InternalPushConnector @Inject()(http: HttpClient,
 
     logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body.xmlPayload}")
 
-    //if pnr.body.url is a malformed URL then HTTP VERBs actually throws an exception rather than returning an failed Future!
-    def unexpectedExceptionCatcher(block: () => Future[Either[ResultError, HttpResponse]]) = {
-      try {
-        block()
-      } catch {
-        case NonFatal(e) => Future.successful(Left(NonHttpError(e)))
-      }
-    }
+    http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
+      .map[Either[ResultError, HttpResponse]] { response =>
+        response.status match {
+          case status if is2xx(status) =>
+            Right(response)
 
-    unexpectedExceptionCatcher { () =>
-      http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
-        .map[Either[ResultError, HttpResponse]] { response =>
-          response.status match {
-            case status if is2xx(status) =>
-              Right(response)
-
-            case status => //1xx, 3xx, 4xx, 5xx
-              val httpException = new Non2xxResponseException(status)
-              logger.error(httpException.message, httpException)
-              Left(HttpResultError(status, httpException))
-          }
-      }.recoverWith {
-        case httpException: HttpException =>
-          logger.error(httpException.message, httpException)
-          Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
-        case NonFatal(e) =>
-          val resultError = mapResultError(e)
-          Future.successful(Left(resultError))
-      }
+          case status => //1xx, 3xx, 4xx, 5xx
+            val httpException = new Non2xxResponseException(status)
+            logger.error(httpException.message, httpException)
+            Left(HttpResultError(status, httpException))
+        }
+    }.recoverWith {
+      case httpException: HttpException =>
+        logger.error(httpException.message, httpException)
+        Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
+      case NonFatal(e) =>
+        val resultError = mapResultError(e)
+        Future.successful(Left(resultError))
     }
   }
 }

@@ -16,14 +16,11 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import java.net.URL
 import java.util.UUID
 
 import play.api.libs.json.Format._
 import play.api.libs.json.{Format, Json, OFormat, _}
 import play.api.mvc.Headers
-
-import scala.util.Try
 
 case class Header(name: String, value: String)
 object Header {
@@ -34,23 +31,7 @@ case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String
                                        outboundCallHeaders: Seq[Header], xmlPayload: String)
 object PushNotificationRequestBody {
 
-  implicit object CallbackUrlFormat extends Format[CallbackUrl] {
-
-    override def reads(json: JsValue): JsResult[CallbackUrl] = json match {
-      case JsString(s) =>
-        if(s.isEmpty) {
-          JsSuccess(CallbackUrl(None))
-        } else {
-          parseUrl(s).map(url => JsSuccess(CallbackUrl(Some(url)))).getOrElse(JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url")))))
-        }
-      case _ => JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url"))))
-    }
-
-    private def parseUrl(s: String): Option[URL] = Try(new URL(s)).toOption
-
-    override def writes(o: CallbackUrl): JsValue = JsString(o.toString)
-  }
-
+  implicit val callbackUrlFormat: DeclarantCallbackData.CallbackUrlFormat.type = DeclarantCallbackData.CallbackUrlFormat
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
 }
 

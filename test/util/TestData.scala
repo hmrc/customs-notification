@@ -81,7 +81,6 @@ object TestData {
   val securityToken = "securityToken"
   val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
   val internalCallbackData = DeclarantCallbackData(CallbackUrl(Some(internalCallbackUrl)), securityToken)
-  //val invalidCallbackData = DeclarantCallbackData(invalidCallbackUrl, securityToken)
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
   lazy val dateHeader = Header(ISSUE_DATE_TIME_HEADER, issueDateTime)
 
