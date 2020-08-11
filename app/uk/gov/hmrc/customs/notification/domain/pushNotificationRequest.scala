@@ -30,37 +30,25 @@ object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
 
-case class PushNotificationRequestBody(url: Option[URL], authHeaderToken: String, conversationId: String,
+case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String, conversationId: String,
                                        outboundCallHeaders: Seq[Header], xmlPayload: String)
 object PushNotificationRequestBody {
 
-  implicit object HttpOptionUrlFormat extends Format[Option[URL]] {
+  implicit object CallbackUrlFormat extends Format[CallbackUrl] {
 
-    override def reads(json: JsValue): JsResult[Option[URL]] = json match {
+    override def reads(json: JsValue): JsResult[CallbackUrl] = json match {
       case JsString(s) =>
         if(s.isEmpty) {
-          JsSuccess(None)
+          JsSuccess(CallbackUrl(None))
         } else {
-          parseUrl(s).map(url => JsSuccess(Some(url))).getOrElse(JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url")))))
+          parseUrl(s).map(url => JsSuccess(CallbackUrl(Some(url)))).getOrElse(JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url")))))
         }
       case _ => JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url"))))
     }
 
     private def parseUrl(s: String): Option[URL] = Try(new URL(s)).toOption
 
-    override def writes(o: Option[URL]): JsValue = JsString(o.getOrElse("").toString)
-  }
-
-  implicit object HttpUrlFormat extends Format[URL] {
-
-    override def reads(json: JsValue): JsResult[URL] = json match {
-      case JsString(s) => parseUrl(s).map(url => JsSuccess(url)).getOrElse(JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url")))))
-      case _ => JsError(Seq(JsPath() -> Seq(JsonValidationError("error.expected.url"))))
-    }
-
-    private def parseUrl(s: String): Option[URL] = Try(new URL(s)).toOption
-
-    override def writes(o: URL): JsValue = JsString(o.toString)
+    override def writes(o: CallbackUrl): JsValue = JsString(o.toString)
   }
 
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]

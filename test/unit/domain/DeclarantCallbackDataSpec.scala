@@ -18,11 +18,9 @@ package unit.domain
 
 import java.net.URL
 
-import play.api.libs.json.{JsError, JsResult, JsSuccess, JsValue, Json}
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, DeclarantCallbackData}
-import util.UnitSpec
-import util.CustomsNotificationMetricsTestData.{EventEnd, EventStart}
-import util.TestData.conversationId
+import play.api.libs.json._
+import uk.gov.hmrc.customs.notification.domain.{CallbackUrl, DeclarantCallbackData}
+import _root_.util.UnitSpec
 
 class DeclarantCallbackDataSpec extends UnitSpec {
 
@@ -36,7 +34,7 @@ class DeclarantCallbackDataSpec extends UnitSpec {
 
   "DeclarantCallbackData model" should {
     "serialise to Json" in {
-      val request = DeclarantCallbackData(Some(new URL("https://NOTIFICATION")), "abc")
+      val request = DeclarantCallbackData(CallbackUrl(Some(new URL("https://NOTIFICATION"))), "abc")
       val actualJson: JsValue = Json.toJson(request)
 
       actualJson shouldBe expectedJson
@@ -44,30 +42,19 @@ class DeclarantCallbackDataSpec extends UnitSpec {
 
     "deserialise from Json" in {
 
-      val value1: JsValue = Json.parse(
+      val json: JsValue = Json.parse(
         """
           |{
-          |  "callbackUrl" : "http://AAAAAA",
+          |  "callbackUrl" : "http://abc",
           |  "securityToken" : "abc"
           |}
-                                      """.stripMargin)
+          """.stripMargin)
 
-      val unit = value1.validate[DeclarantCallbackData] match {
-        case JsSuccess(place, _) => {
-          println("XXXXXXXXXXXXXXXXXXXXXXXXX")
-          println(place)
-        }
-        case e: JsError => {
-          println("YYYYYYYYYYYYYYYYYYYYYYYYYYY")
-          println(e)
-        }
-      }
-      unit
+      json.validate[DeclarantCallbackData] shouldBe JsSuccess(DeclarantCallbackData(CallbackUrl(Some(new URL("http://abc"))),"abc"))
 
-      //value1 shouldBe expectedJson
     }
 
-    "deserialise from Json when callbackUrl field is not present" in {
+    "throw an error when deserialising from Json when callbackUrl field is not present" in {
 
       val jsValue: JsValue = Json.parse(
         """
@@ -77,7 +64,8 @@ class DeclarantCallbackDataSpec extends UnitSpec {
           """.stripMargin)
 
       val jsResult: JsResult[DeclarantCallbackData] = jsValue.validate[DeclarantCallbackData]
-      jsResult shouldBe JsSuccess(DeclarantCallbackData(None,"abc"))
+      jsResult shouldBe
+        new JsError(List((new JsPath(List(KeyPathNode("callbackUrl"))), List(JsonValidationError(List("error.path.missing"))))))
 
     }
 
@@ -92,7 +80,7 @@ class DeclarantCallbackDataSpec extends UnitSpec {
           """.stripMargin)
 
       val jsResult: JsResult[DeclarantCallbackData] = jsValue.validate[DeclarantCallbackData]
-      jsResult shouldBe JsSuccess(DeclarantCallbackData(None,"abc"))
+      jsResult shouldBe JsSuccess(DeclarantCallbackData(CallbackUrl(None),"abc"))
 
     }
 
