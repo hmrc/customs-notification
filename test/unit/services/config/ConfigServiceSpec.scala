@@ -19,11 +19,11 @@ package unit.services.config
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Matchers
 import org.scalatestplus.mockito.MockitoSugar
-import play.api.{Configuration, Mode}
+import play.api.Configuration
 import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.play.bootstrap.config.{RunMode, ServicesConfig}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import util.UnitSpec
 import unit.logging.StubCdsLogger
 import util.TestData.basicAuthTokenValue
@@ -102,7 +102,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
   private val emptyAppConfig: Config = ConfigFactory.parseString("")
 
-  private def testServicesConfig(configuration: Configuration) = new ServicesConfig(configuration, new RunMode(configuration, Mode.Test)) {}
+  private def testServicesConfig(configuration: Configuration) = new ServicesConfig(configuration) {}
 
   private val validServicesConfig = new Configuration(validAppConfig)
   private val mandatoryOnlyServicesConfig = new Configuration(validMandatoryOnlyAppConfig)
@@ -142,7 +142,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
 
     "throw an exception when configuration is invalid, that contains AGGREGATED error messages" in {
       val expected = """
-                       |Could not find config notification-queue.host
+                       |Could not find config key 'notification-queue.host'
                        |Service configuration not found for key: notification-queue.context
                        |Could not find config key 'ttlInSeconds'
                        |Could not find config key 'retry.poller.enabled'
@@ -151,7 +151,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config key 'retry.poller.inProgressRetryAfter.seconds'
                        |Could not find config key 'retry.poller.instances'
                        |Could not find config key 'non.blocking.retry.after.minutes'
-                       |Could not find config customs-notification-metrics.host
+                       |Could not find config key 'customs-notification-metrics.host'
                        |Service configuration not found for key: customs-notification-metrics.context
                        |Could not find config key 'unblock.poller.enabled'
                        |Could not find config key 'unblock.poller.interval.milliseconds'""".stripMargin

@@ -26,7 +26,7 @@ import util.UnitSpec
 import util.WireMockRunner
 
 case class IntegrationTestModule(mockLogger: CdsLogger) extends AbstractModule {
-  def configure(): Unit = {
+  override def configure(): Unit = {
     bind(classOf[CdsLogger]) toInstance mockLogger
   }
 
