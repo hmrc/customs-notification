@@ -55,7 +55,7 @@ object CustomHeaderNames {
   val X_SUBMITTER_ID_HEADER_NAME : String = "X-Submitter-Identifier"
 
   val X_CORRELATION_ID_HEADER_NAME: String = "X-Correlation-ID"
-  
+
   val ISSUE_DATE_TIME_HEADER: String = "X-IssueDateTime"
 }
 

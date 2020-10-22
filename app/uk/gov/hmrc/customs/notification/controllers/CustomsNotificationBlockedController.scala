@@ -26,7 +26,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CLIENT_I
 import uk.gov.hmrc.customs.notification.domain.{ClientId, HasId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
-import uk.gov.hmrc.play.bootstrap.controller.BackendController
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import scala.concurrent.{ExecutionContext, Future}
 
