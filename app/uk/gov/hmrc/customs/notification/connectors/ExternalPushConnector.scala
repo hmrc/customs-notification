@@ -27,7 +27,7 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonF
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.http._
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -75,7 +75,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
         Future.successful(Left(error))
     }
   }
-  
+
   private def removeDateHeaderFromRequestBody(pushNotificationRequest: PushNotificationRequest): PushNotificationRequest = {
     val headersWithoutDate: Seq[Header] = pushNotificationRequest.body.outboundCallHeaders.filterNot(h => h.name.equals(ISSUE_DATE_TIME_HEADER))
     pushNotificationRequest.copy(body = pushNotificationRequest.body.copy(outboundCallHeaders = headersWithoutDate))

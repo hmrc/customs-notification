@@ -29,7 +29,7 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.bootstrap.controller.BackendController
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
@@ -63,7 +63,7 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
   def maybeSubmitterHeader: Option[Header] = asHeader(X_SUBMITTER_ID_HEADER_NAME, maybeSubmitterNumber)
 
   def maybeCorrelationIdHeader: Option[Header] = asHeader(X_CORRELATION_ID_HEADER_NAME, maybeCorrelationId)
-    
+
   def maybeIssueDateTimeHeader: Option[Header] = asHeader(ISSUE_DATE_TIME_HEADER, maybeIssueDateTime)
 
   private def asHeader[T](name: String, maybeHeaderValue: Option[T]) =
@@ -159,10 +159,10 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   }
 
   def extractIssueDateTime(maybeXml: Option[NodeSeq], maybeDateHeader: Option[String]): Option[IssueDateTime]= {
-    
+
     def dateXml(xml: NodeSeq): Option[IssueDateTime] = extractValues(xml \ "Response" \ "IssueDateTime" \ "DateTimeString").fold(dateHeader)(x => Some(IssueDateTime(x)))
     def dateHeader: Option[IssueDateTime] = if (maybeDateHeader.isDefined) Some(IssueDateTime(maybeDateHeader.get)) else None
-    
+
     maybeXml match {
       case Some(xml) => dateXml(xml)
       case _ => dateHeader
