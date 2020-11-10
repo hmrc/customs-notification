@@ -19,6 +19,7 @@ package uk.gov.hmrc.customs.notification.services
 import com.google.inject.Inject
 import javax.inject.Singleton
 import play.api.libs.json.{JsObject, JsString, JsValue}
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.play.audit.EventKeys.TransactionName
@@ -41,7 +42,13 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val xConversationId = "x-conversation-id"
   private val result = "result"
   private val generatedAt = "generatedAt"
-
+  private val clientId = "clientId"
+  private val fieldsId = "fieldsId"
+  private val notificationId = "notificationId"
+  private val requestId = "requestId"
+  private val functionCode = "functionCode"
+  private val sueDate = "issueDate"
+  private val mrn = "mrn"
   private val failureReasonKey = "failureReason"
 
   def auditFailedNotification(pnr: PushNotificationRequest, failureReason: Option[String])
@@ -55,8 +62,9 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
 
   private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String])(implicit rm: HasId): Unit = {
 
-    val tags = Map(TransactionName -> transactionNameValue,
-    xConversationId -> pnr.body.conversationId )
+    val tags: Map[String, String] = Map(TransactionName -> transactionNameValue,
+      xConversationId -> pnr.body.conversationId
+    ) ++ getTags(rm)
 
     val detail: JsObject = failureReason.fold(
       JsObject(Map[String, JsValue](
@@ -91,6 +99,26 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
              |audit response=$auditResult""".stripMargin)
       case Failure(ex) =>
         logger.error(s"failed to audit $successOrFailure event", ex)
+    }
+  }
+
+  private def getTags(rm: HasId): Map[String, String] = {
+    rm match {
+      case r: RequestMetaData =>
+        Map(clientId -> r.maybeClientId.fold("")(c => c.id),
+          fieldsId -> r.clientSubscriptionId.toString,
+          requestId -> r.requestId.toString,
+          notificationId -> r.notificationId.toString,
+          functionCode -> r.maybeFunctionCode.fold("")(c => c.value),
+          sueDate -> r.maybeIssueDateTime.fold("")(c => c.value),
+          mrn -> r.maybeMrn.fold("")(c => c.value))
+      case n: NotificationWorkItem =>
+        Map(clientId -> n.clientId.id,
+          fieldsId -> n.clientSubscriptionId.toString,
+          notificationId -> n.notification.notificationId.fold("")(c => c.id.toString)
+        )
+      case _ =>
+        Map()
     }
   }
 }
