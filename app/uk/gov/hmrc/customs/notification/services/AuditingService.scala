@@ -47,7 +47,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val notificationId = "notificationId"
   private val requestId = "requestId"
   private val functionCode = "functionCode"
-  private val sueDate = "issueDate"
+  private val issueDate = "issueDate"
   private val mrn = "mrn"
   private val failureReasonKey = "failureReason"
 
@@ -110,7 +110,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
           requestId -> r.requestId.toString,
           notificationId -> r.notificationId.toString,
           functionCode -> r.maybeFunctionCode.fold("")(c => c.value),
-          sueDate -> r.maybeIssueDateTime.fold("")(c => c.value),
+          issueDate -> r.maybeIssueDateTime.fold("")(c => c.value),
           mrn -> r.maybeMrn.fold("")(c => c.value))
       case n: NotificationWorkItem =>
         Map(clientId -> n.clientId.id,
