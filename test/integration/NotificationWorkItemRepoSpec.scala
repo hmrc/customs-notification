@@ -19,7 +19,6 @@ package integration
 import java.time.{Clock, ZoneId, ZonedDateTime}
 
 import com.typesafe.config.Config
-import org.joda.time.DateTimeZone
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.mockito.MockitoSugar
