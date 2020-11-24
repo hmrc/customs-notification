@@ -37,6 +37,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val appName = "customs-notification"
   private val transactionNameValue = "customs-declaration-outbound-call"
   private val declarationNotificationOutboundCall = "DeclarationNotificationOutboundCall"
+  private val declarationNotificationReceived = "DeclarationNotificationReceived"
   private val outboundCallUrl = "outboundCallUrl"
   private val outboundCallAuthToken = "outboundCallAuthToken"
   private val xConversationId = "x-conversation-id"
@@ -50,6 +51,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val issueDate = "issueDate"
   private val mrn = "mrn"
   private val failureReasonKey = "failureReason"
+  private val payload = "payload"
 
   def auditFailedNotification(pnr: PushNotificationRequest, failureReason: Option[String])
                              (implicit rm: HasId): Unit = {
@@ -60,7 +62,11 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
     auditNotification(pnr, "SUCCESS", None)
   }
 
-  private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String])(implicit rm: HasId): Unit = {
+  def auditNotificationReceived(pnr: PushNotificationRequest)(implicit rm: HasId): Unit = {
+    auditNotification(pnr, "SUCCESS", None, declarationNotificationReceived, Some(pnr.body.xmlPayload))
+  }
+
+  private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String], auditType: String = declarationNotificationOutboundCall, notificationPayload: Option[String] = None)(implicit rm: HasId): Unit = {
 
     val tags: Map[String, String] = Map(TransactionName -> transactionNameValue,
       xConversationId -> pnr.body.conversationId
@@ -68,10 +74,11 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
 
     val detail: JsObject = failureReason.fold(
       JsObject(Map[String, JsValue](
-      outboundCallUrl -> JsString(pnr.body.url.toString),
-      outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
-      result -> JsString(successOrFailure),
-      generatedAt -> JsString(DateTimeUtils.now.toString)
+        outboundCallUrl -> JsString(pnr.body.url.toString),
+        outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
+        result -> JsString(successOrFailure),
+        payload -> JsString(notificationPayload.getOrElse("")),
+        generatedAt -> JsString(DateTimeUtils.now.toString)
       )))(reason => {
         JsObject(Map[String, JsValue](
           outboundCallUrl -> JsString(pnr.body.url.toString),
@@ -86,7 +93,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
     auditConnector.sendExtendedEvent(
       ExtendedDataEvent(
         auditSource = appName,
-        auditType = declarationNotificationOutboundCall,
+        auditType = auditType,
         tags = tags,
         detail = detail
     )).onComplete {

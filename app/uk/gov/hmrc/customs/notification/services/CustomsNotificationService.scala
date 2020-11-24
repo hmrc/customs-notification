@@ -19,6 +19,7 @@ package uk.gov.hmrc.customs.notification.services
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
+import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
 import uk.gov.hmrc.customs.notification.domain.{HasId, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
@@ -36,7 +37,8 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                            pushOrPullService: PushOrPullService,
                                            metricsService: CustomsNotificationMetricsService,
                                            customsNotificationConfig: CustomsNotificationConfig,
-                                           dateTimeService: DateTimeService)
+                                           dateTimeService: DateTimeService,
+                                           auditingService: AuditingService)
                                           (implicit ec: ExecutionContext) {
 
   type HasSaved = Boolean
@@ -46,12 +48,14 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                          apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[HasSaved] = {
 
     implicit val hasId: RequestMetaData = metaData
-
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
-      ClientId(apiSubscriptionFields.clientId),
-      Some(metaData.startTime.toDateTime),
-      //Saving notificationId as optional to accommodate existing data. Remove optionality later.
-      Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
+        ClientId(apiSubscriptionFields.clientId),
+        Some(metaData.startTime.toDateTime),
+        //Saving notificationId as optional to accommodate existing data. Remove optionality later.
+        Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
+
+    val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
+    auditingService.auditNotificationReceived(pnr)
 
     (for {
       isAnyPF <- notificationWorkItemRepo.permanentlyFailedByCsIdExists(notificationWorkItem.clientSubscriptionId)
