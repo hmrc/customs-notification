@@ -37,7 +37,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val appName = "customs-notification"
   private val transactionNameValue = "customs-declaration-outbound-call"
   private val declarationNotificationOutboundCall = "DeclarationNotificationOutboundCall"
-  private val declarationNotificationReceived = "InboundCall-DeclarationNotificationReceived"
+  private val declarationNotificationInboundCall = "DeclarationNotificationInboundCall"
   private val outboundCallUrl = "outboundCallUrl"
   private val outboundCallAuthToken = "outboundCallAuthToken"
   private val xConversationId = "x-conversation-id"
@@ -63,7 +63,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   }
 
   def auditNotificationReceived(pnr: PushNotificationRequest)(implicit rm: HasId): Unit = {
-    auditNotification(pnr, "SUCCESS", None, declarationNotificationReceived, Some(pnr.body.xmlPayload))
+    auditNotification(pnr, "SUCCESS", None, declarationNotificationInboundCall, Some(pnr.body.xmlPayload))
   }
 
   private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String], auditType: String = declarationNotificationOutboundCall, notificationPayload: Option[String] = None)(implicit rm: HasId): Unit = {

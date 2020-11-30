@@ -73,7 +73,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
         val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
         actualExtendedDataEvent.auditSource shouldBe "customs-notification"
-        actualExtendedDataEvent.auditType shouldBe "InboundCall-DeclarationNotificationReceived"
+        actualExtendedDataEvent.auditType shouldBe "DeclarationNotificationInboundCall"
 
         actualExtendedDataEvent.tags.size shouldBe 5
         actualExtendedDataEvent.tags shouldBe Map("clientId" -> "ClientId",
