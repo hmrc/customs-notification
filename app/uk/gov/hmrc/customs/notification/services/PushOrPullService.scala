@@ -19,7 +19,8 @@ package uk.gov.hmrc.customs.notification.services
 import javax.inject.Inject
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MapResultError, NotificationQueueConnector}
-import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, DeclarantCallbackData, HasId, NonHttpError, NotificationWorkItem, PushNotificationRequest, PushNotificationRequestBody, ResultError}
+import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
+import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, HasId, NonHttpError, NotificationWorkItem, ResultError}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -85,20 +86,6 @@ class PushOrPullService @Inject()(
     } else {
       pull(n)
     }
-  }
-
-  private def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData,
-                                          n: NotificationWorkItem): PushNotificationRequest = {
-
-    PushNotificationRequest(
-      n.id.id.toString,
-      PushNotificationRequestBody(
-        declarantCallbackData.callbackUrl,
-        declarantCallbackData.securityToken,
-        n.notification.conversationId.id.toString,
-        n.notification.headers,
-        n.notification.payload
-      ))
   }
 
   private def pull(n: NotificationWorkItem)(implicit hasId: HasId, hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {

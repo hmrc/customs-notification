@@ -58,6 +58,39 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
   "AuditingService" should {
 
+    "call audit connector with correct payload for auditing notification received" in {
+
+      val mockAuditResult = mock[AuditResult]
+
+      val captor = ArgumentCaptor.forClass(classOf[ExtendedDataEvent])
+
+      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
+
+      auditingService.auditNotificationReceived(internalPushNotificationRequest)(NotificationWorkItem1)
+
+      eventually {
+        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
+
+        val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
+        actualExtendedDataEvent.auditSource shouldBe "customs-notification"
+        actualExtendedDataEvent.auditType shouldBe "DeclarationNotificationInboundCall"
+
+        actualExtendedDataEvent.tags.size shouldBe 5
+        actualExtendedDataEvent.tags shouldBe Map("clientId" -> "ClientId",
+          "notificationId" -> "58373a04-2c45-4f43-9ea2-74e56be2c6d7",
+          "fieldsId" -> "eaca01f9-ec3b-4ede-b263-61b626dde232",
+          "x-conversation-id" -> conversationId.toString,
+          "transactionName" -> "customs-declaration-outbound-call")
+
+        (actualExtendedDataEvent.detail \ "outboundCallUrl").as[String] shouldBe s"http://$Host:$Port/internal/notify"
+        (actualExtendedDataEvent.detail \ "outboundCallAuthToken").as[String] shouldBe TestData.securityToken
+        (actualExtendedDataEvent.detail \ "payload").as[String] shouldBe "<Foo>Bar</Foo>"
+        (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
+        actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
+        actualExtendedDataEvent.generatedAt.toString() should have size 24
+      }
+    }
+
     "call audit connector with correct payload for auditing successful notification for retries" in {
 
       val mockAuditResult = mock[AuditResult]
