@@ -37,7 +37,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val appName = "customs-notification"
   private val transactionNameValue = "customs-declaration-outbound-call"
   private val declarationNotificationOutboundCall = "DeclarationNotificationOutboundCall"
-  private val declarationNotificationReceived = "DeclarationNotificationReceived"
+  private val declarationNotificationReceived = "InboundCall-DeclarationNotificationReceived"
   private val outboundCallUrl = "outboundCallUrl"
   private val outboundCallAuthToken = "outboundCallAuthToken"
   private val xConversationId = "x-conversation-id"
@@ -112,17 +112,17 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private def getTags(rm: HasId): Map[String, String] = {
     rm match {
       case r: RequestMetaData =>
-        Map(clientId -> r.maybeClientId.fold("")(c => c.id),
+        Map(clientId -> r.maybeClientId.fold("")(_.id),
           fieldsId -> r.clientSubscriptionId.toString,
           requestId -> r.requestId.toString,
           notificationId -> r.notificationId.toString,
-          functionCode -> r.maybeFunctionCode.fold("")(c => c.value),
-          issueDate -> r.maybeIssueDateTime.fold("")(c => c.value),
-          mrn -> r.maybeMrn.fold("")(c => c.value))
+          functionCode -> r.maybeFunctionCode.fold("")(_.value),
+          issueDate -> r.maybeIssueDateTime.fold("")(_.value),
+          mrn -> r.maybeMrn.fold("")(_.value))
       case n: NotificationWorkItem =>
         Map(clientId -> n.clientId.id,
           fieldsId -> n.clientSubscriptionId.toString,
-          notificationId -> n.notification.notificationId.fold("")(c => c.id.toString)
+          notificationId -> n.notification.notificationId.fold("")(_.id.toString)
         )
       case _ =>
         Map()
