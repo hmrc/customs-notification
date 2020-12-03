@@ -17,11 +17,13 @@
 package uk.gov.hmrc.customs.notification.services
 
 import com.google.inject.Inject
+
 import javax.inject.Singleton
 import play.api.libs.json.{JsObject, JsString, JsValue}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.EventKeys.TransactionName
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
@@ -52,24 +54,24 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val mrn = "mrn"
   private val failureReasonKey = "failureReason"
   private val payload = "payload"
+  private val payloadHeaders = "payloadHeaders"
 
-  def auditFailedNotification(pnr: PushNotificationRequest, failureReason: Option[String])
-                             (implicit rm: HasId): Unit = {
+  def auditFailedNotification(pnr: PushNotificationRequest, failureReason: Option[String])(implicit rm: HasId, hc: HeaderCarrier): Unit = {
     auditNotification(pnr, "FAILURE", failureReason)
   }
 
-  def auditSuccessfulNotification(pnr: PushNotificationRequest)(implicit rm: HasId): Unit = {
+  def auditSuccessfulNotification(pnr: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
     auditNotification(pnr, "SUCCESS", None)
   }
 
-  def auditNotificationReceived(pnr: PushNotificationRequest)(implicit rm: HasId): Unit = {
+  def auditNotificationReceived(pnr: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
     auditNotification(pnr, "SUCCESS", None, declarationNotificationInboundCall, Some(pnr.body.xmlPayload))
   }
 
-  private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String], auditType: String = declarationNotificationOutboundCall, notificationPayload: Option[String] = None)(implicit rm: HasId): Unit = {
+  private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String], auditType: String = declarationNotificationOutboundCall, notificationPayload: Option[String] = None)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
 
     val tags: Map[String, String] = Map(TransactionName -> transactionNameValue,
-      xConversationId -> pnr.body.conversationId
+    xConversationId -> pnr.body.conversationId
     ) ++ getTags(rm)
 
     val detail: JsObject = failureReason.fold(
@@ -78,6 +80,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
         outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
         result -> JsString(successOrFailure),
         payload -> JsString(notificationPayload.getOrElse("")),
+        payloadHeaders -> JsString(hc.headers.toString()),
         generatedAt -> JsString(DateTimeUtils.now.toString)
       )))(reason => {
         JsObject(Map[String, JsValue](

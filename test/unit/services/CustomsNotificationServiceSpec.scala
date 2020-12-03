@@ -106,7 +106,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
         eventually(verify(mockPushOrPullService).send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any[HeaderCarrier]))
         eventually(verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
 
         infoLogVerifier("Push succeeded for workItemId 5c46f7d70100000100ef835a")
       }
@@ -119,7 +119,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
         await(result) shouldBe false
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
         eventually(verifyNoInteractions(mockPushOrPullService))
         eventually(verifyNoInteractions(mockMetricsService))
       }
@@ -138,7 +138,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
         eventually(verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id))
         eventually(verify(mockNotificationWorkItemRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, currentTimePlus2Hour))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
         errorLogVerifier("Push error PushOrPullError(Push,HttpResultError(404,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a", exception)
       }
 
@@ -157,7 +157,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id))
         eventually(verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, PermanentlyFailed))
         eventually(verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
         errorLogVerifier("Push error PushOrPullError(Push,HttpResultError(500,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a", exception)
       }
 
@@ -173,7 +173,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed)))
         eventually(verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
         eventually(verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
         infoLogVerifier("Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
       }
 
@@ -193,7 +193,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockNotificationWorkItemRepo).permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId))
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
         eventually(verify(mockNotificationWorkItemRepo, times(1)).setCompletedStatus(any[BSONObjectID], any[ResultStatus]))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
 
       }
     }
@@ -212,7 +212,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, Succeeded))
         eventually(verify(mockPushOrPullService).send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPull))(any[HasId], any[HeaderCarrier]))
         eventually(verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
         infoLogVerifier("Pull succeeded for workItemId 5c46f7d70100000100ef835a")
       }
 
@@ -224,7 +224,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
         await(result) shouldBe false
         eventually(verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress)))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
         eventually(verifyNoInteractions(mockPushOrPullService))
         eventually(verifyNoInteractions(mockMetricsService))
       }
@@ -243,7 +243,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         eventually(verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id))
         eventually(verify(mockNotificationWorkItemRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, currentTimePlus2Hour))
         eventually(verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1))
-        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId]))
+        eventually(verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any[HeaderCarrier]))
         errorLogVerifier("Pull error PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a", exception)
       }
     }

@@ -29,6 +29,7 @@ import uk.gov.hmrc.customs.notification.services.AuditingService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
+import uk.gov.hmrc.http.logging.RequestId
 import util.UnitSpec
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -47,14 +48,13 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
   private val mockLogger = mock[NotificationLogger]
   private val mockAuditConnector = mock[AuditConnector]
   private implicit val rm = TestData.requestMetaData
+  implicit val hc = HeaderCarrier(requestId = Some(RequestId("ABC")))
 
   override def beforeEach(): Unit = {
     reset(mockAuditConnector)
   }
 
   val auditingService = new AuditingService(mockLogger, mockAuditConnector)
-
-
 
   "AuditingService" should {
 
@@ -66,7 +66,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
 
-      auditingService.auditNotificationReceived(internalPushNotificationRequest)(NotificationWorkItem1)
+      auditingService.auditNotificationReceived(internalPushNotificationRequest)(NotificationWorkItem1, hc)
 
       eventually {
         verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
@@ -85,6 +85,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
         (actualExtendedDataEvent.detail \ "outboundCallUrl").as[String] shouldBe s"http://$Host:$Port/internal/notify"
         (actualExtendedDataEvent.detail \ "outboundCallAuthToken").as[String] shouldBe TestData.securityToken
         (actualExtendedDataEvent.detail \ "payload").as[String] shouldBe "<Foo>Bar</Foo>"
+        (actualExtendedDataEvent.detail \ "payloadHeaders").as[String] should include("X-Request-ID,ABC") // Ignore request change
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
         actualExtendedDataEvent.generatedAt.toString() should have size 24
@@ -99,7 +100,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
 
-      auditingService.auditSuccessfulNotification(internalPushNotificationRequest)(NotificationWorkItem1)
+      auditingService.auditSuccessfulNotification(internalPushNotificationRequest)(NotificationWorkItem1, hc)
 
       eventually {
         verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
@@ -117,6 +118,8 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
         (actualExtendedDataEvent.detail \ "outboundCallUrl").as[String] shouldBe s"http://$Host:$Port/internal/notify"
         (actualExtendedDataEvent.detail \ "outboundCallAuthToken").as[String] shouldBe TestData.securityToken
+        (actualExtendedDataEvent.detail \ "payload").as[String] shouldBe ""
+        (actualExtendedDataEvent.detail \ "payloadHeaders").as[String] should include("X-Request-ID,ABC") // Ignore request change
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
         actualExtendedDataEvent.generatedAt.toString() should have size 24
@@ -153,6 +156,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
         (actualExtendedDataEvent.detail \ "outboundCallUrl").as[String] shouldBe s"http://$Host:$Port/internal/notify"
         (actualExtendedDataEvent.detail \ "outboundCallAuthToken").as[String] shouldBe TestData.securityToken
+        (actualExtendedDataEvent.detail \ "payloadHeaders").as[String] should include("X-Request-ID,ABC") // Ignore request change
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
         actualExtendedDataEvent.generatedAt.toString() should have size 24
@@ -167,7 +171,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
 
-      auditingService.auditFailedNotification(internalPushNotificationRequest, Some("FailureReasonAbc123"))(NotificationWorkItem1)
+      auditingService.auditFailedNotification(internalPushNotificationRequest, Some("FailureReasonAbc123"))(NotificationWorkItem1, hc)
 
       eventually {
         verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
