@@ -46,6 +46,10 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
     logger.info(format(msg, rm))
   }
 
+  def warn(msg: => String)(implicit rm: HasId): Unit = {
+    logger.warn(format(msg, rm))
+  }
+
   def errorWithHeaders(msg: => String, headers: => SeqOfHeader): Unit = logger.error(formatWithHeaders(msg, headers))
 
   def error(msg: => String)(implicit rm: HasId): Unit = {

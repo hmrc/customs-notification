@@ -72,6 +72,15 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
         .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][requestId=880f1f3d-0cf5-459b-89bc-0e682551db94][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
         .verify()
     }
+
+    "warn(s: => String)" in new SetUp {
+      logger.warn("msg")
+
+      PassByNameVerifier(mockCdsLogger, "warn")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][requestId=880f1f3d-0cf5-459b-89bc-0e682551db94][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
+        .verify()
+    }
+
     "error(s: => String)" in new SetUp {
       logger.error("msg")
 
@@ -79,6 +88,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
         .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][requestId=880f1f3d-0cf5-459b-89bc-0e682551db94][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
         .verify()
     }
+    
     "error(s: => String, t: => Throwable)" in new SetUp {
       logger.error("msg", new Exception("message"))
 

@@ -107,8 +107,8 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.stringify}")
         true
       case Left(pushOrPullError) =>
-        val msg = s"${pushOrPullError.source} error ${pushOrPullError.toString} for workItemId ${workItem.id.stringify}"
-        logger.error(msg, pushOrPullError.resultError.cause)
+        val msg = s"${pushOrPullError.source} failed ${pushOrPullError.toString} for workItemId ${workItem.id.stringify}"
+        logger.warn(msg)
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
           _ <- {

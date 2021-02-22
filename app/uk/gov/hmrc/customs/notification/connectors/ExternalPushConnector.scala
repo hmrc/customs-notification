@@ -62,7 +62,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
           case status => //1xx, 3xx, 4xx, 5xx
             val httpException = new Non2xxResponseException(status)
-            logger.error(httpException.message, httpException)
+            logger.warn(s"Failed to push notification. Response status ${response.status} and response body ${response.body}")
             Left(HttpResultError(status, httpException))
         }
     }

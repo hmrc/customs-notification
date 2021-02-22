@@ -50,7 +50,7 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
         logger.info(s"${response._1} push notification call succeeded")
         r
       case l@Left(resultError: ResultError) =>
-        logger.error(s"Call to ${response._1} push notification call failed. POST url=${pnr.body.url}", resultError.cause)
+        logger.warn(s"Call to ${response._1} push notification call failed. POST url=${pnr.body.url}")
         l
     }
   }
