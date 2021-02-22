@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,10 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
 
   def info(msg: => String)(implicit rm: HasId): Unit = {
     logger.info(format(msg, rm))
+  }
+
+  def warn(msg: => String)(implicit rm: HasId): Unit = {
+    logger.warn(format(msg, rm))
   }
 
   def errorWithHeaders(msg: => String, headers: => SeqOfHeader): Unit = logger.error(formatWithHeaders(msg, headers))

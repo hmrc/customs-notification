@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
           case status => //1xx, 3xx, 4xx, 5xx
             val httpException = new Non2xxResponseException(status)
-            logger.error(httpException.message, httpException)
+            logger.warn(s"Failed to push notification. Response status ${response.status} and response body ${response.body}")
             Left(HttpResultError(status, httpException))
         }
     }
