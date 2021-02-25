@@ -17,25 +17,24 @@
 package uk.gov.hmrc.customs.notification.connectors
 
 import com.google.inject.Inject
-import javax.inject.Singleton
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.ISSUE_DATE_TIME_HEADER
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonFormat
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
-import uk.gov.hmrc.http._
-import uk.gov.hmrc.http.HttpClient
+import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.{HttpClient, _}
 
+import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
 class ExternalPushConnector @Inject()(http: HttpClient,
-                                      logger: CdsLogger,
+                                      logger: NotificationLogger,
                                       serviceConfigProvider: ServiceConfigProvider)
                                      (implicit ec: ExecutionContext) extends MapResultError with HttpErrorFunctions {
 
@@ -43,12 +42,12 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     (ACCEPT, MimeTypes.JSON),
     (CONTENT_TYPE, MimeTypes.JSON))
 
-  def send(pushNotificationRequest: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
+  def send(pushNotificationRequest: PushNotificationRequest)(implicit hc: HeaderCarrier, rm: HasId): Future[Either[ResultError, HttpResponse]] = {
     implicit val headerCarrier: HeaderCarrier = hc.withExtraHeaders(outboundHeaders: _*)
-    doSend(removeDateHeaderFromRequestBody(pushNotificationRequest))(headerCarrier)
+    doSend(removeDateHeaderFromRequestBody(pushNotificationRequest))(headerCarrier, rm)
   }
 
-  private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
+  private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier, rm: HasId): Future[Either[ResultError, HttpResponse]] = {
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     val msg = "Calling external push notification service"
