@@ -126,12 +126,12 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     "route externally when config property internal.clientIds does not contains a matching clientId" in new SetUp {
       when(mockConfigService.notificationConfig).thenReturn(mockNotificationConfig)
       when(mockNotificationConfig.internalClientIds).thenReturn(Seq.empty)
-      when(mockExternalConnector.send(any[PushNotificationRequest])(any[HeaderCarrier]())).thenReturn(Future.successful(Right(mockHttpResponse)))
+      when(mockExternalConnector.send(any[PushNotificationRequest])(any[HeaderCarrier](), any[HasId])).thenReturn(Future.successful(Right(mockHttpResponse)))
 
       private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
       actual shouldBe Right(mockHttpResponse)
-      verify(mockExternalConnector).send(ameq(pnrOne))(any[HeaderCarrier]())
+      verify(mockExternalConnector).send(ameq(pnrOne))(any[HeaderCarrier](), any[HasId])
       verifyNoInteractions(mockInternalPushService)
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam("About to push externally")
