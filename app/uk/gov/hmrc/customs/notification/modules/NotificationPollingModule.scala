@@ -25,7 +25,6 @@ class NotificationPollingModule extends AbstractModule {
   override def configure(): Unit = {
     bind(classOf[WorkItemProcessingScheduler]).asEagerSingleton()
     bind(classOf[UnblockPollerService]).asEagerSingleton()
-    //TODO move this to another module
     bind(classOf[Clock]).toInstance(Clock.systemUTC())
   }
 }

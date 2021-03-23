@@ -36,7 +36,6 @@ import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
-                           requestId: RequestId,
                            notificationId: NotificationId,
                            maybeClientId: Option[ClientId],
                            maybeBadgeId: Option[BadgeId],
@@ -48,7 +47,6 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            startTime: ZonedDateTime)
   extends HasId
   with HasClientSubscriptionId
-  with HasRequestId
   with HasNotificationId
   with HasMaybeClientId
   with HasMaybeBadgeId
@@ -94,11 +92,9 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     val startTime = dateTimeService.zonedDateTimeUtc
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
-        val requestIdValue = uuidService.uuid()
         val maybeXml = request.body.asXml
-        implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, RequestId(requestIdValue), startTime)
-        implicit val headerCarrier: HeaderCarrier = hc(request)
-          .copy(requestId = Some(uk.gov.hmrc.http.logging.RequestId(requestIdValue.toString)))
+        implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, startTime)
+        implicit val headerCarrier: HeaderCarrier = hc(request).copy()
           .withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, rd.notificationId.toString))
         maybeXml match {
           case Some(xml) =>
@@ -110,10 +106,10 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     }
   }
 
-  private def requestMetaData(maybeXml: Option[NodeSeq], headers: Headers, requestId: RequestId, startTime: ZonedDateTime) = {
+  private def requestMetaData(maybeXml: Option[NodeSeq], headers: Headers, startTime: ZonedDateTime) = {
     // headers have been validated so safe to do a naked get except badgeId, submitter and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
-      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)), requestId,
+      ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
       NotificationId(uuidService.uuid()), None, headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId),
       headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter), headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
       extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml, headers.get(ISSUE_DATE_TIME_HEADER)), extractMrn(maybeXml), startTime)

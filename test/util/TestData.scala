@@ -54,9 +54,6 @@ object TestData {
   val CsidOne = ClientSubscriptionId(UUID.fromString("eaca01f9-ec3b-4ede-b263-61b626dde231"))
   val invalidFieldsId = "I-am-not-a-valid-type-4-uuid"
 
-  val validRequestId = "880f1f3d-0cf5-459b-89bc-0e682551db94"
-  val requestId = RequestId(UUID.fromString(validRequestId))
-
   val validNotificationId = "58373a04-2c45-4f43-9ea2-74e56be2c6d7"
   val notificationId = NotificationId(UUID.fromString(validNotificationId))
 
@@ -145,7 +142,7 @@ object TestData {
   val client1Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId1, notification1, Some(TimeReceivedDateTime), None)
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
-  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, requestId, notificationId, Some(clientId1),Some(BadgeId(badgeId)),
+  val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, notificationId, Some(clientId1),Some(BadgeId(badgeId)),
     Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)), Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned)
 
   val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId1, None, notification = notification1)

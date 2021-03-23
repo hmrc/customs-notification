@@ -51,7 +51,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
         ClientId(apiSubscriptionFields.clientId),
         Some(metaData.startTime.toDateTime),
-        //Saving notificationId as optional to accommodate existing data. Remove optionality later.
         Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)

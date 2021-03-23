@@ -36,7 +36,6 @@ case class NotificationMetricsConfig(baseUrl: String)
 
 case class UnblockPollerConfig(pollerEnabled: Boolean, pollerInterval: FiniteDuration)
 
-// TODO: pull up all other service config into here
 @ImplementedBy(classOf[ConfigService])
 trait CustomsNotificationConfig {
   def maybeBasicAuthToken: Option[String]
