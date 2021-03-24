@@ -23,7 +23,6 @@ import org.joda.time.{DateTime, DateTimeZone, Duration}
 
 import scala.concurrent.duration.FiniteDuration
 
-//TODO: improve parameter names by prefixing Joda stuff with joda as DataTime is also a trait in java time
 object DateTimeHelpers {
 
   implicit class DateTimeToZonedDateTimeOps(val dateTime: DateTime) extends AnyVal {

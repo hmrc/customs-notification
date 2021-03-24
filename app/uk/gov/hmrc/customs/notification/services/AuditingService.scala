@@ -48,7 +48,6 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private val clientId = "clientId"
   private val fieldsId = "fieldsId"
   private val notificationId = "notificationId"
-  private val requestId = "requestId"
   private val functionCode = "functionCode"
   private val issueDate = "issueDate"
   private val mrn = "mrn"
@@ -117,7 +116,6 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
       case r: RequestMetaData =>
         Map(clientId -> r.maybeClientId.fold("")(_.id),
           fieldsId -> r.clientSubscriptionId.toString,
-          requestId -> r.requestId.toString,
           notificationId -> r.notificationId.toString,
           functionCode -> r.maybeFunctionCode.fold("")(_.value),
           issueDate -> r.maybeIssueDateTime.fold("")(_.value),

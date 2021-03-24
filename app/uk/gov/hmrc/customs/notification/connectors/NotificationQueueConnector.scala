@@ -33,7 +33,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, configServices: CustomsNotificationConfig)
                                           (implicit ec: ExecutionContext) extends HttpErrorFunctions {
 
-  //TODO: handle POST failure scenario after Trade Test
   def enqueue(request: ClientNotification)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
 
     val url = configServices.notificationQueueConfig.url

@@ -68,7 +68,7 @@ trait NotificationWorkItemRepo {
 
 @Singleton
 class NotificationWorkItemMongoRepo @Inject()(reactiveMongoComponent: ReactiveMongoComponent,
-                                              clock: Clock, //TODO: use DateTime service
+                                              clock: Clock,
                                               customsNotificationConfig: CustomsNotificationConfig,
                                               logger: CdsLogger,
                                               configuration: Configuration)

@@ -200,7 +200,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       result shouldBe 0
     }
 
-    //TODO: verify updatedAt
     "return count of notifications blocked by setting to PermanentlyFailed" in {
       val nowAsJoda = clock.nowAsJoda
       val wiClient1One = await(repository.pushNew(NotificationWorkItem1, nowAsJoda, failed _))

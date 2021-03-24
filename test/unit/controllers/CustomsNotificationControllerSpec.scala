@@ -16,8 +16,6 @@
 
 package unit.controllers
 
-import java.util.UUID
-
 import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers}
@@ -36,9 +34,10 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
 import uk.gov.hmrc.http.HeaderCarrier
-import util.UnitSpec
 import util.TestData._
+import util.UnitSpec
 
+import java.util.UUID
 import scala.concurrent.Future
 import scala.xml.{Elem, NodeSeq}
 
@@ -74,7 +73,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val apiSubscriptionFields = ApiSubscriptionFields(clientIdString1, DeclarantCallbackDataOneForPush)
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, requestId, notificationId,
+  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, notificationId,
     Some(clientId1), Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)),
     None, None, None, mockDateTimeService.zonedDateTimeUtc)
 
@@ -85,7 +84,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
-    when(mockUuidService.uuid()).thenReturn(UUID.fromString(validRequestId)).thenReturn(UUID.fromString(validNotificationId))
+    when(mockUuidService.uuid()).thenReturn(UUID.fromString(validNotificationId))
     when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData), meq(apiSubscriptionFields))(any[HeaderCarrier]())).thenReturn(eventualTrue)
   }
 

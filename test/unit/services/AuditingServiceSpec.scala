@@ -143,12 +143,11 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
         actualExtendedDataEvent.auditSource shouldBe "customs-notification"
         actualExtendedDataEvent.auditType shouldBe "DeclarationNotificationOutboundCall"
 
-        actualExtendedDataEvent.tags.size shouldBe 9
+        actualExtendedDataEvent.tags.size shouldBe 8
         actualExtendedDataEvent.tags shouldBe Map("clientId" -> "ClientId",
           "notificationId" -> "58373a04-2c45-4f43-9ea2-74e56be2c6d7",
           "fieldsId" -> "eaca01f9-ec3b-4ede-b263-61b626dde232",
           "functionCode" -> "01",
-          "requestId" -> "880f1f3d-0cf5-459b-89bc-0e682551db94",
           "x-conversation-id" -> conversationId.toString,
           "issueDate" -> "20190925104103Z",
           "mrn" -> "19GB3955NQ36213969",
@@ -209,12 +208,11 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
           val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
           actualExtendedDataEvent.auditSource shouldBe "customs-notification"
           actualExtendedDataEvent.auditType shouldBe "DeclarationNotificationOutboundCall"
-          actualExtendedDataEvent.tags.size shouldBe 9
+          actualExtendedDataEvent.tags.size shouldBe 8
           actualExtendedDataEvent.tags shouldBe Map("clientId" -> "ClientId",
             "notificationId" -> "58373a04-2c45-4f43-9ea2-74e56be2c6d7",
             "fieldsId" -> "eaca01f9-ec3b-4ede-b263-61b626dde232",
             "functionCode" -> "01",
-            "requestId" -> "880f1f3d-0cf5-459b-89bc-0e682551db94",
             "x-conversation-id" -> conversationId.toString,
             "issueDate" -> "20190925104103Z",
             "mrn" -> "19GB3955NQ36213969",
