@@ -24,7 +24,6 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, PushNotificationRequest, ResultError}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.http._
-import uk.gov.hmrc.http.logging.Authorization
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.http.HttpReads.Implicits._
 
@@ -52,7 +51,10 @@ class InternalPushConnector @Inject()(http: HttpClient,
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
 
-    logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body.xmlPayload}")
+    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+    val headers = hc.headers(headerNames) ++ hc.extraHeaders
+
+    logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body.xmlPayload}")
 
     http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
       .map[Either[ResultError, HttpResponse]] { response =>

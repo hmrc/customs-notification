@@ -56,21 +56,21 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
 
     "POST valid payload" in {
       when(mockHttpClient.POST(any[String](), any[NodeSeq](), any[Seq[(String,String)]]())(
-        any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]()))
+        any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any(), any()))
         .thenReturn(Future.successful(mock[HttpResponse]))
 
       await(connector.send(externalPushNotificationRequest))
 
       val requestBody = ArgumentCaptor.forClass(classOf[PushNotificationRequestBody])
       verify(mockHttpClient).POST(ArgumentMatchers.eq(url), requestBody.capture(), any[Seq[(String,String)]]())(
-        any[Writes[PushNotificationRequestBody]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]())
+        any[Writes[PushNotificationRequestBody]](), any[HttpReads[HttpResponse]](), any(), any())
       val body = requestBody.getValue.asInstanceOf[PushNotificationRequestBody]
       body shouldEqual externalPushNotificationRequest.body
     }
 
     "propagate exception in HTTP VERBS post" in {
       when(mockHttpClient.POST(any[String](), any[NodeSeq](), any[Seq[(String,String)]]())(
-        any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any[HeaderCarrier](), any[ExecutionContext]()))
+        any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any(), any()))
         .thenThrow(emulatedHttpVerbsException)
 
       val caught = intercept[RuntimeException] {

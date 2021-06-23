@@ -23,7 +23,7 @@ import play.api.libs.json.{JsObject, JsString, JsValue}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames}
 import uk.gov.hmrc.play.audit.EventKeys.TransactionName
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
@@ -73,13 +73,16 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
     xConversationId -> pnr.body.conversationId
     ) ++ getTags(rm)
 
+    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+    val headers = hc.headers(headerNames) ++ hc.extraHeaders
+
     val detail: JsObject = failureReason.fold(
       JsObject(Map[String, JsValue](
         outboundCallUrl -> JsString(pnr.body.url.toString),
         outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
         result -> JsString(successOrFailure),
         payload -> JsString(notificationPayload.getOrElse("")),
-        payloadHeaders -> JsString(hc.headers.toString()),
+        payloadHeaders -> JsString(headers.toString()),
         generatedAt -> JsString(DateTimeUtils.now.toString)
       )))(reason => {
         JsObject(Map[String, JsValue](

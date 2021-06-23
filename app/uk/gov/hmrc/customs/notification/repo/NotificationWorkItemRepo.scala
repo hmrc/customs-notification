@@ -252,12 +252,11 @@ object WorkItemFormat {
 
   def workItemMongoFormat[T](implicit nFormat: Format[T]): Format[WorkItem[T]] =
     ReactiveMongoFormats.mongoEntity(
-      notificationFormat(ReactiveMongoFormats.objectIdFormats,
+      notificationFormat(
         ReactiveMongoFormats.dateTimeFormats,
         nFormat))
 
-  private def notificationFormat[T](implicit bsonIdFormat: Format[BSONObjectID],
-                                    dateTimeFormat: Format[DateTime],
+  private def notificationFormat[T](implicit dateTimeFormat: Format[DateTime],
                                     nFormat: Format[T]): Format[WorkItem[T]] = {
     val reads = (
       (__ \ "id").read[BSONObjectID] and

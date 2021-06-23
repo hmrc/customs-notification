@@ -51,7 +51,9 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     val msg = "Calling external push notification service"
-    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${hc.headers} \npayload= ${pnr.body}")
+    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+    val headers = hc.headers(headerNames) ++ hc.extraHeaders
+    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
       .map[Either[ResultError, HttpResponse]]{ response =>
