@@ -69,8 +69,10 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
 
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
     val fullUrl = s"$baseUrl/$fieldsId"
+    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+    val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headerCarrier}")
+    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headersToLog}")
 
     http.GET[HttpResponse](fullUrl)
       .recoverWith {
