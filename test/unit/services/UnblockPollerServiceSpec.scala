@@ -29,7 +29,6 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.workitem.{PermanentlyFailed, ResultStatus, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.{WorkItem1, validClientSubscriptionId1}

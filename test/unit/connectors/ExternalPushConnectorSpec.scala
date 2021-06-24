@@ -30,7 +30,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpReads, HttpResponse}
 import util.TestData.{externalPushNotificationRequest, requestMetaData}
 import util.UnitSpec
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.xml.NodeSeq
 
 class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {

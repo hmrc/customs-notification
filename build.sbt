@@ -66,7 +66,6 @@ lazy val integrationComponentTestSettings =
   inConfig(CdsIntegrationComponentTest)(Defaults.testTasks) ++
     Seq(
       CdsIntegrationComponentTest / testOptions := Seq(Tests.Filter(integrationComponentTestFilter)),
-      CdsIntegrationComponentTest / fork := false,
       CdsIntegrationComponentTest / parallelExecution  := false,
       addTestReportOption(CdsIntegrationComponentTest, "int-comp-test-reports"),
       CdsIntegrationComponentTest / testGrouping := forkedJvmPerTestConfig((Test / definedTests).value, "integration", "component")
@@ -103,5 +102,3 @@ val compileDependencies = Seq(customsApiCommon, workItemRepo, silencerPlugin, si
 val testDependencies = Seq(scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
 
 libraryDependencies ++= compileDependencies ++ testDependencies
-
-update / evictionWarningOptions := EvictionWarningOptions.default.withWarnTransitiveEvictions(false)

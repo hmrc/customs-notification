@@ -33,7 +33,6 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
-import uk.gov.hmrc.http.HeaderCarrier
 import util.TestData._
 import util.UnitSpec
 

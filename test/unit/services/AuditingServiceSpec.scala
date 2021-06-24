@@ -36,7 +36,7 @@ import util.TestData
 import util.TestData.{NotificationWorkItem1, conversationId, internalPushNotificationRequest}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.postfixOps
 
 class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
