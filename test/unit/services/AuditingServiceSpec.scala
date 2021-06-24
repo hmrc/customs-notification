@@ -87,7 +87,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
         (actualExtendedDataEvent.detail \ "payloadHeaders").as[String] should include("X-Request-ID,ABC") // Ignore request change
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
-        actualExtendedDataEvent.generatedAt.toString() should have size 27
+        actualExtendedDataEvent.generatedAt.toString() should have size 24
       }
     }
 
@@ -121,7 +121,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
         (actualExtendedDataEvent.detail \ "payloadHeaders").as[String] should include("X-Request-ID,ABC") // Ignore request change
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
-        actualExtendedDataEvent.generatedAt.toString() should have size 27
+        actualExtendedDataEvent.generatedAt.toString() should have size 24
       }
     }
 
@@ -157,7 +157,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
         (actualExtendedDataEvent.detail \ "payloadHeaders").as[String] should include("X-Request-ID,ABC") // Ignore request change
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
-        actualExtendedDataEvent.generatedAt.toString() should have size 27
+        actualExtendedDataEvent.generatedAt.toString() should have size 24
       }
     }
 
@@ -188,7 +188,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "FAILURE"
         (actualExtendedDataEvent.detail \ "failureReason").as[String] shouldBe "FailureReasonAbc123"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
-        actualExtendedDataEvent.generatedAt.toString() should have size 27
+        actualExtendedDataEvent.generatedAt.toString() should have size 24
       }
     }
       "call audit connector with correct payload for auditing failed notification" in {
@@ -221,7 +221,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
           (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "FAILURE"
           (actualExtendedDataEvent.detail \ "failureReason").as[String] shouldBe "FailureReasonAbc123"
           actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
-          actualExtendedDataEvent.generatedAt.toString() should have size 27
+          actualExtendedDataEvent.generatedAt.toString() should have size 24
         }
     }
 
