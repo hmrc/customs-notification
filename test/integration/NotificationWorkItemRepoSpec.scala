@@ -145,7 +145,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       failedItem.get.status shouldBe Failed
       failedItem.get.failureCount shouldBe 1
-      failedItem.get.availableAt.toLocalDateTime.toString shouldBe availableAt.toLocalDateTime.toString.dropRight(3)
+      failedItem.get.availableAt.toLocalDateTime.toString shouldBe availableAt.toLocalDateTime.toString
     }
 
     "return correct count of permanently failed items" in {
