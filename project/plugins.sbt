@@ -8,7 +8,7 @@ resolvers += Resolver.jcenterRepo
 
 addSbtPlugin("uk.gov.hmrc" % "sbt-auto-build" % "3.0.0")
 
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
+addSbtPlugin("com.github.sbt" % "sbt-release" % "1.0.15")
 
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.7.9")
 
