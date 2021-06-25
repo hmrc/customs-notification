@@ -3,8 +3,8 @@ import sbt._
 object AppDependencies {
   
   private val scalatestplusVersion = "4.0.3"
-  private val mockitoVersion = "3.5.9"
-  private val wireMockVersion = "2.27.2"
+  private val mockitoVersion = "3.11.2"
+  private val wireMockVersion = "2.28.1"
   private val customsApiCommonVersion = "1.56.0"
   private val workItemRepoVersion = "8.0.0-play-27"
   private val reactiveMongoTestVersion = "5.0.0-play-27"
