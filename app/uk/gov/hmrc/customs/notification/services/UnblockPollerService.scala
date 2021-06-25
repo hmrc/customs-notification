@@ -67,7 +67,6 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Boolean] = {
 
-    implicit val loggingContext: NotificationWorkItem = workItem.item
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
     pushOrPullService.send(workItem.item).map[Boolean]{

@@ -10,12 +10,8 @@ import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 import scala.language.postfixOps
 
 name := "customs-notification"
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.13"
 targetJvm := "jvm-1.8"
-
-resolvers ++= Seq(
-  Resolver.bintrayRepo("hmrc", "releases"),
-  Resolver.jcenterRepo)
 
 lazy val ComponentTest = config("component") extend Test
 lazy val CdsIntegrationComponentTest = config("it") extend Test
@@ -29,14 +25,13 @@ def forkedJvmPerTestConfig(tests: Seq[TestDefinition], packages: String*): Seq[G
   } toSeq
 
 lazy val testAll = TaskKey[Unit]("test-all")
-lazy val allTest = Seq(testAll := (test in ComponentTest)
-  .dependsOn((test in CdsIntegrationComponentTest).dependsOn(test in Test)).value)
+lazy val allTest = Seq(testAll := (ComponentTest / test)
+  .dependsOn((CdsIntegrationComponentTest / test).dependsOn(Test / test)).value)
 
 lazy val microservice = (project in file("."))
   .enablePlugins(PlayScala)
-  .enablePlugins(SbtAutoBuildPlugin, SbtGitVersioning)
+  .enablePlugins(SbtAutoBuildPlugin)
   .enablePlugins(SbtDistributablesPlugin)
-  .enablePlugins(SbtArtifactory)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
   .settings(
@@ -48,23 +43,32 @@ lazy val microservice = (project in file("."))
     scoverageSettings
   )
   .settings(majorVersion := 0)
+  .settings(scalacOptions ++= List(
+  "-Yrangepos",
+  "-Xlint:-missing-interpolator,_",
+  "-Yno-adapted-args",
+  "-feature",
+  "-unchecked",
+  "-language:implicitConversions",
+  "-P:silencer:pathFilters=views;routes;TestStorage"
+    )
+  )
 
 lazy val unitTestSettings =
   inConfig(Test)(Defaults.testTasks) ++
     Seq(
-      testOptions in Test := Seq(Tests.Filter(unitTestFilter)),
-      unmanagedSourceDirectories in Test := Seq((baseDirectory in Test).value / "test"),
+      Test / testOptions := Seq(Tests.Filter(unitTestFilter)),
+      Test / unmanagedSourceDirectories := Seq((Test / baseDirectory).value / "test"),
       addTestReportOption(Test, "test-reports")
     )
 
 lazy val integrationComponentTestSettings =
   inConfig(CdsIntegrationComponentTest)(Defaults.testTasks) ++
     Seq(
-      testOptions in CdsIntegrationComponentTest := Seq(Tests.Filter(integrationComponentTestFilter)),
-      fork in CdsIntegrationComponentTest := false,
-      parallelExecution in CdsIntegrationComponentTest := false,
+      CdsIntegrationComponentTest / testOptions := Seq(Tests.Filter(integrationComponentTestFilter)),
+      CdsIntegrationComponentTest / parallelExecution  := false,
       addTestReportOption(CdsIntegrationComponentTest, "int-comp-test-reports"),
-      testGrouping in CdsIntegrationComponentTest := forkedJvmPerTestConfig((definedTests in Test).value, "integration", "component")
+      CdsIntegrationComponentTest / testGrouping := forkedJvmPerTestConfig((Test / definedTests).value, "integration", "component")
     )
 
 lazy val commonSettings: Seq[Setting[_]] = publishingSettings ++ gitStampSettings
@@ -80,10 +84,10 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
     ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
     ,".*(Reverse|AuthService|BuildInfo|Routes).*"
   ).mkString(";"),
-  coverageMinimum := 95,
+  coverageMinimumStmtTotal := 95,
   coverageFailOnMinimum := true,
   coverageHighlighting := true,
-  parallelExecution in Test := false
+  Test / parallelExecution := false
 )
 
 def integrationComponentTestFilter(name: String): Boolean = (name startsWith "integration") || (name startsWith "component")
@@ -91,12 +95,10 @@ def unitTestFilter(name: String): Boolean = name startsWith "unit"
 
 scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 
-unmanagedResourceDirectories in Compile += baseDirectory.value / "public"
+Compile / unmanagedResourceDirectories += baseDirectory.value / "public"
 
-val compileDependencies = Seq(customsApiCommon, workItemRepo)
+val compileDependencies = Seq(customsApiCommon, workItemRepo, silencerPlugin, silencerLib)
 
 val testDependencies = Seq(scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
 
 libraryDependencies ++= compileDependencies ++ testDependencies
-
-evictionWarningOptions in update := EvictionWarningOptions.default.withWarnTransitiveEvictions(false)

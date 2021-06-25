@@ -26,10 +26,9 @@ import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.AuditingService
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, RequestId}
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
-import uk.gov.hmrc.http.logging.RequestId
 import util.UnitSpec
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -37,7 +36,7 @@ import util.TestData
 import util.TestData.{NotificationWorkItem1, conversationId, internalPushNotificationRequest}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.postfixOps
 
 class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
@@ -64,12 +63,12 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       val captor = ArgumentCaptor.forClass(classOf[ExtendedDataEvent])
 
-      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
+      when(mockAuditConnector.sendExtendedEvent(any())(any(), any())).thenReturn(Future.successful(mockAuditResult))
 
       auditingService.auditNotificationReceived(internalPushNotificationRequest)(NotificationWorkItem1, hc)
 
       eventually {
-        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
+        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any(), any())
 
         val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
         actualExtendedDataEvent.auditSource shouldBe "customs-notification"
@@ -98,12 +97,12 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       val captor = ArgumentCaptor.forClass(classOf[ExtendedDataEvent])
 
-      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
+      when(mockAuditConnector.sendExtendedEvent(any())(any(), any())).thenReturn(Future.successful(mockAuditResult))
 
       auditingService.auditSuccessfulNotification(internalPushNotificationRequest)(NotificationWorkItem1, hc)
 
       eventually {
-        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
+        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any(), any())
 
         val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
         actualExtendedDataEvent.auditSource shouldBe "customs-notification"
@@ -132,12 +131,12 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       val captor = ArgumentCaptor.forClass(classOf[ExtendedDataEvent])
 
-      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
+      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any(), any())).thenReturn(Future.successful(mockAuditResult))
 
       auditingService.auditSuccessfulNotification(internalPushNotificationRequest)
 
       eventually {
-        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
+        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any(), any())
 
         val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
         actualExtendedDataEvent.auditSource shouldBe "customs-notification"
@@ -168,12 +167,12 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       val captor = ArgumentCaptor.forClass(classOf[ExtendedDataEvent])
 
-      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
+      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any(), any())).thenReturn(Future.successful(mockAuditResult))
 
       auditingService.auditFailedNotification(internalPushNotificationRequest, Some("FailureReasonAbc123"))(NotificationWorkItem1, hc)
 
       eventually {
-        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
+        verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any(), any())
 
         val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
         actualExtendedDataEvent.auditSource shouldBe "customs-notification"
@@ -198,12 +197,12 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
         val captor = ArgumentCaptor.forClass(classOf[ExtendedDataEvent])
 
-        when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.successful(mockAuditResult))
+        when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any(), any())).thenReturn(Future.successful(mockAuditResult))
 
         auditingService.auditFailedNotification(internalPushNotificationRequest, Some("FailureReasonAbc123"))
 
         eventually {
-          verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any[HeaderCarrier], any[ExecutionContext])
+          verify(mockAuditConnector).sendExtendedEvent(captor.capture())(any(), any())
 
           val actualExtendedDataEvent: ExtendedDataEvent = captor.getValue
           actualExtendedDataEvent.auditSource shouldBe "customs-notification"
@@ -230,7 +229,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
       val auditingService = new AuditingService(mockLogger, mockAuditConnector)
 
-      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], any[ExecutionContext])).thenReturn(Future.failed(new Exception))
+      when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any(), any())).thenReturn(Future.failed(new Exception))
 
       auditingService.auditFailedNotification(internalPushNotificationRequest, Some("FailureReasonAbc123"))
 

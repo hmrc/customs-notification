@@ -23,8 +23,7 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig, NotificationId}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
-import uk.gov.hmrc.http.{HeaderCarrier, HttpErrorFunctions, HttpException, HttpResponse}
-import uk.gov.hmrc.http.HttpClient
+import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpClient, HttpErrorFunctions, HttpException, HttpResponse}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -48,7 +47,10 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
 
     val notification = request.notification
 
-    logger.debug(s"Attempting to send notification to queue\nheaders=${headerCarrier.headers}} \npayload=${notification.payload}")
+    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+    val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
+
+    logger.debug(s"Attempting to send notification to queue\nheaders=${headersToLog}} \npayload=${notification.payload}")
 
     http.POSTString[HttpResponse](url, notification.payload)(readRaw, headerCarrier, ec).flatMap { response =>
         response.status match {

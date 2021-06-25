@@ -66,10 +66,13 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
 
   private def callApiSubscriptionFields(fieldsId: String, hc: HeaderCarrier): Future[HttpResponse] = {
     implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
+
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
     val fullUrl = s"$baseUrl/$fieldsId"
+    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+    val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headerCarrier.headers}")
+    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headersToLog}")
 
     http.GET[HttpResponse](fullUrl)
       .recoverWith {

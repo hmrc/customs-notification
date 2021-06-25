@@ -28,7 +28,6 @@ class TestOnlyControllerSpec extends UnitSpec
   with MockitoSugar
   with ControllerSpecHelper {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val mockTestOnlyService = mock[TestOnlyService]
 
   private def controller() = new TestOnlyController(mockTestOnlyService, Helpers.stubControllerComponents())

@@ -52,7 +52,7 @@ class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
     )
     private[CustomsNotificationMetricsServiceSpec] def verifyMetricsConnector(): Unit = {
       val metricsRequestCaptor: ArgumentCaptor[CustomsNotificationsMetricsRequest] = ArgumentCaptor.forClass(classOf[CustomsNotificationsMetricsRequest])
-      Eventually.eventually(verify(mockMetricsConnector, times(1)).post(metricsRequestCaptor.capture())(any[HeaderCarrier]()))
+      Eventually.eventually(verify(mockMetricsConnector, times(1)).post(metricsRequestCaptor.capture())(any()))
       val metricsRequest = metricsRequestCaptor.getValue
       metricsRequest.conversationId.toString shouldBe conversationId.id.toString
       ()
