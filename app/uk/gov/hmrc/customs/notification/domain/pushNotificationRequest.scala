@@ -28,7 +28,9 @@ object Header {
 }
 
 case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String, conversationId: String,
-                                       outboundCallHeaders: Seq[Header], xmlPayload: String)
+                                       outboundCallHeaders: Seq[Header], xmlPayload: String) {
+  override def toString: String = s"url: ${url.url.toString}, conversationId: $conversationId, outboundCallHeaders: ${outboundCallHeaders.toString()}"
+}
 object PushNotificationRequestBody {
 
   implicit val callbackUrlFormat: DeclarantCallbackData.CallbackUrlFormat.type = DeclarantCallbackData.CallbackUrlFormat
@@ -60,6 +62,8 @@ case class Notification(notificationId: Option[NotificationId], conversationId: 
   def getHeader(name: String): Option[Header] = caseInsensitiveHeaders.get(name).map(Header(name, _))
 
   def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h => h.name -> h.value }
+
+  override def toString: String = s"notificationId: ${notificationId.toString}, conversationId: ${conversationId.toString}, headers: ${headers.toString()}, contentType: $contentType"
 }
 object Notification {
   implicit val notificationJF: Format[Notification] = Json.format[Notification]
