@@ -50,7 +50,7 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
       val result = await(service.blockedCount(clientId1))
       result shouldBe 2
 
-      eventually(verify(mockRepo).blockedCount(clientId1))
+      verify(mockRepo).blockedCount(clientId1)
     }
 
     "return true when notifications are unblocked" in {
@@ -59,7 +59,7 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
       val result = await(service.deleteBlocked(clientId1))
       result shouldBe true
 
-      eventually(verify(mockRepo).deleteBlocked(clientId1))
+      verify(mockRepo).deleteBlocked(clientId1)
     }
 
     "return false when no notifications are unblocked" in {
@@ -68,7 +68,7 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
       val result = await(service.deleteBlocked(clientId1))
       result shouldBe false
 
-      eventually(verify(mockRepo).deleteBlocked(clientId1))
+      verify(mockRepo).deleteBlocked(clientId1)
     }
   }
 }

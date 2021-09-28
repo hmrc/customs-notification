@@ -62,9 +62,9 @@ class CustomsNotificationTxmSpec extends ComponentTestSpec
   }
 
 
-  feature("Ensure Audit Service is made when call to callback endpoint are made internally (ie bypass the gateway)") {
+  Feature("Ensure Audit Service is made when call to callback endpoint are made internally (ie bypass the gateway)") {
 
-    scenario("when notifications are present in the database") {
+    Scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
       setupInternalServiceToReturn()
       stubAuditService()

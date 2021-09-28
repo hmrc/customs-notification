@@ -61,9 +61,9 @@ class InternalNotificationSpec extends ComponentTestSpec
     await(repo.drop)
   }
 
-  feature("Ensure call to callback endpoint are made internally (ie bypass the gateway)") {
+  Feature("Ensure call to callback endpoint are made internally (ie bypass the gateway)") {
 
-    scenario("when notifications are present in the database") {
+    Scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, internalCallbackData)
       setupInternalServiceToReturn()
       stubAuditService()

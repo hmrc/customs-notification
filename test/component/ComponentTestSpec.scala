@@ -18,13 +18,15 @@ package component
 
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
+import org.scalatest.featurespec.AnyFeatureSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import util.ExternalServicesConfiguration
 
-trait ComponentTestSpec extends FeatureSpec
+trait ComponentTestSpec extends AnyFeatureSpec
   with GivenWhenThen
   with GuiceOneAppPerSuite
   with BeforeAndAfterAll

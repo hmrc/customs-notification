@@ -16,20 +16,20 @@
 
 package util
 
-import org.scalatest.Matchers
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PushNotificationRequest}
 import util.TestData._
-import java.util
 
+import java.util
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.matching.UrlPattern
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
+import org.scalatest.matchers.should.Matchers
 
-trait PushNotificationService extends WireMockRunner {
+trait PushNotificationService extends WireMockRunner with Matchers {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
 
   def setupPushNotificationServiceToReturn(status: Int = NO_CONTENT): Unit =

@@ -59,9 +59,9 @@ class CustomsNotificationSpec extends ComponentTestSpec
     resetMockServer()
   }
 
-  feature("Ensure call to push notification service is made when request is valid") {
+  Feature("Ensure call to push notification service is made when request is valid") {
 
-    scenario("backend submits a valid request destined for push") {
+    Scenario("backend submits a valid request destined for push") {
       startApiSubscriptionFieldsService(validFieldsId,callbackData)
       setupPushNotificationServiceToReturn()
 
@@ -83,7 +83,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       eventually (verifyNotificationQueueServiceWasNotCalled())
     }
 
-    scenario("backend submits a valid request destined for pull") {
+    Scenario("backend submits a valid request destined for pull") {
       runNotificationQueueService(CREATED)
       startApiSubscriptionFieldsService(validFieldsId, DeclarantCallbackDataOneForPull)
 
@@ -103,7 +103,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       contentAsString(resultFuture) shouldBe 'empty
     }
 
-    scenario("backend submits a valid request with incorrect callback details used") {
+    Scenario("backend submits a valid request with incorrect callback details used") {
       startApiSubscriptionFieldsService(validFieldsId,callbackData)
       setupPushNotificationServiceToReturn(NOT_FOUND)
       runNotificationQueueService(CREATED)
@@ -125,9 +125,9 @@ class CustomsNotificationSpec extends ComponentTestSpec
     }
   }
 
-  feature("Ensure work item is saved as permanently failed when existing work item is permanently failed") {
+  Feature("Ensure work item is saved as permanently failed when existing work item is permanently failed") {
 
-    scenario("backend submits a valid request") {
+    Scenario("backend submits a valid request") {
 
       await(repo.drop)
       await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
@@ -158,9 +158,9 @@ class CustomsNotificationSpec extends ComponentTestSpec
     }
   }
 
-  feature("Ensure call to customs notification gateway are made") {
+  Feature("Ensure call to customs notification gateway are made") {
 
-    scenario("when notifications are present in the database") {
+    Scenario("when notifications are present in the database") {
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupPushNotificationServiceToReturn()
       runNotificationQueueService(CREATED)
