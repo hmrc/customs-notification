@@ -67,9 +67,9 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
     await(repo.drop)
   }
 
-  feature("Ensure offline retry") {
+  Feature("Ensure offline retry") {
 
-    scenario("backend submits a valid PUSH request with incorrect callback details used resulting in endpoint returning a 500") {
+    Scenario("backend submits a valid PUSH request with incorrect callback details used resulting in endpoint returning a 500") {
 
       startApiSubscriptionFieldsService(validFieldsId,callbackData)
       Given("the Push endpoint is setup to return NOT_FOUND")
@@ -106,7 +106,7 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
       eventually(verifyNotificationQueueServiceWasNotCalled())
     }
 
-    scenario("backend submits a valid PULL request but pull queue is unavailable") {
+    Scenario("backend submits a valid PULL request but pull queue is unavailable") {
 
       startApiSubscriptionFieldsService(validFieldsId, DeclarantCallbackDataOneForPull)
       Given("the Push endpoint is setup to return NOT_FOUND")

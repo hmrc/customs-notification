@@ -57,8 +57,8 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec
     await(repo.drop)
   }
 
-  feature("Ensure requests for blocked count are processed correctly") {
-    scenario("a valid request returns the correct blocked count") {
+  Feature("Ensure requests for blocked count are processed correctly") {
+    Scenario("a valid request returns the correct blocked count") {
       Given("the API is available")
       And("there is data in the database")
       await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
@@ -76,7 +76,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec
       trim(loadString(contentAsString(resultFuture))) shouldBe trim(<pushNotificationBlockedCount>2</pushNotificationBlockedCount>)
     }
 
-    scenario("a request without a client id header returns the correct error response") {
+    Scenario("a request without a client id header returns the correct error response") {
       Given("the API is available")
       And("there is data in the database")
       await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
@@ -95,9 +95,9 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec
     }
   }
 
-  feature("Ensure requests for deleting blocked flags are processed correctly") {
+  Feature("Ensure requests for deleting blocked flags are processed correctly") {
 
-    scenario("a request that removes blocks returns the correct response") {
+    Scenario("a request that removes blocks returns the correct response") {
       Given("the API is available")
       And("there is data in the database")
       await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
@@ -116,7 +116,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec
       contentAsString(resultFuture) shouldBe empty
     }
 
-    scenario("a request that removes no blocks returns the correct response") {
+    Scenario("a request that removes no blocks returns the correct response") {
       Given("the API is available")
       And("there is no data in the database")
 

@@ -17,7 +17,7 @@
 package unit.services.config
 
 import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
 import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor

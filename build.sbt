@@ -1,4 +1,3 @@
-import AppDependencies._
 import sbt.Keys._
 import sbt.Tests.{Group, SubProcess}
 import sbt._
@@ -10,7 +9,6 @@ import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 import scala.language.postfixOps
 
 name := "customs-notification"
-scalaVersion := "2.12.13"
 targetJvm := "jvm-1.8"
 
 lazy val ComponentTest = config("component") extend Test
@@ -34,6 +32,7 @@ lazy val microservice = (project in file("."))
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
+  .settings(scalaVersion := "2.12.14")
   .settings(
     commonSettings,
     unitTestSettings,
@@ -97,8 +96,4 @@ scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 
 Compile / unmanagedResourceDirectories += baseDirectory.value / "public"
 
-val compileDependencies = Seq(customsApiCommon, workItemRepo, silencerPlugin, silencerLib)
-
-val testDependencies = Seq(scalaTestPlusPlay, wireMock, mockito, reactiveMongoTest, customsApiCommonTests)
-
-libraryDependencies ++= compileDependencies ++ testDependencies
+libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test
