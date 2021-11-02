@@ -53,6 +53,9 @@ lazy val microservice = (project in file("."))
     )
   )
 
+PlayKeys.devSettings := Seq("play.server.http.port" -> "9821")
+
+
 lazy val unitTestSettings =
   inConfig(Test)(Defaults.testTasks) ++
     Seq(
