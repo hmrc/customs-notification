@@ -102,6 +102,9 @@ trait HeaderValidator {
 
   private def hasValidClientId(h: Headers) = {
     val result = h.get(X_CDS_CLIENT_ID_HEADER_NAME).exists(_.matches(uuidRegex))
+
+    if (!result) notificationLogger.debugWithHeaders("X-CDS-Client-ID Header failed validation", h.headers) else ()
+
     logValidationResult(X_CDS_CLIENT_ID_HEADER_NAME, result)(h)
   }
 
