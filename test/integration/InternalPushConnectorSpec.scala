@@ -73,7 +73,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
   override implicit lazy val app: Application =
     GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(stubCdsLogger).asGuiceableModule)).configure(Map(
       "auditing.enabled" -> false,
-      "non.blocking.retry.after.minutes" -> 120
+      "non.blocking.retry.after.minutes" -> 10
     )).build()
 
   "InternalPushConnector" should {

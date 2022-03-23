@@ -57,7 +57,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
       "microservice.services.public-notification.host" -> Host,
       "microservice.services.public-notification.port" -> Port,
       "microservice.services.public-notification.context" -> ExternalServicesConfiguration.PushNotificationServiceContext,
-      "non.blocking.retry.after.minutes" -> 120
+      "non.blocking.retry.after.minutes" -> 10
     )).build()
 
   "ExternalPushConnector" should {
