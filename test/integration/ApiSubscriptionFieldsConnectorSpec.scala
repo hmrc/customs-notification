@@ -62,7 +62,7 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
       "microservice.services.api-subscription-fields.host" -> Host,
       "microservice.services.api-subscription-fields.port" -> Port,
       "microservice.services.api-subscription-fields.context" -> ExternalServicesConfiguration.ApiSubscriptionFieldsServiceContext,
-      "non.blocking.retry.after.minutes" -> 120
+      "non.blocking.retry.after.minutes" -> 10
     )).build()
 
   "ApiSubscriptionFieldsServiceConnector" should {

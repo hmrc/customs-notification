@@ -43,7 +43,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |retry.poller.retryAfterFailureInterval.seconds = 2
       |retry.poller.inProgressRetryAfter.seconds = 3
       |retry.poller.instances = 3
-      |non.blocking.retry.after.minutes = 120
+      |non.blocking.retry.after.minutes = 10
       |unblock.poller.enabled = true
       |unblock.poller.interval.milliseconds = 400
       |
@@ -77,7 +77,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |retry.poller.retryAfterFailureInterval.seconds = 2
       |retry.poller.inProgressRetryAfter.seconds = 3
       |retry.poller.instances = 3
-      |non.blocking.retry.after.minutes = 120
+      |non.blocking.retry.after.minutes = 10
       |unblock.poller.enabled = true
       |unblock.poller.interval.milliseconds = 400
       |

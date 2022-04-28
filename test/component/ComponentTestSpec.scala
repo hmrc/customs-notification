@@ -54,7 +54,7 @@ trait ComponentTestSpec extends AnyFeatureSpec
     "mongodb.uri" -> "mongodb://localhost:27017/customs-notification",
     "metrics.jvm" -> false,
     "metrics.logback" -> false,
-    "non.blocking.retry.after.minutes" -> 120
+    "non.blocking.retry.after.minutes" -> 10
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
