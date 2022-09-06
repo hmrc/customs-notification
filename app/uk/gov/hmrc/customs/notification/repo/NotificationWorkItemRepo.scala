@@ -16,26 +16,19 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import java.time.{Clock, ZonedDateTime}
-
 import com.google.inject.ImplementedBy
-import javax.inject.{Inject, Singleton}
-import org.joda.time.{DateTime, Duration}
+import org.joda.time.DateTime
 import play.api.Configuration
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json._
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.ReadConcern
-import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.bson.{BSONDocument, BSONObjectID}
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
-import uk.gov.hmrc.workitem._
+import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem._
+import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.workitem.{WorkItem, WorkItemRepository}
 
+import java.time.{Clock, ZonedDateTime}
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @ImplementedBy(classOf[NotificationWorkItemMongoRepo])
@@ -67,17 +60,18 @@ trait NotificationWorkItemRepo {
 }
 
 @Singleton
-class NotificationWorkItemMongoRepo @Inject()(reactiveMongoComponent: ReactiveMongoComponent,
+class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
                                               clock: Clock,
                                               customsNotificationConfig: CustomsNotificationConfig,
                                               logger: CdsLogger,
                                               configuration: Configuration)
                                              (implicit ec: ExecutionContext)
-extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
-        collectionName = "notifications-work-item",
-        mongo = reactiveMongoComponent.mongoConnector.db,
-        itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
-        configuration.underlying) with NotificationWorkItemRepo {
+extends WorkItemRepository[NotificationWorkItem] (
+  mongoComponent = mongo,
+  collectionName = "notifications-work-item",
+  itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
+        configuration.underlying)
+  with NotificationWorkItemRepo {
 
   override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
     val receivedAt = "createdAt"
@@ -165,7 +159,6 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   override def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
     logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csId.id}")
     val selector = Json.obj("clientNotification._id" -> csId.id, workItemFields.status -> JsString(Failed.name), "availableAt" -> Json.obj("$lt" -> now))
@@ -177,7 +170,6 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   override def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
     val selector = Json.obj("clientNotification._id" -> csid.id, workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> JsString(Failed.name), workItemFields.updatedAt -> now))
@@ -188,7 +180,6 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   override def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
     val selector = Json.obj("clientNotification._id" -> csId.id,  workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
 
@@ -201,7 +192,6 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
     val selector = Json.obj(workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
 
@@ -209,7 +199,6 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
   }
 
   override def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
 
     val selector = Json.obj("clientNotification._id" -> csid.toString, workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
     val update = Json.obj("$set" -> Json.obj(workItemFields.status -> JsString(InProgress.name), workItemFields.updatedAt -> now))
