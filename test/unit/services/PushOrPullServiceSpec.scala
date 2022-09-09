@@ -16,17 +16,17 @@
 
 package unit.services
 
+import org.bson.types.ObjectId
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
-import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields => _, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
-import util.UnitSpec
 import util.TestData._
+import util.UnitSpec
 
 import scala.concurrent.Future
 
@@ -56,7 +56,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
     private[PushOrPullServiceSpec] val eventuallyNone = Future.successful(Future.successful(None))
     private[PushOrPullServiceSpec] val eventuallySomePushClientCallbackData = Future.successful(Some(ApiSubscriptionFieldsOneForPush))
     private[PushOrPullServiceSpec] val eventuallySomePullClientCallbackData = Future.successful(Some(ApiSubscriptionFieldsOneForPull))
-    private[PushOrPullServiceSpec] val clientNotification = ClientNotification(NotificationWorkItem1.id, NotificationWorkItem1.notification, None, None, BSONObjectID.parse(NotUsedBsonId).get)
+    private[PushOrPullServiceSpec] val clientNotification = ClientNotification(NotificationWorkItem1.id, NotificationWorkItem1.notification, None, None, new ObjectId(NotUsedBsonId))
     private[PushOrPullServiceSpec] val pnr = PushNotificationRequest(
       NotificationWorkItem1.id.id.toString,
       PushNotificationRequestBody(

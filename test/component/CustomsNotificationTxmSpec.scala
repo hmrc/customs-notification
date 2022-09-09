@@ -16,12 +16,12 @@
 
 package component
 
+import org.mongodb.scala.bson.BsonDocument
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.mongo.MongoSpecSupport
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
@@ -31,11 +31,9 @@ class CustomsNotificationTxmSpec extends ComponentTestSpec
   with NotificationQueueService
   with PushNotificationService
   with InternalPushNotificationService
-  with MongoSpecSupport
   with AuditService {
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
-  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
@@ -53,12 +51,12 @@ class CustomsNotificationTxmSpec extends ComponentTestSpec
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    await(repo.drop)
+    dropCollection()
   }
 
   override protected def afterAll() {
     stopMockServer()
-    await(repo.drop)
+//    dropCollection()
   }
 
 
@@ -70,7 +68,7 @@ class CustomsNotificationTxmSpec extends ComponentTestSpec
       stubAuditService()
       runNotificationQueueService(CREATED)
 
-      repo.insert(internalWorkItem)
+      collection.insertOne(internalWorkItem).toFuture()
 
       And("the callback endpoint was called internally, bypassing the gateway")
       

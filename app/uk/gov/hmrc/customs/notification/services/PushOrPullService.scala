@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import org.bson.types.ObjectId
+
 import javax.inject.Inject
-import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MapResultError, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, HasId, NonHttpError, NotificationWorkItem, ResultError}
@@ -104,6 +105,6 @@ class PushOrPullService @Inject()(
 
   private def clientNotificationFrom(n: NotificationWorkItem): ClientNotification = {
     val notUsedBsonId = "123456789012345678901234"
-    ClientNotification(n.id, n.notification, None, None, BSONObjectID.parse(notUsedBsonId).get)
+    ClientNotification(n.id, n.notification, None, None, new ObjectId(notUsedBsonId))
   }
 }

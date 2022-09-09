@@ -17,6 +17,7 @@
 package uk.gov.hmrc.customs.notification.services
 
 import com.google.inject.Inject
+import org.joda.time.{DateTime, DateTimeZone}
 
 import javax.inject.Singleton
 import play.api.libs.json.{JsObject, JsString, JsValue}
@@ -27,7 +28,6 @@ import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames}
 import uk.gov.hmrc.play.audit.EventKeys.TransactionName
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
-import uk.gov.hmrc.time.DateTimeUtils
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -83,13 +83,13 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
         result -> JsString(successOrFailure),
         payload -> JsString(notificationPayload.getOrElse("")),
         payloadHeaders -> JsString(headers.toString()),
-        generatedAt -> JsString(DateTimeUtils.now.toString)
+        generatedAt -> JsString(timeNow().toString)
       )))(reason => {
         JsObject(Map[String, JsValue](
           outboundCallUrl -> JsString(pnr.body.url.toString),
           outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
           result -> JsString(successOrFailure),
-          generatedAt -> JsString(DateTimeUtils.now.toString),
+          generatedAt -> JsString(timeNow().toString),
           failureReasonKey -> JsString(reason)
         ))
       }
@@ -132,4 +132,6 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
         Map()
     }
   }
+
+  def timeNow(): DateTime = DateTime.now.withZone(DateTimeZone.UTC)
 }

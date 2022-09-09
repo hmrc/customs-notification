@@ -40,4 +40,5 @@ trait IntegrationTestSpec extends UnitSpec
   with Eventually {
 
   override implicit def patienceConfig: PatienceConfig = super.patienceConfig.copy(timeout = Span(defaultTimeout.toMillis, Millis))
+
 }

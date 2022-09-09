@@ -32,7 +32,9 @@ lazy val microservice = (project in file("."))
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
-  .settings(scalaVersion := "2.12.14")
+  .settings(scalaVersion := "2.12.14",
+    parallelExecution in IntegrationTest := false,
+    parallelExecution in Test := false)
   .settings(
     commonSettings,
     unitTestSettings,

@@ -16,6 +16,7 @@
 
 package component
 
+import org.mongodb.scala.bson.BsonDocument
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
@@ -23,8 +24,8 @@ import play.api.mvc.request.RequestTarget
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.workitem._
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import util.TestData._
 import util._
 
@@ -33,12 +34,9 @@ import scala.concurrent.Future
 class CustomsNotificationFailureSpec extends ComponentTestSpec
   with ApiSubscriptionFieldsService
   with NotificationQueueService
-  with PushNotificationService
-  with MongoSpecSupport {
+  with PushNotificationService {
 
   private val endpoint = "/customs-notification/notify"
-
-  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   private lazy val pollerConfigs = Map(
     "retry.poller.interval.milliseconds" -> 100,
@@ -53,18 +51,17 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
 
   override protected def afterAll() {
     stopMockServer()
-    await(repo.drop)
+//    dropCollection()
   }
 
   override protected def beforeEach() {
     startMockServer()
-    await(repo.drop)
+    dropCollection()
   }
 
   override protected def afterEach(): Unit = {
     resetMockServer()
     stopMockServer()
-    await(repo.drop)
   }
 
   Feature("Ensure offline retry") {
@@ -145,7 +142,7 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
   }
 
   private def assertOneWorkItemRepoWithStatus(status: ProcessingStatus) = {
-    val workItems = await(repo.find())
+    val workItems = await(repository.collection.find().toFuture())
     workItems should have size 1
     workItems.head.status shouldBe status
   }

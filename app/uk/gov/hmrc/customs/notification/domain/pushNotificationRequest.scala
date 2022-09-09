@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import java.util.UUID
+import org.bson.types.ObjectId
 
+import java.util.UUID
 import play.api.libs.json.Format._
 import play.api.libs.json.{Format, Json, OFormat, _}
 import play.api.mvc.Headers
+import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoUuidFormats}
 
 case class Header(name: String, value: String)
 object Header {
@@ -73,7 +75,8 @@ case class ClientSubscriptionId(id: UUID) extends AnyVal {
   override def toString: String = id.toString
 }
 object ClientSubscriptionId {
-  implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] = new Format[ClientSubscriptionId] {
+  implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] =
+    new Format[ClientSubscriptionId] {
     def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
     def reads(json: JsValue): JsResult[ClientSubscriptionId] = json match {
       case JsNull => JsError()
