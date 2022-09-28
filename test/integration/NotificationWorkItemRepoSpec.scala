@@ -206,16 +206,15 @@ class NotificationWorkItemRepoSpec extends UnitSpec
         wiClient1One <- repository.pushNew(NotificationWorkItem1, nowAsInstant, failed)
         wiClient1Two <- repository.pushNew(NotificationWorkItem1, nowAsInstant, failed)
         wiClient3One <- repository.pushNew(NotificationWorkItem3, nowAsInstant, failed)
-        wiClient1Three <- repository.pushNew(NotificationWorkItem1, nowAsInstant.plus(120, ChronoUnit.MINUTES), failed)
+        _ <- repository.pushNew(NotificationWorkItem1, nowAsInstant.plus(120, ChronoUnit.MINUTES), failed)
         toPerFailedCount <- repository.toPermanentlyFailedByCsId(validClientSubscriptionId1)
-      } yield (wiClient1One, wiClient1Two, wiClient3One, wiClient1Three, toPerFailedCount)
+      } yield (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount)
 
-      whenReady(result) {case (wiClient1One, wiClient1Two, wiClient3One, wiClient1Three, toPerFailedCount) =>
+      whenReady(result) {case (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount) =>
       toPerFailedCount shouldBe 2
         await(repository.findById(wiClient1One.id)).get.status shouldBe PermanentlyFailed
         await(repository.findById(wiClient1Two.id)).get.status shouldBe PermanentlyFailed
         await(repository.findById(wiClient3One.id)).get.status shouldBe Failed
-        await(repository.findById(wiClient1Three.id)).get.status shouldBe Failed
       }
     }
 
