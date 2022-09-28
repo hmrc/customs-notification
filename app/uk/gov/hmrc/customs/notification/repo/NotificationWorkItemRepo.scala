@@ -179,11 +179,11 @@ extends WorkItemRepository[NotificationWorkItem] (
   }
 
   override def toPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
-    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
+    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid._id}")
     val selector = csIdAndStatusSelector(csid, Failed)
     val update = updateStatusBson(PermanentlyFailed)
     collection.updateMany(selector, update).toFuture().map {result =>
-      logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
+      logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid._id}")
       result.getModifiedCount.toInt
     }
   }
@@ -192,7 +192,7 @@ extends WorkItemRepository[NotificationWorkItem] (
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
     val update = updateStatusBson(Failed)
     collection.updateMany(selector, update).toFuture().map {result =>
-      logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
+      logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid._id}")
       result.getModifiedCount.toInt
     }
   }
@@ -249,7 +249,7 @@ extends WorkItemRepository[NotificationWorkItem] (
 
   private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
     and(
-      equal("clientNotification.id", csid.id.toString),
+      equal("clientNotification.id", csid._id.toString),
       equal(workItemFields.status, ProcessingStatus.toBson(status)),
       lt("availableAt", now()))
   }

@@ -58,7 +58,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
     private[PushOrPullServiceSpec] val eventuallySomePullClientCallbackData = Future.successful(Some(ApiSubscriptionFieldsOneForPull))
     private[PushOrPullServiceSpec] val clientNotification = ClientNotification(NotificationWorkItem1.id, NotificationWorkItem1.notification, None, None, new ObjectId(NotUsedBsonId))
     private[PushOrPullServiceSpec] val pnr = PushNotificationRequest(
-      NotificationWorkItem1.id.id.toString,
+      NotificationWorkItem1.id._id.toString,
       PushNotificationRequestBody(
         ApiSubscriptionFieldsOneForPush.fields.callbackUrl,
         ApiSubscriptionFieldsOneForPush.fields.securityToken,
