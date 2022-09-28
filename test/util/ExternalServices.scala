@@ -238,7 +238,7 @@ trait NotificationQueueService extends WireMockRunner {
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
       .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.id.toString))
-      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid._id.toString))
+      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.id.toString))
       .withHeader(HeaderNames.AUTHORIZATION, absent())
       .withoutHeader(ISSUE_DATE_TIME_HEADER)
       .withRequestBody(equalToXml(request.notification.payload))

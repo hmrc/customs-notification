@@ -21,14 +21,14 @@ import org.joda.time.DateTime
 import play.api.libs.json.{Format, Json}
 import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
 
-case class NotificationWorkItem(id: ClientSubscriptionId,
+case class NotificationWorkItem(_id: ClientSubscriptionId,
                                 clientId: ClientId,
                                 metricsStartDateTime: Option[DateTime] = None,
                                 notification: Notification
 ) extends HasId with HasClientSubscriptionId {
   override def idName: String = "conversationId"
   override def idValue: String = notification.conversationId.toString
-  override def clientSubscriptionId: ClientSubscriptionId = id
+  override def clientSubscriptionId: ClientSubscriptionId = _id
 
 }
 object NotificationWorkItem {

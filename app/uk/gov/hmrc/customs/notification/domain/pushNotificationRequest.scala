@@ -46,7 +46,7 @@ object PushNotificationRequest {
   def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData, n: NotificationWorkItem): PushNotificationRequest =
   {
     PushNotificationRequest(
-      n.id._id.toString,
+      n._id.id.toString,
       PushNotificationRequestBody(
         declarantCallbackData.callbackUrl,
         declarantCallbackData.securityToken,
@@ -71,13 +71,13 @@ object Notification {
   implicit val notificationJF: Format[Notification] = Json.format[Notification]
 }
 
-case class ClientSubscriptionId(_id: UUID) extends AnyVal {
-  override def toString: String = _id.toString
+case class ClientSubscriptionId(id: UUID) extends AnyVal {
+  override def toString: String = id.toString
 }
 object ClientSubscriptionId {
   implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] =
     new Format[ClientSubscriptionId] {
-    def writes(csid: ClientSubscriptionId) = JsString(csid._id.toString)
+    def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
     def reads(json: JsValue): JsResult[ClientSubscriptionId] = json match {
       case JsNull => JsError()
       case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))

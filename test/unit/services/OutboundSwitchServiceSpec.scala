@@ -57,7 +57,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
   private val Headers = Seq(Header("h1", "v1"))
   private val PayloadOne = "PAYLOAD_ONE"
   private val ConversationIdOne = ConversationId(UUID.fromString("caca01f9-ec3b-4ede-b263-61b626dde231"))
-  private val pnrOne = PushNotificationRequest(CsidOne._id.toString, PushNotificationRequestBody(CallbackUrl(Some(new URL("http://URL"))), "SECURITY_TOKEN", ConversationIdOne.id.toString, Headers, PayloadOne))
+  private val pnrOne = PushNotificationRequest(CsidOne.id.toString, PushNotificationRequestBody(CallbackUrl(Some(new URL("http://URL"))), "SECURITY_TOKEN", ConversationIdOne.id.toString, Headers, PayloadOne))
 
   "OutboundSwitchService" should {
 

@@ -45,7 +45,7 @@ class PushOrPullService @Inject()(
   def send(n: NotificationWorkItem)(implicit hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
     implicit val hasId = n
 
-    clientData(n.id).flatMap{
+    clientData(n._id).flatMap{
       case Right(fields) =>
         send(n, fields)
       case Left(pushOrPullError) =>
@@ -105,6 +105,6 @@ class PushOrPullService @Inject()(
 
   private def clientNotificationFrom(n: NotificationWorkItem): ClientNotification = {
     val notUsedBsonId = "123456789012345678901234"
-    ClientNotification(n.id, n.notification, None, None, new ObjectId(notUsedBsonId))
+    ClientNotification(n._id, n.notification, None, None, new ObjectId(notUsedBsonId))
   }
 }

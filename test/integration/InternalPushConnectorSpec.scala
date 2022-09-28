@@ -44,7 +44,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
   private val validUrl = Some(new URL(s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}"))
 
   def pnr(url: Option[URL] = validUrl): PushNotificationRequest = PushNotificationRequest(
-    CsidOne._id.toString,
+    CsidOne.id.toString,
     PushNotificationRequestBody(
       CallbackUrl(url),
       "SECURITY_TOKEN",

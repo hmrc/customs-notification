@@ -179,11 +179,11 @@ extends WorkItemRepository[NotificationWorkItem] (
   }
 
   override def toPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
-    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid._id}")
+    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
     val selector = csIdAndStatusSelector(csid, Failed)
     val update = updateStatusBson(PermanentlyFailed)
     collection.updateMany(selector, update).toFuture().map {result =>
-      logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid._id}")
+      logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
       result.getModifiedCount.toInt
     }
   }
@@ -192,7 +192,7 @@ extends WorkItemRepository[NotificationWorkItem] (
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
     val update = updateStatusBson(Failed)
     collection.updateMany(selector, update).toFuture().map {result =>
-      logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid._id}")
+      logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
       result.getModifiedCount.toInt
     }
   }
@@ -212,7 +212,7 @@ extends WorkItemRepository[NotificationWorkItem] (
     val selector = and(
       equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)),
       lt("availableAt", now()))
-    collection.distinct[String]("clientNotification.id", selector)
+    collection.distinct[String]("clientNotification._id", selector)
       .toFuture()
       .map(
         convertToClientSubscriptionIdSet(_)
@@ -249,7 +249,7 @@ extends WorkItemRepository[NotificationWorkItem] (
 
   private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
     and(
-      equal("clientNotification.id", csid._id.toString),
+      equal("clientNotification._id", csid.id.toString),
       equal(workItemFields.status, ProcessingStatus.toBson(status)),
       lt("availableAt", now()))
   }
@@ -260,19 +260,4 @@ extends WorkItemRepository[NotificationWorkItem] (
       set(workItemFields.updatedAt, now())
     )
   }
-
-//  private def dropInvalidIndexes: Future[_] = {
-//    val optInvalidIndex = collection.listIndexes[model.IndexModel]().map { indexes =>
-//      indexes { index =>
-//        index.getOptions.getName == NotificationWorkItemIndexes.TTL_INDEX_NAME &&
-//          index.getOptions.getExpireAfter(TimeUnit.SECONDS) != ttlInSeconds
-//      }
-//    }
-//    optInvalidIndex match {
-//      case Some(_) =>
-//        logger.debug(s"dropping ${NotificationWorkItemIndexes.TTL_INDEX_NAME} index as ttl value is incorrect")
-//        collection.dropIndex(NotificationWorkItemIndexes.TTL_INDEX_NAME).toFuture()
-//      case None => Future.successful(())
-//    }
-//  }
 }

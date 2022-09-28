@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import org.joda.time.DateTime
 import org.bson.types.ObjectId
-import play.api.libs.json.{Format, JsObject, JsValue, Json, Reads}
+import org.joda.time.DateTime
+import play.api.libs.json.{Format, Json}
 import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
 
 case class ClientNotification(csid: ClientSubscriptionId,

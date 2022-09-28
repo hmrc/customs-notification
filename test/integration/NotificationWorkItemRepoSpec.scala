@@ -54,7 +54,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   private val pushConfig = NotificationConfig(
     internalClientIds = Seq.empty,
-    ttlInSeconds = 1,
+    ttlInSeconds = 1000,
     retryPollerEnabled = true,
     retryPollerInterval = 1 second,
     retryPollerAfterFailureInterval = 2 seconds,
