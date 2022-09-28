@@ -108,21 +108,21 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
       contentAsString(resultFuture) shouldBe empty
     }
 
-//    Scenario("a request that removes no blocks returns the correct response") {
-//      Given("the API is available")
-//      And("there is no data in the database")
-//
-//      When("a DELETE request with data is sent to the API")
-//      val result: Option[Future[Result]] = route(app = app, ValidDeleteBlockedRequest)
-//
-//      Then("a response with a 404 status is received")
-//      result shouldBe 'defined
-//      val resultFuture: Future[Result] = result.value
-//      status(resultFuture) shouldBe NOT_FOUND
-//
-//      And("the response body is empty")
-//      trim(loadString(contentAsString(resultFuture))) shouldBe trim(notFoundError)
-//    }
+    Scenario("a request that removes no blocks returns the correct response") {
+      Given("the API is available")
+      And("there is no data in the database")
+
+      When("a DELETE request with data is sent to the API")
+      val result: Option[Future[Result]] = route(app = app, ValidDeleteBlockedRequest)
+
+      Then("a response with a 404 status is received")
+      result shouldBe 'defined
+      val resultFuture: Future[Result] = result.value
+      status(resultFuture) shouldBe NOT_FOUND
+
+      And("the response body is empty")
+      trim(loadString(contentAsString(resultFuture))) shouldBe trim(notFoundError)
+    }
 
   }
 

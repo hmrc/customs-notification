@@ -56,7 +56,6 @@ class CustomsNotificationTxmSpec extends ComponentTestSpec
 
   override protected def afterAll() {
     stopMockServer()
-//    dropCollection()
   }
 
 

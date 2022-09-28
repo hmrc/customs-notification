@@ -50,7 +50,6 @@ class CustomsNotificationSpec extends ComponentTestSpec
 
   override protected def afterAll() {
     stopMockServer()
-//    dropCollection()
   }
 
   override protected def afterEach(): Unit = {

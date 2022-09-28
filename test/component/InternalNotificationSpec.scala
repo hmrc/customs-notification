@@ -56,7 +56,6 @@ class InternalNotificationSpec extends ComponentTestSpec
 
   override protected def afterAll() {
     stopMockServer()
-//    dropCollection()
   }
 
   Feature("Ensure call to callback endpoint are made internally (ie bypass the gateway)") {

@@ -51,7 +51,6 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
 
   override protected def afterAll() {
     stopMockServer()
-//    dropCollection()
   }
 
   override protected def beforeEach() {
