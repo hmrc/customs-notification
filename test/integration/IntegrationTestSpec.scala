@@ -20,8 +20,11 @@ import com.google.inject.AbstractModule
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Span}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.inject.guice.GuiceableModule
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
+import uk.gov.hmrc.mongo.MongoComponent
 import util.UnitSpec
 import util.WireMockRunner
 

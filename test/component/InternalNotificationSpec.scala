@@ -51,7 +51,7 @@ class InternalNotificationSpec extends ComponentTestSpec
 
   override protected def beforeEach(): Unit = {
     resetMockServer()
-    dropCollection()
+    emptyCollection()
   }
 
   override protected def afterAll() {

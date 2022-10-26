@@ -80,11 +80,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   override def beforeEach() {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
-    await(repository.collection.drop().toFuture())
-  }
-
-  override def afterAll() {
-    await(repository.collection.drop().toFuture())
+    await(repository.collection.deleteMany(Filters.exists("_id")).toFuture())
   }
 
   private def collectionSize: Long = {

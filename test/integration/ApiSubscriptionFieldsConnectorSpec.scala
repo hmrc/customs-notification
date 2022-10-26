@@ -25,17 +25,18 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util.{ApiSubscriptionFieldsService, ExternalServicesConfiguration, WireMockRunnerWithoutServer}
 
 class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
-  with GuiceOneAppPerSuite
   with MockitoSugar
   with BeforeAndAfterAll
   with ApiSubscriptionFieldsService
-  with WireMockRunnerWithoutServer {
+  with WireMockRunnerWithoutServer
+  with GuiceOneAppPerSuite {
 
   private lazy val connector = app.injector.instanceOf[ApiSubscriptionFieldsConnector]
 
@@ -64,6 +65,12 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
       "microservice.services.api-subscription-fields.context" -> ExternalServicesConfiguration.ApiSubscriptionFieldsServiceContext,
       "non.blocking.retry.after.minutes" -> 10
     )).build()
+
+  lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
+
+  override def beforeEach(): Unit = {
+    await(repo.collection.drop())
+  }
 
   "ApiSubscriptionFieldsServiceConnector" should {
 

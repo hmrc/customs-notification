@@ -17,6 +17,7 @@
 package component
 
 import org.mongodb.scala.bson.BsonDocument
+import org.mongodb.scala.model.Filters
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.featurespec.AnyFeatureSpec
@@ -67,5 +68,5 @@ trait ComponentTestSpec extends AnyFeatureSpec
 
   val collection = repository.collection
 
-  def dropCollection() = await(collection.drop().toFuture())
+  def emptyCollection() = await(collection.deleteMany(Filters.exists("_id")).toFuture())
 }

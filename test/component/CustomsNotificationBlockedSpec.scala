@@ -46,7 +46,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
     </errorResponse>
 
   override protected def beforeEach() {
-    dropCollection()
+    emptyCollection()
   }
 
   Feature("Ensure requests for blocked count are processed correctly") {

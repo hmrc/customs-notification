@@ -44,7 +44,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
   private implicit val ec = Helpers.stubControllerComponents().executionContext
 
   override protected def beforeAll() {
-    dropCollection()
+    emptyCollection()
     startMockServer()
   }
 

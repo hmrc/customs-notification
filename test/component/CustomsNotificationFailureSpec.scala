@@ -55,7 +55,7 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
 
   override protected def beforeEach() {
     startMockServer()
-    dropCollection()
+    emptyCollection()
   }
 
   override protected def afterEach(): Unit = {
