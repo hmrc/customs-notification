@@ -76,6 +76,14 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         true
       case Left(PushOrPullError(connector, resultError)) =>
         logger.info(s"Unblock pilot for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
+        //TODO Delete
+        val tempBoolian = if (workItem.item.clientId.id == "CM2vPo0FvS9Og2Q5jvCuWwNBNAK2" && workItem.item.notification.notificationId.nonEmpty && workItem.item.notification.notificationId.get.id.toString == "9b27543e-d529-4d21-993e-865ad252ddfc") {
+          logger.info(s"Marked WorkLog [${workItem.item.clientId.id}] and notificationId [${workItem.item.notification.notificationId.get.id.toString}] was overridden to success and NOT Marked as ${PermanentlyFailed.name} for $WorkItem")
+          notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
+          true
+        } else {
+          false
+        }
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
           _ <- {
@@ -93,7 +101,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
             logger.error("Error updating database", e)
             false
         }
-        false
+        tempBoolian
     }.recover{
       case NonFatal(e) => // Should never happen
         logger.error(s"Unblock - error with pilot unblock of work item $workItem", e)
