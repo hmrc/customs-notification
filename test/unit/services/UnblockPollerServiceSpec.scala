@@ -159,6 +159,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
         verifyInfoLog("Unblock found no PermanentlyFailed notifications for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
       }
+
     }
 
     "should poll the database and NOT unblock any blocked notifications when Push/Pull fails" in new Setup {
