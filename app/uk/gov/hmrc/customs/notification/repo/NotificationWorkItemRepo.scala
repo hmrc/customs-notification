@@ -193,8 +193,9 @@ extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
     val selector = Json.obj("clientNotification._id" -> csId.id,  workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
 
     collection.find(selector, None)(JsObjectDocumentWriter, JsObjectDocumentWriter).one[JsValue].map { // No need for json deserialization
-      case Some(_) =>
-        logger.info(s"Found existing permanently failed notification for client id: $csId")
+      case Some(r) => // TODO we could log this presumably ?
+        val f: JsValue = r
+        logger.info(s"Found existing permanently failed notification for csid: [$csId]")  //TODO its CSID NOT client id.
         true
       case None => false
     }

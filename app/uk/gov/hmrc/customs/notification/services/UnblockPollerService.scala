@@ -100,6 +100,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                   case "362fcb01-3d58-4c7e-b41e-ba3008ab9f76" => logAndUnblock(workItem)
                   case "71a62f98-ea2d-47b0-b582-eea3bd56ed70" => logAndUnblock(workItem)
                   case "8526edee-6674-4a39-81d5-d2f4b2a2f267" => logAndUnblock(workItem)
+                  case "d799c382-3c3e-4cfe-9b1d-3aeea8999a1d" => logAndUnblock(workItem)
                   case _ => false
                 }
               }
@@ -118,6 +119,8 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                   case "8169c65b-4d63-49d0-8f03-c4254571774d" => logAndUnblock(workItem)
                   case "73781695-f710-48f2-a763-3880be5c45f9" => logAndUnblock(workItem)
                   case "48e897b6-d4b1-4cb4-aba3-00aee5372ffe" => logAndUnblock(workItem)
+                  case "cdbd7308-208a-421a-ad9c-465fed2c6def" => logAndUnblock(workItem)
+                  case "fffb6acc-f5e1-4753-98b5-481ec00fb30a" => logAndUnblock(workItem)
                   case _ => false
                 }
               }
