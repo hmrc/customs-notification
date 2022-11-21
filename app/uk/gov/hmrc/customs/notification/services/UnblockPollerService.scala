@@ -80,6 +80,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         //TODO Delete
         def logAndUnblock(workItem: WorkItem[NotificationWorkItem]): Boolean = {
           logger.info(s"Marked WorkLog with ClientID: [${workItem.item.clientId.id}] and notificationId: [${workItem.item.notification.notificationId.get.id.toString}] was overridden to success and NOT Marked as ${PermanentlyFailed.name} for $WorkItem")
+          notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
           true
         }
 
