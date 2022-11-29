@@ -30,7 +30,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.{NotificationConfig, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
@@ -41,7 +41,6 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.xml.{Elem, NodeSeq}
 
-//TODO FAILing
 class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach with ControllerSpecHelper {
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
@@ -84,7 +83,11 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
+    val notificationConfig = mock[NotificationConfig]
+    when(notificationConfig.hotFixOld).thenReturn("old")
+    when(notificationConfig.hotFixNew).thenReturn("new")
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
+    when(mockConfigService.notificationConfig).thenReturn(notificationConfig)
     when(mockUuidService.uuid()).thenReturn(UUID.fromString(validNotificationId))
     when(mockCustomsNotificationService.handleNotification(meq(ValidXML), meq(expectedRequestMetaData), meq(apiSubscriptionFields))(any())).thenReturn(eventualTrue)
   }
