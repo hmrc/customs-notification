@@ -24,11 +24,9 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
  */
 class FieldsIdMapperHotFix(logger: NotificationLogger)(implicit md: RequestMetaData) {
 
-  private val fieldIds = Map(
-    "c86521a1-3bc3-4408-8ba4-4f51acaeb4d9" -> FieldsIdMapperHotFix.workingFieldsId,
-    "f964448d-7cf0-444e-9027-172162235dbf" -> FieldsIdMapperHotFix.workingFieldsId,
-    "8a2e1a95-6240-4256-9439-2ee0c59a16d6" -> FieldsIdMapperHotFix.workingFieldsId,
-  )
+  val fieldIds = Map("c86521a1-3bc3-4408-8ba4-4f51acaeb4d9" -> FieldsIdMapperHotFix.workingFieldsId,
+                     "f964448d-7cf0-444e-9027-172162235dbf" -> FieldsIdMapperHotFix.workingFieldsId,
+                     "8a2e1a95-6240-4256-9439-2ee0c59a16d6" -> FieldsIdMapperHotFix.workingFieldsId)
 
   def translate(fieldsId: String): String = {
     val safeFieldsID = fieldIds.getOrElse(fieldsId, fieldsId)
