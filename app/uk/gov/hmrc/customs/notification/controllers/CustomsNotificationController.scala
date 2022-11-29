@@ -118,7 +118,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
     logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
-    val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger)
+    val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, configService.notificationConfig)
     val fieldsId = fieldsIdMapperHotFix.translate(md.clientSubscriptionId.toString())
     callbackDetailsConnector.getClientData(fieldsId).flatMap {
       case Some(apiSubscriptionFields) =>
