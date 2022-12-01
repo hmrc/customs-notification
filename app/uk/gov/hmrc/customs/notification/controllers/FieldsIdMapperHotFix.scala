@@ -16,14 +16,14 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
-import uk.gov.hmrc.customs.notification.domain.{ NotificationConfig}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.domain.NotificationConfig
 
 /**
  * Hot fix for
  * https://jira.tools.tax.service.gov.uk/browse/DCWL-851
  */
-class FieldsIdMapperHotFix(logger: NotificationLogger, notificationConfig: NotificationConfig)(implicit md: RequestMetaData) {
+class FieldsIdMapperHotFix(logger: CdsLogger, notificationConfig: NotificationConfig) {
 
   val fieldIds = Map(notificationConfig.hotFixOld -> notificationConfig.hotFixNew)
 

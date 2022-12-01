@@ -16,19 +16,18 @@
 
 package unit.connectors
 
-import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatestplus.mockito.MockitoSugar
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.{FieldsIdMapperHotFix, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.{HasId, NotificationConfig}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.domain.NotificationConfig
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.UnitSpec
 
 class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
   trait TestSetup {
-    val logger = mock[NotificationLogger]
+    val logger = mock[CdsLogger]
     implicit val md: RequestMetaData = mock[RequestMetaData]
 
     val mockConfigService = mock[NotificationConfig]
@@ -37,11 +36,10 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
     val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
   }
 
-  private def logVerifier(mockLogger: NotificationLogger, logLevel: String, logText: String): Unit = {
+  private def logVerifier(mockLogger: CdsLogger, logLevel: String, logText: String): Unit = {
     println(s"[$logLevel] [$logText]")
     PassByNameVerifier(mockLogger, logLevel)
       .withByNameParam(logText)
-      .withParamMatcher(any[HasId])
       .verify()
   }
 
