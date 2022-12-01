@@ -25,10 +25,12 @@ import uk.gov.hmrc.customs.notification.domain.NotificationConfig
  */
 class FieldsIdMapperHotFix(logger: CdsLogger, notificationConfig: NotificationConfig) {
 
-  val fieldIds = Map(notificationConfig.hotFixOld -> notificationConfig.hotFixNew)
+  val oldIds = notificationConfig.hotFixOld.split(",").toList
+
+  val fieldIdsMap = oldIds.map(_ -> notificationConfig.hotFixNew).toMap
 
   def translate(fieldsId: String): String = {
-    val safeFieldsID = fieldIds.getOrElse(fieldsId, fieldsId)
+    val safeFieldsID = fieldIdsMap.getOrElse(fieldsId, fieldsId)
     if (safeFieldsID != fieldsId) {
       logger.warn(s"FieldsIdMapperHotFix: translating fieldsId [$fieldsId] to [$safeFieldsID].")
     }

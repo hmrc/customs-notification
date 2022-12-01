@@ -31,9 +31,6 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
     implicit val md: RequestMetaData = mock[RequestMetaData]
 
     val mockConfigService = mock[NotificationConfig]
-    when(mockConfigService.hotFixOld).thenReturn("old")
-    when(mockConfigService.hotFixNew).thenReturn("new")
-    val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
   }
 
   private def logVerifier(mockLogger: CdsLogger, logLevel: String, logText: String): Unit = {
@@ -45,8 +42,11 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
   "FieldsIdMapperHotFix" should {
 
-    "map old fields to new one 1" in {
+    "map old fields to new one with just one configured" in {
       new TestSetup {
+        when(mockConfigService.hotFixOld).thenReturn("old")
+        when(mockConfigService.hotFixNew).thenReturn("new")
+        val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
         val oldOne = "old"
         val newOne = "new"
         assert(newOne == fieldsIdMapperHotFix.translate(oldOne))
@@ -54,12 +54,32 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
       }
     }
 
-
     "map other to itself" in {
       new TestSetup {
+        when(mockConfigService.hotFixOld).thenReturn("old")
+        when(mockConfigService.hotFixNew).thenReturn("new")
+        val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
         val oldOne = "anyOtherString"
         val newOne = oldOne
         assert(newOne == fieldsIdMapperHotFix.translate(oldOne))
+      }
+    }
+
+    "work with more than one ids" in {
+      new TestSetup {
+        when(mockConfigService.hotFixOld).thenReturn(s"oldA,oldB,oldC")
+        when(mockConfigService.hotFixNew).thenReturn("new")
+        val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
+        val newOne = "new"
+
+        assert(newOne == fieldsIdMapperHotFix.translate("oldA"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldA] to [$newOne].")
+        assert(newOne == fieldsIdMapperHotFix.translate("oldB"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldB] to [$newOne].")
+        assert(newOne == fieldsIdMapperHotFix.translate("oldC"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldC] to [$newOne].")
+        //still work with others.
+        assert("other" == fieldsIdMapperHotFix.translate("other"))
       }
     }
   }
