@@ -44,8 +44,8 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
     "map old fields to new one with just one configured" in {
       new TestSetup {
-        when(mockConfigService.hotFixOld).thenReturn("old")
-        when(mockConfigService.hotFixNew).thenReturn("new")
+        when(mockConfigService.hotFixTranslate).thenReturn("old:new")
+//        when(mockConfigService.hotFixNew).thenReturn("new")
         val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
         val oldOne = "old"
         val newOne = "new"
@@ -56,8 +56,8 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
     "map other to itself" in {
       new TestSetup {
-        when(mockConfigService.hotFixOld).thenReturn("old")
-        when(mockConfigService.hotFixNew).thenReturn("new")
+        when(mockConfigService.hotFixTranslate).thenReturn("old:new")
+//        when(mockConfigService.hotFixNew).thenReturn("new")
         val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
         val oldOne = "anyOtherString"
         val newOne = oldOne
@@ -67,17 +67,27 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
     "work with more than one ids" in {
       new TestSetup {
-        when(mockConfigService.hotFixOld).thenReturn(s"oldA,oldB,oldC")
-        when(mockConfigService.hotFixNew).thenReturn("new")
+        //TODO if we need to cope with more then one id to map to
+        when(mockConfigService.hotFixTranslate).thenReturn(s"oldA:newA,oldB:newA,oldC:newA,oldD:newB,oldE:newC")
+//        when(mockConfigService.hotFixNew).thenReturn("new")
         val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
-        val newOne = "new"
+//        val newOne = "newA"
 
-        assert(newOne == fieldsIdMapperHotFix.translate("oldA"))
-        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldA] to [$newOne].")
-        assert(newOne == fieldsIdMapperHotFix.translate("oldB"))
-        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldB] to [$newOne].")
-        assert(newOne == fieldsIdMapperHotFix.translate("oldC"))
-        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldC] to [$newOne].")
+        assert("newA" == fieldsIdMapperHotFix.translate("oldA"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldA] to [newA].")
+        assert("newA" == fieldsIdMapperHotFix.translate("oldB"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldB] to [newA].")
+        assert("newA" == fieldsIdMapperHotFix.translate("oldC"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldC] to [newA].")
+
+        assert("newB" == fieldsIdMapperHotFix.translate("oldD"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldD] to [newB].")
+
+        assert("newC" == fieldsIdMapperHotFix.translate("oldE"))
+        logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldE] to [newC].")
+
+
+
         //still work with others.
         assert("other" == fieldsIdMapperHotFix.translate("other"))
       }

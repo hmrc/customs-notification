@@ -52,8 +52,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |internal.clientIds.0 = ClientIdOne
       |internal.clientIds.1 = ClientIdTwo
       |
-      |hotfix.old = "old"
-      |hotfix.new = "new"
+      |hotfix.translate = "old:new"
       |
       |  microservice {
       |    services {
@@ -86,8 +85,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |
       |ttlInSeconds = 1
       |
-      |hotfix.old = "old"
-      |hotfix.new = "new"
+      |hotfix.translate = "old:new"
       |
       |  microservice {
       |    services {
@@ -157,8 +155,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
                        |Could not find config key 'retry.poller.inProgressRetryAfter.seconds'
                        |Could not find config key 'retry.poller.instances'
                        |Could not find config key 'non.blocking.retry.after.minutes'
-                       |Could not find config key 'hotfix.old'
-                       |Could not find config key 'hotfix.new'
+                       |Could not find config key 'hotfix.translate'
                        |Could not find config key 'customs-notification-metrics.host'
                        |Service configuration not found for key: customs-notification-metrics.context
                        |Could not find config key 'unblock.poller.enabled'
