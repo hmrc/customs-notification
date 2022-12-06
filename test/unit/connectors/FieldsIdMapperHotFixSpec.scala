@@ -44,8 +44,7 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
     "map old fields to new one with just one configured" in {
       new TestSetup {
-        when(mockConfigService.hotFixTranslate).thenReturn("old:new")
-//        when(mockConfigService.hotFixNew).thenReturn("new")
+        when(mockConfigService.hotFixTranslates).thenReturn(Seq("old:new"))
         val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
         val oldOne = "old"
         val newOne = "new"
@@ -56,8 +55,7 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
     "map other to itself" in {
       new TestSetup {
-        when(mockConfigService.hotFixTranslate).thenReturn("old:new")
-//        when(mockConfigService.hotFixNew).thenReturn("new")
+        when(mockConfigService.hotFixTranslates).thenReturn(Seq("old:new"))
         val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
         val oldOne = "anyOtherString"
         val newOne = oldOne
@@ -67,11 +65,8 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
     "work with more than one ids" in {
       new TestSetup {
-        //TODO if we need to cope with more then one id to map to
-        when(mockConfigService.hotFixTranslate).thenReturn(s"oldA:newA,oldB:newA,oldC:newA,oldD:newB,oldE:newC")
-//        when(mockConfigService.hotFixNew).thenReturn("new")
+        when(mockConfigService.hotFixTranslates).thenReturn(Seq("oldA:newA", "oldB:newA", "oldC:newA", "oldD:newB", "oldE:newC"))
         val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, mockConfigService)
-//        val newOne = "newA"
 
         assert("newA" == fieldsIdMapperHotFix.translate("oldA"))
         logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldA] to [newA].")
@@ -85,7 +80,6 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
         assert("newC" == fieldsIdMapperHotFix.translate("oldE"))
         logVerifier(logger, "warn", s"FieldsIdMapperHotFix: translating fieldsId [oldE] to [newC].")
-
 
 
         //still work with others.

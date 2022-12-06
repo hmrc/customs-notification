@@ -31,7 +31,7 @@ case class NotificationConfig(internalClientIds: Seq[String],
                               retryPollerInProgressRetryAfter: FiniteDuration,
                               retryPollerInstances: Int,
                               nonBlockingRetryAfterMinutes: Int,
-                              hotFixTranslate: String = "old:new")
+                              hotFixTranslates: Seq[String] = Seq("old:new"))
 
 
 case class NotificationMetricsConfig(baseUrl: String)

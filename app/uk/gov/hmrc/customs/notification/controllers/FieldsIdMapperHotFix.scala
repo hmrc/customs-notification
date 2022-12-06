@@ -22,20 +22,14 @@ import uk.gov.hmrc.customs.notification.domain.NotificationConfig
 /**
  * Hot fix for
  * https://jira.tools.tax.service.gov.uk/browse/DCWL-851
+ * https://jira.tools.tax.service.gov.uk/browse/DCWL-859
  */
 class FieldsIdMapperHotFix(logger: CdsLogger, notificationConfig: NotificationConfig) {
 
-  val ids = notificationConfig.hotFixTranslate.split(",").toList
-
-  val fieldIdsMap = ids.map { config =>
-    println(s"config [$config]")
-
-    val mapping = config.split(":").toList
-    println(s"mapping [$mapping]")
+  val fieldIdsMap = notificationConfig.hotFixTranslates.map { pair =>
+    val mapping = pair.split(":").toList
     mapping(0) -> mapping(1)
   }.toMap
-
-  println(s"fieldIdsMap [$fieldIdsMap]")
 
   def translate(fieldsId: String): String = {
     val safeFieldsID = fieldIdsMap.getOrElse(fieldsId, fieldsId)

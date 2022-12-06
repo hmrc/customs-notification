@@ -84,7 +84,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   override protected def beforeEach() {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     val notificationConfig = mock[NotificationConfig]
-    when(notificationConfig.hotFixTranslate).thenReturn("old:new")
+    when(notificationConfig.hotFixTranslates).thenReturn(Seq("old:new"))
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
     when(mockConfigService.notificationConfig).thenReturn(notificationConfig)
     when(mockUuidService.uuid()).thenReturn(UUID.fromString(validNotificationId))
