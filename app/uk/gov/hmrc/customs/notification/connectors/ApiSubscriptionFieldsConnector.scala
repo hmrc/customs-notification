@@ -23,7 +23,8 @@ import play.api.libs.json.Json
 import play.mvc.Http.Status._
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.ApiSubscriptionFields
+import uk.gov.hmrc.customs.notification.controllers.FieldsIdMapperHotFix
+import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.HttpClient
@@ -34,7 +35,8 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
                                                logger: CdsLogger,
-                                               serviceConfigProvider: ServiceConfigProvider)
+                                               serviceConfigProvider: ServiceConfigProvider,
+                                               configService: CustomsNotificationConfig)
                                               (implicit ec: ExecutionContext) {
 
   private val headers = Seq(
@@ -43,8 +45,10 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
   )
 
   def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
+    val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, configService.notificationConfig)
+    val safeFieldsId = fieldsIdMapperHotFix.translate(fieldsId)
     logger.debug("calling api-subscription-fields service")
-    callApiSubscriptionFields(fieldsId, hc) map { response =>
+    callApiSubscriptionFields(safeFieldsId, hc) map { response =>
       logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
 
       response.status match {

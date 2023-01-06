@@ -52,6 +52,10 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       |internal.clientIds.0 = ClientIdOne
       |internal.clientIds.1 = ClientIdTwo
       |
+      |hotfix.translates.0 = "old1:new1"
+      |hotfix.translates.1 = "old2:new1"
+      |hotfix.translates.2 = "old3:new2"
+      |
       |  microservice {
       |    services {
       |      notification-queue {
@@ -124,6 +128,7 @@ class ConfigServiceSpec extends UnitSpec with MockitoSugar with Matchers {
       actual.notificationConfig.retryPollerInProgressRetryAfter shouldBe (3 seconds)
       actual.notificationConfig.retryPollerInstances shouldBe 3
       actual.unblockPollerConfig.pollerInterval shouldBe (400 milliseconds)
+      actual.notificationConfig.hotFixTranslates shouldBe Seq("old1:new1", "old2:new1", "old3:new2")
     }
 
     "return config as object model when configuration is valid and contains only mandatory values" in {
