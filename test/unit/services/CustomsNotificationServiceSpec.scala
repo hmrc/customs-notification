@@ -16,6 +16,7 @@
 
 package unit.services
 
+import org.bson.types.ObjectId
 import org.mockito.ArgumentMatchers.{any, refEq, eq => ameq}
 import org.mockito.Mockito
 import org.mockito.Mockito._
@@ -23,13 +24,13 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
-import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, ResultStatus, Succeeded}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{InProgress, PermanentlyFailed, Succeeded}
+import uk.gov.hmrc.mongo.workitem.ResultStatus
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 import util.UnitSpec
@@ -169,7 +170,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         await(result) shouldBe true
         verify(mockNotificationWorkItemRepo).permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
         verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed))
-        verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[BSONObjectID], any[ResultStatus])
+        verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[ObjectId], any[ResultStatus])
         verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
         verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
         infoLogVerifier("Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
@@ -190,7 +191,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
         verify(mockNotificationWorkItemRepo).permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
         verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-        verify(mockNotificationWorkItemRepo, times(1)).setCompletedStatus(any[BSONObjectID], any[ResultStatus])
+        verify(mockNotificationWorkItemRepo, times(1)).setCompletedStatus(any[ObjectId], any[ResultStatus])
         verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
 
       }

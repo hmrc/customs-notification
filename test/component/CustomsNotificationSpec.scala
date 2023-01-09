@@ -16,15 +16,15 @@
 
 package component
 
-import org.joda.time.DateTime
+import org.mongodb.scala.bson.BsonDocument
 import play.api.mvc._
 import play.api.mvc.request.RequestTarget
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.mongo.MongoSpecSupport
-import uk.gov.hmrc.workitem.{PermanentlyFailed, ProcessingStatus}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.PermanentlyFailed
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import util.TestData._
 import util._
 
@@ -35,24 +35,21 @@ class CustomsNotificationSpec extends ComponentTestSpec
   with NotificationQueueService
   with PushNotificationService
   with InternalPushNotificationService
-  with CustomsNotificationMetricsService
-  with MongoSpecSupport {
+  with CustomsNotificationMetricsService {
 
   private val endpoint = "/customs-notification/notify"
 
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
-  private lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   override protected def beforeAll() {
-    await(repo.drop)
+    emptyCollection()
     startMockServer()
   }
 
   override protected def afterAll() {
     stopMockServer()
-    await(repo.drop)
   }
 
   override protected def afterEach(): Unit = {
@@ -129,8 +126,8 @@ class CustomsNotificationSpec extends ComponentTestSpec
 
     Scenario("backend submits a valid request") {
 
-      await(repo.drop)
-      await(repo.pushNew(NotificationWorkItem1, DateTime.now(), permanentlyFailed _))
+      await(collection.deleteMany(BsonDocument()).toFuture())
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
 
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupPushNotificationServiceToReturn()
@@ -165,7 +162,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       setupPushNotificationServiceToReturn()
       runNotificationQueueService(CREATED)
 
-      repo.insert(internalWorkItem)
+      collection.insertOne(internalWorkItem).toFuture()
 
       And("the notification gateway service was called correctly")
       eventually {
@@ -177,7 +174,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
   }
   
   private def assertWorkItemRepoWithStatus(status: ProcessingStatus, count: Int) = {
-    val workItems = await(repo.find())
+    val workItems = await(collection.find().toFuture())
     workItems should have size count
     workItems.head.status shouldBe status
   }

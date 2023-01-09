@@ -19,8 +19,8 @@ package util
 import java.net.URL
 import java.time.ZonedDateTime
 import java.util.UUID
-
 import com.typesafe.config.{Config, ConfigFactory}
+import org.bson.types.ObjectId
 import org.joda.time.DateTime
 import play.api.http.HeaderNames._
 import play.api.libs.json.{JsValue, Json}
@@ -28,13 +28,13 @@ import play.api.mvc.{AnyContentAsEmpty, AnyContentAsXml, Headers}
 import play.api.test.FakeRequest
 import play.api.test.Helpers.{DELETE, GET}
 import play.mvc.Http.MimeTypes
-import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
-import uk.gov.hmrc.workitem.{ToDo, WorkItem}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
+import uk.gov.hmrc.mongo.workitem.WorkItem
 import util.CustomsNotificationMetricsTestData.UtcZoneId
 import util.RequestHeaders._
 import util.TestData._
@@ -110,6 +110,7 @@ object TestData {
   val TimeReceivedZoned = ZonedDateTime.of(2016, 1, 30, 23, 46,
     59, 0, UtcZoneId)
   val TimeReceivedDateTime = TimeReceivedZoned.toDateTime
+  val TimeReceivedInstant = TimeReceivedZoned.toInstant
 
   val MetricsStartTimeZoned = ZonedDateTime.of(2016, 1, 30, 23, 44,
     59, 0, UtcZoneId)
@@ -149,13 +150,13 @@ object TestData {
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
   val NotificationWorkItem3 = NotificationWorkItem(validClientSubscriptionId2, clientId2, notification = notification2)
   val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
-  val WorkItem1 = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, NotificationWorkItemWithMetricsTime1)
+  val WorkItem1 = WorkItem(new ObjectId("5c46f7d70100000100ef835a"), TimeReceivedInstant, TimeReceivedInstant, TimeReceivedInstant, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
   val WorkItem3 = WorkItem1.copy(failureCount = 1)
 
   val internalNotification = Notification(Some(notificationId), ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")
   val internalNotificationWorkItem = NotificationWorkItem(clientSubscriptionId, clientId1, None, internalNotification)
-  val internalWorkItem = WorkItem(BSONObjectID.parse("5c46f7d70100000100ef835a").get, TimeReceivedDateTime, TimeReceivedDateTime, TimeReceivedDateTime, ToDo, 0, internalNotificationWorkItem)
+  val internalWorkItem = WorkItem(new ObjectId("5c46f7d70100000100ef835a"), TimeReceivedInstant, TimeReceivedInstant, TimeReceivedInstant, ToDo, 0, internalNotificationWorkItem)
   
   val NotUsedBsonId = "123456789012345678901234"
 

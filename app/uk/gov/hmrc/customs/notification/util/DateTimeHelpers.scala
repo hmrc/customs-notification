@@ -40,18 +40,4 @@ object DateTimeHelpers {
     }
   }
 
-  implicit class ClockJodaExtensions(clock: Clock) {
-    def nowAsJoda: DateTime = {
-      new DateTime(
-        clock.instant().toEpochMilli,
-        DateTimeZone.forTimeZone(TimeZone.getTimeZone(clock.getZone)))
-    }
-  }
-
-  implicit class FiniteDurationOps(val finiteDuration: FiniteDuration) extends AnyVal {
-    def toJodaDuration: Duration = {
-      Duration.millis(finiteDuration.toMillis)
-    }
-  }
-
 }

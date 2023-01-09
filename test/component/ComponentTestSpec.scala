@@ -16,6 +16,8 @@
 
 package component
 
+import org.mongodb.scala.bson.BsonDocument
+import org.mongodb.scala.model.Filters
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.featurespec.AnyFeatureSpec
@@ -24,7 +26,10 @@ import org.scalatest.time.{Seconds, Span}
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.test.Helpers.await
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import util.ExternalServicesConfiguration
+import play.api.test.Helpers._
 
 trait ComponentTestSpec extends AnyFeatureSpec
   with GivenWhenThen
@@ -58,4 +63,10 @@ trait ComponentTestSpec extends AnyFeatureSpec
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
+
+  val repository: NotificationWorkItemMongoRepo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
+
+  val collection = repository.collection
+
+  def emptyCollection() = await(collection.deleteMany(Filters.exists("_id")).toFuture())
 }

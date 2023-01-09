@@ -19,15 +19,15 @@ package uk.gov.hmrc.customs.notification.services
 import com.codahale.metrics.MetricRegistry
 import com.google.inject.ImplementedBy
 import com.kenshoo.play.metrics.Metrics
-import javax.inject.Inject
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.workitem.{Failed, Succeeded, WorkItem}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, Succeeded}
+import uk.gov.hmrc.mongo.workitem.WorkItem
 
+import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
@@ -51,7 +51,7 @@ class WorkItemServiceImpl @Inject()(
 
   def processOne(): Future[Boolean] = {
 
-    val failedBefore = dateTimeService.zonedDateTimeUtc.toDateTime
+    val failedBefore = dateTimeService.zonedDateTimeUtc.toInstant
     val availableBefore = failedBefore
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap{
       case Some(firstOutstandingItem) =>

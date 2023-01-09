@@ -16,26 +16,27 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import java.time.{Clock, ZonedDateTime}
-
 import com.google.inject.ImplementedBy
-import javax.inject.{Inject, Singleton}
-import org.joda.time.{DateTime, Duration}
+import org.bson.types.ObjectId
+import org.mongodb.scala.bson.BsonDocument
+import org.mongodb.scala.bson.conversions.Bson
+import org.mongodb.scala.model.Filters.{and, equal, lt}
+import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
+import org.mongodb.scala.model.Updates.{combine, inc, set}
+import org.mongodb.scala.model.{FindOneAndUpdateOptions, IndexModel, IndexOptions, ReturnDocument}
 import play.api.Configuration
-import play.api.libs.functional.syntax.{unlift, _}
-import play.api.libs.json._
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.ReadConcern
-import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.bson.{BSONDocument, BSONObjectID}
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import reactivemongo.play.json.JsObjectDocumentWriter
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers.{ClockJodaExtensions, _}
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
-import uk.gov.hmrc.workitem._
+import uk.gov.hmrc.customs.notification.repo.helpers.NotificationWorkItemFields
+import uk.gov.hmrc.mongo.play.json.Codecs
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
+import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, ResultStatus, WorkItem, WorkItemRepository}
+import uk.gov.hmrc.mongo.{MongoComponent, MongoUtils}
 
+import java.time.{Duration, Instant, ZonedDateTime}
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @ImplementedBy(classOf[NotificationWorkItemMongoRepo])
@@ -43,9 +44,9 @@ trait NotificationWorkItemRepo {
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus): Future[WorkItem[NotificationWorkItem]]
 
-  def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit]
+  def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit]
 
-  def setCompletedStatusWithAvailableAt(id: BSONObjectID, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit]
+  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
 
@@ -61,224 +62,202 @@ trait NotificationWorkItemRepo {
 
   def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int]
 
-  def incrementFailureCount(id: BSONObjectID): Future[Unit]
+  def incrementFailureCount(id: ObjectId): Future[Unit]
 
   def deleteAll(): Future[Unit]
 }
 
 @Singleton
-class NotificationWorkItemMongoRepo @Inject()(reactiveMongoComponent: ReactiveMongoComponent,
-                                              clock: Clock,
+class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
                                               customsNotificationConfig: CustomsNotificationConfig,
                                               logger: CdsLogger,
                                               configuration: Configuration)
                                              (implicit ec: ExecutionContext)
-extends WorkItemRepository[NotificationWorkItem, BSONObjectID] (
-        collectionName = "notifications-work-item",
-        mongo = reactiveMongoComponent.mongoConnector.db,
-        itemFormat = WorkItemFormat.workItemMongoFormat[NotificationWorkItem],
-        configuration.underlying) with NotificationWorkItemRepo {
+extends WorkItemRepository[NotificationWorkItem] (
+  collectionName = "notifications-work-item",
+  mongoComponent = mongo,
+  itemFormat = NotificationWorkItem.format,
+  workItemFields = NotificationWorkItemFields.workItemFields,
+  replaceIndexes = false
+) with NotificationWorkItemRepo {
 
-  override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
-    val receivedAt = "createdAt"
-    val updatedAt = "lastUpdated"
-    val availableAt = "availableAt"
-    val status = "status"
-    val id = "_id"
-    val failureCount = "failures"
+  override def now(): Instant = Instant.now()
+
+  override lazy val inProgressRetryAfter: Duration = {
+    java.time.Duration.ofNanos(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toNanos)
   }
 
-  override def now: DateTime = clock.nowAsJoda
+  override def ensureIndexes: Future[Seq[String]] = {
+    lazy val ttlInSeconds = customsNotificationConfig.notificationConfig.ttlInSeconds
+    val WORK_ITEM_STATUS = NotificationWorkItemFields.workItemFields.status
+    val WORK_ITEM_UPDATED_AT = NotificationWorkItemFields.workItemFields.updatedAt
+    val TTL_INDEX_NAME = "createdAt-ttl-index"
+    lazy val notificationWorkItemIndexes = {
+      indexes ++ Seq(
+        IndexModel(
+          keys = descending("createdAt"),
+          indexOptions = IndexOptions()
+            .name(TTL_INDEX_NAME)
+            .unique(false)
+            .expireAfter(ttlInSeconds, TimeUnit.SECONDS)
+        ),
+        IndexModel(
+          keys = descending("clientNotification.clientId"),
+          indexOptions = IndexOptions()
+            .name("clientNotification-clientId-index")
+            .unique(false)
+        ),
+        IndexModel(
+          keys = compoundIndex(
+            descending("clientNotification.clientId"),
+            descending(WORK_ITEM_STATUS)
+          ),
+          indexOptions = IndexOptions()
+            .name(s"clientId-$WORK_ITEM_STATUS-index")
+            .unique(false)
+        ),
+        IndexModel(
+          keys = compoundIndex(
+            descending(WORK_ITEM_STATUS),
+            descending(WORK_ITEM_UPDATED_AT)
+          ),
+          indexOptions = IndexOptions()
+            .name(s"$WORK_ITEM_STATUS-$WORK_ITEM_UPDATED_AT-index")
+            .unique(false)
+        ),
+        IndexModel(
+          keys = compoundIndex(
+            descending("clientNotification._id"),
+            descending(WORK_ITEM_STATUS)
+          ),
+          indexOptions = IndexOptions()
+            .name(s"csId-$WORK_ITEM_STATUS-index")
+            .unique(false)
+        )
+      )
+    }
 
-  override def inProgressRetryAfterProperty: String =
-    ??? // we don't use this, we override inProgressRetryAfter instead
-
-  override lazy val inProgressRetryAfter: Duration =
-    customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toJodaDuration
-
-  private val ttlIndexName = "createdAt-ttl-index"
-  private val ttlInSeconds = customsNotificationConfig.notificationConfig.ttlInSeconds
-  private val ttlIndex = Index(
-    key = Seq("createdAt" -> IndexType.Descending),
-    name = Some(ttlIndexName),
-    unique = false,
-    options = BSONDocument("expireAfterSeconds" -> ttlInSeconds)
-  )
-
-  dropInvalidIndexes.flatMap { _ =>
-    collection.indexesManager.ensure(ttlIndex)
+    MongoUtils.ensureIndexes(collection, notificationWorkItemIndexes, true)
   }
-
-  override def indexes: Seq[Index] = super.indexes ++ Seq(
-    ttlIndex,
-    Index(
-      key = Seq("clientNotification.clientId" -> IndexType.Descending),
-      name = Some("clientNotification-clientId-index"),
-      unique = false),
-    Index(
-      key = Seq("clientNotification.clientId" -> IndexType.Descending, workItemFields.status -> IndexType.Descending),
-      name = Some(s"clientId-${workItemFields.status}-index"),
-      unique = false),
-    Index(
-      key = Seq(workItemFields.status -> IndexType.Descending, workItemFields.updatedAt -> IndexType.Descending),
-      name = Some(s"${workItemFields.status}-${workItemFields.updatedAt}-index"),
-      unique = false),
-    Index(
-      key = Seq("clientNotification._id" -> IndexType.Descending, workItemFields.status -> IndexType.Descending),
-      name = Some(s"csId-${workItemFields.status}-index"),
-      unique = false)
-  )
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus = InProgress): Future[WorkItem[NotificationWorkItem]] = {
     logger.debug(s"saving a new notification work item in locked state (${processingStatus.name}) $notificationWorkItem")
 
     def processWithInitialStatus(item: NotificationWorkItem): ProcessingStatus = processingStatus
 
-    pushNew(notificationWorkItem, now, processWithInitialStatus _)
+    pushNew(notificationWorkItem, now(), processWithInitialStatus)
   }
 
-  def setCompletedStatus(id: BSONObjectID, status: ResultStatus): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify}")
+  def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}")
     complete(id, status).map(_ => () )
   }
 
-  def setCompletedStatusWithAvailableAt(id: BSONObjectID, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.stringify} with availableAt: $availableAt")
-    markAs(id, status, Some(availableAt.toDateTime)).map(_ => () )
+  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit] = {
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString} with availableAt: $availableAt")
+    markAs(id, status, Some(availableAt.toInstant)).map(_ => () )
   }
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count (i.e. those with status of ${PermanentlyFailed.name}) for clientId ${clientId.id}")
-    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> JsString(PermanentlyFailed.name))
-    count(selector)
+    val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)))
+    collection.countDocuments(selector).toFuture().map(_.toInt)
   }
 
   override def deleteBlocked(clientId: ClientId): Future[Int] = {
     logger.debug(s"deleting blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
-    val selector = Json.obj("clientNotification.clientId" -> clientId, workItemFields.status -> JsString(PermanentlyFailed.name))
-    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> JsString(Failed.name)))
+    val selector = and(
+      equal("clientNotification.clientId", Codecs.toBson(clientId)),
+      equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed))
+    )
+    val update = set(workItemFields.status, ProcessingStatus.toBson(Failed))
 
-    collection.update(ordered = false).one(selector, update, multi = true).map {result =>
-      logger.debug(s"deleted ${result.n} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
-      result.n
+    collection.updateMany(selector, update).toFuture().map { result =>
+      logger.debug(s"deleted ${result.getModifiedCount} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
+      result.getModifiedCount.toInt
     }
   }
 
-  override def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
-
-    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csId.id}")
-    val selector = Json.obj("clientNotification._id" -> csId.id, workItemFields.status -> JsString(Failed.name), "availableAt" -> Json.obj("$lt" -> now))
-    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> JsString(PermanentlyFailed.name), workItemFields.updatedAt -> now))
-    collection.update(ordered = false).one(selector, update, multi = true).map {result =>
-      logger.debug(s"updated ${result.nModified} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csId.id}")
-      result.nModified
+  override def toPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
+    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
+    val selector = csIdAndStatusSelector(csid, Failed)
+    val update = updateStatusBson(PermanentlyFailed)
+    collection.updateMany(selector, update).toFuture().map {result =>
+      logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
+      result.getModifiedCount.toInt
     }
   }
 
   override def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
-
-    val selector = Json.obj("clientNotification._id" -> csid.id, workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
-    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> JsString(Failed.name), workItemFields.updatedAt -> now))
-    collection.update(ordered = false).one(selector, update, multi = true).map {result =>
-      logger.debug(s"updated ${result.nModified} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
-      result.nModified
+    val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
+    val update = updateStatusBson(Failed)
+    collection.updateMany(selector, update).toFuture().map {result =>
+      logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
+      result.getModifiedCount.toInt
     }
   }
 
-  override def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
+  override def permanentlyFailedByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
+    val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
 
-    val selector = Json.obj("clientNotification._id" -> csId.id,  workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
-
-    collection.find(selector, None)(JsObjectDocumentWriter, JsObjectDocumentWriter).one[JsValue].map { // No need for json deserialization
+    collection.find(selector).first().toFutureOption().map {
       case Some(_) =>
-        logger.info(s"Found existing permanently failed notification for client id: $csId")
+        logger.info(s"Found existing permanently failed notification for client id: $csid")
         true
       case None => false
     }
   }
 
   override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
+    val selector = and(
+      equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)),
+      lt("availableAt", now()))
+    collection.distinct[String]("clientNotification._id", selector)
+      .toFuture()
+      .map(
+        convertToClientSubscriptionIdSet(_)
+      )
+  }
 
-    val selector = Json.obj(workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
-
-    collection.distinct[ClientSubscriptionId, Set]("clientNotification._id", Some(selector), ReadConcern.Local, collation = None)
+  private def convertToClientSubscriptionIdSet(clientSubscriptionIds: Seq[String]): Set[ClientSubscriptionId] = {
+    clientSubscriptionIds.map(id => ClientSubscriptionId(UUID.fromString(id))).toSet
   }
 
   override def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.dateTimeFormats
-
-    val selector = Json.obj("clientNotification._id" -> csid.toString, workItemFields.status -> JsString(PermanentlyFailed.name), "availableAt" -> Json.obj("$lt" -> now))
-    val update = Json.obj("$set" -> Json.obj(workItemFields.status -> JsString(InProgress.name), workItemFields.updatedAt -> now))
-    findAndUpdate(selector, update, fetchNewObject = true).map(_.result[WorkItem[NotificationWorkItem]])
+    val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
+    val update = updateStatusBson(InProgress)
+    collection.findOneAndUpdate(selector, update, FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(false))
+      .toFutureOption()
   }
 
-  override def incrementFailureCount(id: BSONObjectID): Future[Unit] = {
-    logger.debug(s"incrementing failure count for notification work item id: ${id.stringify}")
+  override def incrementFailureCount(id: ObjectId): Future[Unit] = {
+    logger.debug(s"incrementing failure count for notification work item id: ${id.toString}")
 
-    val selector = Json.obj(workItemFields.id -> Json.toJsFieldJsValueWrapper(id))
-    val update = Json.obj("$inc" -> Json.obj(workItemFields.failureCount -> 1))
+    val selector = equal(workItemFields.id, id)
+    val update = inc(workItemFields.failureCount, 1)
 
-    findAndUpdate(selector, update, fetchNewObject = false).map(_ => ())
+    collection.findOneAndUpdate(selector, update).toFuture().map(_ => ())
   }
-
-  private def dropInvalidIndexes: Future[_] =
-    collection.indexesManager.list().flatMap { indexes =>
-      indexes
-        .find { index =>
-          index.name.contains(ttlIndexName) &&
-            !index.options.getAs[Int]("expireAfterSeconds").contains(ttlInSeconds)
-        }
-        .map { _ =>
-          logger.debug(s"dropping $ttlIndexName index as ttl value is incorrect")
-          collection.indexesManager.drop(ttlIndexName)
-        }
-        .getOrElse(Future.successful(()))
-    }
 
   override def deleteAll(): Future[Unit] = {
     logger.debug(s"deleting all notifications")
 
-    removeAll().map {result =>
-      logger.debug(s"deleted ${result.n} notifications")
+    collection.deleteMany(BsonDocument()).toFuture().map { result =>
+      logger.debug(s"deleted ${result.getDeletedCount} notifications")
     }
   }
-}
 
-object WorkItemFormat {
-
-  def workItemMongoFormat[T](implicit nFormat: Format[T]): Format[WorkItem[T]] =
-    ReactiveMongoFormats.mongoEntity(
-      notificationFormat(
-        ReactiveMongoFormats.dateTimeFormats,
-        nFormat))
-
-  private def notificationFormat[T](implicit dateTimeFormat: Format[DateTime],
-                                    nFormat: Format[T]): Format[WorkItem[T]] = {
-    val reads = (
-      (__ \ "id").read[BSONObjectID] and
-        (__ \ "createdAt").read[DateTime] and
-        (__ \ "lastUpdated").read[DateTime] and
-        (__ \ "availableAt").read[DateTime] and
-        (__ \ "status").read[uk.gov.hmrc.workitem.ProcessingStatus] and
-        (__ \ "failures").read[Int].orElse(Reads.pure(0)) and
-        (__ \ "clientNotification").read[T]
-      )(WorkItem.apply[T](_, _, _, _, _, _, _))
-
-    val writes = (
-      (__ \ "id").write[BSONObjectID] and
-        (__ \ "createdAt").write[DateTime] and
-        (__ \ "lastUpdated").write[DateTime] and
-        (__ \ "availableAt").write[DateTime] and
-        (__ \ "status").write[uk.gov.hmrc.workitem.ProcessingStatus] and
-        (__ \ "failures").write[Int] and
-        (__ \ "clientNotification").write[T]
-      )(unlift(WorkItem.unapply[T]))
-
-    Format(reads, writes)
+  private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
+    and(
+      equal("clientNotification._id", csid.id.toString),
+      equal(workItemFields.status, ProcessingStatus.toBson(status)),
+      lt("availableAt", now()))
   }
 
+  private def updateStatusBson(updStatus: ProcessingStatus): Bson = {
+    combine(
+      set(workItemFields.status, ProcessingStatus.toBson(updStatus)),
+      set(workItemFields.updatedAt, now())
+    )
+  }
 }

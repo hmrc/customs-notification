@@ -16,17 +16,18 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
-import uk.gov.hmrc.customs.notification.domain.{HasId, _}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.workitem.{InProgress, PermanentlyFailed, Succeeded, WorkItem}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
+import uk.gov.hmrc.mongo.workitem.WorkItem
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.xml.NodeSeq
@@ -62,7 +63,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     } yield hasSaved)
       .recover {
         case NonFatal(e) =>
-          logger.error(s"A problem occurred while handling notification work item with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
+          logger.error(s"A problem occurred while handling notification work item with csid: ${notificationWorkItem._id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
           false
       }
   }
@@ -92,7 +93,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
       }
     ).recover {
       case NonFatal(e) =>
-        logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem.id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
+        logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem._id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
         false
     }
   }
@@ -103,10 +104,10 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-        logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.stringify}")
+        logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.toString}")
         true
       case Left(pushOrPullError) =>
-        val msg = s"${pushOrPullError.source} failed ${pushOrPullError.toString} for workItemId ${workItem.id.stringify}"
+        val msg = s"${pushOrPullError.source} failed ${pushOrPullError.toString} for workItemId ${workItem.id.toString}"
         logger.warn(msg)
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
@@ -128,7 +129,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
         true
     }.recover {
       case NonFatal(e) =>
-        logger.error(s"failed push/pulling notification work item with csid: ${workItem.item.id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
+        logger.error(s"failed push/pulling notification work item with csid: ${workItem.item._id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
         false
     }
   }
