@@ -2,7 +2,6 @@ import sbt.Keys._
 import sbt.Tests.{Group, SubProcess}
 import sbt._
 import uk.gov.hmrc.DefaultBuildSettings.{addTestReportOption, targetJvm}
-import uk.gov.hmrc.PublishingSettings._
 import uk.gov.hmrc.gitstamp.GitStampPlugin._
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
@@ -33,13 +32,12 @@ lazy val microservice = (project in file("."))
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
   .settings(scalaVersion := "2.12.14",
-    parallelExecution in IntegrationTest := false,
-    parallelExecution in Test := false)
+    IntegrationTest/parallelExecution := false,
+    Test/ parallelExecution := false)
   .settings(
     commonSettings,
     unitTestSettings,
     integrationComponentTestSettings,
-    playPublishingSettings,
     allTest,
     scoverageSettings
   )
@@ -73,9 +71,6 @@ lazy val integrationComponentTestSettings =
     )
 
 lazy val commonSettings: Seq[Setting[_]] = publishingSettings ++ gitStampSettings
-
-lazy val playPublishingSettings: Seq[sbt.Setting[_]] = Seq(credentials += SbtCredentials) ++
-  publishAllArtefacts
 
 lazy val scoverageSettings: Seq[Setting[_]] = Seq(
   coverageExcludedPackages := List(
