@@ -6,11 +6,9 @@ object AppDependencies {
   private val mongoVersion = "0.74.0"
 
   val compile = Seq(
-    "uk.gov.hmrc" %% "customs-api-common" % "1.57.0",
+    "uk.gov.hmrc" %% "customs-api-common" % "1.58.0",
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-play-28" % mongoVersion,
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-work-item-repo-play-28" % "0.71.0",
-    "com.github.ghik" % "silencer-lib" % "1.7.5" % Provided cross CrossVersion.full,
-    compilerPlugin("com.github.ghik" % "silencer-plugin"    % "1.7.5" cross CrossVersion.full),
   )
 
   val test = Seq(

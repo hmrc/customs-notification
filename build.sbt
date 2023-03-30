@@ -8,7 +8,7 @@ import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 import scala.language.postfixOps
 
 name := "customs-notification"
-targetJvm := "jvm-1.8"
+targetJvm := "jvm-11"
 
 lazy val ComponentTest = config("component") extend Test
 lazy val CdsIntegrationComponentTest = config("it") extend Test
@@ -31,7 +31,7 @@ lazy val microservice = (project in file("."))
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
-  .settings(scalaVersion := "2.12.14",
+  .settings(scalaVersion := "2.13.10",
     IntegrationTest/parallelExecution := false,
     Test/ parallelExecution := false)
   .settings(
@@ -45,11 +45,9 @@ lazy val microservice = (project in file("."))
   .settings(scalacOptions ++= List(
   "-Yrangepos",
   "-Xlint:-missing-interpolator,_",
-  "-Yno-adapted-args",
   "-feature",
   "-unchecked",
   "-language:implicitConversions",
-  "-P:silencer:pathFilters=views;routes;TestStorage"
     )
   )
 
