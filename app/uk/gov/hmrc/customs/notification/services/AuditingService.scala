@@ -17,9 +17,6 @@
 package uk.gov.hmrc.customs.notification.services
 
 import com.google.inject.Inject
-import org.joda.time.{DateTime, DateTimeZone}
-
-import javax.inject.Singleton
 import play.api.libs.json.{JsObject, JsString, JsValue}
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
@@ -29,6 +26,7 @@ import uk.gov.hmrc.play.audit.EventKeys.TransactionName
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
 
+import javax.inject.Singleton
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
@@ -70,7 +68,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
   private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String], auditType: String = declarationNotificationOutboundCall, notificationPayload: Option[String] = None)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
 
     val tags: Map[String, String] = Map(TransactionName -> transactionNameValue,
-    xConversationId -> pnr.body.conversationId
+      xConversationId -> pnr.body.conversationId
     ) ++ getTags(rm)
 
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
@@ -85,14 +83,14 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
         payloadHeaders -> JsString(headers.toString()),
         generatedAt -> JsString(timeNow().toString)
       )))(reason => {
-        JsObject(Map[String, JsValue](
-          outboundCallUrl -> JsString(pnr.body.url.toString),
-          outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
-          result -> JsString(successOrFailure),
-          generatedAt -> JsString(timeNow().toString),
-          failureReasonKey -> JsString(reason)
-        ))
-      }
+      JsObject(Map[String, JsValue](
+        outboundCallUrl -> JsString(pnr.body.url.toString),
+        outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
+        result -> JsString(successOrFailure),
+        generatedAt -> JsString(timeNow().toString),
+        failureReasonKey -> JsString(reason)
+      ))
+    }
     )
 
     auditConnector.sendExtendedEvent(
@@ -100,8 +98,9 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
         auditSource = appName,
         auditType = auditType,
         tags = tags,
-        detail = detail
-    )).onComplete {
+        detail = detail,
+        generatedAt = timeNow()
+      )).onComplete {
       case Success(auditResult) =>
         logger.info(s"successfully audited $successOrFailure event")
         logger.debug(
@@ -133,5 +132,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
     }
   }
 
-  def timeNow(): DateTime = DateTime.now.withZone(DateTimeZone.UTC)
+  private def timeNow() = {
+    java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+  }
 }
