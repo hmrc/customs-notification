@@ -31,7 +31,7 @@ lazy val microservice = (project in file("."))
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
-  .settings(scalaVersion := "2.13.8",
+  .settings(scalaVersion := "2.13.10",
     IntegrationTest/parallelExecution := false,
     Test/ parallelExecution := false)
   .settings(
@@ -92,3 +92,5 @@ scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 Compile / unmanagedResourceDirectories += baseDirectory.value / "public"
 
 libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test
+// To resolve a bug with version 2.x.x of the scoverage plugin - https://github.com/sbt/sbt/issues/6997
+libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
