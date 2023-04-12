@@ -17,6 +17,6 @@ object AppDependencies {
     "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % testScope,
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-test-play-28" % mongoVersion % testScope,
     "com.vladsch.flexmark" % "flexmark-all" % "0.35.10"  % testScope,
-    "uk.gov.hmrc" %% "bootstrap-test-play-28" % mongoVersion % testScope,
+    "uk.gov.hmrc" %% "bootstrap-test-play-28" % "7.7.0" % testScope,
   )
 }
