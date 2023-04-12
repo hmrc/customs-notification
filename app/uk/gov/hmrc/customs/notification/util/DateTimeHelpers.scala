@@ -16,12 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.util
 
-import java.time.{Clock, ZonedDateTime}
-import java.util.TimeZone
+import org.joda.time.{DateTime, DateTimeZone}
 
-import org.joda.time.{DateTime, DateTimeZone, Duration}
-
-import scala.concurrent.duration.FiniteDuration
+import java.time.ZonedDateTime
 
 object DateTimeHelpers {
 

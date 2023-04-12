@@ -16,14 +16,11 @@
 
 package component
 
-import org.mongodb.scala.bson.BsonDocument
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc._
 import play.api.mvc.request.RequestTarget
-import play.api.test.Helpers
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import util.TestData._
@@ -46,14 +43,13 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
     "unblock.poller.interval.milliseconds" -> 100
   )
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs ++ pollerConfigs).build()
 
-  override protected def afterAll() {
+  override protected def afterAll(): Unit = {
     stopMockServer()
   }
 
-  override protected def beforeEach() {
+  override protected def beforeEach(): Unit = {
     startMockServer()
     emptyCollection()
   }
@@ -78,11 +74,11 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
       val result: Option[Future[Result]] = route(app = app, request)
 
       Then("a response with a 202 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
       status(resultFuture) shouldBe ACCEPTED
       And("the response body is empty")
-      contentAsString(resultFuture) shouldBe 'empty
+      contentAsString(resultFuture) shouldBe Symbol("empty")
 
       When("the unblock poller and retry pollers have have a chance to run")
 
@@ -115,11 +111,11 @@ class CustomsNotificationFailureSpec extends ComponentTestSpec
       val result: Option[Future[Result]] = route(app = app, request)
 
       Then("a response with a 202 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
       status(resultFuture) shouldBe ACCEPTED
       And("the response body is empty")
-      contentAsString(resultFuture) shouldBe 'empty
+      contentAsString(resultFuture) shouldBe Symbol("empty")
 
       When("the unblock poller and retry pollers have have a chance to run")
 

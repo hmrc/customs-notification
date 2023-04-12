@@ -39,7 +39,7 @@ trait PushNotificationService extends WireMockRunner with Matchers {
       willReturn aResponse()
       .withStatus(status))
 
-  def verifyPushNotificationServiceWasCalledWith(pushNotificationRequest: PushNotificationRequest) {
+  def verifyPushNotificationServiceWasCalledWith(pushNotificationRequest: PushNotificationRequest): Unit = {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
@@ -51,7 +51,7 @@ trait PushNotificationService extends WireMockRunner with Matchers {
 
   def actualCallsMadeToClientsPushService(): util.List[LoggedRequest] = this.wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
-  def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue) {
+  def verifyPushNotificationServiceWasCalledWith(expectedPayload: JsValue): Unit = {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
@@ -59,7 +59,7 @@ trait PushNotificationService extends WireMockRunner with Matchers {
     )
   }
 
-  def verifyPushNotificationServiceWasNotCalled() {
+  def verifyPushNotificationServiceWasNotCalled(): Unit = {
     verify(0, postRequestedFor(urlMatchingRequestPath))
   }
 
@@ -78,7 +78,7 @@ trait InternalPushNotificationService {
         aResponse()
           .withStatus(status)))
 
-  def verifyInternalServiceWasCalledWith(pnr: PushNotificationRequest) {
+  def verifyInternalServiceWasCalledWith(pnr: PushNotificationRequest): Unit = {
 
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
@@ -91,7 +91,7 @@ trait InternalPushNotificationService {
 
   }
 
-  def verifyInternalServiceWasCalledWithOutboundHeaders(pnr: PushNotificationRequest) {
+  def verifyInternalServiceWasCalledWithOutboundHeaders(pnr: PushNotificationRequest): Unit = {
 
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
@@ -108,7 +108,7 @@ trait InternalPushNotificationService {
 
   }
 
-  def verifyInternalServiceWasNotCalledWith(pnr: PushNotificationRequest) {
+  def verifyInternalServiceWasNotCalledWith(): Unit = {
     verify(0, postRequestedFor(urlMatchingRequestPath))
   }
 
@@ -168,7 +168,7 @@ trait ApiSubscriptionFieldsService {
         )
     )
 
-  def verifyApiSubscriptionFieldsServiceWasCalled(fieldsId: String) {
+  def verifyApiSubscriptionFieldsServiceWasCalled(fieldsId: String): Unit = {
     verify(1, getRequestedFor(urlMatchingRequestPath(fieldsId))
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))

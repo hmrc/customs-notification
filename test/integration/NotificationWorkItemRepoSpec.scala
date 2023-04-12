@@ -78,7 +78,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   private val repository = new NotificationWorkItemMongoRepo(mongoRepository, customsNotificationConfig, stubCdsLogger, mockConfiguration)
 
-  override def beforeEach() {
+  override def beforeEach(): Unit = {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
     await(repository.collection.deleteMany(Filters.exists("_id")).toFuture())
   }

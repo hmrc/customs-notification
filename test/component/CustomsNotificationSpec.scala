@@ -19,12 +19,10 @@ package component
 import org.mongodb.scala.bson.BsonDocument
 import play.api.mvc._
 import play.api.mvc.request.RequestTarget
-import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus.PermanentlyFailed
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.PermanentlyFailed
 import util.TestData._
 import util._
 
@@ -41,14 +39,12 @@ class CustomsNotificationSpec extends ComponentTestSpec
 
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
-
-  override protected def beforeAll() {
+  override protected def beforeAll(): Unit = {
     emptyCollection()
     startMockServer()
   }
 
-  override protected def afterAll() {
+  override protected def afterAll(): Unit = {
     stopMockServer()
   }
 
@@ -69,13 +65,13 @@ class CustomsNotificationSpec extends ComponentTestSpec
       val result: Option[Future[Result]] = route(app = app, request)
 
       Then("a response with a 202 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
 
       status(resultFuture) shouldBe ACCEPTED
 
       And("the response body is empty")
-      contentAsString(resultFuture) shouldBe 'empty
+      contentAsString(resultFuture) shouldBe Symbol("empty")
       
       eventually (verifyNotificationQueueServiceWasNotCalled())
     }
@@ -91,13 +87,13 @@ class CustomsNotificationSpec extends ComponentTestSpec
       val result: Option[Future[Result]] = route(app = app, request)
 
       Then("a response with a 202 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
 
       status(resultFuture) shouldBe ACCEPTED
 
       And("the response body is empty")
-      contentAsString(resultFuture) shouldBe 'empty
+      contentAsString(resultFuture) shouldBe Symbol("empty")
     }
 
     Scenario("backend submits a valid request with incorrect callback details used") {
@@ -112,13 +108,13 @@ class CustomsNotificationSpec extends ComponentTestSpec
       val result: Option[Future[Result]] = route(app = app, request)
 
       Then("a response with a 202 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
 
       status(resultFuture) shouldBe ACCEPTED
 
       And("the response body is empty")
-      contentAsString(resultFuture) shouldBe 'empty
+      contentAsString(resultFuture) shouldBe Symbol("empty")
     }
   }
 
@@ -142,13 +138,13 @@ class CustomsNotificationSpec extends ComponentTestSpec
       val result: Option[Future[Result]] = route(app = app, request)
 
       Then("a response with a 202 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
 
       status(resultFuture) shouldBe ACCEPTED
 
       And("the response body is empty")
-      contentAsString(resultFuture) shouldBe 'empty
+      contentAsString(resultFuture) shouldBe Symbol("empty")
 
       Then("the status is set to PermanentlyFailed")
       eventually(assertWorkItemRepoWithStatus(PermanentlyFailed, 2))
@@ -167,7 +163,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
       And("the notification gateway service was called correctly")
       eventually {
         verifyPushNotificationServiceWasCalledWith(externalPushNotificationRequest)
-        verifyInternalServiceWasNotCalledWith(externalPushNotificationRequest)
+        verifyInternalServiceWasNotCalledWith()
         verifyNotificationQueueServiceWasNotCalled()
       }
     }

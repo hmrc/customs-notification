@@ -58,7 +58,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
       ValidXML.toString())
   )
 
-  override protected def beforeAll() {
+  override protected def beforeAll(): Unit = {
     startMockServer()
   }
 
@@ -66,7 +66,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     resetMockServer()
   }
 
-  override protected def afterAll() {
+  override protected def afterAll(): Unit = {
     stopMockServer()
   }
 
