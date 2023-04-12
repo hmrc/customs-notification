@@ -32,8 +32,8 @@ lazy val microservice = (project in file("."))
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
   .settings(scalaVersion := "2.13.10",
-    IntegrationTest/parallelExecution := false,
-    Test/ parallelExecution := false)
+    IntegrationTest / parallelExecution := false,
+    Test / parallelExecution := false)
   .settings(
     commonSettings,
     unitTestSettings,
@@ -43,12 +43,15 @@ lazy val microservice = (project in file("."))
   )
   .settings(majorVersion := 0)
   .settings(scalacOptions ++= List(
-  "-Yrangepos",
-  "-Xlint:-missing-interpolator,_",
-  "-feature",
-  "-unchecked",
-  "-language:implicitConversions",
-    )
+    "-Yrangepos",
+    "-Xlint:-missing-interpolator,_",
+    "-feature",
+    "-unchecked",
+    "-language:implicitConversions",
+    "-release",
+    "11",
+    "-target:11"
+  )
   )
 
 lazy val unitTestSettings =
@@ -63,7 +66,7 @@ lazy val integrationComponentTestSettings =
   inConfig(CdsIntegrationComponentTest)(Defaults.testTasks) ++
     Seq(
       CdsIntegrationComponentTest / testOptions := Seq(Tests.Filter(integrationComponentTestFilter)),
-      CdsIntegrationComponentTest / parallelExecution  := false,
+      CdsIntegrationComponentTest / parallelExecution := false,
       addTestReportOption(CdsIntegrationComponentTest, "int-comp-test-reports"),
       CdsIntegrationComponentTest / testGrouping := forkedJvmPerTestConfig((Test / definedTests).value, "integration", "component")
     )
@@ -73,10 +76,10 @@ lazy val commonSettings: Seq[Setting[_]] = publishingSettings ++ gitStampSetting
 lazy val scoverageSettings: Seq[Setting[_]] = Seq(
   coverageExcludedPackages := List(
     "<empty>"
-    ,"Reverse.*"
-    ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.model\\..*"
-    ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
-    ,".*(Reverse|AuthService|BuildInfo|Routes).*"
+    , "Reverse.*"
+    , "uk\\.gov\\.hmrc\\.customs\\.notification\\.model\\..*"
+    , "uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
+    , ".*(Reverse|AuthService|BuildInfo|Routes).*"
   ).mkString(";"),
   coverageMinimumStmtTotal := 95,
   coverageFailOnMinimum := true,
