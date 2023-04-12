@@ -48,9 +48,7 @@ lazy val microservice = (project in file("."))
     "-feature",
     "-unchecked",
     "-language:implicitConversions",
-    "-release",
-    "11",
-    "-target:11"
+    "-release"
   )
   )
 
