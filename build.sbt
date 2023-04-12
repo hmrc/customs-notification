@@ -48,8 +48,7 @@ lazy val microservice = (project in file("."))
     "-Xlint:-missing-interpolator,_",
     "-feature",
     "-unchecked",
-    "-language:implicitConversions",
-    "-release"
+    "-language:implicitConversions"
   )
   )
 
