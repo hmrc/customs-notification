@@ -84,7 +84,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
     mockAuditingService
   )
 
-  override protected def beforeEach() {
+  override protected def beforeEach(): Unit = {
     reset(mockNotificationWorkItemRepo, mockNotificationLogger, mockPushOrPullService, mockMetricsService, mockCustomsNotificationConfig, mockAuditingService)
     when(mockCustomsNotificationConfig.notificationConfig).thenReturn(notificationConfig)
     when(mockDateTimeService.zonedDateTimeUtc).thenReturn(currentTime)

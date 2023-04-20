@@ -45,7 +45,7 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  override protected def beforeAll() {
+  override protected def beforeAll(): Unit = {
     startMockServer()
   }
 
@@ -53,7 +53,7 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
     resetMockServer()
   }
 
-  override protected def afterAll() {
+  override protected def afterAll(): Unit = {
     stopMockServer()
   }
 
@@ -66,7 +66,7 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
       "non.blocking.retry.after.minutes" -> 10
     )).build()
 
-  lazy val repo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
+  lazy val repo: NotificationWorkItemMongoRepo = app.injector.instanceOf[NotificationWorkItemMongoRepo]
 
   override def beforeEach(): Unit = {
     await(repo.collection.drop())

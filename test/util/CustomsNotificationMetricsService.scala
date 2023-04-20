@@ -31,14 +31,14 @@ trait CustomsNotificationMetricsService {
       willReturn aResponse()
       .withStatus(status))
 
-  def verifyCustomsNotificationMetricsServiceWasCalled() {
+  def verifyCustomsNotificationMetricsServiceWasCalled(): Unit = {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(CONTENT_TYPE, equalTo(MimeTypes.JSON))
     )
   }
 
-  def verifyCustomsNotificationMetricsServiceWasNotCalled() {
+  def verifyCustomsNotificationMetricsServiceWasNotCalled(): Unit = {
     verify(0, postRequestedFor(urlMatchingRequestPath)
     )
   }

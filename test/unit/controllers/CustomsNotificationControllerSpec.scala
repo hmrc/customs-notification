@@ -81,7 +81,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val eventualFalse = Future.successful(false)
 
-  override protected def beforeEach() {
+  override protected def beforeEach(): Unit = {
     reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     val notificationConfig = mock[NotificationConfig]
     when(notificationConfig.hotFixTranslates).thenReturn(Seq("old:new"))
@@ -261,7 +261,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
       thenReturn(Future.successful(Some(apiSubscriptionFields)))
   }
 
-  private def testSubmitResult(request: Request[AnyContent])(test: Future[Result] => Unit) {
+  private def testSubmitResult(request: Request[AnyContent])(test: Future[Result] => Unit): Unit = {
     val result = controller().submit().apply(request)
     test(result)
   }

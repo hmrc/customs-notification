@@ -4,11 +4,11 @@ import sbt._
 import uk.gov.hmrc.DefaultBuildSettings.{addTestReportOption, targetJvm}
 import uk.gov.hmrc.gitstamp.GitStampPlugin._
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
+import uk.gov.hmrc.DefaultBuildSettings
 
 import scala.language.postfixOps
 
 name := "customs-notification"
-targetJvm := "jvm-1.8"
 
 lazy val ComponentTest = config("component") extend Test
 lazy val CdsIntegrationComponentTest = config("it") extend Test
@@ -31,9 +31,10 @@ lazy val microservice = (project in file("."))
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
-  .settings(scalaVersion := "2.12.14",
-    IntegrationTest/parallelExecution := false,
-    Test/ parallelExecution := false)
+  .settings(scalaVersion := "2.13.10",
+    DefaultBuildSettings.targetJvm := "jvm-11",
+    IntegrationTest / parallelExecution := false,
+    Test / parallelExecution := false)
   .settings(
     commonSettings,
     unitTestSettings,
@@ -43,14 +44,12 @@ lazy val microservice = (project in file("."))
   )
   .settings(majorVersion := 0)
   .settings(scalacOptions ++= List(
-  "-Yrangepos",
-  "-Xlint:-missing-interpolator,_",
-  "-Yno-adapted-args",
-  "-feature",
-  "-unchecked",
-  "-language:implicitConversions",
-  "-P:silencer:pathFilters=views;routes;TestStorage"
-    )
+    "-Yrangepos",
+    "-Xlint:-missing-interpolator,_",
+    "-feature",
+    "-unchecked",
+    "-language:implicitConversions"
+  )
   )
 
 lazy val unitTestSettings =
@@ -65,7 +64,7 @@ lazy val integrationComponentTestSettings =
   inConfig(CdsIntegrationComponentTest)(Defaults.testTasks) ++
     Seq(
       CdsIntegrationComponentTest / testOptions := Seq(Tests.Filter(integrationComponentTestFilter)),
-      CdsIntegrationComponentTest / parallelExecution  := false,
+      CdsIntegrationComponentTest / parallelExecution := false,
       addTestReportOption(CdsIntegrationComponentTest, "int-comp-test-reports"),
       CdsIntegrationComponentTest / testGrouping := forkedJvmPerTestConfig((Test / definedTests).value, "integration", "component")
     )
@@ -75,10 +74,10 @@ lazy val commonSettings: Seq[Setting[_]] = publishingSettings ++ gitStampSetting
 lazy val scoverageSettings: Seq[Setting[_]] = Seq(
   coverageExcludedPackages := List(
     "<empty>"
-    ,"Reverse.*"
-    ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.model\\..*"
-    ,"uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
-    ,".*(Reverse|AuthService|BuildInfo|Routes).*"
+    , "Reverse.*"
+    , "uk\\.gov\\.hmrc\\.customs\\.notification\\.model\\..*"
+    , "uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
+    , ".*(Reverse|AuthService|BuildInfo|Routes).*"
   ).mkString(";"),
   coverageMinimumStmtTotal := 95,
   coverageFailOnMinimum := true,
@@ -94,3 +93,5 @@ scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 Compile / unmanagedResourceDirectories += baseDirectory.value / "public"
 
 libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test
+// To resolve a bug with version 2.x.x of the scoverage plugin - https://github.com/sbt/sbt/issues/6997
+libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always

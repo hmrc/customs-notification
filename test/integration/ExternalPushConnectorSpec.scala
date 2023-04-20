@@ -39,7 +39,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
 
   private lazy val connector = app.injector.instanceOf[ExternalPushConnector]
 
-  override protected def beforeAll() {
+  override protected def beforeAll(): Unit = {
     startMockServer()
   }
 
@@ -47,7 +47,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     resetMockServer()
   }
 
-  override protected def afterAll() {
+  override protected def afterAll(): Unit = {
     stopMockServer()
   }
 

@@ -18,7 +18,7 @@ package util
 
 trait WireMockRunnerWithoutServer extends WireMockRunner {
 
-  def withoutWireMockServer(thunk: => Any) {
+  def withoutWireMockServer(thunk: => Any): Unit = {
     if (wireMockServer.isRunning) {
       stopMockServer()
       try thunk

@@ -42,7 +42,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
   val incomingBearerToken = "some_client's_bearer_token"
   val incomingAuthToken = s"Bearer $incomingBearerToken"
 
-  override protected def beforeAll() {
+  override protected def beforeAll(): Unit = {
     startMockServer()
   }
 
@@ -50,7 +50,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
     resetMockServer()
   }
 
-  override protected def afterAll() {
+  override protected def afterAll(): Unit = {
     stopMockServer()
   }
 

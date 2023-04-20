@@ -16,13 +16,11 @@
 
 package component
 
-import org.mongodb.scala.model.Filters
 import play.api.mvc.Result
-import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import util.TestData._
 
 import scala.concurrent.Future
@@ -31,7 +29,6 @@ import scala.xml.XML.loadString
 
 class CustomsNotificationBlockedSpec extends ComponentTestSpec {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
   private val missingClientIdError =
     <errorResponse>
@@ -45,7 +42,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
       <message>Resource was not found</message>
     </errorResponse>
 
-  override protected def beforeEach() {
+  override protected def beforeEach(): Unit = {
     emptyCollection()
   }
 
@@ -60,7 +57,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
       val result: Option[Future[Result]] = route(app = app, ValidBlockedCountRequest)
 
       Then("a response with a 200 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
       status(resultFuture) shouldBe OK
 
@@ -78,7 +75,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
       val result: Option[Future[Result]] = route(app = app, InvalidBlockedCountRequest)
 
       Then("a response with a 400 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
       status(resultFuture) shouldBe BAD_REQUEST
 
@@ -100,7 +97,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
       val result: Option[Future[Result]] = route(app = app, ValidDeleteBlockedRequest)
 
       Then("a response with a 204 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
       status(resultFuture) shouldBe NO_CONTENT
 
@@ -116,7 +113,7 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
       val result: Option[Future[Result]] = route(app = app, ValidDeleteBlockedRequest)
 
       Then("a response with a 404 status is received")
-      result shouldBe 'defined
+      result shouldBe Symbol("defined")
       val resultFuture: Future[Result] = result.value
       status(resultFuture) shouldBe NOT_FOUND
 

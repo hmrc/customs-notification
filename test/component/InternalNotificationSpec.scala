@@ -16,12 +16,9 @@
 
 package component
 
-import org.mongodb.scala.bson.BsonDocument
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.test.Helpers
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
@@ -33,8 +30,6 @@ class InternalNotificationSpec extends ComponentTestSpec
   with InternalPushNotificationService
   with AuditService {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
-
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(
     acceptanceTestConfigs +
       ("internal.clientIds.0" -> "aThirdPartyApplicationId") +
@@ -45,7 +40,7 @@ class InternalNotificationSpec extends ComponentTestSpec
       ("customs-notification-metrics.port" -> Port)
   ).build()
 
-  override protected def beforeAll() {
+  override protected def beforeAll(): Unit = {
     startMockServer()
   }
 
@@ -54,7 +49,7 @@ class InternalNotificationSpec extends ComponentTestSpec
     emptyCollection()
   }
 
-  override protected def afterAll() {
+  override protected def afterAll(): Unit = {
     stopMockServer()
   }
 

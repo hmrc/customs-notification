@@ -16,7 +16,6 @@
 
 package component
 
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
@@ -26,10 +25,9 @@ import org.scalatest.time.{Seconds, Span}
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.test.Helpers.await
+import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import util.ExternalServicesConfiguration
-import play.api.test.Helpers._
 
 trait ComponentTestSpec extends AnyFeatureSpec
   with GivenWhenThen

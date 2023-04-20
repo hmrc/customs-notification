@@ -16,13 +16,11 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import org.bson.types.ObjectId
+import play.api.libs.json.Format._
+import play.api.libs.json._
+import play.api.mvc.Headers
 
 import java.util.UUID
-import play.api.libs.json.Format._
-import play.api.libs.json.{Format, Json, OFormat, _}
-import play.api.mvc.Headers
-import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoUuidFormats}
 
 case class Header(name: String, value: String)
 object Header {

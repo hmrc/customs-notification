@@ -43,7 +43,7 @@ class CustomsNotificationBlockedControllerSpec
   private val mockLogger = mock[NotificationLogger]
   private val controller = new CustomsNotificationBlockedController(mockService, Helpers.stubControllerComponents(), mockLogger)
 
-  override protected def beforeEach() {
+  override protected def beforeEach(): Unit = {
     reset(mockService, mockLogger)
   }
 
@@ -123,7 +123,7 @@ class CustomsNotificationBlockedControllerSpec
     }
 }
 
-  private def testSubmitResult(request: Request[AnyContent], action: Action[AnyContent])(test: Future[Result] => Unit) {
+  private def testSubmitResult(request: Request[AnyContent], action: Action[AnyContent])(test: Future[Result] => Unit): Unit = {
     val result = action.apply(request)
     test(result)
   }
