@@ -18,7 +18,7 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.7")
 
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")
 
-addSbtPlugin("net.vonbuchholtz" % "sbt-dependency-check" % "3.1.1")
+addSbtPlugin("com.timushev.sbt"  % "sbt-updates"    % "0.6.3")
 
 // To resolve a bug with version 2.x.x of the scoverage plugin - https://github.com/sbt/sbt/issues/6997
 libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
