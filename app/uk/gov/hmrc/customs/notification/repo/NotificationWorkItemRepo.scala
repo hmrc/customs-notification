@@ -73,13 +73,13 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
                                               logger: CdsLogger,
                                               configuration: Configuration)
                                              (implicit ec: ExecutionContext)
-extends WorkItemRepository[NotificationWorkItem] (
-  collectionName = "notifications-work-item",
-  mongoComponent = mongo,
-  itemFormat = NotificationWorkItem.format,
-  workItemFields = NotificationWorkItemFields.workItemFields,
-  replaceIndexes = false
-) with NotificationWorkItemRepo {
+  extends WorkItemRepository[NotificationWorkItem](
+    collectionName = "notifications-work-item",
+    mongoComponent = mongo,
+    itemFormat = NotificationWorkItem.format,
+    workItemFields = NotificationWorkItemFields.workItemFields,
+    replaceIndexes = false
+  ) with NotificationWorkItemRepo {
 
   override def now(): Instant = Instant.now()
 
@@ -150,7 +150,7 @@ extends WorkItemRepository[NotificationWorkItem] (
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}")
-    complete(id, status).map(_ => () )
+    complete(id, status).map(_ => ())
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
@@ -194,7 +194,7 @@ extends WorkItemRepository[NotificationWorkItem] (
     logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
     val selector = csIdAndStatusSelector(csid, Failed)
     val update = updateStatusBson(PermanentlyFailed)
-    collection.updateMany(selector, update).toFuture().map {result =>
+    collection.updateMany(selector, update).toFuture().map { result =>
       logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
       result.getModifiedCount.toInt
     }
@@ -203,7 +203,7 @@ extends WorkItemRepository[NotificationWorkItem] (
   override def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
     val update = updateStatusBson(Failed)
-    collection.updateMany(selector, update).toFuture().map {result =>
+    collection.updateMany(selector, update).toFuture().map { result =>
       logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
       result.getModifiedCount.toInt
     }

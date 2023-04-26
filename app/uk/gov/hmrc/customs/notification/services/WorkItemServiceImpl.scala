@@ -38,14 +38,14 @@ trait WorkItemService {
 }
 
 class WorkItemServiceImpl @Inject()(
-    repository: NotificationWorkItemMongoRepo,
-    pushOrPullService: PushOrPullService,
-    dateTimeService: DateTimeService,
-    logger: NotificationLogger,
-    metrics: Metrics,
-    customsNotificationConfig: CustomsNotificationConfig
-  )
-  (implicit ec: ExecutionContext) extends WorkItemService {
+                                     repository: NotificationWorkItemMongoRepo,
+                                     pushOrPullService: PushOrPullService,
+                                     dateTimeService: DateTimeService,
+                                     logger: NotificationLogger,
+                                     metrics: Metrics,
+                                     customsNotificationConfig: CustomsNotificationConfig
+                                   )
+                                   (implicit ec: ExecutionContext) extends WorkItemService {
 
   private val metricName = "declaration-digital-notification-retry-total"
 
@@ -53,10 +53,10 @@ class WorkItemServiceImpl @Inject()(
 
     val failedBefore = dateTimeService.zonedDateTimeUtc.toInstant
     val availableBefore = failedBefore
-    val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap{
+    val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap {
       case Some(firstOutstandingItem) =>
         incrementCountMetric(metricName, firstOutstandingItem)
-        pushOrPull(firstOutstandingItem).map{_ =>
+        pushOrPull(firstOutstandingItem).map { _ =>
           true
         }
       case None =>
@@ -77,10 +77,10 @@ class WorkItemServiceImpl @Inject()(
 
     implicit val loggingContext = workItem.item
     implicit val hc: HeaderCarrier = HeaderCarrier()
-      .withExtraHeaders(maybeAddNotificationId(workItem.item.notification.notificationId):_*)
+      .withExtraHeaders(maybeAddNotificationId(workItem.item.notification.notificationId): _*)
 
     logger.debug(s"attempting retry of $workItem")
-    pushOrPullService.send(workItem.item).flatMap{
+    pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         logger.info(s"$connector retry succeeded for $workItem")
         repository.setCompletedStatus(workItem.id, Succeeded)
@@ -89,15 +89,15 @@ class WorkItemServiceImpl @Inject()(
           s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (for {
           _ <- {
-              resultError match {
-                case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
-                  val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                  logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
-                  repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
-                case _ =>
-                  Future.successful(())
-              }
+            resultError match {
+              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
+                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+                repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
+              case _ =>
+                Future.successful(())
             }
+          }
           _ <- {
             resultError match {
               case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
@@ -111,7 +111,7 @@ class WorkItemServiceImpl @Inject()(
           case NonFatal(e) =>
             logger.error("Error updating database", e)
         }
-    }.recover{
+    }.recover {
       case NonFatal(e) => // this should never happen as exceptions are recovered in all above code paths
         logger.error(s"error processing work item $workItem", e)
         Future.failed(e)
@@ -120,6 +120,6 @@ class WorkItemServiceImpl @Inject()(
   }
 
   private def maybeAddNotificationId(maybeNotificationId: Option[NotificationId]): Seq[(String, String)] = {
-    maybeNotificationId.fold(Seq.empty[(String, String)]){id => Seq((NOTIFICATION_ID_HEADER_NAME, id.toString)) }
+    maybeNotificationId.fold(Seq.empty[(String, String)]) { id => Seq((NOTIFICATION_ID_HEADER_NAME, id.toString)) }
   }
 }

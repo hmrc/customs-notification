@@ -41,36 +41,36 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
   if (config.unblockPollerConfig.pollerEnabled) {
     val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
 
-      actorSystem.scheduler.schedule(0.seconds, pollerInterval) {
-        notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
-          logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
-          logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name})")
-          permanentlyFailedCsids.foreach { csid =>
-            notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsId(csid).map {
-              case Some(workItem) =>
-                pushOrPull(workItem).foreach(ok =>
-                  if (ok) {
-                    // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
-                    //changing status to failed makes the item eligible for retry
-                    notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid).foreach{ count =>
-                      logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
-                    }
+    actorSystem.scheduler.schedule(0.seconds, pollerInterval) {
+      notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
+        logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
+        logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name})")
+        permanentlyFailedCsids.foreach { csid =>
+          notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsId(csid).map {
+            case Some(workItem) =>
+              pushOrPull(workItem).foreach(ok =>
+                if (ok) {
+                  // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
+                  //changing status to failed makes the item eligible for retry
+                  notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid).foreach { count =>
+                    logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
                   }
-                )
-              case None =>
-                logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
-              }
-            }
+                }
+              )
+            case None =>
+              logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
           }
-
         }
+      }
+
+    }
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Boolean] = {
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
-    pushOrPullService.send(workItem.item).map[Boolean]{
+    pushOrPullService.send(workItem.item).map[Boolean] {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         logger.info(s"Unblock pilot for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
@@ -95,7 +95,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
             false
         }
         false
-    }.recover{
+    }.recover {
       case NonFatal(e) => // Should never happen
         logger.error(s"Unblock - error with pilot unblock of work item $workItem", e)
         false

@@ -69,9 +69,13 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val customsNotificationConfig: CustomsNotificationConfig = {
     new CustomsNotificationConfig {
       override def maybeBasicAuthToken: Option[String] = None
+
       override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
+
       override def notificationConfig: NotificationConfig = pushConfig
+
       override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]
+
       override def unblockPollerConfig: UnblockPollerConfig = mockUnblockPollerConfig
     }
   }
@@ -88,7 +92,9 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   }
 
   def failed(item: NotificationWorkItem): ProcessingStatus = Failed
+
   def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
+
   def inProgress(item: NotificationWorkItem): ProcessingStatus = InProgress
 
   "repository" should {
@@ -207,8 +213,8 @@ class NotificationWorkItemRepoSpec extends UnitSpec
         toPerFailedCount <- repository.toPermanentlyFailedByCsId(validClientSubscriptionId1)
       } yield (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount)
 
-      whenReady(result) {case (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount) =>
-      toPerFailedCount shouldBe 2
+      whenReady(result) { case (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount) =>
+        toPerFailedCount shouldBe 2
         await(repository.findById(wiClient1One.id)).get.status shouldBe PermanentlyFailed
         await(repository.findById(wiClient1Two.id)).get.status shouldBe PermanentlyFailed
         await(repository.findById(wiClient3One.id)).get.status shouldBe Failed
@@ -257,7 +263,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
       val result = await(repository.distinctPermanentlyFailedByCsId())
 
-      result should contain (ClientSubscriptionId(validClientSubscriptionId1UUID))
+      result should contain(ClientSubscriptionId(validClientSubscriptionId1UUID))
       result should not contain ClientSubscriptionId(validClientSubscriptionId2UUID)
     }
 
@@ -318,6 +324,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
       collectionSize shouldBe 0
     }
-    
+
   }
 }

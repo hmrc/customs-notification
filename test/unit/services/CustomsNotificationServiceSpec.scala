@@ -42,7 +42,7 @@ import scala.xml.Elem
 
 class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
 
- private val timeout = Mockito.timeout(5000).times(1)
+  private val timeout = Mockito.timeout(5000).times(1)
   private implicit val ec = Helpers.stubControllerComponents().executionContext
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
@@ -109,7 +109,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
 
         infoLogVerifier("Push succeeded for workItemId 5c46f7d70100000100ef835a")
       }
-      
+
       "returned HasSaved is false when it was unable to save notification to repository" in {
         when(mockNotificationWorkItemRepo.permanentlyFailedByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.failed(emulatedServiceFailure))
@@ -183,7 +183,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
         when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
         when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(
-          Future{
+          Future {
             Right(Push)
           })
 

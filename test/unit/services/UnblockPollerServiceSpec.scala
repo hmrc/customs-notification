@@ -54,7 +54,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     private[UnblockPollerServiceSpec] val notificationWorkItemRepoMock = mock[NotificationWorkItemRepo]
     private[UnblockPollerServiceSpec] val configServiceMock = mock[ConfigService]
-    private[UnblockPollerServiceSpec] val mockCdsLogger= mock[CdsLogger]
+    private[UnblockPollerServiceSpec] val mockCdsLogger = mock[CdsLogger]
     private[UnblockPollerServiceSpec] val testActorSystem = ActorSystem("UnblockPollerService")
     private[UnblockPollerServiceSpec] val mockUnblockPollerConfig = mock[UnblockPollerConfig]
     private[UnblockPollerServiceSpec] val mockPushOrPullService = mock[PushOrPullService]
@@ -102,12 +102,12 @@ class UnblockPollerServiceSpec extends UnitSpec
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
 
       new UnblockPollerService(configServiceMock,
-          testActorSystem,
-          notificationWorkItemRepoMock,
-          mockPushOrPullService,
-          mockCdsLogger,
-          mockDateTimeService,
-          mockCustomsNotificationConfig)
+        testActorSystem,
+        notificationWorkItemRepoMock,
+        mockPushOrPullService,
+        mockCdsLogger,
+        mockDateTimeService,
+        mockCustomsNotificationConfig)
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
@@ -238,7 +238,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
         verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
-        verify(notificationWorkItemRepoMock, times(0)).setCompletedStatusWithAvailableAt(any[ObjectId], any[ResultStatus],anyInt(), any[ZonedDateTime])
+        verify(notificationWorkItemRepoMock, times(0)).setCompletedStatusWithAvailableAt(any[ObjectId], any[ResultStatus], anyInt(), any[ZonedDateTime])
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
         verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(5c46f7d70100000100ef835a,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),notificationId: Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7), conversationId: eaca01f9-ec3b-4ede-b263-61b626dde231, headers: List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)), contentType: application/xml))")
       }
