@@ -141,9 +141,8 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
       result.status shouldBe InProgress
 
-      val serverError = 500
       val availableAt = ZonedDateTime.now(ZoneId.of("UTC")).plusSeconds(300)
-      await(repository.setCompletedStatusWithAvailableAt(result.id, Failed, serverError, availableAt))
+      await(repository.setCompletedStatusWithAvailableAt(result.id, Failed, Helpers.INTERNAL_SERVER_ERROR, availableAt))
 
       val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       failedItem.get.status shouldBe Failed
