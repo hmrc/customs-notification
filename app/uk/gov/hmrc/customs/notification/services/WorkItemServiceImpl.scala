@@ -93,7 +93,7 @@ class WorkItemServiceImpl @Inject()(
                 case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
                   val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                   logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
-                  repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, availableAt) // increase failure count
+                  repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
                 case _ =>
                   Future.successful(())
               }

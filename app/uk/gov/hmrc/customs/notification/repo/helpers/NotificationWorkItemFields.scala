@@ -20,6 +20,8 @@ import uk.gov.hmrc.mongo.workitem.WorkItemFields
 
 object NotificationWorkItemFields {
 
+  val mostRecentPushPullHttpStatusFieldName = "mostRecentPushPullHttpStatus"
+
   lazy val workItemFields: WorkItemFields =
     WorkItemFields(
       receivedAt = "createdAt",

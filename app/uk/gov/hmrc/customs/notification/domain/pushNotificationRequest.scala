@@ -23,6 +23,7 @@ import play.api.mvc.Headers
 import java.util.UUID
 
 case class Header(name: String, value: String)
+
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
@@ -31,6 +32,7 @@ case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String
                                        outboundCallHeaders: Seq[Header], xmlPayload: String) {
   override def toString: String = s"url: ${url.url.toString}, conversationId: $conversationId, outboundCallHeaders: ${outboundCallHeaders.toString()}"
 }
+
 object PushNotificationRequestBody {
 
   implicit val callbackUrlFormat: DeclarantCallbackData.CallbackUrlFormat.type = DeclarantCallbackData.CallbackUrlFormat
@@ -41,8 +43,7 @@ case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotif
 
 object PushNotificationRequest {
 
-  def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData, n: NotificationWorkItem): PushNotificationRequest =
-  {
+  def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData, n: NotificationWorkItem): PushNotificationRequest = {
     PushNotificationRequest(
       n._id.id.toString,
       PushNotificationRequestBody(
@@ -55,7 +56,12 @@ object PushNotificationRequest {
   }
 }
 
-case class Notification(notificationId: Option[NotificationId], conversationId: ConversationId, headers: Seq[Header], payload: String, contentType: String) {
+case class Notification(notificationId: Option[NotificationId],
+                        conversationId: ConversationId,
+                        headers: Seq[Header],
+                        payload: String,
+                        contentType: String,
+                        mostRecentPushPullStatusCode: Option[String] = None) {
 
   private lazy val caseInsensitiveHeaders = Headers(headers.map { h => h.name -> h.value }: _*)
 
@@ -65,6 +71,7 @@ case class Notification(notificationId: Option[NotificationId], conversationId: 
 
   override def toString: String = s"notificationId: ${notificationId.toString}, conversationId: ${conversationId.toString}, headers: ${headers.toString()}, contentType: $contentType"
 }
+
 object Notification {
   implicit val notificationJF: Format[Notification] = Json.format[Notification]
 }
@@ -72,13 +79,15 @@ object Notification {
 case class ClientSubscriptionId(id: UUID) extends AnyVal {
   override def toString: String = id.toString
 }
+
 object ClientSubscriptionId {
   implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] =
     new Format[ClientSubscriptionId] {
-    def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
-    def reads(json: JsValue): JsResult[ClientSubscriptionId] = json match {
-      case JsNull => JsError()
-      case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
+      def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
+
+      def reads(json: JsValue): JsResult[ClientSubscriptionId] = json match {
+        case JsNull => JsError()
+        case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
+      }
     }
-  }
 }

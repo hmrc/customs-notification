@@ -18,12 +18,12 @@ package uk.gov.hmrc.customs.notification.repo
 
 import com.google.inject.ImplementedBy
 import org.bson.types.ObjectId
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
+import org.mongodb.scala.bson.{BsonDocument, BsonInt32}
 import org.mongodb.scala.model.Filters.{and, equal, lt}
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
-import org.mongodb.scala.model.{FindOneAndUpdateOptions, IndexModel, IndexOptions, ReturnDocument}
+import org.mongodb.scala.model._
 import play.api.Configuration
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
@@ -46,7 +46,7 @@ trait NotificationWorkItemRepo {
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit]
 
-  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit]
+  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
 
@@ -153,9 +153,21 @@ extends WorkItemRepository[NotificationWorkItem] (
     complete(id, status).map(_ => () )
   }
 
-  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit] = {
+  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.toString} with availableAt: $availableAt")
-    markAs(id, status, Some(availableAt.toInstant)).map(_ => () )
+    markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
+      if (updateSuccessful) {
+        collection.updateOne(
+          filter = Filters.equal(workItemFields.id, id),
+          update = combine(
+            set(workItemFields.updatedAt, now()),
+            set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, new BsonInt32(httpStatus))
+          )
+        ).toFuture().map(_ => ())
+      } else {
+        Future.successful(())
+      }
+    }
   }
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
