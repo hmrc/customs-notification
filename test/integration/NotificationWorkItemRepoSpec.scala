@@ -324,5 +324,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       collectionSize shouldBe 0
     }
 
+    "successfully get a notification that does not have a mostRecentPushPullHttpStatus" in {
+      val workItem = await(repository.saveWithLock(NotificationWorkItem1))
+      val actual = await(repository.findById(workItem.id))
+
+      actual.get.item.notification.mostRecentPushPullStatusCode shouldBe None
+    }
+
   }
 }
