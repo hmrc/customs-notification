@@ -58,7 +58,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     auditingService.auditNotificationReceived(pnr)
 
     (for {
-      isAnyPF <- notificationWorkItemRepo.permanentlyFailedByCsIdExists(notificationWorkItem.clientSubscriptionId)
+      isAnyPF <- notificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(notificationWorkItem.clientSubscriptionId)
       hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, isAnyPF, apiSubscriptionFields)
     } yield hasSaved)
       .recover {

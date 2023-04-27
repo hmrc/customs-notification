@@ -80,7 +80,7 @@ class WorkItemProcessingScheduler @Inject()(queueProcessor: WorkItemService,
       bootstrap, config.notificationConfig.retryPollerInterval.toMillis, TimeUnit.MILLISECONDS)
 
     applicationLifecycle.addStopHook { () =>
-      shutDown()
+      shutDwn()
       Future.successful(())
     }
   } else {
