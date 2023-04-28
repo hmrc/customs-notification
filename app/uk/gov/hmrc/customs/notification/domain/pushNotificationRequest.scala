@@ -61,7 +61,7 @@ case class Notification(notificationId: Option[NotificationId],
                         headers: Seq[Header],
                         payload: String,
                         contentType: String,
-                        mostRecentPushPullStatusCode: Option[String] = None) {
+                        mostRecentPushPullHttpStatus: Option[Int] = None) {
 
   private lazy val caseInsensitiveHeaders = Headers(headers.map { h => h.name -> h.value }: _*)
 

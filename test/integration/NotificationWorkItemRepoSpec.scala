@@ -150,6 +150,16 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       failedItem.get.availableAt.toEpochMilli shouldBe availableAt.toInstant.toEpochMilli
     }
 
+    "update mostRecentPushPullStatusCode of an item of work" in {
+      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+
+      val availableAt = ZonedDateTime.now(ZoneId.of("UTC"))
+      await(repository.setCompletedStatusWithAvailableAt(result.id, Failed, Helpers.INTERNAL_SERVER_ERROR, availableAt))
+
+      val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
+      failedItem.get.item.notification.mostRecentPushPullHttpStatus shouldBe Some(Helpers.INTERNAL_SERVER_ERROR)
+    }
+
     "return correct count of permanently failed items" in {
       await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
@@ -328,7 +338,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val workItem = await(repository.saveWithLock(NotificationWorkItem1))
       val actual = await(repository.findById(workItem.id))
 
-      actual.get.item.notification.mostRecentPushPullStatusCode shouldBe None
+      actual.get.item.notification.mostRecentPushPullHttpStatus shouldBe None
     }
 
   }

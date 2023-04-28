@@ -18,8 +18,8 @@ package uk.gov.hmrc.customs.notification.repo
 
 import com.google.inject.ImplementedBy
 import org.bson.types.ObjectId
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.bson.{BsonDocument, BsonInt32}
 import org.mongodb.scala.model.Filters.{and, equal, lt}
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
@@ -154,14 +154,15 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString} with availableAt: $availableAt")
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}" +
+      s"with availableAt: $availableAt and mostRecentPushPullHttpStatus: $httpStatus")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         collection.updateOne(
           filter = Filters.equal(workItemFields.id, id),
           update = combine(
             set(workItemFields.updatedAt, now()),
-            set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, new BsonInt32(httpStatus))
+            set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, httpStatus)
           )
         ).toFuture().map(_ => ())
       } else {
