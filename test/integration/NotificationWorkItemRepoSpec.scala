@@ -230,7 +230,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       }
     }
 
-    "return true when at least one permanently failed items exist for client id" in {
+    "return false when permanently failed items exist for client id and none has mostRecentPushPullHttpStatus set" in {
       await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
@@ -238,7 +238,32 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
       val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
+      result shouldBe false
+    }
+
+    "return true when one permanently failed item exists for client id and mostRecentPushPullHttpStatus is 500" in {
+      val NotificationWorkItem1WithHttp500 = NotificationWorkItem1.copy(
+        notification = NotificationWorkItem1.notification.copy(
+          mostRecentPushPullHttpStatus = Some(Helpers.INTERNAL_SERVER_ERROR)))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
+      await(repository.pushNew(NotificationWorkItem1WithHttp500, repository.now(), permanentlyFailed))
+
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+
       result shouldBe true
+    }
+
+    "return false when permanently failed items exist for client id with mostRecentPushPullHttpStatus set to 404" in {
+      val NotificationWorkItem1WithHttp404 = NotificationWorkItem1.copy(
+        notification = NotificationWorkItem1.notification.copy(
+          mostRecentPushPullHttpStatus = Some(Helpers.NOT_FOUND)))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
+      await(repository.pushNew(NotificationWorkItem1WithHttp404, repository.now(), permanentlyFailed))
+
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+
+      result shouldBe false
     }
 
     "return false when all permanently failed items for client id are availableAt in the future" in {

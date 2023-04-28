@@ -20,7 +20,7 @@ import com.google.inject.ImplementedBy
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.model.Filters.{and, equal, lt}
+import org.mongodb.scala.model.Filters.{and, equal, gte, lt}
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
 import org.mongodb.scala.model._
@@ -54,7 +54,7 @@ trait NotificationWorkItemRepo {
 
   def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int]
 
-  def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
+  def permanentlyFailedAndHttp5xxByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
 
   def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]]
 
@@ -210,12 +210,16 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     }
   }
 
-  override def permanentlyFailedByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
-    val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
+  override def permanentlyFailedAndHttp5xxByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
+    val serverErrorCodeMin = 500
+    val selector = and(
+      gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, serverErrorCodeMin),
+      csIdAndStatusSelector(csid, PermanentlyFailed)
+    )
 
     collection.find(selector).first().toFutureOption().map {
       case Some(_) =>
-        logger.info(s"Found existing permanently failed notification for client id: $csid")
+        logger.info(s"Found existing permanently failed notification for client id with most recent push/pull HTTP 500: $csid")
         true
       case None => false
     }
