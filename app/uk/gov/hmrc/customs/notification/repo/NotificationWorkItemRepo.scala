@@ -18,9 +18,9 @@ package uk.gov.hmrc.customs.notification.repo
 
 import com.google.inject.ImplementedBy
 import org.bson.types.ObjectId
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.bson.{BsonDocument, BsonInt32}
-import org.mongodb.scala.model.Filters.{and, equal, gte, lt}
+import org.mongodb.scala.model.Filters.{and, equal, lt}
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
 import org.mongodb.scala.model._
@@ -54,7 +54,7 @@ trait NotificationWorkItemRepo {
 
   def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int]
 
-  def permanentlyFailedAndHttp5xxByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
+  def permanentlyFailedByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
 
   def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]]
 
@@ -154,14 +154,15 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString} with availableAt: $availableAt")
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}" +
+      s"with availableAt: $availableAt and mostRecentPushPullHttpStatus: $httpStatus")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         collection.updateOne(
           filter = Filters.equal(workItemFields.id, id),
           update = combine(
             set(workItemFields.updatedAt, now()),
-            set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, new BsonInt32(httpStatus))
+            set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, httpStatus)
           )
         ).toFuture().map(_ => ())
       } else {
@@ -209,16 +210,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     }
   }
 
-  override def permanentlyFailedAndHttp5xxByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
-    val serverErrorCodeMin = 500
-    val selector = and(
-      gte("clientNotification.notification.mostRecentPushPullHttpStatus", serverErrorCodeMin),
-      csIdAndStatusSelector(csid, PermanentlyFailed)
-    )
+  override def permanentlyFailedByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
+    val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
 
     collection.find(selector).first().toFutureOption().map {
       case Some(_) =>
-        logger.info(s"Found existing permanently failed notification with most recent push/pull HTTP 500 for client id: $csid")
+        logger.info(s"Found existing permanently failed notification for client id: $csid")
         true
       case None => false
     }
