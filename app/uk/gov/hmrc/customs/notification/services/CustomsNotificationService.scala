@@ -50,9 +50,9 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
     implicit val hasId: RequestMetaData = metaData
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
-        ClientId(apiSubscriptionFields.clientId),
-        Some(metaData.startTime.toDateTime),
-        Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
+      ClientId(apiSubscriptionFields.clientId),
+      Some(metaData.startTime.toDateTime),
+      Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
     auditingService.auditNotificationReceived(pnr)
@@ -77,19 +77,19 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                                                 apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
 
     val status = if (isAnyPF) {
-        logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
-          "Setting notification to permanently failed")
-        PermanentlyFailed
-      }
-      else {
-        InProgress
-      }
+      logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
+        "Setting notification to permanently failed")
+      PermanentlyFailed
+    }
+    else {
+      InProgress
+    }
 
     notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
       workItem => {
         recordNotificationEndTimeMetric(workItem)
         if (status == InProgress) pushOrPull(workItem, apiSubscriptionFields)
-         true
+        true
       }
     ).recover {
       case NonFatal(e) =>
@@ -116,7 +116,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
               case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
-                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, availableAt)
+                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
               case _ =>
                 notificationWorkItemRepo.setCompletedStatus(workItem.id, PermanentlyFailed)
             }
@@ -135,6 +135,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   }
 
   private def recordNotificationEndTimeMetric(workItem: WorkItem[NotificationWorkItem])(implicit hc: HeaderCarrier): Unit = {
-      metricsService.notificationMetric(workItem.item)
+    metricsService.notificationMetric(workItem.item)
   }
 }

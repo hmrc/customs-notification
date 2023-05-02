@@ -30,4 +30,7 @@ object NotificationWorkItemFields {
       failureCount = "failures",
       item = "clientNotification"
     )
+
+  lazy val mostRecentPushPullHttpStatusFieldName = s"${workItemFields.item}.notification.mostRecentPushPullHttpStatus"
+
 }

@@ -23,7 +23,7 @@ import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.{and, equal, lt}
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
-import org.mongodb.scala.model.{FindOneAndUpdateOptions, IndexModel, IndexOptions, ReturnDocument}
+import org.mongodb.scala.model._
 import play.api.Configuration
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
@@ -46,7 +46,7 @@ trait NotificationWorkItemRepo {
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit]
 
-  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit]
+  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
 
@@ -73,13 +73,13 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
                                               logger: CdsLogger,
                                               configuration: Configuration)
                                              (implicit ec: ExecutionContext)
-extends WorkItemRepository[NotificationWorkItem] (
-  collectionName = "notifications-work-item",
-  mongoComponent = mongo,
-  itemFormat = NotificationWorkItem.format,
-  workItemFields = NotificationWorkItemFields.workItemFields,
-  replaceIndexes = false
-) with NotificationWorkItemRepo {
+  extends WorkItemRepository[NotificationWorkItem](
+    collectionName = "notifications-work-item",
+    mongoComponent = mongo,
+    itemFormat = NotificationWorkItem.format,
+    workItemFields = NotificationWorkItemFields.workItemFields,
+    replaceIndexes = false
+  ) with NotificationWorkItemRepo {
 
   override def now(): Instant = Instant.now()
 
@@ -150,12 +150,25 @@ extends WorkItemRepository[NotificationWorkItem] (
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}")
-    complete(id, status).map(_ => () )
+    complete(id, status).map(_ => ())
   }
 
-  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString} with availableAt: $availableAt")
-    markAs(id, status, Some(availableAt.toInstant)).map(_ => () )
+  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
+    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}" +
+      s"with availableAt: $availableAt and mostRecentPushPullHttpStatus: $httpStatus")
+    markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
+      if (updateSuccessful) {
+        collection.updateOne(
+          filter = Filters.equal(workItemFields.id, id),
+          update = combine(
+            set(workItemFields.updatedAt, now()),
+            set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, httpStatus)
+          )
+        ).toFuture().map(_ => ())
+      } else {
+        Future.successful(())
+      }
+    }
   }
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
@@ -182,7 +195,7 @@ extends WorkItemRepository[NotificationWorkItem] (
     logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
     val selector = csIdAndStatusSelector(csid, Failed)
     val update = updateStatusBson(PermanentlyFailed)
-    collection.updateMany(selector, update).toFuture().map {result =>
+    collection.updateMany(selector, update).toFuture().map { result =>
       logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
       result.getModifiedCount.toInt
     }
@@ -191,7 +204,7 @@ extends WorkItemRepository[NotificationWorkItem] (
   override def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
     val update = updateStatusBson(Failed)
-    collection.updateMany(selector, update).toFuture().map {result =>
+    collection.updateMany(selector, update).toFuture().map { result =>
       logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
       result.getModifiedCount.toInt
     }
