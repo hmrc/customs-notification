@@ -217,11 +217,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
       csIdAndStatusSelector(csid, PermanentlyFailed)
     )
 
-    collection.find(selector).first().toFutureOption().map {
-      case Some(_) =>
-        logger.info(s"Found existing permanently failed notification for client id with most recent push/pull HTTP 500: $csid")
+    collection.distinct[Integer](NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, selector).toFuture().map {
+      case Seq() => false
+      case http5xxErrors =>
+        logger.info(s"Found existing permanently failed notifications " +
+          s"with push/pull HTTP statuses [${http5xxErrors.sorted.map(_.toString).mkString(", ")}] for client subscription id: $csid")
         true
-      case None => false
     }
   }
 
