@@ -18,6 +18,8 @@ package integration
 
 import com.typesafe.config.Config
 import org.mockito.Mockito._
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
 import org.mongodb.scala.model.Filters
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -48,7 +50,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with ScalaFutures {
 
   private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
-  private val stubCdsLogger: StubCdsLogger = StubCdsLogger()
+  private val mockCdsLogger: StubCdsLogger = mock[StubCdsLogger]
   private val mockUnblockPollerConfig: UnblockPollerConfig = mock[UnblockPollerConfig]
   private val mockConfiguration = mock[Configuration]
 
@@ -80,7 +82,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoRepository, customsNotificationConfig, stubCdsLogger, mockConfiguration)
+  private val repository = new NotificationWorkItemMongoRepo(mongoRepository, customsNotificationConfig, mockCdsLogger, mockConfiguration)
+
+  private val oneArgumentLogAnswer: Answer[Unit] = (i: InvocationOnMock) => println(i.getArgument[String](0))
+  private val twoArgumentLogAnswer: Answer[Unit] = { (i: InvocationOnMock) =>
+    println(i.getArgument[String](0) + i.getArgument[Throwable](1).toString)
+  }
 
   override def beforeEach(): Unit = {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
@@ -230,15 +237,40 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       }
     }
 
-    "return true when at least one permanently failed items exist for client id" in {
+    "return false when permanently failed items exist for client id and none has mostRecentPushPullHttpStatus set" in {
       await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
 
-      val result = await(repository.permanentlyFailedByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+
+      result shouldBe false
+    }
+
+    "return true when one permanently failed item exists for client id and mostRecentPushPullHttpStatus is 500" in {
+      val NotificationWorkItem1WithHttp500 = NotificationWorkItem1.copy(
+        notification = NotificationWorkItem1.notification.copy(
+          mostRecentPushPullHttpStatus = Some(Helpers.INTERNAL_SERVER_ERROR)))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
+      await(repository.pushNew(NotificationWorkItem1WithHttp500, repository.now(), permanentlyFailed))
+
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe true
+    }
+
+    "return false when permanently failed items exist for client id with mostRecentPushPullHttpStatus set to 404" in {
+      val NotificationWorkItem1WithHttp404 = NotificationWorkItem1.copy(
+        notification = NotificationWorkItem1.notification.copy(
+          mostRecentPushPullHttpStatus = Some(Helpers.NOT_FOUND)))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
+      await(repository.pushNew(NotificationWorkItem1WithHttp404, repository.now(), permanentlyFailed))
+
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+
+      result shouldBe false
     }
 
     "return false when all permanently failed items for client id are availableAt in the future" in {
@@ -246,7 +278,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
 
-      val result = await(repository.permanentlyFailedByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
     }
