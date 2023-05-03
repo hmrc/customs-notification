@@ -33,7 +33,6 @@ import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import unit.logging.StubCdsLogger
-import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 import util.UnitSpec
 
@@ -88,12 +87,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val oneArgumentLogAnswer: Answer[Unit] = (i: InvocationOnMock) => println(i.getArgument[String](0))
   private val twoArgumentLogAnswer: Answer[Unit] = { (i: InvocationOnMock) =>
     println(i.getArgument[String](0) + i.getArgument[Throwable](1).toString)
-  }
-
-  private def verifyInfoLog(msg: String) = {
-    PassByNameVerifier(mockCdsLogger, "info")
-      .withByNameParam(msg)
-      .verify()
   }
 
   override def beforeEach(): Unit = {
@@ -253,30 +246,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
-    }
-
-    "log the mostRecentPushPullHttpStatus for each permanently failed item with a HTTP 5xx error" in {
-      await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
-      await(repository.pushNew(
-        NotificationWorkItem1.copy(
-          notification = NotificationWorkItem1.notification.copy(
-            mostRecentPushPullHttpStatus = Some(Helpers.SERVICE_UNAVAILABLE))),
-        repository.now(), permanentlyFailed))
-      await(repository.pushNew(
-        NotificationWorkItem1.copy(
-          notification = NotificationWorkItem1.notification.copy(
-            mostRecentPushPullHttpStatus = Some(Helpers.INTERNAL_SERVER_ERROR))),
-        repository.now(), permanentlyFailed))
-      await(repository.pushNew(
-        NotificationWorkItem1.copy(
-          notification = NotificationWorkItem1.notification.copy(
-            mostRecentPushPullHttpStatus = Some(Helpers.NOT_FOUND))),
-        repository.now(), permanentlyFailed))
-
-      await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
-
-      verifyInfoLog("Found existing permanently failed notifications " +
-        s"with push/pull HTTP statuses [500, 503] for client subscription id: $validClientSubscriptionId1")
     }
 
     "return true when one permanently failed item exists for client id and mostRecentPushPullHttpStatus is 500" in {
