@@ -87,27 +87,15 @@ class WorkItemServiceImpl @Inject()(
       case Left(PushOrPullError(connector, resultError)) =>
         logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
           s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
-        (for {
-          _ <- {
-            resultError match {
+        (resultError match {
               case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
               case _ =>
-                Future.successful(())
-            }
-          }
-          _ <- {
-            resultError match {
-              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
-                Future.successful(())
-              case _ =>
                 repository.setCompletedStatus(workItem.id, Failed) // increase failure count
-                repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId)
-            }
-          }
-        } yield ()).recover {
+                repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ())
+            }).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
         }

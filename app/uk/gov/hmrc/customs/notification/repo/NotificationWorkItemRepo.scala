@@ -46,6 +46,8 @@ trait NotificationWorkItemRepo {
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit]
 
+  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit]
+
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
@@ -148,9 +150,30 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     pushNew(notificationWorkItem, now(), processWithInitialStatus)
   }
 
+  private def setMostRecentPushPullHttpStatus(id: ObjectId, httpStatus: Option[Int]): Future[Unit] = {
+    collection.updateOne(
+      filter = Filters.equal(workItemFields.id, id),
+      update = Updates.combine(
+        Updates.set(workItemFields.updatedAt, now()),
+        httpStatus.fold(BsonDocument(): Bson)(Updates.set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, _))
+      )
+    ).toFuture().map(_ => ())
+  }
+
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}")
     complete(id, status).map(_ => ())
+  }
+
+  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit] = {
+    logger.debug(s"setting completed status of ${PermanentlyFailed.name} for notification work item id: ${id.toString}")
+    complete(id, PermanentlyFailed).flatMap { updateSuccessful =>
+      if (updateSuccessful) {
+        setMostRecentPushPullHttpStatus(id, Some(httpStatus))
+      } else {
+        Future.successful(())
+      }
+    }
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
@@ -158,13 +181,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
       s"with availableAt: $availableAt and mostRecentPushPullHttpStatus: $httpStatus")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
-        collection.updateOne(
-          filter = Filters.equal(workItemFields.id, id),
-          update = combine(
-            set(workItemFields.updatedAt, now()),
-            set(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, httpStatus)
-          )
-        ).toFuture().map(_ => ())
+        setMostRecentPushPullHttpStatus(id, Some(httpStatus))
       } else {
         Future.successful(())
       }
