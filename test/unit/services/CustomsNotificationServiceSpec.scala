@@ -144,9 +144,9 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
       "return true when repo saves but push fails with 500" in {
         when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
         when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
+        when(mockNotificationWorkItemRepo.setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(Future.successful(()))
         when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(eventuallyUnit)
+        when(mockNotificationWorkItemRepo.setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(eventuallyUnit)
         when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(eventuallyLeftOfPush500)
 
         val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
@@ -154,7 +154,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Bef
         await(result) shouldBe true
         verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
         verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id)
-        verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, PermanentlyFailed)
+        verify(mockNotificationWorkItemRepo).setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)
         verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
         verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
         errorLogVerifier("Push failed PushOrPullError(Push,HttpResultError(500,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a")
