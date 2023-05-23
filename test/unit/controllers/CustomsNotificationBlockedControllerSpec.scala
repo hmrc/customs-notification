@@ -44,7 +44,7 @@ class CustomsNotificationBlockedControllerSpec
   private val controller = new CustomsNotificationBlockedController(mockService, Helpers.stubControllerComponents(), mockLogger)
 
   override protected def beforeEach(): Unit = {
-    reset(mockService, mockLogger)
+    reset[Any](mockService, mockLogger)
   }
 
   "CustomsNotificationBlockedController" should {

@@ -121,16 +121,16 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>
         val requestMetaData: RequestMetaData = md.copy(maybeClientId = Some(ClientId(apiSubscriptionFields.clientId)))
-        handleNotification(xml, requestMetaData, apiSubscriptionFields).recover{
-          case t: Throwable =>
-            logger.error(s"Processing failed for notification due to: $t")(requestMetaData)
-            ErrorInternalServerError.XmlResult
-        }.map {
+        handleNotification(xml, requestMetaData, apiSubscriptionFields).map {
           case true =>
             logger.info(s"Saved notification")(requestMetaData)
             Results.Accepted
           case false =>
             logger.error(s"Processing failed for notification")(requestMetaData)
+            ErrorInternalServerError.XmlResult
+        }.recover {
+          case t: Throwable =>
+            logger.error(s"Processing failed for notification due to: $t")(requestMetaData)
             ErrorInternalServerError.XmlResult
         }
       case None =>

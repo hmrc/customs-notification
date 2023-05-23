@@ -16,9 +16,7 @@
 
 package integration
 
-import java.net.URL
-
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, Inside}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
@@ -32,12 +30,15 @@ import unit.logging.StubCdsLogger
 import util.TestData._
 import util.{ExternalServicesConfiguration, InternalPushNotificationService, WireMockRunnerWithoutServer}
 
+import java.net.URL
+
 class InternalPushConnectorSpec extends IntegrationTestSpec
   with GuiceOneAppPerSuite
   with MockitoSugar
   with BeforeAndAfterAll
   with InternalPushNotificationService
-  with WireMockRunnerWithoutServer {
+  with WireMockRunnerWithoutServer
+  with Inside {
 
   private lazy val connector = app.injector.instanceOf[InternalPushConnector]
   private val stubCdsLogger = StubCdsLogger()
@@ -81,7 +82,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "make a correct request" in {
       setupInternalServiceToReturn(NO_CONTENT)
 
-      val Right(_) = await(connector.send(pnr())(HeaderCarrier()))
+      await(connector.send(pnr())(HeaderCarrier())).isRight shouldBe true
 
       verifyInternalServiceWasCalledWithOutboundHeaders(pnr())
     }
@@ -89,40 +90,50 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 300 when external service returns 300" in {
       setupInternalServiceToReturn(MULTIPLE_CHOICES)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.send(pnr())(HeaderCarrier()))
 
-      httpResultError.status shouldBe MULTIPLE_CHOICES
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe MULTIPLE_CHOICES
+      }
     }
 
     "return a Left(HttpResultError) with status 404 when external service returns a 404" in {
       setupInternalServiceToReturn(NOT_FOUND)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.send(pnr())(HeaderCarrier()))
 
-      httpResultError.status shouldBe NOT_FOUND
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe NOT_FOUND
+      }
     }
 
     "return a Left(HttpResultError) with status 400 when external service returns a 400" in {
       setupInternalServiceToReturn(BAD_REQUEST)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.send(pnr())(HeaderCarrier()))
 
-      httpResultError.status shouldBe BAD_REQUEST
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe BAD_REQUEST
+      }
     }
 
     "return a Left(HttpResultError) with status 500 when external service returns a 500" in {
       setupInternalServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.send(pnr())(HeaderCarrier()))
 
-      httpResultError.status shouldBe INTERNAL_SERVER_ERROR
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe INTERNAL_SERVER_ERROR
+      }
     }
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in
       withoutWireMockServer {
-        val Left(httpResultError: HttpResultError) = await(connector.send(pnr())(HeaderCarrier()))
+        val result = await(connector.send(pnr())(HeaderCarrier()))
 
-        httpResultError.status shouldBe BAD_GATEWAY
+        inside(result) { case Left(HttpResultError(status, _)) =>
+          status shouldBe BAD_GATEWAY
+        }
       }
   }
 

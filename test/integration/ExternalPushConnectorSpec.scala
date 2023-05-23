@@ -16,7 +16,7 @@
 
 package integration
 
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, Inside}
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
@@ -35,7 +35,8 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
   with MockitoSugar
   with BeforeAndAfterAll
   with PushNotificationService
-  with WireMockRunnerWithoutServer {
+  with WireMockRunnerWithoutServer
+  with Inside {
 
   private lazy val connector = app.injector.instanceOf[ExternalPushConnector]
 
@@ -65,48 +66,59 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     "make a correct request" in {
       setupPushNotificationServiceToReturn(NO_CONTENT)
 
-      val Right(_) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier().withExtraHeaders((NOTIFICATION_ID_HEADER_NAME,notificationId.toString)), requestMetaData))
+      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier().withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, notificationId.toString)), requestMetaData))
 
+      result.isRight shouldBe true
       verifyPushNotificationServiceWasCalledWith(externalPushNotificationRequest)
     }
 
     "return a Left(HttpResultError) with status 300 when external service returns 300" in {
       setupPushNotificationServiceToReturn(MULTIPLE_CHOICES)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
-      httpResultError.status shouldBe MULTIPLE_CHOICES
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe MULTIPLE_CHOICES
+      }
     }
 
     "return a Left(HttpResultError) with status 404 when external service returns a 404" in {
       setupPushNotificationServiceToReturn(NOT_FOUND)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
-      httpResultError.status shouldBe NOT_FOUND
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe NOT_FOUND
+      }
     }
 
     "return a Left(HttpResultError) with status 400 when external service returns a 400" in {
       setupPushNotificationServiceToReturn(BAD_REQUEST)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
-      httpResultError.status shouldBe BAD_REQUEST
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe BAD_REQUEST
+      }
     }
 
     "return a Left(HttpResultError) with status 500 when external service returns a 500" in {
       setupPushNotificationServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
-      httpResultError.status shouldBe INTERNAL_SERVER_ERROR
+      inside(result) { case Left(HttpResultError(status, _)) =>
+        status shouldBe INTERNAL_SERVER_ERROR
+      }
     }
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in
       withoutWireMockServer {
-        val Left(httpResultError: HttpResultError) = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+        val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
-        httpResultError.status shouldBe BAD_GATEWAY
+        inside(result) { case Left(HttpResultError(status, _)) =>
+          status shouldBe BAD_GATEWAY
+        }
       }
   }
 

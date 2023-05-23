@@ -89,7 +89,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     java.time.Duration.ofNanos(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toNanos)
   }
 
-  override def ensureIndexes: Future[Seq[String]] = {
+  override def ensureIndexes(): Future[Seq[String]] = {
     lazy val ttlInSeconds = customsNotificationConfig.notificationConfig.ttlInSeconds
     val WORK_ITEM_STATUS = NotificationWorkItemFields.workItemFields.status
     val WORK_ITEM_UPDATED_AT = NotificationWorkItemFields.workItemFields.updatedAt

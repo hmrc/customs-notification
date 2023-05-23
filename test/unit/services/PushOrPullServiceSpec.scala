@@ -18,6 +18,7 @@ package unit.services
 
 import org.bson.types.ObjectId
 import org.mockito.Mockito._
+import org.scalatest.Inside
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, NotificationQueueConnector}
@@ -30,7 +31,7 @@ import util.UnitSpec
 
 import scala.concurrent.Future
 
-class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
+class PushOrPullServiceSpec extends UnitSpec with MockitoSugar with Inside {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
@@ -90,53 +91,62 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar {
     "return Left with source of ApiSubscriptionFields when callback details are not found" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1._id.toString)).thenReturn(eventuallyNone)
 
-      val Left(pushOrPullError) = await(service.send(NotificationWorkItem1))
+      val result: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
-      pushOrPullError.source shouldBe GetApiSubscriptionFields
-      pushOrPullError.resultError.cause.getMessage shouldBe "Error getting client subscription fields data"
-      verifyNoInteractions(mockOutboundSwitchService)
-      verifyNoInteractions(mockNotificationQueueConnector)
+      inside(result) { case Left(PushOrPullError(source, resultError)) =>
+        source shouldBe GetApiSubscriptionFields
+        resultError.cause.getMessage shouldBe "Error getting client subscription fields data"
+        verifyNoInteractions(mockOutboundSwitchService)
+        verifyNoInteractions(mockNotificationQueueConnector)
+      }
     }
     "return Left with source of ApiSubscriptionFields when ApiSubscriptionFieldsConnector throws an exception" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1._id.toString)).thenReturn(eventualEmulatedServiceFailure)
 
-      val Left(pushOrPullError) = await(service.send(NotificationWorkItem1))
+      val result: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
-      pushOrPullError.source shouldBe GetApiSubscriptionFields
-      pushOrPullError.resultError.cause.getMessage shouldBe "Emulated service failure."
-      verifyNoInteractions(mockOutboundSwitchService)
-      verifyNoInteractions(mockNotificationQueueConnector)
+      inside(result) { case Left(PushOrPullError(source, resultError)) =>
+        source shouldBe GetApiSubscriptionFields
+        resultError.cause.getMessage shouldBe "Emulated service failure."
+        verifyNoInteractions(mockOutboundSwitchService)
+        verifyNoInteractions(mockNotificationQueueConnector)
+      }
     }
     "when some callback URL is returned, return Left with source of Push when OutboundSwitchService throws an exception" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1._id.toString)).thenReturn(eventuallySomePushClientCallbackData)
       when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1, hc)).thenReturn(eventualEmulatedServiceFailure)
 
-      val Left(pushOrPullError) = await(service.send(NotificationWorkItem1))
+      val result: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
-      pushOrPullError.source shouldBe Push
-      pushOrPullError.resultError.cause.getMessage shouldBe "Emulated service failure."
-      verifyNoInteractions(mockNotificationQueueConnector)
+      inside(result) { case Left(PushOrPullError(source, resultError)) =>
+        source shouldBe Push
+        resultError.cause.getMessage shouldBe "Emulated service failure."
+        verifyNoInteractions(mockNotificationQueueConnector)
+      }
     }
     "when some callback URL is returned, return Left with source of Push when OutboundSwitchService returns Left" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1._id.toString)).thenReturn(eventuallySomePushClientCallbackData)
       when(mockOutboundSwitchService.send(clientId1, pnr)(NotificationWorkItem1, hc)).thenReturn(eventualLeftResultError)
 
-      val Left(pushOrPullError) = await(service.send(NotificationWorkItem1))
+      val result: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
-      pushOrPullError.source shouldBe Push
-      pushOrPullError.resultError shouldBe mockResultError
-      verifyNoInteractions(mockNotificationQueueConnector)
+      inside(result) { case Left(PushOrPullError(source, resultError)) =>
+        source shouldBe Push
+        resultError shouldBe mockResultError
+        verifyNoInteractions(mockNotificationQueueConnector)
+      }
     }
     "when callback URL is empty, return Left with source of Pull when NotificationQueueConnector throws EmulatedService exception" in new SetUp {
       when(mockApiSubscriptionFieldsConnector.getClientData(NotificationWorkItem1._id.toString)).thenReturn(eventuallySomePullClientCallbackData)
       when(mockNotificationQueueConnector.enqueue(clientNotification)).thenReturn(eventualEmulatedServiceFailure)
 
-      val Left(pushOrPullError) = await(service.send(NotificationWorkItem1))
+      val result: Either[PushOrPullError, ConnectorSource] = await(service.send(NotificationWorkItem1))
 
-      pushOrPullError.source shouldBe Pull
-      pushOrPullError.resultError.cause.getMessage shouldBe "Emulated service failure."
-      verifyNoInteractions(mockOutboundSwitchService)
+      inside(result) { case Left(PushOrPullError(source, resultError)) =>
+        source shouldBe Pull
+        resultError.cause.getMessage shouldBe "Emulated service failure."
+        verifyNoInteractions(mockOutboundSwitchService)
+      }
     }
   }
-
 }
