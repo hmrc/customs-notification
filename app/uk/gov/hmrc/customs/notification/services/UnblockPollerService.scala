@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import akka.actor.ActorSystem
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, HttpResultError, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, HttpResultError, NonHttpError, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
@@ -70,30 +70,13 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
-    pushOrPullService.send(workItem.item).map[Boolean] {
+    pushOrPullService.send(workItem.item).map {
       case Right(connector) =>
-        notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
+        notificationWorkItemRepo.setSucceeded(workItem.id)
         logger.info(s"Unblock pilot for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
         true
-      case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Unblock pilot for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
-        (for {
-          _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
-          _ <- {
-            resultError match {
-              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response ${httpResultError.status} received while trying unblock pilot, setting availableAt to $availableAt")
-                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
-              case HttpResultError(status, _) =>
-                notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
-            }
-          }
-        } yield ()).recover {
-          case NonFatal(e) =>
-            logger.error("Error updating database", e)
-            false
-        }
+      case Left(pushOrPullError: PushOrPullError) =>
+        handleError(pushOrPullError, workItem)
         false
     }.recover {
       case NonFatal(e) => // Should never happen
@@ -101,6 +84,30 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         false
     }
 
+  }
+
+  private def handleError(pushOrPullError: PushOrPullError, workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
+    logger.info(s"Unblock pilot for ${pushOrPullError.source} failed with error ${pushOrPullError.resultError}. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
+    (for {
+      _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
+      _ <- {
+        pushOrPullError.resultError match {
+          case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+            val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
+            logger.error(s"Status response ${httpResultError.status} received while trying unblock pilot, setting availableAt to $availableAt")
+            notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, httpResultError.status, availableAt)
+          case _: HttpResultError =>
+            notificationWorkItemRepo.setPermanentlyFailed(workItem.id)
+          case NonHttpError(cause) =>
+            logger.error(s"Non-HTTP error received while unblocking notification: $cause")
+            Future.successful(())
+        }
+      }
+    } yield ()).recover {
+      case NonFatal(e) =>
+        logger.error("Error updating database", e)
+        false
+    }
   }
 
 }

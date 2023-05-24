@@ -20,7 +20,7 @@ import com.codahale.metrics.MetricRegistry
 import com.google.inject.ImplementedBy
 import com.kenshoo.play.metrics.Metrics
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NotificationId, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NonHttpError, NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.http.HeaderCarrier
@@ -56,9 +56,7 @@ class WorkItemServiceImpl @Inject()(
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap {
       case Some(firstOutstandingItem) =>
         incrementCountMetric(metricName, firstOutstandingItem)
-        pushOrPull(firstOutstandingItem).map { _ =>
-          true
-        }
+        pushOrPull(firstOutstandingItem).map(_ => true)
       case None =>
         Future.successful(false)
     }
@@ -83,19 +81,25 @@ class WorkItemServiceImpl @Inject()(
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         logger.info(s"$connector retry succeeded for $workItem")
-        repository.setCompletedStatus(workItem.id, Succeeded)
+        repository.setSucceeded(workItem.id)
       case Left(PushOrPullError(connector, resultError)) =>
+        val csid = workItem.item.clientSubscriptionId
         logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
-          s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
+          s"PermanentlyFailed for all notifications with clientSubscriptionId ${csid.toString}")
         (resultError match {
-              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
-                repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
-              case _ =>
-                repository.setCompletedStatus(workItem.id, Failed) // increase failure count
-                repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ())
-            }).recover {
+          case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+            val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
+            logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+            repository.setFailedWithAvailableAt(workItem.id, httpResultError.status, availableAt)
+          case HttpResultError(status, _) =>
+            logger.error(s"Status response $status received while pushing notification, " +
+              s"setting notification and all Failed notifications for csid $csid to PermanentlyFailed")
+            repository.setPermanentlyFailedWithStatus(workItem.id, status)
+            repository.toPermanentlyFailedByCsId(csid).map(_ => ())
+          case NonHttpError(cause) =>
+            logger.error(s"Non-HTTP error encountered while pushing notification: $cause")
+            Future.successful(())
+        }).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
         }

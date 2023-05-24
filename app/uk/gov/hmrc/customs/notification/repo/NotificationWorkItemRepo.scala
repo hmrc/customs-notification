@@ -29,7 +29,7 @@ import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.helpers.NotificationWorkItemFields
 import uk.gov.hmrc.mongo.play.json.Codecs
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed, Succeeded}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, ResultStatus, WorkItem, WorkItemRepository}
 import uk.gov.hmrc.mongo.{MongoComponent, MongoUtils}
 
@@ -44,11 +44,17 @@ trait NotificationWorkItemRepo {
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus): Future[WorkItem[NotificationWorkItem]]
 
-  def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit]
+  def setSucceeded(id: ObjectId): Future[Unit]
 
-  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit]
+  def setFailed(id: ObjectId): Future[Unit]
 
-  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
+  def setPermanentlyFailed(id: ObjectId): Future[Unit]
+
+  def setPermanentlyFailedWithStatus(id: ObjectId, httpStatus: Int): Future[Unit]
+
+  def setPermanentlyFailedWithAvailableAt(id: ObjectId, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
+
+  def setFailedWithAvailableAt(id: ObjectId, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
 
@@ -150,6 +156,37 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     pushNew(notificationWorkItem, now(), processWithInitialStatus)
   }
 
+  def setPermanentlyFailedWithStatus(id: ObjectId, httpStatus: Int): Future[Unit] = {
+    setCompletedStatus(id, PermanentlyFailed).flatMap { updateSuccessful =>
+      if (updateSuccessful) {
+        setMostRecentPushPullHttpStatus(id, Some(httpStatus))
+      } else {
+        Future.successful(())
+      }
+    }
+  }
+
+  def setSucceeded(id: ObjectId): Future[Unit] = {
+    setCompletedStatus(id, Succeeded).map(_ => ())
+  }
+
+  def setFailed(id: ObjectId): Future[Unit] = {
+    setCompletedStatus(id, Failed).map(_ => ())
+  }
+
+  def setPermanentlyFailed(id: ObjectId): Future[Unit] = {
+    setCompletedStatus(id, PermanentlyFailed).map(_ => ())
+  }
+
+  def setPermanentlyFailedWithAvailableAt(id: ObjectId, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
+    setCompletedStatusWithAvailableAt(id, PermanentlyFailed, httpStatus, availableAt)
+  }
+
+  def setFailedWithAvailableAt(id: ObjectId, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
+    setCompletedStatusWithAvailableAt(id, Failed, httpStatus, availableAt)
+  }
+
+
   private def setMostRecentPushPullHttpStatus(id: ObjectId, httpStatus: Option[Int]): Future[Unit] = {
     collection.updateOne(
       filter = Filters.equal(workItemFields.id, id),
@@ -160,23 +197,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     ).toFuture().map(_ => ())
   }
 
-  def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
+  private def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Boolean] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}")
-    complete(id, status).map(_ => ())
+    complete(id, status)
   }
 
-  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit] = {
-    logger.debug(s"setting completed status of ${PermanentlyFailed.name} for notification work item id: ${id.toString}")
-    complete(id, PermanentlyFailed).flatMap { updateSuccessful =>
-      if (updateSuccessful) {
-        setMostRecentPushPullHttpStatus(id, Some(httpStatus))
-      } else {
-        Future.successful(())
-      }
-    }
-  }
-
-  def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
+  private def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
     logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}" +
       s"with availableAt: $availableAt and mostRecentPushPullHttpStatus: $httpStatus")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>

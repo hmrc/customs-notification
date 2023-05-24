@@ -127,7 +127,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
       result.status shouldBe InProgress
 
-      await(repository.setCompletedStatus(result.id, Succeeded))
+      await(repository.setSucceeded(result.id))
 
       val succeededItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       succeededItem.get.status shouldBe Succeeded
@@ -137,7 +137,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
       result.status shouldBe InProgress
 
-      await(repository.setCompletedStatus(result.id, Failed))
+      await(repository.setFailed(result.id))
 
       val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       failedItem.get.status shouldBe Failed
@@ -149,7 +149,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       result.status shouldBe InProgress
 
       val availableAt = ZonedDateTime.now(ZoneId.of("UTC")).plusSeconds(300)
-      await(repository.setCompletedStatusWithAvailableAt(result.id, Failed, Helpers.INTERNAL_SERVER_ERROR, availableAt))
+      await(repository.setFailedWithAvailableAt(result.id, Helpers.INTERNAL_SERVER_ERROR, availableAt))
 
       val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       failedItem.get.status shouldBe Failed
@@ -161,7 +161,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
 
       val availableAt = ZonedDateTime.now(ZoneId.of("UTC"))
-      await(repository.setCompletedStatusWithAvailableAt(result.id, Failed, Helpers.INTERNAL_SERVER_ERROR, availableAt))
+      await(repository.setFailedWithAvailableAt(result.id, Helpers.INTERNAL_SERVER_ERROR, availableAt))
 
       val failedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
       failedItem.get.item.notification.mostRecentPushPullHttpStatus shouldBe Some(Helpers.INTERNAL_SERVER_ERROR)

@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import org.bson.types.ObjectId
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
@@ -99,38 +100,41 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
-                         apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
+                         apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[Unit] = {
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
-        notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
+        notificationWorkItemRepo.setSucceeded(workItem.id)
         logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.toString}")
-        true
       case Left(pushOrPullError) =>
-        val msg = s"${pushOrPullError.source} failed ${pushOrPullError.toString} for workItemId ${workItem.id.toString}"
-        logger.warn(msg)
-        (for {
-          _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
-          _ <- {
-            pushOrPullError.resultError match {
-              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
-                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
-              case HttpResultError(status, _) =>
-                notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
-            }
-          }
-        } yield ()).recover {
-          case NonFatal(e) =>
-            logger.error("Error updating database", e)
-            false
-        }
-        true
+        handleError(pushOrPullError, workItem.id)
     }.recover {
       case NonFatal(e) =>
         logger.error(s"failed push/pulling notification work item with csid: ${workItem.item._id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
-        false
+    }
+  }
+
+  private def handleError(pushOrPullError: PushOrPullError, id: ObjectId)(implicit rm: HasId): Unit = {
+    val msg = s"${pushOrPullError.source} failed ${pushOrPullError.toString} for workItemId ${id.toString}"
+    logger.warn(msg)
+    (for {
+      _ <- notificationWorkItemRepo.incrementFailureCount(id)
+      _ <- {
+        pushOrPullError.resultError match {
+          case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+            val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
+            logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+            notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(id, httpResultError.status, availableAt)
+          case HttpResultError(status, _) =>
+            notificationWorkItemRepo.setPermanentlyFailedWithStatus(id, status)
+          case NonHttpError(cause) =>
+            logger.error(s"Non-HTTP error received while pushing notification: $cause")
+            Future.successful(())
+        }
+      }
+    } yield ()).recover {
+      case NonFatal(e) =>
+        logger.error("Error updating database", e)
     }
   }
 
