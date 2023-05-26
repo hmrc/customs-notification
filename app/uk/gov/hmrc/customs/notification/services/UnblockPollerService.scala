@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import akka.actor.ActorSystem
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, HttpResultError, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, HttpResultError, NonHttpError, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
@@ -41,7 +41,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
   if (config.unblockPollerConfig.pollerEnabled) {
     val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
 
-    actorSystem.scheduler.schedule(0.seconds, pollerInterval) {
+    actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
       notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
         logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
         logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name})")
@@ -62,7 +62,8 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
           }
         }
       }
-
+      ()
+    }
     }
   }
 
@@ -87,12 +88,13 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
               case HttpResultError(status, _) =>
                 notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
+              case NonHttpError(cause) =>
+                logger.error(s"Error received while unblocking notification: ${cause.getMessage}")
+                Future.successful(())
             }
           }
         } yield ()).recover {
-          case NonFatal(e) =>
-            logger.error("Error updating database", e)
-            false
+          case NonFatal(e) => logger.error("Error updating database", e)
         }
         false
     }.recover {
@@ -100,7 +102,5 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         logger.error(s"Unblock - error with pilot unblock of work item $workItem", e)
         false
     }
-
   }
-
 }

@@ -119,12 +119,15 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
               case HttpResultError(status, _) =>
                 notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
+              case NonHttpError(cause) =>
+                logger.error(s"Error received while pushing notification: ${cause.getMessage}")
+                Future.successful(())
             }
           }
         } yield ()).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
-            false
+            ()
         }
         true
     }.recover {

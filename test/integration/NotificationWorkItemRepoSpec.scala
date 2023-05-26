@@ -18,8 +18,6 @@ package integration
 
 import com.typesafe.config.Config
 import org.mockito.Mockito._
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
 import org.mongodb.scala.model.Filters
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -83,11 +81,6 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   }
 
   private val repository = new NotificationWorkItemMongoRepo(mongoRepository, customsNotificationConfig, mockCdsLogger, mockConfiguration)
-
-  private val oneArgumentLogAnswer: Answer[Unit] = (i: InvocationOnMock) => println(i.getArgument[String](0))
-  private val twoArgumentLogAnswer: Answer[Unit] = { (i: InvocationOnMock) =>
-    println(i.getArgument[String](0) + i.getArgument[Throwable](1).toString)
-  }
 
   override def beforeEach(): Unit = {
     when(mockConfiguration.underlying).thenReturn(mock[Config])

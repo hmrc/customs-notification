@@ -48,7 +48,8 @@ lazy val microservice = (project in file("."))
     "-Xlint:-missing-interpolator,_",
     "-feature",
     "-unchecked",
-    "-language:implicitConversions"
+    "-language:implicitConversions",
+    "-Wconf:cat=unused-imports&src=target/scala-2\\.13/routes/.*:s"
   )
   )
 

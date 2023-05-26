@@ -82,7 +82,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private val eventualFalse = Future.successful(false)
 
   override protected def beforeEach(): Unit = {
-    reset(mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
+    reset[Any](mockNotificationLogger, mockCustomsNotificationService, mockCallbackDetailsConnector, mockConfigService, mockDateTimeService)
     val notificationConfig = mock[NotificationConfig]
     when(notificationConfig.hotFixTranslates).thenReturn(Seq("old:new"))
     when(mockConfigService.maybeBasicAuthToken).thenReturn(Some(basicAuthTokenValue))
