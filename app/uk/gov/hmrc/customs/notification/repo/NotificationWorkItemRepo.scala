@@ -135,6 +135,16 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
           indexOptions = IndexOptions()
             .name(s"csId-$WORK_ITEM_STATUS-index")
             .unique(false)
+        ),
+        IndexModel(
+          keys = descending(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName),
+          indexOptions = IndexOptions()
+            .name(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName + "-5xx-permanentlyFailed-index")
+            .partialFilterExpression(
+              Filters.and(
+                Filters.gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, 500),
+                equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed))))
+            .unique(false)
         )
       )
     }
@@ -228,9 +238,9 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   override def permanentlyFailedAndHttp5xxByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
-    val serverErrorCodeMin = 500
+    val ServerErrorCodeMin = 500
     val selector = and(
-      gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, serverErrorCodeMin),
+      gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, ServerErrorCodeMin),
       csIdAndStatusSelector(csid, PermanentlyFailed)
     )
 
