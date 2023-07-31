@@ -139,8 +139,11 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
         IndexModel(
           keys = descending(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName),
           indexOptions = IndexOptions()
-            .name(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName + "-5xx-index")
-            .partialFilterExpression(Filters.gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, 500))
+            .name(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName + "-5xx-permanentlyFailed-index")
+            .partialFilterExpression(
+              Filters.and(
+                Filters.gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, 500),
+                equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed))))
             .unique(false)
         )
       )
