@@ -17,9 +17,8 @@
 package unit.controllers
 
 import org.mockito.ArgumentMatchers.any
-import uk.gov.hmrc.customs.notification.domain.HasId
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.model.SeqOfHeader
+import uk.gov.hmrc.customs.notification.models.HasId
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import util.MockitoPassByNameHelper.PassByNameVerifier
 
 trait ControllerSpecHelper {
@@ -33,7 +32,7 @@ trait ControllerSpecHelper {
   protected def verifyLogWithHeaders(method: String, message: String, mockLogger : NotificationLogger): Unit = {
     PassByNameVerifier(mockLogger, method)
       .withByNameParam(message)
-      .withByNameParamMatcher(any[SeqOfHeader])
+      .withByNameParamMatcher(any[Seq[(String, String)]])
       .verify()
   }
 }

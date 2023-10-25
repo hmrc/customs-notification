@@ -20,9 +20,11 @@ import javax.inject.{Inject, Singleton}
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, CustomsNotificationsMetricsRequest}
-import uk.gov.hmrc.customs.notification.http.{NoAuditHttpClient, Non2xxResponseException}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpErrorFunctions, HttpException, HttpResponse}
+import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
+import uk.gov.hmrc.customs.notification.util.Errors.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.models.requests.CustomsNotificationsMetricsRequest
+import uk.gov.hmrc.customs.notification.util.NoAuditHttpClient
+import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpReads, HttpResponse}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -30,30 +32,22 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
                                                     logger: CdsLogger,
-                                                    config: CustomsNotificationConfig)
-                                                   (implicit ec: ExecutionContext) extends HttpErrorFunctions {
-
-  private val headers = Seq(
-    (CONTENT_TYPE, MimeTypes.JSON),
-    (ACCEPT, MimeTypes.JSON)
-  )
+                                                    config: CustomsNotificationConfig)(implicit ec: ExecutionContext) {
 
   def post[A](request: CustomsNotificationsMetricsRequest)(implicit hc: HeaderCarrier): Future[Unit] = {
-    implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
-    post(request, config.notificationMetricsConfig.baseUrl)(headerCarrier)
-  }
-
-  private def post[A](request: CustomsNotificationsMetricsRequest, url: String)(implicit hc: HeaderCarrier): Future[Unit] = {
+    val headers: Seq[(String, String)] = Seq((CONTENT_TYPE, MimeTypes.JSON), (ACCEPT, MimeTypes.JSON))
+    val updatedHeaderCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
+    val url = config.notificationMetricsConfig.baseUrl
 
     logger.debug(s"Sending request to customs notification metrics service. Url: $url Payload: ${request.toString}")
-    http.POST[CustomsNotificationsMetricsRequest, HttpResponse](url, request).map{ response =>
-      response.status match {
-        case status if is2xx(status) =>
-          logger.debug(s"[conversationId=${request.conversationId}]: customs notification metrics sent successfully")
-          ()
+    http.POST[CustomsNotificationsMetricsRequest, HttpResponse](url, request)(wts = CustomsNotificationsMetricsRequest.format, rds = HttpReads[HttpResponse], hc = updatedHeaderCarrier, ec = ec).map { response =>
+      val status: Int = response.status
 
-        case status => //1xx, 3xx, 4xx, 5xx
-          throw new Non2xxResponseException(status)
+      if(status >= 200 && status < 300){
+        logger.debug(s"[conversationId=${request.conversationId}]: customs notification metrics sent successfully")
+        ()
+      } else{
+        throw new Non2xxResponseException(status)
       }
     }.recoverWith {
       case httpError: HttpException =>

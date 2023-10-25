@@ -23,8 +23,8 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
-import uk.gov.hmrc.customs.notification.domain.ClientNotification
-import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.error.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.models.ClientNotification
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
@@ -152,7 +152,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
   }
 
   private def postToQueue(request: ClientNotification) = {
-    connector.enqueue(request)(HeaderCarrier())
+    connector.postToQueue(request)(HeaderCarrier())
   }
 
   private def verifyExpectedErrorCaught(expectedStatusCode: Int): Unit = {

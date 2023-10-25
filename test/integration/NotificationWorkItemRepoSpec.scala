@@ -25,8 +25,11 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
+import uk.gov.hmrc.customs.notification.config.{CustomsNotificationConfig, NotificationConfig, NotificationMetricsConfig, NotificationQueueConfig, UnblockPollerConfig}
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.models.requests.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
@@ -80,7 +83,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoRepository, customsNotificationConfig, mockCdsLogger, mockConfiguration)
+  private val repository = new NotificationWorkItemRepo(mongoRepository, customsNotificationConfig, mockCdsLogger, mockConfiguration)
 
   override def beforeEach(): Unit = {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
@@ -186,7 +189,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
 
-      val result = await(repository.deleteBlocked(clientId1))
+      val result = await(repository.unblockFailedAndBlockedByClientId(clientId1))
 
       result shouldBe 2
     }
@@ -197,7 +200,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
 
-      val result = await(repository.deleteBlocked(clientId1))
+      val result = await(repository.unblockFailedAndBlockedByClientId(clientId1))
 
       result shouldBe 0
     }
@@ -207,7 +210,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
       await(repository.pushNew(NotificationWorkItem1, repository.now().plus(120, ChronoUnit.MINUTES), failed))
 
-      val result = await(repository.toPermanentlyFailedByCsId(validClientSubscriptionId1))
+      val result = await(repository.blockFailedButNotBlockedByCsId(validClientSubscriptionId1))
 
       result shouldBe 0
     }
@@ -219,7 +222,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
         wiClient1Two <- repository.pushNew(NotificationWorkItem1, nowAsInstant, failed)
         wiClient3One <- repository.pushNew(NotificationWorkItem3, nowAsInstant, failed)
         _ <- repository.pushNew(NotificationWorkItem1, nowAsInstant.plus(120, ChronoUnit.MINUTES), failed)
-        toPerFailedCount <- repository.toPermanentlyFailedByCsId(validClientSubscriptionId1)
+        toPerFailedCount <- repository.blockFailedButNotBlockedByCsId(validClientSubscriptionId1)
       } yield (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount)
 
       whenReady(result) { case (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount) =>
@@ -236,7 +239,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
 
-      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
     }
@@ -249,7 +252,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem1WithHttp500, repository.now(), permanentlyFailed))
 
-      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe true
     }
@@ -261,7 +264,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
       await(repository.pushNew(NotificationWorkItem1WithHttp404, repository.now(), permanentlyFailed))
 
-      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
     }
@@ -271,7 +274,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
 
-      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
     }
@@ -284,7 +287,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now().plus(120, ChronoUnit.MINUTES), failed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.toPermanentlyFailedByCsId(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.blockFailedButNotBlockedByCsId(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe 2
     }
@@ -295,7 +298,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem2, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.distinctPermanentlyFailedByCsId())
+      val result = await(repository.failedAndBlockedGroupedByDistinctCsId())
 
       result should contain(ClientSubscriptionId(validClientSubscriptionId1UUID))
       result should not contain ClientSubscriptionId(validClientSubscriptionId2UUID)
@@ -308,7 +311,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1))
+      val result = await(repository.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1))
 
       result.get.status shouldBe InProgress
       result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
@@ -320,7 +323,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1))
+      val result = await(repository.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1))
 
       result.size shouldBe 0
     }
@@ -333,7 +336,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), failed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1))
+      val result = await(repository.unblockFailedAndBlockedByCsId(validClientSubscriptionId1))
 
       result shouldBe 2
       await(repository.findById(changed.id)).get.status shouldBe Failed

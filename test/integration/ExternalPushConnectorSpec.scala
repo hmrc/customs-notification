@@ -22,9 +22,11 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.HttpResultError
+import uk.gov.hmrc.customs.notification.connectors.{ExternalPushConnector, PushConnector}
+import uk.gov.hmrc.customs.notification.error.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
+import uk.gov.hmrc.customs.notification.error.HttpResultError
+import uk.gov.hmrc.customs.notification.util.Errors.HttpResultError
+import uk.gov.hmrc.customs.notification.util.HeaderNames.NOTIFICATION_ID_HEADER_NAME
 import uk.gov.hmrc.http.HeaderCarrier
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
@@ -38,7 +40,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
   with WireMockRunnerWithoutServer
   with Inside {
 
-  private lazy val connector = app.injector.instanceOf[ExternalPushConnector]
+  private lazy val connector = app.injector.instanceOf[PushConnector]
 
   override protected def beforeAll(): Unit = {
     startMockServer()
@@ -66,7 +68,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     "make a correct request" in {
       setupPushNotificationServiceToReturn(NO_CONTENT)
 
-      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier().withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, notificationId.toString)), requestMetaData))
+      val result = await(connector.postExternalPush(externalPushNotificationRequest)(HeaderCarrier().withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, notificationId.toString)), requestMetaData))
 
       result.isRight shouldBe true
       verifyPushNotificationServiceWasCalledWith(externalPushNotificationRequest)
@@ -75,7 +77,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 300 when external service returns 300" in {
       setupPushNotificationServiceToReturn(MULTIPLE_CHOICES)
 
-      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.postExternalPush(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe MULTIPLE_CHOICES
@@ -85,7 +87,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 404 when external service returns a 404" in {
       setupPushNotificationServiceToReturn(NOT_FOUND)
 
-      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.postExternalPush(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe NOT_FOUND
@@ -95,7 +97,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 400 when external service returns a 400" in {
       setupPushNotificationServiceToReturn(BAD_REQUEST)
 
-      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.postExternalPush(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe BAD_REQUEST
@@ -105,7 +107,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 500 when external service returns a 500" in {
       setupPushNotificationServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+      val result = await(connector.postExternalPush(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe INTERNAL_SERVER_ERROR
@@ -114,7 +116,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in
       withoutWireMockServer {
-        val result = await(connector.send(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
+        val result = await(connector.postExternalPush(externalPushNotificationRequest)(HeaderCarrier(), requestMetaData))
 
         inside(result) { case Left(HttpResultError(status, _)) =>
           status shouldBe BAD_GATEWAY

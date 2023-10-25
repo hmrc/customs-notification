@@ -20,60 +20,39 @@ import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.CONTENT_TYPE
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig, NotificationId}
-import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
-import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpClient, HttpErrorFunctions, HttpException, HttpResponse}
+import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
+import uk.gov.hmrc.customs.notification.models.{ClientNotification, Notification}
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{NOTIFICATION_ID_HEADER_NAME, SUBSCRIPTION_FIELDS_ID_HEADER_NAME, X_BADGE_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
+import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpClient, HttpResponse}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, configServices: CustomsNotificationConfig)
-                                          (implicit ec: ExecutionContext) extends HttpErrorFunctions {
-
-  def enqueue(request: ClientNotification)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
-
-    val url = configServices.notificationQueueConfig.url
-    val maybeBadgeId: Option[(String, String)] = request.notification.getHeaderAsTuple(X_BADGE_ID_HEADER_NAME)
-    val maybeCorrelationId: Option[(String, String)] = request.notification.getHeaderAsTuple(X_CORRELATION_ID_HEADER_NAME)
-
-    val headers: Seq[(String, String)] = Seq(
+class NotificationQueueConnector @Inject()(http: HttpClient,
+                                           logger: CdsLogger,
+                                           notificationConfig: CustomsNotificationConfig)(implicit ec: ExecutionContext){
+  def postToQueue(request: ClientNotification)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
+    val url: String = notificationConfig.notificationQueueConfig.url
+    val notification: Notification = request.notification
+    val essentialHeaders: Seq[(String, String)] = Seq(
       (CONTENT_TYPE, MimeTypes.XML),
-      (X_CONVERSATION_ID_HEADER_NAME, request.notification.conversationId.toString()),
-      (SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString())
-    ) ++ extract(maybeBadgeId) ++ extract(maybeCorrelationId) ++ maybeAddNotificationId(request.notification.notificationId)
-    val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
+      (X_CONVERSATION_ID_HEADER_NAME, notification.conversationId.toString()),
+      (SUBSCRIPTION_FIELDS_ID_HEADER_NAME, request.csid.toString))
+    val essentialMaybeWithExtraHeaders: Seq[(String, String)] = addHeadersIfPresent(essentialHeaders, notification)
+    val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = essentialMaybeWithExtraHeaders)
+    val notificationPayload: String = notification.payload
 
-    val notification = request.notification
-
-    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
-    val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
-
-    logger.debug(s"Attempting to send notification to queue\nheaders=${headersToLog}} \npayload=${notification.payload}")
-
-    http.POSTString[HttpResponse](url, notification.payload)(readRaw, headerCarrier, ec).flatMap { response =>
-        response.status match {
-          case status if is2xx(status) =>
-            Future.successful(response)
-
-          case status =>
-            Future.failed(new Non2xxResponseException(status))
-        }
-      }.recoverWith {
-        case httpError: HttpException =>
-          Future.failed(new RuntimeException(httpError))
-
-        case e: Throwable =>
-          logger.error(s"Call to notification queue failed. url=$url")
-          Future.failed(e)
-      }
+    logger.debug(s"Attempting to send notification to queue\nheaders=${hc.headers(HeaderNames.explicitlyIncludedHeaders) ++ hc.extraHeaders} \npayload=$notificationPayload")
+    http.POSTString[HttpResponse](url, notificationPayload)(readRaw, headerCarrier, ec).recoverWith {
+          //TODO put error here
+      error => throw new RuntimeException(s"???")
+    }
   }
 
-  private def extract(maybeValue: Option[(String, String)]) = maybeValue.fold(Seq.empty[(String, String)])(Seq(_))
-
-  private def maybeAddNotificationId(maybeNotificationId: Option[NotificationId]): Seq[(String, String)] = {
-    maybeNotificationId.fold(Seq.empty[(String, String)]){id => Seq((NOTIFICATION_ID_HEADER_NAME, id.toString)) }
+  private def addHeadersIfPresent(essentialHeaders: Seq[(String, String)], notification: Notification): Seq[(String, String)] = {
+    val maybeWithBadgeId: Seq[(String, String)] = notification.getHeaderAsTuple(X_BADGE_ID_HEADER_NAME).fold(essentialHeaders)(badgeIdKeyAndValue => essentialHeaders ++ Seq(badgeIdKeyAndValue))
+    val maybeWithCorrelationId: Seq[(String, String)] = notification.getHeaderAsTuple(X_CORRELATION_ID_HEADER_NAME).fold(maybeWithBadgeId)(correlationIdKeyAndValue => maybeWithBadgeId ++ Seq(correlationIdKeyAndValue))
+    notification.notificationId.fold(maybeWithCorrelationId)(notificationId => maybeWithCorrelationId ++ Seq((NOTIFICATION_ID_HEADER_NAME, notificationId.toString)))
   }
-
 }

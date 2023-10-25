@@ -20,8 +20,7 @@ import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, Helpers}
-import uk.gov.hmrc.customs.notification.controllers.TestOnlyController
-import uk.gov.hmrc.customs.notification.services.TestOnlyService
+import uk.gov.hmrc.customs.notification.testonly.{TestOnlyController, TestOnlyService}
 import util.UnitSpec
 
 class TestOnlyControllerSpec extends UnitSpec

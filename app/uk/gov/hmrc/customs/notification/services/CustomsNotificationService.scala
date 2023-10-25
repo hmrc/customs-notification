@@ -16,15 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import org.bson.types.ObjectId
 import play.api.http.MimeTypes
-import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
-import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
+import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
+import uk.gov.hmrc.customs.notification.models.repo.{CustomProcessingStatus, FailedAndBlocked, NotificationWorkItem, SuccessfullyCommunicated}
+import uk.gov.hmrc.customs.notification.models.requests.{CustomsNotificationsMetricsRequest, MetaDataRequest, PushNotificationRequest}
+import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, ClientId,  HasId, Header, Notification}
+import uk.gov.hmrc.customs.notification.util.{DateTimeHelper, NotificationLogger, NotificationWorkItemRepo}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import javax.inject.{Inject, Singleton}
@@ -34,110 +34,93 @@ import scala.xml.NodeSeq
 
 @Singleton
 class CustomsNotificationService @Inject()(logger: NotificationLogger,
-                                           notificationWorkItemRepo: NotificationWorkItemRepo,
+                                           repo: NotificationWorkItemRepo,
                                            pushOrPullService: PushOrPullService,
-                                           metricsService: CustomsNotificationMetricsService,
-                                           customsNotificationConfig: CustomsNotificationConfig,
-                                           dateTimeService: DateTimeService,
-                                           auditingService: AuditingService)
-                                          (implicit ec: ExecutionContext) {
-
-  type HasSaved = Boolean
-
+                                           config: CustomsNotificationConfig,
+                                           auditingService: AuditingService,
+                                           metricsConnector: CustomsNotificationMetricsConnector)(implicit ec: ExecutionContext) {
   def handleNotification(xml: NodeSeq,
-                         metaData: RequestMetaData,
-                         apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[HasSaved] = {
+                         metaDataRequest: MetaDataRequest)(implicit hc: HeaderCarrier): Future[Boolean] = {
+    implicit val hasId: MetaDataRequest = metaDataRequest
+    val clientId: ClientId = metaDataRequest.maybeClientId.getOrElse(ClientId("Unknown"))
+    val notificationWorkItem: NotificationWorkItem = NotificationWorkItem(
+                                                       metaDataRequest.clientSubscriptionId,
+                                                       clientId,
+                                                       Some(DateTimeHelper.toDateTime(metaDataRequest.startTime)),
+                                                       Notification(Some(metaDataRequest.notificationId),
+                                                       metaDataRequest.conversationId,
+                                                       buildHeaders(metaDataRequest),
+                                                       xml.toString,
+                                                       MimeTypes.XML))
 
-    implicit val hasId: RequestMetaData = metaData
-    val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
-      ClientId(apiSubscriptionFields.clientId),
-      Some(metaData.startTime.toDateTime),
-      Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
+    val eventuallyMaybeApiSubscriptionFields: Future[Option[ApiSubscriptionFields]] = pushOrPullService.getApiSubscriptionFields(notificationWorkItem, new ObjectId(), hc)
 
-    val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
-    auditingService.auditNotificationReceived(pnr)
-
-    (for {
-      isAnyPF <- notificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(notificationWorkItem.clientSubscriptionId)
-      hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, isAnyPF, apiSubscriptionFields)
-    } yield hasSaved)
-      .recover {
-        case NonFatal(e) =>
-          logger.error(s"A problem occurred while handling notification work item with csid: ${notificationWorkItem._id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
-          false
-      }
+    eventuallyMaybeApiSubscriptionFields.flatMap(maybeApiSubscriptionFields => maybeApiSubscriptionFields.fold(Future.successful(false)) { apiSubscriptionFields =>
+      auditingService.auditNotificationReceived(PushNotificationRequest.buildPushNotificationRequest(apiSubscriptionFields.fields, notificationWorkItem.notification, notificationWorkItem.clientSubscriptionId))
+      for {
+        isAnyPF <- repo.failedAndBlockedWithHttp5xxByCsIdExists(notificationWorkItem.clientSubscriptionId)
+        hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, isAnyPF, apiSubscriptionFields)
+      } yield hasSaved
+    })
   }
 
-  def buildHeaders(metaData: RequestMetaData): Seq[Header] = {
+//TODO rename and move potentially
+  private def buildHeaders(metaData: MetaDataRequest): Seq[Header] = {
     (metaData.maybeBadgeIdHeader ++ metaData.maybeSubmitterHeader ++ metaData.maybeCorrelationIdHeader ++ metaData.maybeIssueDateTimeHeader).toSeq
   }
 
   private def saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem: NotificationWorkItem,
-                                                                isAnyPF: Boolean,
-                                                                apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
-
-    val status = if (isAnyPF) {
+                                                                permanentlyFailedNotificationsExist: Boolean,
+                                                                apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[Boolean] = {
+    val status: CustomProcessingStatus = if (permanentlyFailedNotificationsExist) {
       logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
         "Setting notification to permanently failed")
-      PermanentlyFailed
+      FailedAndBlocked
     }
     else {
-      InProgress
+      SuccessfullyCommunicated
     }
 
-    notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
+    repo.saveWithLock(notificationWorkItem, status).map(
       workItem => {
         recordNotificationEndTimeMetric(workItem)
-        if (status == InProgress) pushOrPull(workItem, apiSubscriptionFields)
+        if (status == SuccessfullyCommunicated) pushOrPullService.pushOrPull(workItem, apiSubscriptionFields, true)
         true
       }
-    ).recover {
-      case NonFatal(e) =>
-        logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem._id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
-        false
-    }
+    )
   }
 
-  private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
-                         apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
-
-    pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
-      case Right(connector) =>
-        notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-        logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.toString}")
-        true
-      case Left(pushOrPullError) =>
-        val msg = s"${pushOrPullError.source} failed ${pushOrPullError.toString} for workItemId ${workItem.id.toString}"
-        logger.warn(msg)
-        (for {
-          _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
-          _ <- {
-            pushOrPullError.resultError match {
-              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
-                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
-              case HttpResultError(status, _) =>
-                notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
-              case NonHttpError(cause) =>
-                logger.error(s"Error received while pushing notification: ${cause.getMessage}")
-                Future.successful(())
-            }
-          }
-        } yield ()).recover {
-          case NonFatal(e) =>
-            logger.error("Error updating database", e)
-            ()
-        }
-        true
-    }.recover {
-      case NonFatal(e) =>
-        logger.error(s"failed push/pulling notification work item with csid: ${workItem.item._id.toString} and conversationId: ${workItem.item.notification.conversationId.toString} due to: $e")
-        false
-    }
-  }
 
   private def recordNotificationEndTimeMetric(workItem: WorkItem[NotificationWorkItem])(implicit hc: HeaderCarrier): Unit = {
-    metricsService.notificationMetric(workItem.item)
+    workItem.item.metricsStartDateTime.fold(Future.successful(())) { startTime =>
+      val request = CustomsNotificationsMetricsRequest(
+        "NOTIFICATION",
+        workItem.item.notification.conversationId,
+        DateTimeHelper.toZonedDateTime(startTime),
+        DateTimeHelper.zonedDateTimeUtc
+      )
+      metricsConnector.post(request).recover {
+        case NonFatal(e) =>
+          logger.error("Error calling customs metrics service", e)(workItem.item)
+      }
+    }
+
+  }
+
+  def notificationMetric(notificationWorkItem: NotificationWorkItem)(implicit hc: HeaderCarrier): Future[Unit] = {
+    implicit val hasId = notificationWorkItem
+
+    notificationWorkItem.metricsStartDateTime.fold(Future.successful(())) { startTime =>
+      val request: CustomsNotificationsMetricsRequest = CustomsNotificationsMetricsRequest(
+        "NOTIFICATION",
+        notificationWorkItem.notification.conversationId,
+        DateTimeHelper.toZonedDateTime(startTime),
+        DateTimeHelper.zonedDateTimeUtc)
+
+      metricsConnector.post(request).recover {
+        case NonFatal(e) =>
+          logger.error("Error calling customs metrics service", e)
+      }
+    }
   }
 }

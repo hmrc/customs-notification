@@ -19,8 +19,6 @@ package util
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCallbackData, Header, PushNotificationRequest}
 import util.TestData._
 
 import java.util
@@ -28,6 +26,9 @@ import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.matching.UrlPattern
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.scalatest.matchers.should.Matchers
+import uk.gov.hmrc.customs.notification.models.requests.PushNotificationRequest
+import uk.gov.hmrc.customs.notification.models.{ClientNotification, DeclarantCallbackData, Header}
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{ISSUE_DATE_TIME_HEADER, NOTIFICATION_ID_HEADER_NAME, SUBSCRIPTION_FIELDS_ID_HEADER_NAME, X_BADGE_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_SUBMITTER_ID_HEADER_NAME}
 
 trait PushNotificationService extends WireMockRunner with Matchers {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)

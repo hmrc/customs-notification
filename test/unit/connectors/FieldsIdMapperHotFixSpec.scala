@@ -19,8 +19,8 @@ package unit.connectors
 import org.mockito.Mockito.when
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.controllers.{FieldsIdMapperHotFix, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.NotificationConfig
+import uk.gov.hmrc.customs.notification.config.NotificationConfig
+import uk.gov.hmrc.customs.notification.controllers.{FieldsIdMapperHotFix, MetaDataRequest}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.UnitSpec
 
@@ -28,7 +28,7 @@ class FieldsIdMapperHotFixSpec extends UnitSpec with MockitoSugar {
 
   trait TestSetup {
     val logger = mock[CdsLogger]
-    implicit val md: RequestMetaData = mock[RequestMetaData]
+    implicit val md: MetaDataRequest = mock[MetaDataRequest]
 
     val mockConfigService = mock[NotificationConfig]
   }

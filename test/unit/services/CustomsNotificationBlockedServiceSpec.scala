@@ -21,8 +21,8 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
+import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
 import util.UnitSpec
 import unit.logging.StubCdsLogger
 import util.TestData._
@@ -54,21 +54,21 @@ class CustomsNotificationBlockedServiceSpec extends UnitSpec
     }
 
     "return true when notifications are unblocked" in {
-      when(mockRepo.deleteBlocked(clientId1)).thenReturn(Future.successful(2))
+      when(mockRepo.unblockFailedAndBlockedByClientId(clientId1)).thenReturn(Future.successful(2))
 
       val result = await(service.deleteBlocked(clientId1))
       result shouldBe true
 
-      verify(mockRepo).deleteBlocked(clientId1)
+      verify(mockRepo).unblockFailedAndBlockedByClientId(clientId1)
     }
 
     "return false when no notifications are unblocked" in {
-      when(mockRepo.deleteBlocked(clientId1)).thenReturn(Future.successful(0))
+      when(mockRepo.unblockFailedAndBlockedByClientId(clientId1)).thenReturn(Future.successful(0))
 
       val result = await(service.deleteBlocked(clientId1))
       result shouldBe false
 
-      verify(mockRepo).deleteBlocked(clientId1)
+      verify(mockRepo).unblockFailedAndBlockedByClientId(clientId1)
     }
   }
 }
