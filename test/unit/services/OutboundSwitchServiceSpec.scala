@@ -18,18 +18,20 @@ package unit.services
 
 import java.net.URL
 import java.util.UUID
-
 import org.mockito.ArgumentMatchers.{any, eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import play.api.test.Helpers._
+import uk.gov.hmrc.customs.notification.config.{AppConfig, NotificationConfig}
 import uk.gov.hmrc.customs.notification.connectors.{ExternalPushConnector, InternalPushConnector}
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.config.ConfigService
+import uk.gov.hmrc.customs.notification.error.{HttpResultError, NonHttpError}
+import uk.gov.hmrc.customs.notification.models.requests.{Header, PushNotificationRequest, PushNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.models.{CallbackUrl, ConversationId, HasId}
 import uk.gov.hmrc.customs.notification.services.{AuditingService, OutboundSwitchService}
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
@@ -42,7 +44,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
   private implicit val hc: HeaderCarrier = HeaderCarrier()
   
   trait SetUp {
-    val mockConfigService = mock[ConfigService]
+    val mockConfigService = mock[AppConfig]
     val mockNotificationConfig = mock[NotificationConfig]
     val mockExternalConnector = mock[ExternalPushConnector]
     val mockInternalPushService = mock[InternalPushConnector]
@@ -64,13 +66,13 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     "route internally when config property internal.clientIds contains a matching clientId" in new SetUp {
       when(mockConfigService.notificationConfig).thenReturn(mockNotificationConfig)
       when(mockNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
-      when(mockInternalPushService.send(any[PushNotificationRequest])(any())).thenReturn(Future.successful(Right(mockHttpResponse)))
+      when(mockInternalPushService.post(any[PushNotificationRequest])(any())).thenReturn(Future.successful(Right(mockHttpResponse)))
 
-      private val actual = await(switcher.send(ClientIdOne, pnrOne))
+      private val actual = await(switcher.sendPushNotificationRequest(ClientIdOne, pnrOne))
 
       actual shouldBe Right(mockHttpResponse)
       verifyNoInteractions(mockExternalConnector)
-      verify(mockInternalPushService).send(ameq(pnrOne))(any())
+      verify(mockInternalPushService).post(ameq(pnrOne))(any())
       eventually {
         verify(mockAuditingService).auditSuccessfulNotification(pnrOne)
       }
@@ -84,13 +86,13 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       when(mockConfigService.notificationConfig).thenReturn(mockNotificationConfig)
       when(mockNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
       val httpResultError = HttpResultError(BAD_REQUEST, new HttpException("BOOM", BAD_REQUEST))
-      when(mockInternalPushService.send(any[PushNotificationRequest])(any())).thenReturn(Left(httpResultError))
+      when(mockInternalPushService.post(any[PushNotificationRequest])(any())).thenReturn(Left(httpResultError))
 
-      private val actual = await(switcher.send(ClientIdOne, pnrOne))
+      private val actual = await(switcher.sendPushNotificationRequest(ClientIdOne, pnrOne))
 
       actual shouldBe Left(httpResultError)
       verifyNoInteractions(mockExternalConnector)
-      verify(mockInternalPushService).send(ameq(pnrOne))(any())
+      verify(mockInternalPushService).post(ameq(pnrOne))(any())
       eventually {
 
         verify(mockAuditingService).auditFailedNotification(pnrOne, Some("status: 400 body: BOOM"))
@@ -106,13 +108,13 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       when(mockConfigService.notificationConfig).thenReturn(mockNotificationConfig)
       when(mockNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
       val nonHttpError = NonHttpError(new Exception("BOOM"))
-      when(mockInternalPushService.send(any[PushNotificationRequest])(any())).thenReturn(Left(nonHttpError))
+      when(mockInternalPushService.post(any[PushNotificationRequest])(any())).thenReturn(Left(nonHttpError))
 
-      private val actual = await(switcher.send(ClientIdOne, pnrOne))
+      private val actual = await(switcher.sendPushNotificationRequest(ClientIdOne, pnrOne))
 
       actual shouldBe Left(nonHttpError)
       verifyNoInteractions(mockExternalConnector)
-      verify(mockInternalPushService).send(ameq(pnrOne))(any())
+      verify(mockInternalPushService).post(ameq(pnrOne))(any())
       eventually {
         verifyNoInteractions(mockAuditingService)
       }
@@ -126,12 +128,12 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     "route externally when config property internal.clientIds does not contains a matching clientId" in new SetUp {
       when(mockConfigService.notificationConfig).thenReturn(mockNotificationConfig)
       when(mockNotificationConfig.internalClientIds).thenReturn(Seq.empty)
-      when(mockExternalConnector.send(any[PushNotificationRequest])(any(), any[HasId])).thenReturn(Future.successful(Right(mockHttpResponse)))
+      when(mockExternalConnector.post(any[PushNotificationRequest])(any(), any[HasId])).thenReturn(Future.successful(Right(mockHttpResponse)))
 
-      private val actual = await(switcher.send(ClientIdOne, pnrOne))
+      private val actual = await(switcher.sendPushNotificationRequest(ClientIdOne, pnrOne))
 
       actual shouldBe Right(mockHttpResponse)
-      verify(mockExternalConnector).send(ameq(pnrOne))(any(), any[HasId])
+      verify(mockExternalConnector).post(ameq(pnrOne))(any(), any[HasId])
       verifyNoInteractions(mockInternalPushService)
       PassByNameVerifier(mockLogger, "info")
         .withByNameParam("About to push externally")

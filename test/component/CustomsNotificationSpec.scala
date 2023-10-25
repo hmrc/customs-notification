@@ -20,7 +20,7 @@ import org.mongodb.scala.bson.BsonDocument
 import play.api.mvc._
 import play.api.mvc.request.RequestTarget
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.domain.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.PermanentlyFailed
 import util.TestData._

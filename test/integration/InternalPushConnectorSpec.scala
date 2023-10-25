@@ -22,9 +22,14 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.connectors.InternalPushConnector
-import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
+import uk.gov.hmrc.customs.notification.connectors.{InternalPushConnector, PushConnector}
+import uk.gov.hmrc.customs.notification.error.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.error.HttpResultError
+import uk.gov.hmrc.customs.notification.models.CallbackUrl
+import uk.gov.hmrc.customs.notification.models.requests.{Header, PushNotificationRequest, PushNotificationRequestBody}
+import uk.gov.hmrc.customs.notification.util.Errors.HttpResultError
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{ISSUE_DATE_TIME_HEADER, X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_SUBMITTER_ID_HEADER_NAME}
 import uk.gov.hmrc.http.HeaderCarrier
 import unit.logging.StubCdsLogger
 import util.TestData._
@@ -40,7 +45,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
   with WireMockRunnerWithoutServer
   with Inside {
 
-  private lazy val connector = app.injector.instanceOf[InternalPushConnector]
+  private lazy val connector = app.injector.instanceOf[PushConnector]
   private val stubCdsLogger = StubCdsLogger()
   private val validUrl = Some(new URL(s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}"))
 
@@ -82,7 +87,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "make a correct request" in {
       setupInternalServiceToReturn(NO_CONTENT)
 
-      await(connector.send(pnr())(HeaderCarrier())).isRight shouldBe true
+      await(connector.postInternalPush(pnr())(HeaderCarrier())).isRight shouldBe true
 
       verifyInternalServiceWasCalledWithOutboundHeaders(pnr())
     }
@@ -90,7 +95,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 300 when external service returns 300" in {
       setupInternalServiceToReturn(MULTIPLE_CHOICES)
 
-      val result = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.postInternalPush(pnr())(HeaderCarrier()))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe MULTIPLE_CHOICES
@@ -100,7 +105,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 404 when external service returns a 404" in {
       setupInternalServiceToReturn(NOT_FOUND)
 
-      val result = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.postInternalPush(pnr())(HeaderCarrier()))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe NOT_FOUND
@@ -110,7 +115,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 400 when external service returns a 400" in {
       setupInternalServiceToReturn(BAD_REQUEST)
 
-      val result = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.postInternalPush(pnr())(HeaderCarrier()))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe BAD_REQUEST
@@ -120,7 +125,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
     "return a Left(HttpResultError) with status 500 when external service returns a 500" in {
       setupInternalServiceToReturn(INTERNAL_SERVER_ERROR)
 
-      val result = await(connector.send(pnr())(HeaderCarrier()))
+      val result = await(connector.postInternalPush(pnr())(HeaderCarrier()))
 
       inside(result) { case Left(HttpResultError(status, _)) =>
         status shouldBe INTERNAL_SERVER_ERROR
@@ -129,7 +134,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
 
     "return a Left(HttpResultError) with status 502 and a wrapped HttpVerb BadGatewayException when external service returns 502" in
       withoutWireMockServer {
-        val result = await(connector.send(pnr())(HeaderCarrier()))
+        val result = await(connector.postInternalPush(pnr())(HeaderCarrier()))
 
         inside(result) { case Left(HttpResultError(status, _)) =>
           status shouldBe BAD_GATEWAY

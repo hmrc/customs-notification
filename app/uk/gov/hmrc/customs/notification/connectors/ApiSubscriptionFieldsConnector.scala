@@ -19,13 +19,10 @@ package uk.gov.hmrc.customs.notification.connectors
 import javax.inject.{Inject, Singleton}
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
-import play.api.libs.json.Json
-import play.mvc.Http.Status._
 import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.controllers.FieldsIdMapperHotFix
-import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, CustomsNotificationConfig}
-import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.config.NotificationConfig
+import uk.gov.hmrc.customs.notification.models.ClientSubscriptionId
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.http.HttpReads.Implicits._
@@ -36,56 +33,95 @@ import scala.concurrent.{ExecutionContext, Future}
 class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
                                                logger: CdsLogger,
                                                serviceConfigProvider: ServiceConfigProvider,
-                                               configService: CustomsNotificationConfig)
-                                              (implicit ec: ExecutionContext) {
+                                               notificationConfig: NotificationConfig)(implicit ec: ExecutionContext) {
 
-  private val headers = Seq(
-    (CONTENT_TYPE, MimeTypes.JSON),
-    (ACCEPT, MimeTypes.JSON)
-  )
+  private val headers = Seq((CONTENT_TYPE, MimeTypes.JSON), (ACCEPT, MimeTypes.JSON))
+  //Below val & def are: 'Hot fix for
+  //https://jira.tools.tax.service.gov.uk/browse/DCWL-851
+  //https://jira.tools.tax.service.gov.uk/browse/DCWL-859'
+  private val csIdMap = notificationConfig.hotFixTranslates.map { pair =>
+    val mapping = pair.split(":").toList
+    mapping(0) -> mapping(1)
+  }.toMap
 
-  def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
-    val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, configService.notificationConfig)
-    val safeFieldsId = fieldsIdMapperHotFix.translate(fieldsId)
-    logger.debug("calling api-subscription-fields service")
-    callApiSubscriptionFields(safeFieldsId, hc) map { response =>
-      logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
-
-      response.status match {
-        case OK => parseResponseAsModel(response.body)
-        case NOT_FOUND => None
-        case status =>
-          val msg = s"unexpected subscription information service response status=$status"
-          logger.error(msg)
-          throw new Non2xxResponseException(status)
-      }
+  private def translate(csId: String): String = {
+    val safeCsId: String = csIdMap.getOrElse(csId, csId)
+    if (!safeCsId.matches(csId)) {
+      logger.warn(s"FieldsIdMapperHotFix: translating fieldsId(csId) [$csId] to [$safeCsId].")
     }
+    safeCsId
   }
 
-  private def parseResponseAsModel(jsonResponse: String): Option[ApiSubscriptionFields] = {
-    val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFields])
-    logger.debug(s"api-subscription-fields service parsed response=$response")
-    response
-  }
-
-  private def callApiSubscriptionFields(fieldsId: String, hc: HeaderCarrier): Future[HttpResponse] = {
-    implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
-
+  def getApiSubscriptionFields(clientSubscriptionId: ClientSubscriptionId, hc: HeaderCarrier): Future[HttpResponse] = {
+    //TODO check headers have been changed correctly here
+    implicit val updatedHeaderCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
+    val safeCsId: String = translate(clientSubscriptionId.toString)
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
-    val fullUrl = s"$baseUrl/$fieldsId"
+    val fullUrl = s"$baseUrl/$safeCsId"
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
-    val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
+    val headersToLog: Seq[(String, String)] = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headersToLog}")
-
+    logger.debug(s"calling api-subscription-fields service with fieldsId=$safeCsId url=$fullUrl \nheaders=$headersToLog")
     http.GET[HttpResponse](fullUrl)
-      .recoverWith {
-        case httpError: HttpException =>
-          Future.failed(new RuntimeException(httpError)) //reserved for problems in making the request
-
-        case e: Throwable =>
-          logger.error(s"call to subscription information service failed. GET url=$fullUrl")
-          Future.failed(e)
-      }
+      .recoverWith { error => throw new RuntimeException(s"Non-Http Error(callApiSubscriptionFields) when attempting to retrieve ApiSubscriptionFields with CsId:$safeCsId, Url:$fullUrl, headers:$headersToLog, error:$error") }
   }
+
+  //TODO maybe delete
+//  def getApiSubscriptionFields(clientSubscriptionId: ClientSubscriptionId)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
+//    val safeCsId: String = translate(clientSubscriptionId.toString)
+//    logger.debug("calling api-subscription-fields service")
+//    val eventualResponse: Future[HttpResponse] = callApiSubscriptionFields(safeCsId, hc)
+//
+//    eventualResponse map { response =>
+//      logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
+//      response.status match {
+//        case OK =>
+//          val parsedResponse: Option[ApiSubscriptionFields] = Some(Json.parse(response.body).as[ApiSubscriptionFields])
+//          logger.debug(s"api-subscription-fields service parsed response=$parsedResponse")
+//          parsedResponse
+//        case status =>
+//          logger.error(s"Error(getApiSubscriptionFields) non-200 response when attempting to retrieve ApiSubscriptionFields with CsId:$clientSubscriptionId, Url:$fullUrl, headers:$headersToLog, status=$status")
+//          throw new Non2xxResponseException(status)
+//      }
+//    }
+//  }
+//
+//  def getApiSubscriptionFields2(clientSubscriptionId: ClientSubscriptionId)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
+//    val safeCsId: String = translate(clientSubscriptionId.toString)
+//    logger.debug("calling api-subscription-fields service")
+//    val eventualResponse: Future[HttpResponse] = callApiSubscriptionFields(safeCsId, hc)
+//
+//    eventualResponse map { response =>
+//      logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
+//      response.status match {
+//        case OK =>
+//          val parsedResponse: Option[ApiSubscriptionFields] = Some(Json.parse(response.body).as[ApiSubscriptionFields])
+//          logger.debug(s"api-subscription-fields service parsed response=$parsedResponse")
+//          parsedResponse
+//        case non200Status =>
+//          logger.error(s"Error(getApiSubscriptionFields) non-200 response when attempting to retrieve ApiSubscriptionFields with CsId:$clientSubscriptionId, Url:$fullUrl, headers:$headersToLog, status=$non200Status")
+//          throw new Non2xxResponseException(non200Status)
+//      }
+//    }
+//  }
+
+
+
+  //TODO delete
+//  private def callApiSubscriptionFieldsOLD(clientSubscriptionId: String, hc: HeaderCarrier): Future[HttpResponse] = {
+//    implicit val updatedHeaderCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
+//    val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
+//    val fullUrl = s"$baseUrl/$clientSubscriptionId"
+//    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+//    val headersToLog: Seq[(String, String)] = hc.headers(headerNames) ++ hc.extraHeaders
+//
+//    logger.debug(s"calling api-subscription-fields service with fieldsId=$clientSubscriptionId url=$fullUrl \nheaders=$headersToLog")
+//    http.GET[HttpResponse](fullUrl)
+//      .recoverWith {
+//        case httpError: HttpException =>
+//          throw new RuntimeException(s"Http Error(callApiSubscriptionFields) when attempting to retrieve ApiSubscriptionFields with CsId:$clientSubscriptionId, Url:$fullUrl, headers:$headersToLog, error:$httpError")
+//        case e: Throwable =>
+//          throw new RuntimeException(s"Non-Http Error(callApiSubscriptionFields) when attempting to retrieve ApiSubscriptionFields with CsId:$clientSubscriptionId, Url:$fullUrl, headers:$headersToLog, error:$e")
+//      }
+//  }
 }

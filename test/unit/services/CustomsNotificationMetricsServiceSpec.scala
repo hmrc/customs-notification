@@ -22,10 +22,12 @@ import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, HasId}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.models.HasId
+import uk.gov.hmrc.customs.notification.models.requests.CustomsNotificationsMetricsRequest
+import uk.gov.hmrc.customs.notification.{models, placeholder, requests}
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationMetricsService, DateTimeService}
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
+import uk.gov.hmrc.customs.notification.util.DateTimeHelper._
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 import util.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -43,7 +45,7 @@ class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
     private[CustomsNotificationMetricsServiceSpec] lazy val mockMetricsConnector = mock[CustomsNotificationMetricsConnector]
     private[CustomsNotificationMetricsServiceSpec] lazy val mockDateTimeService = mock[DateTimeService]
     private[CustomsNotificationMetricsServiceSpec] val service = new CustomsNotificationMetricsService(mockLogger, mockMetricsConnector, mockDateTimeService)
-    private[CustomsNotificationMetricsServiceSpec] val metricsRequest = CustomsNotificationsMetricsRequest(
+    private[CustomsNotificationMetricsServiceSpec] val metricsRequest = models.requests.CustomsNotificationsMetricsRequest(
       "NOTIFICATION",
       NotificationWorkItemWithMetricsTime1.notification.conversationId,
       TimeReceivedDateTime.toZonedDateTime,

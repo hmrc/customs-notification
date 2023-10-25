@@ -25,10 +25,13 @@ import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.config.{AppConfig, CustomsNotificationConfig, NotificationConfig, UnblockPollerConfig}
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
+import uk.gov.hmrc.customs.notification.error.HttpResultError
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.models.requests.ClientSubscriptionId
 import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.customs.notification.services.config.ConfigService
+import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.ResultStatus
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -53,7 +56,7 @@ class UnblockPollerServiceSpec extends UnitSpec
     private[UnblockPollerServiceSpec] val BoomException = new Exception("Boom")
 
     private[UnblockPollerServiceSpec] val notificationWorkItemRepoMock = mock[NotificationWorkItemRepo]
-    private[UnblockPollerServiceSpec] val configServiceMock = mock[ConfigService]
+    private[UnblockPollerServiceSpec] val configServiceMock = mock[AppConfig]
     private[UnblockPollerServiceSpec] val mockCdsLogger = mock[CdsLogger]
     private[UnblockPollerServiceSpec] val testActorSystem = ActorSystem("UnblockPollerService")
     private[UnblockPollerServiceSpec] val mockUnblockPollerConfig = mock[UnblockPollerConfig]
@@ -94,9 +97,9 @@ class UnblockPollerServiceSpec extends UnitSpec
   "UnblockPollerService" should {
 
     "should poll the database and unblock any blocked notifications when ONE distinct CsId found" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
-      when(notificationWorkItemRepoMock.fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)).thenReturn(Future.successful(CountOfChangedStatuses))
+      when(notificationWorkItemRepoMock.failedAndBlockedGroupedByDistinctCsId()).thenReturn(Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.unblockFailedAndBlockedByCsId(validClientSubscriptionId1)).thenReturn(Future.successful(CountOfChangedStatuses))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Right(Push)))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -110,11 +113,11 @@ class UnblockPollerServiceSpec extends UnitSpec
         mockCustomsNotificationConfig)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).failedAndBlockedGroupedByDistinctCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(1)).setCompletedStatus(WorkItem1.id, Succeeded)
-        verify(notificationWorkItemRepoMock, times(1)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).unblockFailedAndBlockedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
         verifyInfoLog("Unblock pilot for Push succeeded. CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status succeeded for WorkItem(5c46f7d70100000100ef835a,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),notificationId: Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7), conversationId: eaca01f9-ec3b-4ede-b263-61b626dde231, headers: List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)), contentType: application/xml))")
         verifyInfoLog("Unblock - number of notifications set from PermanentlyFailed to Failed = 2 for CsId eaca01f9-ec3b-4ede-b263-61b626dde232")
@@ -122,7 +125,7 @@ class UnblockPollerServiceSpec extends UnitSpec
     }
 
     "should poll the database and NOT unblock any blocked notifications when NO distinct CsId found" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(Set.empty[ClientSubscriptionId]))
+      when(notificationWorkItemRepoMock.failedAndBlockedGroupedByDistinctCsId()).thenReturn(Future.successful(Set.empty[ClientSubscriptionId]))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
 
@@ -135,15 +138,15 @@ class UnblockPollerServiceSpec extends UnitSpec
         mockCustomsNotificationConfig)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
+        verify(notificationWorkItemRepoMock, times(1)).failedAndBlockedGroupedByDistinctCsId()
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatus(any[ObjectId], any[ResultStatus])
         verifyNoInteractions(mockPushOrPullService)
       }
     }
 
     "should poll the database and NOT unblock any blocked notifications when pull for CsId returns None" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(None)
+      when(notificationWorkItemRepoMock.failedAndBlockedGroupedByDistinctCsId()).thenReturn(Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)).thenReturn(None)
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
 
@@ -163,8 +166,8 @@ class UnblockPollerServiceSpec extends UnitSpec
     }
 
     "should poll the database and NOT unblock any blocked notifications when Push/Pull fails" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.failedAndBlockedGroupedByDistinctCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.NOT_FOUND, BoomException)))))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -180,20 +183,20 @@ class UnblockPollerServiceSpec extends UnitSpec
         mockCustomsNotificationConfig)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).failedAndBlockedGroupedByDistinctCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(1)).incrementFailureCount(WorkItem1.id)
         verify(notificationWorkItemRepoMock, times(1)).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)
-        verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(0)).unblockFailedAndBlockedByCsId(validClientSubscriptionId1)
         verifyInfoLog("Unblock - discovered 1 blocked csids (i.e. with status of permanently-failed)")
         verifyInfoLog("Unblock pilot for Pull failed with error HttpResultError(404,java.lang.Exception: Boom). CsId = eaca01f9-ec3b-4ede-b263-61b626dde232. Setting work item status back to permanently-failed for WorkItem(5c46f7d70100000100ef835a,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),notificationId: Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7), conversationId: eaca01f9-ec3b-4ede-b263-61b626dde231, headers: List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)), contentType: application/xml))")
       }
     }
 
     "should poll the database and recover from Push/Pull failure" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.failedAndBlockedGroupedByDistinctCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.failed(BoomException))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -207,18 +210,18 @@ class UnblockPollerServiceSpec extends UnitSpec
         mockCustomsNotificationConfig)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).failedAndBlockedGroupedByDistinctCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatus(any[ObjectId], any[ResultStatus])
-        verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(0)).unblockFailedAndBlockedByCsId(validClientSubscriptionId1)
         verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(5c46f7d70100000100ef835a,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),notificationId: Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7), conversationId: eaca01f9-ec3b-4ede-b263-61b626dde231, headers: List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)), contentType: application/xml))")
       }
     }
 
     "should poll the database and recover from a 404 Push/Pull failure" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.failedAndBlockedGroupedByDistinctCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       private val exception = new IllegalStateException("BOOM!")
       private val httpResultError = HttpResultError(Helpers.NOT_FOUND, exception)
       private val pullError = PushOrPullError(Push, httpResultError)
@@ -235,18 +238,18 @@ class UnblockPollerServiceSpec extends UnitSpec
         mockCustomsNotificationConfig)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).failedAndBlockedGroupedByDistinctCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatusWithAvailableAt(any[ObjectId], any[ResultStatus], anyInt(), any[ZonedDateTime])
-        verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(0)).unblockFailedAndBlockedByCsId(validClientSubscriptionId1)
         verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(5c46f7d70100000100ef835a,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),notificationId: Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7), conversationId: eaca01f9-ec3b-4ede-b263-61b626dde231, headers: List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)), contentType: application/xml))")
       }
     }
 
     "should poll the database and recover from a 500 Push/Pull failure" in new Setup {
-      when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.failedAndBlockedGroupedByDistinctCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
+      when(notificationWorkItemRepoMock.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       private val exception = new IllegalStateException("BOOM!")
       private val httpResultError = HttpResultError(Helpers.INTERNAL_SERVER_ERROR, exception)
       private val pullError = PushOrPullError(Push, httpResultError)
@@ -263,11 +266,11 @@ class UnblockPollerServiceSpec extends UnitSpec
         mockCustomsNotificationConfig)
 
       eventually {
-        verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).failedAndBlockedGroupedByDistinctCsId()
+        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatusWithAvailableAt(any[ObjectId], any[ResultStatus], anyInt(), any[ZonedDateTime])
-        verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(0)).unblockFailedAndBlockedByCsId(validClientSubscriptionId1)
         verifyErrorLog("Unblock - error with pilot unblock of work item WorkItem(5c46f7d70100000100ef835a,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.000Z),notificationId: Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7), conversationId: eaca01f9-ec3b-4ede-b263-61b626dde231, headers: List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)), contentType: application/xml))")
       }
     }

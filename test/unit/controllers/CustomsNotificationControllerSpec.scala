@@ -28,14 +28,15 @@ import play.api.test.Helpers._
 import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPORTED_MEDIA_TYPE}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
+import uk.gov.hmrc.customs.notification.config.{AppConfig, NotificationConfig}
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.{NotificationConfig, _}
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
+import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController
+import uk.gov.hmrc.customs.notification.models.requests.MetaDataRequest
+import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, BadgeId, CorrelationId, FunctionCode, IssueDateTime, Mrn, Submitter}
+import uk.gov.hmrc.customs.notification.services.CustomsNotificationService
+import uk.gov.hmrc.customs.notification.util.{DateTimeHelper, NotificationLogger}
 import util.TestData._
-import util.UnitSpec
+import util.{UnitSpec, UuidGenerator}
 
 import java.util.UUID
 import scala.concurrent.Future
@@ -46,17 +47,12 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
-  private val mockConfigService = mock[ConfigService]
+  private val mockConfigService = mock[AppConfig]
   private val mockCallbackDetailsConnector = mock[ApiSubscriptionFieldsConnector]
-  private val mockDateTimeService = mock[DateTimeService]
-  private val mockUuidService = mock[UuidService]
-
   private def controller() = new CustomsNotificationController(
     mockCustomsNotificationService,
     mockCallbackDetailsConnector,
     mockConfigService,
-    mockDateTimeService,
-    mockUuidService,
     Helpers.stubControllerComponents(),
     mockNotificationLogger
   )
@@ -73,9 +69,9 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val apiSubscriptionFields = ApiSubscriptionFields(clientIdString1, DeclarantCallbackDataOneForPush)
 
-  private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, notificationId,
+  private val expectedRequestMetaData = MetaDataRequest(clientSubscriptionId, conversationId, notificationId,
     Some(clientId1), Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)),
-    None, None, None, mockDateTimeService.zonedDateTimeUtc)
+    None, None, None, DateTimeHelper.zonedDateTimeUtc)
 
   private val eventualTrue = Future.successful(true)
 
@@ -127,7 +123,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "respond with 400 when declarant callback data not found by ApiSubscriptionFields service" in {
-      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any())).thenReturn(Future.successful(None))
+      when(mockCallbackDetailsConnector.getApiSubscriptionFields(meq(validFieldsId))(any())).thenReturn(Future.successful(None))
 
       testSubmitResult(ValidRequestWithMixedCaseCorrelationId) { result =>
         status(result) shouldBe BAD_REQUEST
@@ -192,7 +188,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
     }
 
     "respond with 500 when unexpected failure happens" in {
-      when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any()))
+      when(mockCallbackDetailsConnector.getApiSubscriptionFields(meq(validFieldsId))(any()))
         .thenReturn(Future.failed(emulatedServiceFailure))
 
 
@@ -257,7 +253,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
   }
 
   private def returnMockedCallbackDetailsForTheClientIdInRequest() = {
-    when(mockCallbackDetailsConnector.getClientData(meq(validFieldsId))(any())).
+    when(mockCallbackDetailsConnector.getApiSubscriptionFields(meq(validFieldsId))(any())).
       thenReturn(Future.successful(Some(apiSubscriptionFields)))
   }
 

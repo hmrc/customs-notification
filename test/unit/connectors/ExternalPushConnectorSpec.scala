@@ -24,8 +24,8 @@ import play.api.libs.json.Writes
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
 import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
-import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.models.requests.PushNotificationRequestBody
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpReads, HttpResponse}
 import util.TestData.{externalPushNotificationRequest, requestMetaData}
 import util.UnitSpec
@@ -59,7 +59,7 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
         any[Writes[NodeSeq]](), any[HttpReads[HttpResponse]](), any(), any()))
         .thenReturn(Future.successful(mock[HttpResponse]))
 
-      await(connector.send(externalPushNotificationRequest))
+      await(connector.post(externalPushNotificationRequest))
 
       val requestBody = ArgumentCaptor.forClass(classOf[PushNotificationRequestBody])
       verify(mockHttpClient).POST(ArgumentMatchers.eq(url), requestBody.capture(), any[Seq[(String,String)]]())(
@@ -74,7 +74,7 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
         .thenThrow(emulatedHttpVerbsException)
 
       val caught = intercept[RuntimeException] {
-        await(connector.send(externalPushNotificationRequest))
+        await(connector.post(externalPushNotificationRequest))
       }
 
       caught shouldBe emulatedHttpVerbsException

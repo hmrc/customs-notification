@@ -16,9 +16,10 @@
 
 package util
 
-import java.time.{ZoneId, ZonedDateTime}
+import uk.gov.hmrc.customs.notification.models.requests.CustomsNotificationsMetricsRequest
+import uk.gov.hmrc.customs.notification.{models, placeholder, requests}
 
-import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
+import java.time.{ZoneId, ZonedDateTime}
 
 object CustomsNotificationMetricsTestData {
 
@@ -29,6 +30,6 @@ object CustomsNotificationMetricsTestData {
   val EventEnd: ZonedDateTime = EventStart.plusSeconds(2)
 
   val ValidCustomsNotificationMetricsRequest: CustomsNotificationsMetricsRequest =
-    CustomsNotificationsMetricsRequest("NOTIFICATION", TestData.conversationId, EventStart, EventEnd)
+    models.requests.CustomsNotificationsMetricsRequest("NOTIFICATION", TestData.conversationId, EventStart, EventEnd)
 
 }

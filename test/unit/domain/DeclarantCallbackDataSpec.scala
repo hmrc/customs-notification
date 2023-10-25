@@ -19,8 +19,8 @@ package unit.domain
 import java.net.URL
 
 import play.api.libs.json._
-import uk.gov.hmrc.customs.notification.domain.{CallbackUrl, DeclarantCallbackData}
 import _root_.util.UnitSpec
+import uk.gov.hmrc.customs.notification.models.{CallbackUrl, DeclarantCallbackData}
 
 class DeclarantCallbackDataSpec extends UnitSpec {
 

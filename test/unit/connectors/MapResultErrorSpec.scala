@@ -17,8 +17,7 @@
 package unit.connectors
 
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.connectors.MapResultError
-import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError}
+import uk.gov.hmrc.customs.notification.error.{HttpResultError, MapResultError, NonHttpError}
 import uk.gov.hmrc.http.BadRequestException
 import util.UnitSpec
 

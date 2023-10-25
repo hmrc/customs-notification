@@ -24,8 +24,9 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Seconds, Span}
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationConfig}
-import uk.gov.hmrc.customs.notification.services.{WorkItemProcessingScheduler, WorkItemService}
+import uk.gov.hmrc.customs.notification.config.{CustomsNotificationConfig, NotificationConfig}
+import uk.gov.hmrc.customs.notification.services.WorkItemService
+import uk.gov.hmrc.customs.notification.util.WorkItemProcessingScheduler
 import util.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 

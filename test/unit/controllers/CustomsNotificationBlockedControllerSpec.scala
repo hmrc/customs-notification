@@ -25,8 +25,8 @@ import play.api.test.Helpers._
 import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import util.UnitSpec
 import util.TestData._
 

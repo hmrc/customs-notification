@@ -17,7 +17,7 @@
 package unit.domain
 
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.domain.{HttpResultError, NonHttpError}
+import uk.gov.hmrc.customs.notification.error.{HttpResultError, NonHttpError}
 import util.UnitSpec
 
 class ResultErrorSpec extends UnitSpec {

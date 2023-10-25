@@ -18,88 +18,67 @@ package uk.gov.hmrc.customs.notification.services
 
 import com.google.inject.Inject
 import play.api.libs.json.{JsObject, JsString, JsValue}
-import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
-import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.models.requests.{MetaDataRequest, PushNotificationRequest}
+import uk.gov.hmrc.customs.notification.models.HasId
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames}
 import uk.gov.hmrc.play.audit.EventKeys.TransactionName
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
 
+import java.time.Instant
 import javax.inject.Singleton
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 @Singleton
-class AuditingService @Inject()(logger: NotificationLogger, auditConnector: AuditConnector)
-                               (implicit ec: ExecutionContext) {
-
-  private val appName = "customs-notification"
-  private val transactionNameValue = "customs-declaration-outbound-call"
-  private val declarationNotificationOutboundCall = "DeclarationNotificationOutboundCall"
-  private val declarationNotificationInboundCall = "DeclarationNotificationInboundCall"
-  private val outboundCallUrl = "outboundCallUrl"
-  private val outboundCallAuthToken = "outboundCallAuthToken"
-  private val xConversationId = "x-conversation-id"
-  private val result = "result"
-  private val generatedAt = "generatedAt"
-  private val clientId = "clientId"
-  private val fieldsId = "fieldsId"
-  private val notificationId = "notificationId"
-  private val functionCode = "functionCode"
-  private val issueDate = "issueDate"
-  private val mrn = "mrn"
-  private val failureReasonKey = "failureReason"
-  private val payload = "payload"
-  private val payloadHeaders = "payloadHeaders"
-
-  def auditFailedNotification(pnr: PushNotificationRequest, failureReason: Option[String])(implicit rm: HasId, hc: HeaderCarrier): Unit = {
-    auditNotification(pnr, "FAILURE", failureReason)
+class AuditingService @Inject()(logger: NotificationLogger, auditConnector: AuditConnector)(implicit ec: ExecutionContext) {
+  def auditFailedNotification(pushNotificationRequest: PushNotificationRequest, failureReason: Option[String])(implicit rm: HasId, hc: HeaderCarrier): Unit = {
+    buildAuditNotification(pushNotificationRequest, "FAILURE", failureReason)
   }
 
-  def auditSuccessfulNotification(pnr: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
-    auditNotification(pnr, "SUCCESS", None)
+  def auditSuccessfulNotification(pushNotificationRequest: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
+    buildAuditNotification(pushNotificationRequest, "SUCCESS", None)
   }
 
-  def auditNotificationReceived(pnr: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
-    auditNotification(pnr, "SUCCESS", None, declarationNotificationInboundCall, Some(pnr.body.xmlPayload))
+  def auditNotificationReceived(pushNotificationRequest: PushNotificationRequest)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
+    buildAuditNotification(pushNotificationRequest, "SUCCESS", None, "DeclarationNotificationInboundCall", Some(pushNotificationRequest.body.xmlPayload))
   }
 
-  private def auditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String], auditType: String = declarationNotificationOutboundCall, notificationPayload: Option[String] = None)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
-
-    val tags: Map[String, String] = Map(TransactionName -> transactionNameValue,
-      xConversationId -> pnr.body.conversationId
-    ) ++ getTags(rm)
-
+  private def buildAuditNotification(pnr: PushNotificationRequest, successOrFailure: String, failureReason: Option[String], auditType: String = "DeclarationNotificationOutboundCall", notificationPayload: Option[String] = None)(implicit rm: HasId, hc: HeaderCarrier): Unit = {
+    val tags: Map[String, String] = Map(TransactionName -> "customs-declaration-outbound-call", "x-conversation-id" -> pnr.body.conversationId) ++ getTags(rm)
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
-
+    val outboundCallUrl = "outboundCallUrl"
+    val outboundCallAuthToken = "outboundCallAuthToken"
+    val result = "result"
+    val generatedAt = "generatedAt"
+    val timeNow: Instant = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
     val detail: JsObject = failureReason.fold(
       JsObject(Map[String, JsValue](
         outboundCallUrl -> JsString(pnr.body.url.toString),
         outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
         result -> JsString(successOrFailure),
-        payload -> JsString(notificationPayload.getOrElse("")),
-        payloadHeaders -> JsString(headers.toString()),
-        generatedAt -> JsString(timeNow().toString)
-      )))(reason => {
+        "payload" -> JsString(notificationPayload.getOrElse("")),
+        "payloadHeaders"-> JsString(headers.toString()),
+        generatedAt -> JsString(timeNow.toString))))(reason => {
       JsObject(Map[String, JsValue](
         outboundCallUrl -> JsString(pnr.body.url.toString),
         outboundCallAuthToken -> JsString(pnr.body.authHeaderToken),
         result -> JsString(successOrFailure),
-        generatedAt -> JsString(timeNow().toString),
-        failureReasonKey -> JsString(reason)
-      ))
-    }
+        generatedAt -> JsString(timeNow.toString),
+        "failureReason" -> JsString(reason)
+      ))}
     )
 
     auditConnector.sendExtendedEvent(
       ExtendedDataEvent(
-        auditSource = appName,
+        auditSource = "customs-notification",
         auditType = auditType,
         tags = tags,
         detail = detail,
-        generatedAt = timeNow()
+        generatedAt = timeNow
       )).onComplete {
       case Success(auditResult) =>
         logger.info(s"successfully audited $successOrFailure event")
@@ -113,15 +92,19 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
     }
   }
 
-  private def getTags(rm: HasId): Map[String, String] = {
-    rm match {
-      case r: RequestMetaData =>
+  private def getTags(hasId: HasId): Map[String, String] = {
+    val clientId = "clientId"
+    val fieldsId = "fieldsId"
+    val notificationId = "notificationId"
+
+    hasId match {
+      case r: MetaDataRequest =>
         Map(clientId -> r.maybeClientId.fold("")(_.id),
           fieldsId -> r.clientSubscriptionId.toString,
           notificationId -> r.notificationId.toString,
-          functionCode -> r.maybeFunctionCode.fold("")(_.value),
-          issueDate -> r.maybeIssueDateTime.fold("")(_.value),
-          mrn -> r.maybeMrn.fold("")(_.value))
+          "functionCode" -> r.maybeFunctionCode.fold("")(_.value),
+          "issueDate" -> r.maybeIssueDateTime.fold("")(_.value),
+          "mrn" -> r.maybeMrn.fold("")(_.value))
       case n: NotificationWorkItem =>
         Map(clientId -> n.clientId.id,
           fieldsId -> n.clientSubscriptionId.toString,
@@ -130,9 +113,5 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
       case _ =>
         Map()
     }
-  }
-
-  private def timeNow() = {
-    java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
   }
 }

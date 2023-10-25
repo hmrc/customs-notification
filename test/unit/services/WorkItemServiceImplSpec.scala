@@ -22,10 +22,13 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
+import uk.gov.hmrc.customs.notification.config.{CustomsNotificationConfig, NotificationConfig}
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
+import uk.gov.hmrc.customs.notification.error.HttpResultError
+import uk.gov.hmrc.customs.notification.models.HasId
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.services._
+import uk.gov.hmrc.customs.notification.util.{NotificationLogger, NotificationWorkItemRepo}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier
@@ -42,7 +45,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   trait SetUp {
-    private[WorkItemServiceImplSpec] val mockRepo = mock[NotificationWorkItemMongoRepo]
+    private[WorkItemServiceImplSpec] val mockRepo = mock[NotificationWorkItemRepo]
     private[WorkItemServiceImplSpec] val mockPushOrPull = mock[PushOrPullService]
     private[WorkItemServiceImplSpec] val mockDateTimeService = mock[DateTimeService]
     private[WorkItemServiceImplSpec] val mockLogger = mock[NotificationLogger]
@@ -104,7 +107,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe false
       verifyNoInteractions(mockPushOrPull)
-      verify(mockRepo, times(0)).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+      verify(mockRepo, times(0)).blockFailedButNotBlockedByCsId(WorkItem1.item.clientSubscriptionId)
       verify(mockRepo, times(0)).setCompletedStatus(WorkItem1.id, Failed)
     }
 
@@ -182,13 +185,13 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pushError = PushOrPullError(Push, httpResultError500)
       when(mockPushOrPull.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Left(pushError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
+      when(mockRepo.blockFailedButNotBlockedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+      verify(mockRepo).blockFailedButNotBlockedByCsId(WorkItem1.item.clientSubscriptionId)
     }
 
     "return Future of true and set WorkItem status to PermanentlyFailed when PULL returns a 500" in new SetUp {
@@ -197,13 +200,13 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       private val pullError = PushOrPullError(Pull, httpResultError500)
       when(mockPushOrPull.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Left(pullError)))
       when(mockRepo.setCompletedStatus(WorkItem1.id, Failed)).thenReturn(eventuallyUnit)
-      when(mockRepo.toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
+      when(mockRepo.blockFailedButNotBlockedByCsId(WorkItem1.item.clientSubscriptionId)).thenReturn(Future.successful(1))
 
       val actual = await(service.processOne())
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatus(WorkItem1.id, Failed)
-      verify(mockRepo).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+      verify(mockRepo).blockFailedButNotBlockedByCsId(WorkItem1.item.clientSubscriptionId)
     }
 
     "return Future of true and log database error when PUSH returns an error and call to repository setCompletedStatus fails" in new SetUp {
@@ -217,7 +220,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 
       actual shouldBe true
       verify(mockRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, Failed, Helpers.NOT_FOUND, nowPlus2Hour)
-      verify(mockRepo, times(0)).toPermanentlyFailedByCsId(WorkItem1.item.clientSubscriptionId)
+      verify(mockRepo, times(0)).blockFailedButNotBlockedByCsId(WorkItem1.item.clientSubscriptionId)
       verifyErrorLog("Error updating database")
     }
 
