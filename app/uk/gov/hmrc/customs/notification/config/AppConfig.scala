@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration._
 
-class BasicAuthToken(maybeValue: Option[String])
+trait BasicAuthTokenConfig
+class BasicAuthTokenConfigImpl(maybeValue: Option[String])
 case class CustomsNotificationConfig(maybeBasicAuthToken: Option[String],
                                      notificationQueueConfig: NotificationQueueConfig,
                                      notificationConfig: NotificationConfig,
