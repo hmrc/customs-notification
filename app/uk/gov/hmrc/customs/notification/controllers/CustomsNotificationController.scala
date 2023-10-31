@@ -24,7 +24,7 @@ import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
 import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
 import uk.gov.hmrc.customs.notification.models.requests.MetaDataRequest
 import uk.gov.hmrc.customs.notification.models.{ClientId, HasId}
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, HeaderService}
+import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, HeadersActionFilter}
 import uk.gov.hmrc.customs.notification.util.HeaderNames.{NOTIFICATION_ID_HEADER_NAME, X_CLIENT_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.util.{DateTimeHelper, NotificationLogger, NotificationWorkItemRepo, Util}
 import uk.gov.hmrc.http.HeaderCarrier
@@ -35,21 +35,19 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
 @Singleton
-class CustomsNotificationController @Inject()(configService: CustomsNotificationConfig,
-                                              cc: ControllerComponents,
+class CustomsNotificationController @Inject()(cc: ControllerComponents,
                                               logger: NotificationLogger,
-                                              headerService: HeaderService,
+                                              headersActionFilter: HeadersActionFilter,
                                               customsNotificationService: CustomsNotificationService,
-                                              repo: NotificationWorkItemRepo)(implicit ec: ExecutionContext) extends BackendController(cc){
+                                              repo: NotificationWorkItemRepo)(implicit ec: ExecutionContext) extends BackendController(cc) {
   override val controllerComponents: ControllerComponents = cc
   //TODO move this during process of cleaning up headerservice as only used here
-  private val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
 
   def submit(): Action[AnyContent] = {
-    val startTime = DateTimeHelper.zonedDateTimeUtc
-    headerService.validateHeaders(maybeBasicAuthToken)(ec) async {
-      implicit request =>
+    (Action andThen headersActionFilter).async {
+      implicit request: Request[AnyContent] =>
+        val startTime = DateTimeHelper.zonedDateTimeUtc
         val maybeXml: Option[NodeSeq] = request.body.asXml
         val metaDataRequest: MetaDataRequest = MetaDataRequest.buildMetaDataRequest(maybeXml, request.headers, startTime)
         implicit val headerCarrier: HeaderCarrier = hc(request).copy()
@@ -106,7 +104,8 @@ class CustomsNotificationController @Inject()(configService: CustomsNotification
           }
       }
   }
-//TODO move this
+
+  //TODO move this
   private def validateHeader(headers: Headers, endpointName: String): Either[ErrorResponse, ClientId] = {
     headers.get(X_CLIENT_ID_HEADER_NAME).fold[Either[ErrorResponse, ClientId]] {
       logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling $endpointName endpoint", headers.headers)

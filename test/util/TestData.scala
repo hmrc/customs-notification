@@ -104,9 +104,10 @@ object TestData {
   val mrn = "19GB3955NQ36213969"
   val externalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader)
   val internalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader, dateHeader)
-  val somePushNotificationRequest: Option[PushNotificationRequest] = Some(externalPushNotificationRequest)
+  val ValidXML: Elem = <Foo>Bar</Foo>
   val externalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, headers = externalPushNotificationRequestBodyHeaders)
   val internalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, internalCallbackData, internalPushNotificationRequestBodyHeaders)
+  val somePushNotificationRequest: Option[PushNotificationRequest] = Some(externalPushNotificationRequest)
   val Year = 2017
   val MonthOfYear = 7
   val DayOfMonth = 4
@@ -126,12 +127,12 @@ object TestData {
   val payload1 = "<foo1></foo1>"
   val payload2 = "<foo2></foo2>"
   val payload3 = "<foo3></foo3>"
-  val ValidXML: Elem = <Foo>Bar</Foo>
   val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId), Header(ISSUE_DATE_TIME_HEADER, issueDateTime))
   val headers = Seq(Header("h1","v1"), Header("h2", "v2"))
   val notification1 = Notification(Some(notificationId), conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
-  val notification2 = Notification(Some(notificationId), conversationId, headers, payload2, CustomMimeType.XmlCharsetUtf8)
-  val notification3 = Notification(Some(notificationId), conversationId, headers, payload3, CustomMimeType.XmlCharsetUtf8)
+  private val XmlCharsetUtf8 = MimeTypes.XML + "; charset=UTF-8"
+  val notification2 = Notification(Some(notificationId), conversationId, headers, payload2, XmlCharsetUtf8)
+  val notification3 = Notification(Some(notificationId), conversationId, headers, payload3, XmlCharsetUtf8)
   val client1Notification1 = ClientNotification(validClientSubscriptionId1, notification1, None, Some(TimeReceivedDateTime))
   val client1Notification2 = models.ClientNotification(validClientSubscriptionId1, notification2, None, Some(TimeReceivedDateTime))
   val client1Notification3 = models.ClientNotification(validClientSubscriptionId1, notification3, None, Some(TimeReceivedDateTime))
@@ -197,7 +198,12 @@ object TestData {
     """.stripMargin)
 
   def pushNotificationRequest(xml: NodeSeq, cd: DeclarantCallbackData = callbackData, headers: Seq[Header]): PushNotificationRequest = {
-    val body = PushNotificationRequestBody(cd.callbackUrl, cd.securityToken, validConversationId, headers, xml.toString())
+    val body = PushNotificationRequestBody(
+      cd.callbackUrl,
+      cd.securityToken,
+      validConversationId,
+      headers,
+      xml.toString())
     PushNotificationRequest(validFieldsId, body)
   }
   val ValidRequest: FakeRequest[AnyContentAsXml] = FakeRequest()
@@ -292,6 +298,7 @@ object TestData {
 }
 
 object RequestHeaders {
+  private val XmlCharsetUtf8 = MimeTypes.XML + "; charset=UTF-8"
   val X_CDS_CLIENT_ID_HEADER: (String, String) = X_CDS_CLIENT_ID_HEADER_NAME -> validFieldsId
   val X_CDS_CLIENT_ID_HEADER_MixedCase: (String, String) = "X-CdS-ClIenT-iD" -> validFieldsId
   val X_ABSENT_CDS_CLIENT_ID_HEADER: (String, String) = X_CDS_CLIENT_ID_HEADER_NAME -> someFieldsId
@@ -301,8 +308,8 @@ object RequestHeaders {
   val X_BADGE_ID_HEADER: (String, String) = X_BADGE_ID_HEADER_NAME -> badgeId
   val X_SUBMITTER_ID_HEADER: (String, String) = X_SUBMITTER_ID_HEADER_NAME -> submitterNumber
   val X_CORRELATION_ID_HEADER: (String, String) = X_CORRELATION_ID_HEADER_NAME -> correlationId
-  val CONTENT_TYPE_HEADER: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8
-  val CONTENT_TYPE_HEADER_LOWERCASE: (String, String) = CONTENT_TYPE -> CustomMimeType.XmlCharsetUtf8.toLowerCase
+  val CONTENT_TYPE_HEADER: (String, String) = CONTENT_TYPE -> XmlCharsetUtf8
+  val CONTENT_TYPE_HEADER_LOWERCASE: (String, String) = CONTENT_TYPE -> XmlCharsetUtf8.toLowerCase
   val CONTENT_TYPE_HEADER_INVALID: (String, String) = CONTENT_TYPE -> MimeTypes.BINARY
   val ACCEPT_HEADER: (String, String) = ACCEPT -> MimeTypes.XML
   val ACCEPT_HEADER_INVALID: (String, String) = ACCEPT -> MimeTypes.BINARY

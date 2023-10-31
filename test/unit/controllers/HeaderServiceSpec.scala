@@ -22,33 +22,41 @@ import play.api.http.HeaderNames._
 import play.api.mvc.Results._
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import play.api.test.{FakeRequest, Helpers}
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
-import uk.gov.hmrc.customs.notification.error.ErrorResponses._
-import uk.gov.hmrc.customs.notification.error.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
-import uk.gov.hmrc.customs.notification.services.HeaderService
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest, ErrorUnauthorized}
+import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
+import uk.gov.hmrc.customs.notification.services.HeadersActionFilter
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import util.RequestHeaders._
 import util.TestData.basicAuthTokenValue
 import util.UnitSpec
+import uk.gov.hmrc.customs.notification.util.HeaderNames
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 
 import scala.util.Random
 
 class HeaderServiceSpec extends UnitSpec with MockitoSugar with TableDrivenPropertyChecks with ControllerSpecHelper {
 
+  private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val mockLogger: NotificationLogger = mock[NotificationLogger]
+  private val mockConfigService = mock[CustomsNotificationConfig]
 
-  private val validator = new HeaderService {
-    override val notificationLogger: NotificationLogger = mockLogger
-    override val controllerComponents: ControllerComponents = Helpers.stubControllerComponents()
-  }
+  private val headerService = new HeadersActionFilter(mockConfigService, mockLogger)
 
-  private val withAuthTokenConfigured: Action[AnyContent] = validator.validateHeaders(Some(basicAuthTokenValue)) async {
-    Ok
-  }
+  //  private val withAuthTokenConfigured: Action[AnyContent] = headerService.validateHeaders(Some(basicAuthTokenValue))(ec) async {
+  //    Ok
+  //  }
 
-  private val authTokenNotConfigured: Action[AnyContent] = validator.validateHeaders(None) async {
-    Ok
-  }
+  private val withAuthTokenConfigured: Action[AnyContent] = ???
+
+  private val authTokenNotConfigured: Action[AnyContent] = ???
+
+//  private val withAuthTokenConfigured: Action[AnyContent] = headerService.validateHeaders(Some(basicAuthTokenValue))(ec) async {
+//    Ok
+//  }
+//
+//  private val authTokenNotConfigured: Action[AnyContent] = headerService.validateHeaders(None)(ec) async {
+//    Ok
+//  }
 
   private val headersTable =
     Table(
@@ -59,10 +67,10 @@ class HeaderServiceSpec extends UnitSpec with MockitoSugar with TableDrivenPrope
       ("return OK result for Authorization header invalid when not configured to validate it", authTokenNotConfigured, ValidHeaders + BASIC_AUTH_HEADER_INVALID, Ok),
       ("return ErrorContentTypeHeaderInvalid result for content type header missing", withAuthTokenConfigured, ValidHeaders - CONTENT_TYPE, ErrorContentTypeHeaderInvalid.XmlResult),
       ("return ErrorAcceptHeaderInvalid result for accept header missing", withAuthTokenConfigured, ValidHeaders - ACCEPT, ErrorAcceptHeaderInvalid.XmlResult),
-      ("return ErrorClientIdMissing result for clientId header missing", withAuthTokenConfigured, ValidHeaders - X_CDS_CLIENT_ID_HEADER_NAME, ErrorCdsClientIdMissing.XmlResult),
-      ("return ErrorClientIdInvalid result for clientId header invalid", withAuthTokenConfigured, ValidHeaders + X_CDS_CLIENT_ID_INVALID, ErrorCdsClientIdInvalid.XmlResult),
-      ("return ErrorConversationIdMissing result for conversationId header missing", withAuthTokenConfigured, ValidHeaders - X_CONVERSATION_ID_HEADER_NAME, ErrorConversationIdMissing.XmlResult),
-      ("return ErrorConversationIdInvalid result for conversationId header invalid", withAuthTokenConfigured, ValidHeaders + X_CONVERSATION_ID_INVALID, ErrorConversationIdInvalid.XmlResult),
+      ("return ErrorClientIdMissing result for clientId header missing", withAuthTokenConfigured, ValidHeaders - X_CDS_CLIENT_ID_HEADER_NAME, ErrorGenericBadRequest.XmlResult),
+      ("return ErrorClientIdInvalid result for clientId header invalid", withAuthTokenConfigured, ValidHeaders + X_CDS_CLIENT_ID_INVALID, ErrorGenericBadRequest.XmlResult),
+      ("return ErrorConversationIdMissing result for conversationId header missing", withAuthTokenConfigured, ValidHeaders - X_CONVERSATION_ID_HEADER_NAME, ErrorGenericBadRequest.XmlResult),
+      ("return ErrorConversationIdInvalid result for conversationId header invalid", withAuthTokenConfigured, ValidHeaders + X_CONVERSATION_ID_INVALID, ErrorGenericBadRequest.XmlResult),
       ("return ErrorUnauthorized result for Authorization header missing", withAuthTokenConfigured, ValidHeaders - AUTHORIZATION, ErrorUnauthorized.XmlResult),
       ("return ErrorUnauthorized result for Authorization header invalid", withAuthTokenConfigured, ValidHeaders + BASIC_AUTH_HEADER_INVALID, ErrorUnauthorized.XmlResult),
       ("return ErrorAcceptHeaderInvalid result for all headers missing", withAuthTokenConfigured, NoHeaders, ErrorAcceptHeaderInvalid.XmlResult),
@@ -70,7 +78,7 @@ class HeaderServiceSpec extends UnitSpec with MockitoSugar with TableDrivenPrope
       ("return Bad Request if correlation id header is present but empty", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> ""), ErrorGenericBadRequest.XmlResult),
       ("return OK if correlation id header is provided and valid", withAuthTokenConfigured, ValidHeaders + (X_CORRELATION_ID_HEADER_NAME -> Random.nextString(36)), Ok),
       ("return OK if there are multiple valid accept headers", withAuthTokenConfigured, ValidHeaders + CONTENT_TYPE_HEADER_LOWERCASE, Ok),
-        )
+    )
 
   private def requestWithHeaders(headers: Map[String, String]) =
     FakeRequest().withHeaders(headers.toSeq: _*)

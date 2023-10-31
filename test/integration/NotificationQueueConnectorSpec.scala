@@ -23,7 +23,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
-import uk.gov.hmrc.customs.notification.error.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.util.Errors.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.models.ClientNotification
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}

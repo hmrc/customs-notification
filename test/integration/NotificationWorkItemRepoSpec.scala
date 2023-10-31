@@ -25,10 +25,9 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.config.{CustomsNotificationConfig, NotificationConfig, NotificationMetricsConfig, NotificationQueueConfig, UnblockPollerConfig}
-import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.models.requests.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.config._
+import uk.gov.hmrc.customs.notification.models.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.models.repo.{FailedButNotBlocked, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
@@ -69,19 +68,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   private val mongoRepository: MongoComponent =
     app.injector.instanceOf[MongoComponent]
 
-  private val customsNotificationConfig: CustomsNotificationConfig = {
-    new CustomsNotificationConfig {
-      override def maybeBasicAuthToken: Option[String] = None
-
-      override def notificationQueueConfig: NotificationQueueConfig = mock[NotificationQueueConfig]
-
-      override def notificationConfig: NotificationConfig = pushConfig
-
-      override def notificationMetricsConfig: NotificationMetricsConfig = mock[NotificationMetricsConfig]
-
-      override def unblockPollerConfig: UnblockPollerConfig = mockUnblockPollerConfig
-    }
-  }
+  private val customsNotificationConfig: CustomsNotificationConfig = CustomsNotificationConfig(
+    None,
+    mock[NotificationQueueConfig],
+    pushConfig,
+    mock[NotificationMetricsConfig],
+    mockUnblockPollerConfig)
 
   private val repository = new NotificationWorkItemRepo(mongoRepository, customsNotificationConfig, mockCdsLogger, mockConfiguration)
 
@@ -111,9 +103,9 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "successfully save a single notification work item with specified status" in {
-      val result = await(repository.saveWithLock(NotificationWorkItem1, PermanentlyFailed))
+      val result = await(repository.saveWithLock(NotificationWorkItem1, FailedButNotBlocked))
 
-      result.status shouldBe PermanentlyFailed
+      result.status shouldBe FailedButNotBlocked
       result.item shouldBe NotificationWorkItem1
       result.failureCount shouldBe 0
       collectionSize shouldBe 1

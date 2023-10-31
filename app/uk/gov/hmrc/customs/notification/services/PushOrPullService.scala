@@ -34,6 +34,7 @@ import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class PushOrPullService @Inject()(apiSubscriptionFieldsConnector: ApiSubscriptionFieldsConnector,
                                   notificationQueueConnector: NotificationQueueConnector,
                                   logger: NotificationLogger,

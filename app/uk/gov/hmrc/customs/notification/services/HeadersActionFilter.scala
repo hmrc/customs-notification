@@ -16,21 +16,25 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import play.api.Configuration
 import play.api.http.HeaderNames._
 import play.api.mvc._
 import play.mvc.Http.MimeTypes
 import play.mvc.Http.Status.UNAUTHORIZED
+import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
-import uk.gov.hmrc.customs.notification.models.ClientId
-import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.config.{AppConfig, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class HeaderService @Inject()(notificationLogger: NotificationLogger, bodyParser: BodyParser[AnyContent])(implicit ec: ExecutionContext){
+class HeadersActionFilter @Inject()(appConfig: AppConfig,
+                                    notificationLogger: NotificationLogger)
+                                   (implicit ec: ExecutionContext) extends ActionFilter[Request] {
   private val uuidRegex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
   private val correlationIdRegex = "^.{1,36}$"
   private val basicAuthTokenScheme = "Basic "
@@ -39,55 +43,53 @@ class HeaderService @Inject()(notificationLogger: NotificationLogger, bodyParser
   private val invalidHeaderText = "header failed validation"
   private val headerNotPresentText = "header is not present"
 
-  def validateHeaders(maybeBasicAuthToken: Option[String])(ec: ExecutionContext): ActionBuilder[Request, AnyContent] = new ActionBuilder[Request, AnyContent] {
-    override protected def executionContext: ExecutionContext = ec
-    override def parser: BodyParser[AnyContent] = bodyParser
-    def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
-      implicit val headers: Headers = request.headers
+  override def executionContext: ExecutionContext = ec
+  override def filter[A](request: Request[A]): Future[Option[Result]] = {
+    implicit val headers: Headers = request.headers
+    val maybeBasicAuthToken = appConfig.maybeBasicAuthToken
 
-      notificationLogger.debugWithHeaders("Received notification", headers.headers)
+    notificationLogger.debugWithHeaders("Received notification", headers.headers)
 
-      def collect(validation: Headers => Option[String], logMessage: String, error: ErrorResponse)(implicit h: Headers): Either[ErrorResponse,String]  = {
-        val maybeString = validation(h)
-        maybeString match {
-          case None =>
-            notificationLogger.debugWithPrefixedHeaders(logMessage, headers.headers)
-            Left(error)
-          case Some(msg) =>
-            Right(logMessage + "\n" + msg)
-        }
+    def collect(validation: Headers => Option[String], logMessage: String, error: ErrorResponse)(implicit h: Headers): Either[ErrorResponse, String] = {
+      val maybeString = validation(h)
+      maybeString match {
+        case None =>
+          notificationLogger.debugWithPrefixedHeaders(logMessage, headers.headers)
+          Left(error)
+        case Some(msg) =>
+          Right(logMessage + "\n" + msg)
       }
+    }
 
-      val logOutput: Either[ErrorResponse,String] = for {
-        logAccumulatorA <- collect(hasAccept, "", ErrorAcceptHeaderInvalid)
-        logAccumulatorB <- collect(hasContentType, logAccumulatorA, ErrorContentTypeHeaderInvalid)
-        logAccumulatorC <- collect(missingClientId, logAccumulatorB, errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header is missing"))
-        logAccumulatorD <- collect(hasValidClientId, logAccumulatorC, errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header value is invalid"))
-        logAccumulatorE <- collect(missingConversationId, logAccumulatorD, errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header is missing"))
-        logAccumulatorF <- collect(hasValidConversationId, logAccumulatorE, errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header value is invalid"))
-        logAccumulatorG <- collect(hasAuth(maybeBasicAuthToken), logAccumulatorF, ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized"))
-        logAccumulatorH <- collect(correlationIdIsValidIfPresent, logAccumulatorG, ErrorGenericBadRequest)
-      } yield logAccumulatorH
+    val logOutput: Either[ErrorResponse, String] = for {
+      logAccumulatorA <- collect(hasAccept, "", ErrorAcceptHeaderInvalid)
+      logAccumulatorB <- collect(hasContentType, logAccumulatorA, ErrorContentTypeHeaderInvalid)
+      logAccumulatorC <- collect(missingClientId, logAccumulatorB, errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header is missing"))
+      logAccumulatorD <- collect(hasValidClientId, logAccumulatorC, errorBadRequest(s"The $X_CDS_CLIENT_ID_HEADER_NAME header value is invalid"))
+      logAccumulatorE <- collect(missingConversationId, logAccumulatorD, errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header is missing"))
+      logAccumulatorF <- collect(hasValidConversationId, logAccumulatorE, errorBadRequest(s"The $X_CONVERSATION_ID_HEADER_NAME header value is invalid"))
+      logAccumulatorG <- collect(hasAuth(maybeBasicAuthToken), logAccumulatorF, ErrorResponse(UNAUTHORIZED, UnauthorizedCode, "Basic token is missing or not authorized"))
+      logAccumulatorH <- collect(correlationIdIsValidIfPresent, logAccumulatorG, ErrorGenericBadRequest)
+    } yield logAccumulatorH
 
-      logOutput match {
-        case Right(msg) =>
-          notificationLogger.debugWithPrefixedHeaders(msg, headers.headers)
-          block(request)
-        case Left(error) =>
-          Future.successful(error.XmlResult)
-      }
+    logOutput match {
+      case Right(msg) =>
+        notificationLogger.debugWithPrefixedHeaders(msg, headers.headers)
+        Future.successful(None)
+      case Left(error) =>
+        Future.successful(Some(error.XmlResult))
     }
   }
 
-  private def validateHeaderForDeleteBlocked(headers: Headers, endpointName: String): Either[ErrorResponse, ClientId] = {
-    headers.get(X_CLIENT_ID_HEADER_NAME).fold[Either[ErrorResponse, ClientId]] {
-      notificationLogger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling $endpointName endpoint", headers.headers)
-      Left(errorBadRequest(s"$X_CLIENT_ID_HEADER_NAME required"))
-    } { clientId =>
-      notificationLogger.debugWithHeaders(s"called $endpointName", headers.headers)
-      Right(ClientId(clientId))
-    }
-  }
+  //  private def validateHeaderForDeleteBlocked(headers: Headers, endpointName: String): Either[ErrorResponse, ClientId] = {
+  //    headers.get(X_CLIENT_ID_HEADER_NAME).fold[Either[ErrorResponse, ClientId]] {
+  //      notificationLogger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling $endpointName endpoint", headers.headers)
+  //      Left(errorBadRequest(s"$X_CLIENT_ID_HEADER_NAME required"))
+  //    } { clientId =>
+  //      notificationLogger.debugWithHeaders(s"called $endpointName", headers.headers)
+  //      Right(ClientId(clientId))
+  //    }
+  //  }
 
   private def hasAccept(h: Headers): Option[String] = {
     val result = h.get(ACCEPT).fold(false)(_ == MimeTypes.XML)

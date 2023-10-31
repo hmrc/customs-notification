@@ -16,8 +16,8 @@
 
 package util
 
+import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models.requests.CustomsNotificationsMetricsRequest
-import uk.gov.hmrc.customs.notification.{models, placeholder, requests}
 
 import java.time.{ZoneId, ZonedDateTime}
 
