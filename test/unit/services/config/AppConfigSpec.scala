@@ -17,8 +17,8 @@
 package unit.services.config
 
 import com.typesafe.config.{Config, ConfigFactory}
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
 import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor
 import uk.gov.hmrc.customs.notification.config.{AppConfig, NotificationQueueConfig}
@@ -117,7 +117,7 @@ class AppConfigSpec extends UnitSpec with MockitoSugar with Matchers {
     "return config as object model when configuration is valid" in {
       val actual = configService(validServicesConfig)
 
-      actual.maybeBasicAuthToken shouldBe Some(basicAuthTokenValue)
+      actual.basicAuthToken shouldBe Some(basicAuthTokenValue)
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
       actual.notificationConfig.internalClientIds shouldBe Seq("ClientIdOne", "ClientIdTwo")
       actual.notificationConfig.ttlInSeconds shouldBe 1
@@ -133,7 +133,7 @@ class AppConfigSpec extends UnitSpec with MockitoSugar with Matchers {
     "return config as object model when configuration is valid and contains only mandatory values" in {
       val actual = configService(mandatoryOnlyServicesConfig)
 
-      actual.maybeBasicAuthToken shouldBe None
+      actual.basicAuthToken shouldBe None
       actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
       actual.notificationConfig.ttlInSeconds shouldBe 1
       actual.unblockPollerConfig.pollerInterval shouldBe (400 milliseconds)

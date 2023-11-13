@@ -18,15 +18,15 @@ package unit.connectors
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
+import org.mockito.scalatest.MockitoSugar
 import org.mockito.{ArgumentCaptor, ArgumentMatchers}
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Writes
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.config.AppConfig
 import uk.gov.hmrc.customs.notification.connectors.PushConnector
-import uk.gov.hmrc.customs.notification.models.requests.PushNotificationRequestBody
+import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpReads, HttpResponse}
 import util.TestData.{externalPushNotificationRequest, requestMetaData}

@@ -16,17 +16,22 @@
 
 package uk.gov.hmrc.customs.notification.models
 
+import org.bson.types.ObjectId
+import org.joda.time.DateTime
 import play.api.libs.json._
+import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
 
-import java.net.URL
+import java.time.ZonedDateTime
 import java.util.UUID
 
 case class ConversationId(id: UUID) extends AnyVal {
   override def toString: String = id.toString
 }
+
 object ConversationId {
   implicit val conversationIdJF: Format[ConversationId] = new Format[ConversationId] {
     def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
+
     def reads(json: JsValue): JsResult[ConversationId] = json match {
       case JsNull => JsError()
       case _ => JsSuccess(ConversationId(json.as[UUID]))
@@ -37,9 +42,11 @@ object ConversationId {
 case class NotificationId(id: UUID) extends AnyVal {
   override def toString: String = id.toString
 }
+
 object NotificationId {
   implicit val notificationIdJF: Format[NotificationId] = new Format[NotificationId] {
     def writes(notificationId: NotificationId) = JsString(notificationId.id.toString)
+
     def reads(json: JsValue): JsResult[NotificationId] = json match {
       case JsNull => JsError()
       case _ => JsSuccess(NotificationId(json.as[UUID]))
@@ -50,9 +57,27 @@ object NotificationId {
 case class ClientId(id: String) extends AnyVal {
   override def toString: String = id
 }
+
+case class ClientSubscriptionId(id: UUID) extends AnyVal {
+  override def toString: String = id.toString
+}
+
+object ClientSubscriptionId {
+  implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] =
+    new Format[ClientSubscriptionId] {
+      def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
+
+      def reads(json: JsValue): JsResult[ClientSubscriptionId] = json match {
+        case JsNull => JsError()
+        case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
+      }
+    }
+}
+
 object ClientId {
   implicit val clientIdJF: Format[ClientId] = new Format[ClientId] {
     def writes(clientId: ClientId) = JsString(clientId.id)
+
     def reads(json: JsValue): JsResult[ClientId] = json match {
       case JsNull => JsError()
       case _ => JsSuccess(ClientId(json.as[String]))
@@ -60,23 +85,7 @@ object ClientId {
   }
 }
 
-case class Submitter(id: String) extends AnyVal {
-  override def toString: String = id
-}
-
-case class BadgeId(id: String) extends AnyVal {
-  override def toString: String = id
-}
-
-case class CorrelationId(id: String) extends AnyVal {
-  override def toString: String = id
-}
-
 case class FunctionCode(value: String) extends AnyVal {
-  override def toString: String = value
-}
-
-case class IssueDateTime(value: String) extends AnyVal {
   override def toString: String = value
 }
 
@@ -84,64 +93,49 @@ case class Mrn(value: String) extends AnyVal {
   override def toString: String = value
 }
 
-case class Header(name: String, value: String)
+case class Header(name: String, value: String) {
+  val toTuple: (String, String) = name -> value
+}
 
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
 
-case class ApiSubscriptionFields(clientId: String,
-                                 fields: DeclarantCallbackData) {
-  def isPush: Boolean = fields.callbackUrl.isPush
-}
+case class ApiSubscriptionFields(clientId: ClientId,
+                                 fields: PushCallbackData)
 
 object ApiSubscriptionFields {
-  implicit val jsonFormat = Json.format[ApiSubscriptionFields]
+  implicit val reads: Reads[ApiSubscriptionFields] = Json.reads[ApiSubscriptionFields]
 }
 
-case class CallbackUrl(url: Option[URL]) extends AnyVal {
-  override def toString: String = url.fold("")(_.toString)
-  def isPush: Boolean = url.isDefined
-  def isPull: Boolean = url.isEmpty
-}
+case class RequestMetadata(clientSubscriptionId: ClientSubscriptionId,
+                           conversationId: ConversationId,
+                           notificationId: NotificationId,
+                           maybeBadgeId: Option[Header],
+                           maybeSubmitterNumber: Option[Header],
+                           maybeCorrelationId: Option[Header],
+                           maybeIssueDateTime: Option[Header],
+                           maybeFunctionCode: Option[FunctionCode],
+                           maybeMrn: Option[Mrn],
+                           startTime: ZonedDateTime)
 
-trait HasId {
-  def idName: String
-  def idValue: String
-}
+case class Notification(notificationId: NotificationId,
+                        conversationId: ConversationId,
+                        headers: Seq[Header],
+                        payload: String,
+                        contentType: String,
+                        mostRecentPushPullHttpStatus: Option[Int] = None)
 
-trait HasClientSubscriptionId {
-  def clientSubscriptionId: ClientSubscriptionId
+object Notification {
+  implicit val notificationJF: Format[Notification] = Json.format[Notification]
 }
+case class NotificationWorkItem(_id: ClientSubscriptionId,
+                                clientId: ClientId,
+                                metricsStartDateTime: ZonedDateTime,
+                                notification: Notification)
 
-trait HasNotificationId {
-  def notificationId: NotificationId
-}
-
-trait HasMaybeClientId {
-  def maybeClientId: Option[ClientId]
-}
-
-trait HasMaybeBadgeId {
-  def maybeBadgeId: Option[BadgeId]
-}
-
-trait HasMaybeSubmitter {
-  def maybeSubmitterNumber: Option[Submitter]
-}
-
-trait HasMaybeCorrelationId {
-  def maybeCorrelationId: Option[CorrelationId]
-}
-
-trait HasMaybeFunctionCode {
-  def maybeFunctionCode: Option[FunctionCode]
-}
-
-trait HasMaybeIssueDateTime {
-  def maybeIssueDateTime: Option[IssueDateTime]
-}
-
-trait HasMaybeMrn {
-  def maybeMrn: Option[Mrn]
+object NotificationWorkItem {
+  implicit val dateFormats: Format[DateTime] = MongoJodaFormats.dateTimeFormat
+  implicit val objectIdFormats: Format[ObjectId] = MongoFormats.objectIdFormat
+  implicit val format: OFormat[NotificationWorkItem] = Json.format[NotificationWorkItem]
 }

@@ -22,7 +22,7 @@ import util.CustomsNotificationMetricsTestData.{EventEnd, EventStart}
 import util.TestData.conversationId
 import util.UnitSpec
 
-class CustomsNotificationsMetricsRequestSpec extends UnitSpec {
+class MetricsRequestSpec extends UnitSpec {
 
 
   private val expectedJson: JsValue = Json.parse("""
@@ -36,7 +36,7 @@ class CustomsNotificationsMetricsRequestSpec extends UnitSpec {
 
   "CustomsDeclarationsMetricsRequest model" should {
     "serialise to Json" in {
-      val request = models.requests.CustomsNotificationsMetricsRequest("NOTIFICATION", conversationId, EventStart, EventEnd)
+      val request = models.requests.MetricsRequest(conversationId, EventStart, EventEnd)
       val actualJson: JsValue = Json.toJson(request)
 
       actualJson shouldBe expectedJson

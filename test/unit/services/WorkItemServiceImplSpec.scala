@@ -20,10 +20,9 @@ import com.codahale.metrics.{Counter, MetricRegistry}
 import com.kenshoo.play.metrics.Metrics
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.scalatest.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.config.{CustomsNotificationConfig, NotificationConfig}
-import uk.gov.hmrc.customs.notification.models.HasId
 import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.customs.notification.util.{NotificationLogger, NotificationWorkItemRepo}

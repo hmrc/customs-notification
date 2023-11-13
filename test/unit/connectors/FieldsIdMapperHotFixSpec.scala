@@ -17,7 +17,7 @@
 package unit.connectors
 
 import org.mockito.Mockito.when
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.scalatest.MockitoSugar
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.config.NotificationConfig
 import util.MockitoPassByNameHelper.PassByNameVerifier

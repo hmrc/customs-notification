@@ -16,103 +16,259 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
+import cats.implicits._
 import play.api.http.ContentTypes
-
-import javax.inject.{Inject, Singleton}
+import play.api.http.HeaderNames.{ACCEPT, AUTHORIZATION}
+import play.api.mvc.Results.Ok
 import play.api.mvc._
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
-import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
-import uk.gov.hmrc.customs.notification.models.requests.MetaDataRequest
-import uk.gov.hmrc.customs.notification.models.{ClientId, HasId}
-import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, HeadersActionFilter}
-import uk.gov.hmrc.customs.notification.util.HeaderNames.{NOTIFICATION_ID_HEADER_NAME, X_CLIENT_ID_HEADER_NAME}
-import uk.gov.hmrc.customs.notification.util.{DateTimeHelper, NotificationLogger, NotificationWorkItemRepo, Util}
-import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
+import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
+import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
+import uk.gov.hmrc.customs.notification.config.BasicAuthTokenConfig
+import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController._
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableHeaders
+import uk.gov.hmrc.customs.notification.models._
+import uk.gov.hmrc.customs.notification.models.errors.CdsError
+import uk.gov.hmrc.customs.notification.models.errors.ControllerError._
+import uk.gov.hmrc.customs.notification.services.NotificationService.{DeclarantNotFound, NotificationServiceGenericError}
+import uk.gov.hmrc.customs.notification.services.{DateTimeService, NotificationService, UuidService}
+import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
+import uk.gov.hmrc.customs.notification.util.HeaderNames._
+import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo.MongoDbError
+import uk.gov.hmrc.customs.notification.util._
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
-import scala.concurrent.{ExecutionContext, Future}
+import java.time.ZonedDateTime
+import java.util.{Locale, UUID}
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.ExecutionContext
 import scala.xml.NodeSeq
 
 @Singleton
 class CustomsNotificationController @Inject()(cc: ControllerComponents,
-                                              logger: NotificationLogger,
-                                              headersActionFilter: HeadersActionFilter,
-                                              customsNotificationService: CustomsNotificationService,
-                                              repo: NotificationWorkItemRepo)(implicit ec: ExecutionContext) extends BackendController(cc) {
+                                              customsNotificationService: NotificationService,
+                                              dateTimeService: DateTimeService,
+                                              uuidService: UuidService,
+                                              basicAuthTokenConfig: BasicAuthTokenConfig,
+                                              workItemRepo: NotificationWorkItemRepo)(implicit ec: ExecutionContext,
+                                                                                      logger: NotificationLogger) extends BackendController(cc) {
   override val controllerComponents: ControllerComponents = cc
-  //TODO move this during process of cleaning up headerservice as only used here
-  private val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
 
-  def submit(): Action[AnyContent] = {
-    (Action andThen headersActionFilter).async {
-      implicit request: Request[AnyContent] =>
-        val startTime = DateTimeHelper.zonedDateTimeUtc
-        val maybeXml: Option[NodeSeq] = request.body.asXml
-        val metaDataRequest: MetaDataRequest = MetaDataRequest.buildMetaDataRequest(maybeXml, request.headers, startTime)
-        implicit val headerCarrier: HeaderCarrier = hc(request).copy()
-          .withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, metaDataRequest.notificationId.toString))
-        maybeXml match {
-          case Some(xml) =>
-            customsNotificationService.handleNotification(xml, metaDataRequest)(headerCarrier)
-            Future.successful(Results.Accepted)
-          case None =>
-            logger.error(xmlValidationErrorMessage)(metaDataRequest)
-            Future.successful(errorBadRequest(xmlValidationErrorMessage).XmlResult)
+  def submit(): Action[AnyContent] = Action.async { request =>
+    implicit val h: Headers = request.headers
+    (for {
+      _ <- authorize(basicAuthTokenConfig).toFutureCdsResult
+      _ <- validateAcceptHeader.toFutureCdsResult
+      _ <- validateContentTypeHeader.toFutureCdsResult
+      xml <- validateXml(request).toFutureCdsResult
+      startTime = dateTimeService.now()
+      notificationId = NotificationId(uuidService.getRandomUuid())
+      requestMetadata <- validateRequestMetadata(xml, notificationId, startTime).toFutureCdsResult
+      _ <- FutureCdsResult(customsNotificationService.handleNotification(xml, requestMetadata)(hc(request)))
+    } yield ()).value.map({
+      case Right(_) =>
+        Results.Accepted
+      case Left(error) =>
+        handleSubmitError(error)
+    })
+  }
+
+  private def handleSubmitError(error: CdsError)(implicit headers: Headers): Result = error match {
+    case e: InvalidBasicAuth =>
+      ErrorResponse(UNAUTHORIZED, UnauthorizedCode, e.responseMessage).XmlResult
+    case e: InvalidContentType =>
+      ErrorResponse(UNSUPPORTED_MEDIA_TYPE, UnsupportedMediaTypeCode, e.responseMessage).XmlResult
+    case e: InvalidAccept =>
+      ErrorResponse(NOT_ACCEPTABLE, NotAcceptableCode, e.responseMessage).XmlResult
+    case InvalidHeaders(headerErrors) =>
+      val responseMessage = headerErrors.map(_.responseMessage).toList.mkString("\n")
+      ErrorResponse(BAD_REQUEST, BadRequestCode, responseMessage).XmlResult
+    case BadlyFormedXml =>
+      ErrorResponse(BAD_REQUEST, BadRequestCode, BadlyFormedXml.message).XmlResult
+    case DeclarantNotFound =>
+      ErrorResponse(BAD_REQUEST, BadRequestCode, s"The $X_CLIENT_SUB_ID_HEADER_NAME header is invalid").XmlResult
+    case NotificationServiceGenericError =>
+      ErrorInternalServerError.XmlResult
+    case e =>
+      logger.error(s"Unhandled error: $e", headers)
+      ErrorInternalServerError.XmlResult
+  }
+
+  def blockedCount(): Action[AnyContent] = Action.async { request =>
+    (for {
+      clientId <- getClientId(request.headers).toFutureCdsResult
+      count <- FutureCdsResult(workItemRepo.blockedCount(clientId))
+    } yield count).value.map {
+      case Right(count) =>
+        blockedCountOkResponseFrom(count)
+      case Left(MissingClientId) =>
+        logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling blocked-count endpoint", request.headers)
+        ErrorResponse(BAD_REQUEST, BadRequestCode, MissingClientId.responseMessage).XmlResult
+      case Left(MongoDbError(t)) =>
+        logger.error(s"Unable to delete blocked flags due to $t", request.headers)
+        ErrorInternalServerError.XmlResult
+    }
+  }
+
+  def deleteBlocked(): Action[AnyContent] = Action.async { request =>
+    (for {
+      clientId <- getClientId(request.headers).toFutureCdsResult
+      count <- FutureCdsResult(workItemRepo.unblockFailedAndBlockedByClientId(clientId))
+    } yield count).value.map {
+      case Right(0) =>
+        logger.info(s"No blocked flags deleted", request.headers)
+        ErrorNotFound.XmlResult
+      case Right(count) =>
+        logger.info(s"$count blocked flags deleted", request.headers)
+        Results.NoContent
+      case Left(MissingClientId) =>
+        logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling delete blocked-flag endpoint", request.headers)
+        ErrorResponse(BAD_REQUEST, BadRequestCode, MissingClientId.responseMessage).XmlResult
+      case Left(MongoDbError(t)) =>
+        logger.error(s"Unable to delete blocked flags due to: $t", request.headers)
+        ErrorInternalServerError.XmlResult
+    }
+  }
+}
+
+private object CustomsNotificationController {
+
+  private def validateMandatory[E, A](headerName: String, predicate: String => Boolean)
+                                     (mapValue: String => A)
+                                     (mapError: HeaderErrorType => E)
+                                     (implicit headers: Headers): Either[E, A] =
+    headers.get(headerName) match {
+      case Some(value) =>
+        if (predicate(value)) {
+          Right(mapValue(value))
+        } else {
+          Left(mapError(InvalidHeaderValue))
         }
+      case None =>
+        Left(mapError(MissingHeaderValue))
+    }
+
+  private def validateOptional[E, A](headerName: String,
+                                     predicate: String => Boolean)
+                                    (mapValue: String => A)
+                                    (error: => E)(implicit headers: Headers): Either[E, Option[A]] =
+    validateMandatory(headerName, predicate)(mapValue)(identity) match {
+      case Right(value) => Right(Some(value))
+      case Left(MissingHeaderValue) => Right(None)
+      case Left(InvalidHeaderValue) => Left(error)
+    }
+
+  private def extractValues(xmlNode: NodeSeq): Option[String] = {
+    xmlNode.theSeq match {
+      case Seq() => None
+      case xs => Some {
+        xs.collect { case node if node.nonEmpty && xmlNode.text.trim.nonEmpty => node.text.trim }
+          .mkString("|")
+      }
     }
   }
 
-  def blockedCount(): Action[AnyContent] = Action.async {
-    implicit request: Request[AnyContent] =>
-      validateHeader(request.headers, "blocked-count") match {
-        case Left(errorResponse) => Future.successful(errorResponse.XmlResult)
-        case Right(clientId) =>
-          implicit val loggingContext: HasId = Util.createLoggingContext(clientId.toString)
-          repo.blockedCount(ClientId(clientId.toString)).map { count =>
-            logger.info(s"blocked count of $count returned")
-            val countXml = <pushNotificationBlockedCount>
-              {count}
-            </pushNotificationBlockedCount>
-            Ok(s"<?xml version='1.0' encoding='UTF-8'?>\n$countXml").as(ContentTypes.XML)
-          }.recover {
-            case t: Throwable =>
-              logger.error(s"unable to get blocked count due to $t")
-              ErrorInternalServerError.XmlResult
-          }
-      }
-  }
+  private val UuidRegex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  private val CorrelationIdRegex = "^.{1,36}$"
 
-  def deleteBlocked(): Action[AnyContent] = Action.async {
-    implicit request =>
-      validateHeader(request.headers, "delete blocked-flag") match {
-        case Left(errorResponse) => Future.successful(errorResponse.XmlResult)
-        case Right(clientId) =>
-          implicit val loggingContext: HasId = Util.createLoggingContext(clientId.toString)
-          repo.unblockFailedAndBlockedByClientId(ClientId(clientId.toString)).map { updateCount =>
-            if (updateCount > 0) {
-              logger.info(s"blocked flags deleted for clientId $clientId")
-              NoContent
-            } else {
-              logger.info(s"no blocked flags deleted for clientId $clientId")
-              ErrorNotFound.XmlResult
-            }
-          }.recover {
-            case t: Throwable =>
-              logger.error(s"unable to delete blocked flags due to $t")
-              ErrorInternalServerError.XmlResult
-          }
-      }
-  }
+  private def validateRequestMetadata(xml: NodeSeq,
+                                      notificationId: NotificationId,
+                                      startTime: ZonedDateTime)
+                                     (implicit h: Headers,
+                                      logger: NotificationLogger): Either[InvalidHeaders, RequestMetadata] = {
+    val validateClientSubId = validateMandatory(X_CLIENT_SUB_ID_HEADER_NAME, _.matches(UuidRegex))(
+      id => ClientSubscriptionId(UUID.fromString(id))
+    )(InvalidClientSubId)
 
-  //TODO move this
-  private def validateHeader(headers: Headers, endpointName: String): Either[ErrorResponse, ClientId] = {
-    headers.get(X_CLIENT_ID_HEADER_NAME).fold[Either[ErrorResponse, ClientId]] {
-      logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling $endpointName endpoint", headers.headers)
-      Left(errorBadRequest(s"$X_CLIENT_ID_HEADER_NAME required"))
-    } { clientId =>
-      logger.debugWithHeaders(s"called $endpointName", headers.headers)
-      Right(ClientId(clientId))
+    val validateConversationId = validateMandatory(X_CONVERSATION_ID_HEADER_NAME, _.matches(UuidRegex))(
+      id => ConversationId(UUID.fromString(id))
+    )(InvalidConversationId)
+
+    val validateCorrelationId = validateOptional(X_CORRELATION_ID_HEADER_NAME, _.matches(CorrelationIdRegex))(
+      id => Header(X_CORRELATION_ID_HEADER_NAME, id)
+    )(InvalidCorrelationId)
+
+    val maybeBadgeId = h.get(X_BADGE_ID_HEADER_NAME).map(v => Header(X_BADGE_ID_HEADER_NAME, v))
+    val maybeSubmitter = h.get(X_SUBMITTER_ID_HEADER_NAME).map(v => Header(X_SUBMITTER_ID_HEADER_NAME, v))
+    val maybeFunctionCode = extractValues(xml \ "Response" \ "FunctionCode").map(FunctionCode)
+    val maybeIssueDateTime = extractValues(xml \ "Response" \ "IssueDateTime" \ "DateTimeString")
+      .fold(h.get(ISSUE_DATE_TIME_HEADER_NAME))(Some.apply)
+      .map(value => Header(ISSUE_DATE_TIME_HEADER_NAME, value))
+    val maybeMrn = extractValues(xml \ "Response" \ "Declaration" \ "ID").map(Mrn)
+
+    (validateClientSubId.toValidatedNel,
+      validateConversationId.toValidatedNel,
+      validateCorrelationId.toValidatedNel)
+      .mapN { (clientSubscriptionId, conversationId, maybeCorrelationId) =>
+        RequestMetadata(
+          clientSubscriptionId,
+          conversationId,
+          notificationId,
+          maybeBadgeId,
+          maybeSubmitter,
+          maybeCorrelationId,
+          maybeIssueDateTime,
+          maybeFunctionCode,
+          maybeMrn,
+          startTime)
+      }.toEither.leftMap { errors =>
+      errors.toList.foreach(e => logger.error(e.responseMessage, h))
+      InvalidHeaders(errors)
     }
+  }
+
+  private def getClientId(headers: Headers): Either[MissingClientId.type, ClientId] =
+    validateMandatory(X_CLIENT_ID_HEADER_NAME, _.nonEmpty)(ClientId.apply)(_ => MissingClientId)(headers)
+
+  private def authorize(basicAuthTokenConfig: BasicAuthTokenConfig)(implicit h: Headers, logger: NotificationLogger): Either[InvalidBasicAuth, Unit] =
+    validateMandatory(AUTHORIZATION, _.contains(basicAuthTokenConfig.token))(_ => ()) { errorType =>
+      val error = InvalidBasicAuth(errorType)
+      logger.error(error.responseMessage, h)
+      error
+    }
+
+  private def validateAcceptHeader(implicit h: Headers, logger: NotificationLogger): Either[InvalidAccept, Unit] =
+    validateMandatory(ACCEPT, _.contains(MimeTypes.XML))(_ => ()) { errorType =>
+      val error = InvalidAccept(errorType)
+      logger.error(error.responseMessage, h)
+      error
+    }
+
+  private def validateContentTypeHeader(implicit h: Headers, logger: NotificationLogger): Either[InvalidContentType, Unit] = {
+    val isValidContentType: String => Boolean = value => {
+      val tl = value.toLowerCase(Locale.ENGLISH)
+      tl.startsWith("text/xml") || tl.startsWith("application/xml")
+    }
+
+    validateMandatory(ACCEPT, isValidContentType)(_ => ()) { errorType =>
+      val error = InvalidContentType(errorType)
+      logger.error(error.responseMessage, h)
+      error
+    }
+  }
+
+  private def validateXml(request: Request[AnyContent])
+                         (implicit headers: Headers, logger: NotificationLogger): Either[BadlyFormedXml.type, NodeSeq] = {
+    val isValidContentType = request.contentType.exists { t =>
+      val tl = t.toLowerCase(Locale.ENGLISH)
+      tl.startsWith("text/xml") || tl.startsWith("application/xml")
+    }
+
+    if (isValidContentType) {
+      request.body.asXml match {
+        case Some(xml) => Right(xml)
+        case None => Left(BadlyFormedXml)
+      }
+    } else {
+      logger.error(BadlyFormedXml.message, headers)
+      Left(BadlyFormedXml)
+    }
+  }
+
+  private def blockedCountOkResponseFrom(count: Int): Result = {
+    // @formatter:off
+    val countXml = <pushNotificationBlockedCount>{count}</pushNotificationBlockedCount>
+    // @formatter:on
+    Ok(s"<?xml version='1.0' encoding='UTF-8'?>\n$countXml").as(ContentTypes.XML)
   }
 }

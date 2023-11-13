@@ -16,8 +16,8 @@
 
 package integration
 
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Inside}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder

@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 
-package util
+package uk.gov.hmrc.customs.notification.services
 
-import uk.gov.hmrc.customs.notification.models
-import uk.gov.hmrc.customs.notification.models.requests.MetricsRequest
+import com.google.inject.Singleton
 
-import java.time.{ZoneId, ZonedDateTime}
+import java.util.UUID
 
-object CustomsNotificationMetricsTestData {
+@Singleton
+class UuidService {
 
-  val UtcZoneId: ZoneId = ZoneId.of("UTC")
-  
-  val EventStart: ZonedDateTime = ZonedDateTime.of(2016, 1, 30, 23, 46,
-    59, 0, UtcZoneId)
-  val EventEnd: ZonedDateTime = EventStart.plusSeconds(2)
-
-  val ValidCustomsNotificationMetricsRequest: MetricsRequest =
-    models.requests.MetricsRequest(TestData.conversationId, EventStart, EventEnd)
+  def getRandomUuid(): UUID = UUID.randomUUID()
 
 }

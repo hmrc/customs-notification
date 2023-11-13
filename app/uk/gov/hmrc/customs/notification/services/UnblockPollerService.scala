@@ -18,52 +18,77 @@ package uk.gov.hmrc.customs.notification.services
 
 import akka.actor.ActorSystem
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, ClientSubscriptionId}
-import uk.gov.hmrc.customs.notification.models.repo.FailedAndBlocked
+import uk.gov.hmrc.customs.notification.config.{ApiSubscriptionFieldsUrlConfig, CustomsNotificationConfig}
+import uk.gov.hmrc.customs.notification.models.ApiSubscriptionFields.reads
+import uk.gov.hmrc.customs.notification.models.errors.CdsError
+import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, ClientSubscriptionId, FailedAndBlocked}
+import uk.gov.hmrc.customs.notification.models.requests.ApiSubscriptionFieldsRequest
+import uk.gov.hmrc.customs.notification.services.UnblockPollerService.NoFailedAndBlockedNotificationsFound
+import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
 import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 
 import javax.inject._
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class UnblockPollerService @Inject()(actorSystem: ActorSystem,
-                                     notificationWorkItemRepo: NotificationWorkItemRepo,
-                                     pushOrPullService: PushOrPullService,
+                                     repo: NotificationWorkItemRepo,
+                                     pushOrPullService: SendService,
                                      logger: CdsLogger,
                                      customsNotificationConfig: CustomsNotificationConfig,
-                                     apiSubscriptionFieldsConnector: ApiSubscriptionFieldsConnector)(implicit executionContext: ExecutionContext) {
+                                     apiSubsFieldsUrlConfig: ApiSubscriptionFieldsUrlConfig,
+                                     httpConnector: HttpConnector)(implicit executionContext: ExecutionContext) {
+  val pollerInterval: FiniteDuration = customsNotificationConfig.unblockPollerConfig.pollerInterval
 
-  if (customsNotificationConfig.unblockPollerConfig.pollerEnabled) {
-    val pollerInterval: FiniteDuration = customsNotificationConfig.unblockPollerConfig.pollerInterval
-
-    actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
-      notificationWorkItemRepo.failedAndBlockedGroupedByDistinctCsId().map { failedAndBlockedCsids: Set[ClientSubscriptionId] =>
-        logger.info(s"Unblock - discovered ${failedAndBlockedCsids.size} blocked csids (i.e. with status of ${FailedAndBlocked.name})")
-        logger.debug(s"Unblock - discovered $failedAndBlockedCsids blocked csids (i.e. with status of ${FailedAndBlocked.name})")
-        failedAndBlockedCsids.foreach { csid =>
-          notificationWorkItemRepo.pullOutstandingWithFailedWith500ByCsId(csid).map {
-            case Some(workItem) =>
-              implicit val hc: HeaderCarrier = HeaderCarrier()
-              val eventuallyMaybeApiSubscriptionFields: Future[Option[ApiSubscriptionFields]] = pushOrPullService.getApiSubscriptionFields(workItem.item, workItem.id, hc)
-
-              eventuallyMaybeApiSubscriptionFields.map(maybeApiSubscriptionFields => maybeApiSubscriptionFields.fold(())(apiSubscriptionFields =>
-                pushOrPullService.pushOrPull(workItem, apiSubscriptionFields, false).foreach(ok =>
-                  if (ok) {
-                    // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
-                    //changing status to failed makes the item eligible for retry
-                    notificationWorkItemRepo.unblockFailedAndBlockedByCsId(csid).foreach { count =>
-                      logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")}})))
-            case None =>
-              logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
-          }
-        }
-      }
-      ()
-    }
-    }
+  actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
+    for {
+      failedAndBlockedCsids <- repo.failedAndBlockedGroupedByDistinctCsId().toFutureCdsResult
+      _ = logger.info(s"Unblock - discovered ${failedAndBlockedCsids.size} blocked csids (i.e. with status of ${FailedAndBlocked.name})")
+      _ = failedAndBlockedCsids.foreach(process)
+    } yield ()
   }
+  }
+
+  def process(clientSubscriptionId: ClientSubscriptionId): Unit = {
+    implicit val hc: HeaderCarrier = HeaderCarrier()
+    for {
+      x <- repo.pullOutstandingWithFailedWith500ByCsId(clientSubscriptionId).toFutureCdsResult
+      mongoWorkItem <- x.toRight(NoFailedAndBlockedNotificationsFound).toFutureCdsResult
+      apiSubsFieldsRequest = ApiSubscriptionFieldsRequest(
+        mongoWorkItem.item._id,
+        apiSubsFieldsUrlConfig.url)
+      apiSubsFields <- httpConnector.get[ApiSubscriptionFields](apiSubsFieldsRequest).toFutureCdsResult
+    } yield ()
+  }
+  ////    .map { failedAndBlockedCsids: Set[ClientSubscriptionId] =>
+  ////        logger.info(s"Unblock - discovered ${failedAndBlockedCsids.size} blocked csids (i.e. with status of ${FailedAndBlocked.name})")
+  ////      failedAndBlockedCsids.foreach { csid =>
+  ////        notificationWorkItemRepo.pullOutstandingWithFailedWith500ByCsId(csid).map {
+  ////          case Some(workItem) =>
+  ////            implicit val hc: HeaderCarrier = HeaderCarrier()
+  ////            val apiSubsFieldsRequest = ApiSubscriptionFieldsRequest(workItem.item._id, apiSubsFieldsUrlConfig.url)
+  ////            val eventuallyMaybeApiSubscriptionFields = httpConnector.get(apiSubsFieldsRequest)
+  //              //          updateRepoForFailedResponse(mongoWorkItem, "GetApiSubscriptionFields", ???, false)
+  //
+  //              eventuallyMaybeApiSubscriptionFields.map(maybeApiSubscriptionFields => maybeApiSubscriptionFields.fold(())(apiSubscriptionFields =>
+  //                pushOrPullService.send(workItem, apiSubscriptionFields).foreach(ok =>
+  //                  if (ok) {
+  //                    // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
+  //                    //changing status to failed makes the item eligible for retry
+  //                    notificationWorkItemRepo.unblockFailedAndBlockedByCsId(csid).foreach { count =>
+  //                      logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
+  //                    }
+  //                  })))
+  //            case None =>
+  //              logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
+  //          }
+  //        }
+  //      }
+  //      ()
+}
+
+object UnblockPollerService {
+  case object NoFailedAndBlockedNotificationsFound extends CdsError
 }

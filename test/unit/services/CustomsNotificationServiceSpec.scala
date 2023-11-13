@@ -17,250 +17,330 @@
 package unit.services
 
 import org.bson.types.ObjectId
-import org.mockito.ArgumentMatchers.{any, refEq, eq => ameq}
-import org.mockito.Mockito
-import org.mockito.Mockito._
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.Eventually
-import org.scalatestplus.mockito.MockitoSugar
-import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.config.{CustomsNotificationConfig, NotificationConfig}
-import uk.gov.hmrc.customs.notification.models.HasId
-import uk.gov.hmrc.customs.notification.models.requests.PushNotificationRequest
+import org.mockito.scalatest.{AsyncMockitoSugar, ResetMocksAfterEachAsyncTest}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AsyncWordSpec
+import play.api.http.HeaderNames.AUTHORIZATION
+import play.api.http.MimeTypes
+import play.api.mvc.{AnyContent, Headers}
+import play.api.test.FakeRequest
+import play.api.test.Helpers.{ACCEPT, CONTENT_TYPE}
+import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, ConnectorName, CustomsNotificationMetricsConnector}
+import uk.gov.hmrc.customs.notification.models
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.models.{FailedAndBlocked, Header, Notification, PushCallback, RequestMetadata, SuccessfullyCommunicated}
 import uk.gov.hmrc.customs.notification.services._
+import uk.gov.hmrc.customs.notification.util.Error.{DeclarantNotFound, HttpClientError, MongoDbError, Error, ErrorResponse}
+import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.customs.notification.util.{NotificationLogger, NotificationWorkItemRepo}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{InProgress, PermanentlyFailed, Succeeded}
-import uk.gov.hmrc.mongo.workitem.ResultStatus
-import util.MockitoPassByNameHelper.PassByNameVerifier
-import util.TestData._
-import util.UnitSpec
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.ToDo
+import uk.gov.hmrc.mongo.workitem.WorkItem
+import unit.services.CustomsNotificationServiceSpec.TestData
+import uk.gov.hmrc.customs.notification.connectors
+import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
 
+import java.net.URL
 import java.time.{ZoneId, ZonedDateTime}
+import java.util.UUID
 import scala.concurrent.Future
-import scala.concurrent.duration.{FiniteDuration, SECONDS}
-import scala.xml.Elem
+import scala.xml.NodeSeq
 
-class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
-//
-//  private val timeout = Mockito.timeout(5000).times(1)
-//  private implicit val ec = Helpers.stubControllerComponents().executionContext
-//  private implicit val hc: HeaderCarrier = HeaderCarrier()
-//
-//  private val eventuallyRightOfPush = Future.successful(Right(Push))
-//  private val exception = new Exception("Boom")
-//  private val eventuallyLeftOfPush = Future.successful(Left(PushOrPullError(Push, HttpResultError(Helpers.NOT_FOUND, exception))))
-//  private val eventuallyLeftOfPush500 = Future.successful(Left(PushOrPullError(Push, HttpResultError(Helpers.INTERNAL_SERVER_ERROR, exception))))
-//  private val eventuallyLeftOfPull = Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.NOT_FOUND, exception))))
-//  private val eventuallyRightOfPull = Future.successful(Right(Pull))
-//  private val eventuallyUnit = Future.successful(())
-//
-//  private val ValidXML: Elem = <foo1></foo1>
-//  private val mockPushOrPullService = mock[PushOrPullService]
-//  private val mockNotificationLogger = mock[NotificationLogger]
-//  private val mockNotificationWorkItemRepo = mock[NotificationWorkItemRepo]
-//  private lazy val mockMetricsService = mock[CustomsNotificationMetricsService]
-//  private lazy val mockDateTimeService = mock[DateTimeService]
-//  private lazy val mockAuditingService = mock[AuditingService]
-//  private lazy val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
-//  private val currentTime = ZonedDateTime.of(2020, 1, 1, 0, 0, 0, 0, ZoneId.of("UTC"))
-//  private val currentTimePlus2Hour = currentTime.plusMinutes(120)
-//
-//  private val notificationConfig = NotificationConfig(Seq[String](""),
-//    60,
-//    false,
-//    FiniteDuration(30, SECONDS),
-//    FiniteDuration(30, SECONDS),
-//    FiniteDuration(30, SECONDS),
-//    1,
-//    120)
-//
-//  private val service = new CustomsNotificationService(
-//    mockNotificationLogger,
-//    mockNotificationWorkItemRepo,
-//    mockPushOrPullService,
-//    mockMetricsService,
-//    mockCustomsNotificationConfig,
-//    mockDateTimeService,
-//    mockAuditingService
-//  )
-//
-//  override protected def beforeEach(): Unit = {
-//    reset[Any](mockNotificationWorkItemRepo, mockNotificationLogger, mockPushOrPullService, mockMetricsService, mockCustomsNotificationConfig, mockAuditingService)
-//    when(mockCustomsNotificationConfig.notificationConfig).thenReturn(notificationConfig)
-//    when(mockDateTimeService.zonedDateTimeUtc).thenReturn(currentTime)
-//  }
-//
-//  "CustomsNotificationService.handleNotification" should {
-//    "for push" should {
-//      "send notification with metrics time to third party when url present and call metrics service" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-//        when(mockPushOrPullService.push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(eventuallyRightOfPush)
-//        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(Future.successful(()))
-//        when(mockMetricsService.notificationMetric(NotificationWorkItemWithMetricsTime1)).thenReturn(Future.successful(()))
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
-//
-//        await(result) shouldBe true
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockPushOrPullService).push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())
-//        verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//
-//        infoLogVerifier("Push succeeded for workItemId 5c46f7d70100000100ef835a")
-//      }
-//
-//      "return false and not push when it is unable to save notification to repository" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.failed(emulatedServiceFailure))
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
-//
-//        await(result) shouldBe false
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//        verifyNoInteractions(mockPushOrPullService)
-//        verifyNoInteractions(mockMetricsService)
-//      }
-//
-//      "return true when repo saves but push fails with 404" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-//        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
-//        when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-//        when(mockNotificationWorkItemRepo.setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)).thenReturn(eventuallyUnit)
-//        when(mockPushOrPullService.push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(eventuallyLeftOfPush)
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
-//
-//        await(result) shouldBe true
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockNotificationWorkItemRepo, timeout).incrementFailureCount(WorkItem1.id)
-//        verify(mockNotificationWorkItemRepo, timeout).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)
-//        verify(mockAuditingService, timeout).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//        errorLogVerifier("Push failed PushOrPullError(Push,HttpResultError(404,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a")
-//      }
-//
-//      "return true when repo saves but push fails with 500" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-//        when(mockNotificationWorkItemRepo.setFailedAndBlocked(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(Future.successful(()))
-//        when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-//        when(mockNotificationWorkItemRepo.setFailedAndBlocked(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(eventuallyUnit)
-//        when(mockPushOrPullService.push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(eventuallyLeftOfPush500)
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
-//
-//        await(result) shouldBe true
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id)
-//        verify(mockNotificationWorkItemRepo).setFailedAndBlocked(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)
-//        verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//        errorLogVerifier("Push failed PushOrPullError(Push,HttpResultError(500,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a")
-//      }
-//
-//      "return true and not push when there are existing permanently failed notifications with 5xx errors" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(true))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed))).thenReturn(Future.successful(WorkItem1))
-//        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
-//
-//        await(result) shouldBe true
-//        verify(mockNotificationWorkItemRepo).failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed))
-//        verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[ObjectId], any[ResultStatus])
-//        verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//        verifyNoInteractions(mockPushOrPullService)
-//        infoLogVerifier("Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
-//      }
-//
-//      "return true BEFORE push has succeeded" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-//        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
-//        when(mockPushOrPullService.push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(
-//          Future {
-//            Right(Push)
-//          })
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
-//
-//        await(result) shouldBe true
-//
-//        verify(mockNotificationWorkItemRepo).failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockNotificationWorkItemRepo, times(1)).setCompletedStatus(any[ObjectId], any[ResultStatus])
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//
-//      }
-//    }
-//
-//    "for pull" should {
-//      "send notification to pull queue and call metrics service when url absent" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-//        when(mockPushOrPullService.push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPull))(any[HasId], any())).thenReturn(eventuallyRightOfPull)
-//        when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(Future.successful(()))
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPull)
-//
-//        await(result) shouldBe true
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockNotificationWorkItemRepo).setCompletedStatus(WorkItem1.id, Succeeded)
-//        verify(mockPushOrPullService).push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPull))(any[HasId], any())
-//        verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//        infoLogVerifier("Pull succeeded for workItemId 5c46f7d70100000100ef835a")
-//      }
-//
-//      "fail when it was unable to save notification to repository" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.failed(emulatedServiceFailure))
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPull)
-//
-//        await(result) shouldBe false
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//        verifyNoInteractions(mockPushOrPullService)
-//        verifyNoInteractions(mockMetricsService)
-//      }
-//
-//      "return true and call metrics service when repo saves but pull fails with 404" in {
-//        when(mockNotificationWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
-//        when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-//        when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-//        when(mockNotificationWorkItemRepo.setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)).thenReturn(eventuallyUnit)
-//        when(mockPushOrPullService.push(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPull))(any[HasId], any())).thenReturn(eventuallyLeftOfPull)
-//
-//        val result = service.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPull)
-//
-//        await(result) shouldBe true
-//        verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
-//        verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id)
-//        verify(mockNotificationWorkItemRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)
-//        verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
-//        verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//        errorLogVerifier("Pull failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId 5c46f7d70100000100ef835a")
-//      }
-//    }
-//  }
-//
-//  private def infoLogVerifier(logText: String): Unit = {
-//    PassByNameVerifier(mockNotificationLogger, "info")
-//      .withByNameParam(logText)
-//      .withParamMatcher(any[HasId])
-//      .verify()
-//  }
-//
-//  private def errorLogVerifier(logText: String): Unit = {
-//    PassByNameVerifier(mockNotificationLogger, "warn")
-//      .withByNameParam(logText)
-//      .withParamMatcher(any[HasId])
-//      .verify()
-//  }
+class CustomsNotificationServiceSpec extends AsyncWordSpec
+  with Matchers
+  with AsyncMockitoSugar
+  with ResetMocksAfterEachAsyncTest {
+
+  private val mockLogger = mock[NotificationLogger]
+  private val mockWorkItemRepo = mock[NotificationWorkItemRepo]
+  private val mockPushOrPullService = mock[SendService]
+  private val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
+  private val mockAuditingService = mock[AuditingService]
+  private val mockCustomsNotificationMetricsConnector = mock[CustomsNotificationMetricsConnector]
+
+  private val service: NotificationService =
+    new NotificationService(
+      mockLogger,
+      mockWorkItemRepo,
+      mockPushOrPullService,
+      mockApiSubscriptionFieldsConnector,
+      mockAuditingService,
+      mockCustomsNotificationMetricsConnector
+    )
+
+  "CustomsNotificationService.handleNotification " when {
+    "blocked notifications exist" should {
+      def setup(): Unit = {
+        when(mockApiSubscriptionFieldsConnector.getApiSubscriptionFields(eqTo(TestData.ClientSubscriptionId))(*, eqTo(TestData.RequestMetaData)))
+          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
+        when(mockWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(eqTo(TestData.ClientSubscriptionId)))
+          .thenReturn(Future.successful(Right(true)))
+        when(mockWorkItemRepo.saveWithLock(eqTo(TestData.NotificationWorkItem), eqTo(FailedAndBlocked)))
+          .thenReturn(Future.successful(Right(TestData.MongoNotificationWorkItem)))
+      }
+
+      "return Right(Unit)" in {
+        setup()
+        val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+        actualF.map(_ shouldBe Right(()))
+      }
+
+      behave like notifyAuditService(setup())
+
+      behave like notifyMetricsService(setup())
+
+      behave like notCallPushOrPullService(setup())
+
+      behave like logNotificationSaved(setup())
+    }
+
+    "no blocked notifications exist" should {
+      def setup(): Unit = {
+        when(mockApiSubscriptionFieldsConnector.getApiSubscriptionFields(eqTo(TestData.ClientSubscriptionId))(*, eqTo(TestData.RequestMetaData)))
+          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
+        when(mockWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(eqTo(TestData.ClientSubscriptionId)))
+          .thenReturn(Future.successful(Right(false)))
+        when(mockWorkItemRepo.saveWithLock(eqTo(TestData.NotificationWorkItem), eqTo(SuccessfullyCommunicated)))
+          .thenReturn(Future.successful(Right(TestData.MongoNotificationWorkItem)))
+      }
+
+      "return Right(Unit)" in {
+        setup()
+        val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+        actualF.map(_ shouldBe Right(()))
+      }
+
+      behave like notifyAuditService(setup())
+
+      behave like notifyMetricsService(setup())
+
+      "call the PushOrPullService" in {
+        setup()
+        val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+        actualF.map { _ =>
+          verify(mockPushOrPullService).send(
+            eqTo(TestData.MongoNotificationWorkItem),
+            eqTo(TestData.ApiSubscriptionFields),
+            eqTo(true))
+          succeed
+        }
+      }
+
+      behave like logNotificationSaved(setup())
+    }
+
+    "ApiSubscriptionFieldsConnector returns an error" should {
+      val error = DeclarantNotFound(TestData.RequestMetaData)
+
+      def setup(error: Error): Unit =
+        when(mockApiSubscriptionFieldsConnector.getApiSubscriptionFields(eqTo(TestData.ClientSubscriptionId))(*, eqTo(TestData.RequestMetaData)))
+          .thenReturn(Future.successful(Left(error)))
+
+      "return Left with the specific error" in {
+        setup(error)
+        val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+        actualF.map(_ shouldBe Left(error))
+      }
+
+      "not send a notification to the Audit Service" in {
+        setup(error)
+        val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+        actualF.map { _ =>
+          verify(mockAuditingService, never).auditNotificationReceived(*, *)(*)
+          succeed
+        }
+      }
+
+      behave like notNotifyMetricsService(setup(error))
+
+      behave like notCallPushOrPullService(setup(error))
+
+      behave like notLogNotificationSaved(setup(error))
+    }
+
+    "repository check fails for existing failed and blocked notifications" should {
+      def setup(): Unit = {
+        when(mockApiSubscriptionFieldsConnector.getApiSubscriptionFields(eqTo(TestData.ClientSubscriptionId))(*, eqTo(TestData.RequestMetaData)))
+          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
+        when(mockWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(eqTo(TestData.ClientSubscriptionId)))
+          .thenReturn(Future.successful(Left(MongoDbError(TestData.Exception, TestData.ClientSubscriptionId))))
+      }
+
+      "return Left with a MongoDB error" in {
+        setup()
+        val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+        actualF.map(_ shouldBe Left(MongoDbError(TestData.Exception, TestData.ClientSubscriptionId)))
+      }
+
+      behave like notifyAuditService(setup())
+
+      behave like notNotifyMetricsService(setup())
+
+      behave like notCallPushOrPullService(setup())
+
+      behave like notLogNotificationSaved(setup())
+    }
+
+    "saving work item to repository fails" should {
+      def setup(): Unit = {
+        when(mockApiSubscriptionFieldsConnector.getApiSubscriptionFields(eqTo(TestData.ClientSubscriptionId))(*, eqTo(TestData.RequestMetaData)))
+          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
+        when(mockWorkItemRepo.failedAndBlockedWithHttp5xxByCsIdExists(eqTo(TestData.ClientSubscriptionId)))
+          .thenReturn(Future.successful(Right(true)))
+        when(mockWorkItemRepo.saveWithLock(eqTo(TestData.NotificationWorkItem), eqTo(FailedAndBlocked)))
+          .thenReturn(Future.successful(Left(MongoDbError(TestData.Exception, TestData.NotificationWorkItem))))
+      }
+
+      behave like notifyAuditService(setup())
+
+      behave like notNotifyMetricsService(setup())
+
+      behave like notCallPushOrPullService(setup())
+
+      behave like notLogNotificationSaved(setup())
+    }
+  }
+
+  private def notifyMetricsService(setup: => Unit): Unit = {
+    s"send a notification to the Metrics Service" in {
+      setup
+      val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+      actualF.map { _ =>
+        verify(mockCustomsNotificationMetricsConnector).post(TestData.ConversationId, TestData.StartTime)(TestData.EmptyHeaderCarrier)
+        succeed
+      }
+    }
+  }
+
+  private def logNotificationSaved(setup: => Unit): Unit = {
+    s"not log that a notification has been saved" in {
+      setup
+      val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+      actualF.map { _ =>
+        verify(mockLogger).info(eqTo("Saved notification"))(eqTo(TestData.ClientId), eqTo(TestData.RequestMetaData))
+        succeed
+      }
+    }
+  }
+
+  private def notifyAuditService(setup: => Unit): Unit = {
+    s"send a notification to the Audit Service" in {
+      setup
+      val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+      actualF.map { _ =>
+        verify(mockAuditingService).auditNotificationReceived(TestData.PushNotificationRequest, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+        succeed
+      }
+    }
+  }
+
+  private def notNotifyMetricsService(setup: => Unit): Unit = {
+    s"not send a notification to the Metrics Service" in {
+      setup
+      val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+      actualF.map { _ =>
+        verify(mockCustomsNotificationMetricsConnector, never).post(*, *)(*)
+        succeed
+      }
+    }
+  }
+
+  private def notCallPushOrPullService(setup: => Unit): Unit = {
+    s"not call the PushOrPullService" in {
+      setup
+      val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+      actualF.map { _ =>
+        verify(mockPushOrPullService, never).send(*, *, *)
+        succeed
+      }
+    }
+  }
+
+  private def notLogNotificationSaved(setup: => Unit): Unit = {
+    s"not log that a notification has been saved" in {
+      setup
+      val actualF = service.handleNotification(TestData.ValidXml, TestData.RequestMetaData)(TestData.EmptyHeaderCarrier)
+      actualF.map { _ =>
+        verify(mockLogger, never).info(eqTo("Saved notification"))(*)
+        succeed
+      }
+    }
+  }
+}
+
+object CustomsNotificationServiceSpec {
+  object TestData {
+    val StartTime = ZonedDateTime.of(2023, 12, 25, 0, 0, 1, 0, ZoneId.of("UTC")) // scalastyle:ignore
+    val PreviouslyReceivedAt = ZonedDateTime.of(2000, 12, 25, 0, 0, 1, 0, ZoneId.of("UTC")) // scalastyle:ignore
+    val ClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-2222-4444-8888-161616161616"))
+    val ClientId = models.ClientId("Client1")
+    val DeclarantCallbackData = models.DeclarantCallbackData(PushCallback(new URL("http://www.example.com")), "SECURITY_TOKEN")
+    val ApiSubscriptionFields = models.ApiSubscriptionFields(ClientId, DeclarantCallbackData)
+    val ConversationId = models.ConversationId(UUID.fromString("00000000-4444-4444-AAAA-AAAAAAAAAAAA"))
+    val NotificationId = models.NotificationId(UUID.fromString("00000000-9999-4444-9999-444444444444"))
+    val BadgeId = "ABCDEF1234"
+    val SubmitterId = "IAMSUBMITTER"
+    val CorrelationId = "CORRID2234"
+    val ValidXml: NodeSeq = <Foo>Bar</Foo>
+    val basicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
+
+    val ValidHeaders: Headers = Headers(
+      List(
+        X_CLIENT_SUB_ID_HEADER_NAME -> ClientSubscriptionId.toString,
+        X_CONVERSATION_ID_HEADER_NAME -> ConversationId.toString,
+        CONTENT_TYPE -> (MimeTypes.XML + "; charset=UTF-8"),
+        ACCEPT -> MimeTypes.XML,
+        AUTHORIZATION -> basicAuthTokenValue,
+        X_BADGE_ID_HEADER_NAME -> BadgeId,
+        X_SUBMITTER_ID_HEADER_NAME -> SubmitterId,
+        X_CORRELATION_ID_HEADER_NAME -> CorrelationId
+      ): _*
+    )
+
+    val ValidSubmitRequest: FakeRequest[AnyContent] = FakeRequest().withHeaders(ValidHeaders).withXmlBody(ValidXml)
+
+    val RequestMetaData: RequestMetadata = RequestMetadata(ClientSubscriptionId, ConversationId, NotificationId,
+      Some(Header(X_BADGE_ID_HEADER_NAME, BadgeId)), Some(Header(X_SUBMITTER_ID_HEADER_NAME, SubmitterId)), Some(Header(X_CORRELATION_ID_HEADER_NAME, CorrelationId)),
+      None, None, None, StartTime)
+
+    val NotificationWorkItem: NotificationWorkItem = models.repo.NotificationWorkItem(
+      ClientSubscriptionId,
+      ClientId,
+      StartTime,
+      Notification(
+        NotificationId,
+        ConversationId,
+        List(
+          Header(X_BADGE_ID_HEADER_NAME, BadgeId),
+          Header(X_SUBMITTER_ID_HEADER_NAME, SubmitterId),
+          Header(X_CORRELATION_ID_HEADER_NAME, CorrelationId)
+        ),
+        ValidXml.toString(),
+        MimeTypes.XML)
+    )
+
+    val PushNotificationRequest: InternalPushNotificationRequest = models.requests.PushNotificationRequest(
+      DeclarantCallbackData.callbackUrl,
+      DeclarantCallbackData.securityToken,
+      ConversationId.toString,
+      NotificationWorkItem.notification.headers,
+      ValidXml.toString())
+
+    val MongoNotificationWorkItemId = new ObjectId("aaaaaaaaaaaaaaaaaaaaaaaa")
+
+    val MongoNotificationWorkItem: WorkItem[NotificationWorkItem] =
+      WorkItem(
+        MongoNotificationWorkItemId,
+        PreviouslyReceivedAt.toInstant,
+        PreviouslyReceivedAt.toInstant,
+        StartTime.toInstant,
+        ToDo,
+        0,
+        NotificationWorkItem
+      )
+
+    val EmptyHeaderCarrier: HeaderCarrier = HeaderCarrier()
+    val ConnectorName: ConnectorName = connectors.ConnectorName("service")
+    val Exception: Throwable = new RuntimeException()
+  }
 }

@@ -17,17 +17,17 @@
 package integration
 
 import com.typesafe.config.Config
-import org.mockito.Mockito._
+import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.model.Filters
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.config._
-import uk.gov.hmrc.customs.notification.models.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.models.repo.{FailedButNotBlocked, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.models.{ClientSubscriptionId, FailedButNotBlocked, SuccessfullyCommunicated}
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem.MongoNotificationWorkItem
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
@@ -69,13 +69,13 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     app.injector.instanceOf[MongoComponent]
 
   private val customsNotificationConfig: CustomsNotificationConfig = CustomsNotificationConfig(
-    None,
+    "",
     mock[NotificationQueueConfig],
     pushConfig,
     mock[NotificationMetricsConfig],
     mockUnblockPollerConfig)
 
-  private val repository = new NotificationWorkItemRepo(mongoRepository, customsNotificationConfig, mockCdsLogger, mockConfiguration)
+  private val repository = new NotificationWorkItemRepo(mongoRepository, customsNotificationConfig, mockCdsLogger)
 
   override def beforeEach(): Unit = {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
@@ -94,7 +94,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
 
   "repository" should {
     "successfully save a single notification work item" in {
-      val result = await(repository.saveWithLock(NotificationWorkItem1))
+      val result = await(repository.saveWithLock(NotificationWorkItem1, SuccessfullyCommunicated)).toOption.get
 
       result.status shouldBe InProgress
       result.item shouldBe NotificationWorkItem1
@@ -103,7 +103,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "successfully save a single notification work item with specified status" in {
-      val result = await(repository.saveWithLock(NotificationWorkItem1, FailedButNotBlocked))
+      val result = await(repository.saveWithLock(NotificationWorkItem1, FailedButNotBlocked)).toOption.get
 
       result.status shouldBe FailedButNotBlocked
       result.item shouldBe NotificationWorkItem1
@@ -112,7 +112,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "update status of an item of work to Succeeded when successfully completed" in {
-      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+      val result: MongoNotificationWorkItem = await(repository.saveWithLock(NotificationWorkItem1, SuccessfullyCommunicated)).toOption.get
       result.status shouldBe InProgress
 
       await(repository.setCompletedStatus(result.id, Succeeded))
@@ -122,7 +122,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "update status of an item of work to Failed when failed to complete" in {
-      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+      val result: MongoNotificationWorkItem = await(repository.saveWithLock(NotificationWorkItem1, SuccessfullyCommunicated)).toOption.get
       result.status shouldBe InProgress
 
       await(repository.setCompletedStatus(result.id, Failed))
@@ -133,7 +133,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "update status of an item of work to Failed with a future availableAt when failed to complete" in {
-      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+      val result: MongoNotificationWorkItem = await(repository.saveWithLock(NotificationWorkItem1, SuccessfullyCommunicated)).toOption.get
       result.status shouldBe InProgress
 
       val availableAt = ZonedDateTime.now(ZoneId.of("UTC")).plusSeconds(300)
@@ -146,7 +146,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "update mostRecentPushPullStatusCode of an item of work" in {
-      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+      val result: MongoNotificationWorkItem = await(repository.saveWithLock(NotificationWorkItem1, SuccessfullyCommunicated)).toOption.get
 
       val availableAt = ZonedDateTime.now(ZoneId.of("UTC"))
       await(repository.setCompletedStatusWithAvailableAt(result.id, Failed, Helpers.INTERNAL_SERVER_ERROR, availableAt))
@@ -231,7 +231,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
 
-      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1._id))
 
       result shouldBe false
     }
@@ -244,7 +244,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem1WithHttp500, repository.now(), permanentlyFailed))
 
-      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1._id))
 
       result shouldBe true
     }
@@ -256,7 +256,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
       await(repository.pushNew(NotificationWorkItem1WithHttp404, repository.now(), permanentlyFailed))
 
-      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1._id))
 
       result shouldBe false
     }
@@ -266,7 +266,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
 
-      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.failedAndBlockedWithHttp5xxByCsIdExists(NotificationWorkItem1._id))
 
       result shouldBe false
     }
@@ -279,7 +279,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now().plus(120, ChronoUnit.MINUTES), failed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.blockFailedButNotBlockedByCsId(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.blockFailedButNotBlockedByCsId(NotificationWorkItem1._id))
 
       result shouldBe 2
     }
@@ -306,7 +306,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       val result = await(repository.pullOutstandingWithFailedWith500ByCsId(validClientSubscriptionId1))
 
       result.get.status shouldBe InProgress
-      result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
+      result.get.item._id shouldBe validClientSubscriptionId1
     }
 
     "not return a modified permanently failed notification with specified csid when availableAt is in the future" in {
@@ -335,7 +335,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "successfully increment failure count" in {
-      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItem1))
+      val result: MongoNotificationWorkItem = await(repository.saveWithLock(NotificationWorkItem1, SuccessfullyCommunicated)).toOption.get
 
       await(repository.incrementFailureCount(result.id))
 
@@ -355,7 +355,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "successfully get a notification that does not have a mostRecentPushPullHttpStatus" in {
-      val workItem = await(repository.saveWithLock(NotificationWorkItem1))
+      val workItem = await(repository.saveWithLock(NotificationWorkItem1, SuccessfullyCommunicated)).toOption.get
       val actual = await(repository.findById(workItem.id))
 
       actual.get.item.notification.mostRecentPushPullHttpStatus shouldBe None

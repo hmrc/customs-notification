@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.testonly
+package uk.gov.hmrc.customs.notification.services
 
-import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
+
+import java.time.{ZoneId, ZonedDateTime}
+
 import javax.inject.{Inject, Singleton}
-
 @Singleton
-class TestOnlyService @Inject() (notificationWorkItemRepo: NotificationWorkItemRepo) {
-
-  def deleteAll(): Unit = {
-    notificationWorkItemRepo.deleteAll()
-  }
+class DateTimeService @Inject()(){
+  val UtcZoneId = ZoneId.of("UTC")
+  def now(): ZonedDateTime = ZonedDateTime.now(UtcZoneId)
 }

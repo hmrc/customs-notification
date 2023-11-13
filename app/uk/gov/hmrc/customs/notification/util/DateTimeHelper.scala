@@ -20,13 +20,9 @@ import org.joda.time.{DateTime, DateTimeZone}
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
 object DateTimeHelper {
-  private lazy val utcZoneId: ZoneId = ZoneId.of("UTC")
-
-  def zonedDateTimeUtc: ZonedDateTime = ZonedDateTime.now(utcZoneId)
-
-  def toZonedDateTime(dateTime: DateTime): ZonedDateTime = {
+  def toZonedDateTime(dateTime: DateTime, zoneId: ZoneId): ZonedDateTime = {
     val instant: Instant = Instant.ofEpochMilli(dateTime.getMillis)
-    ZonedDateTime.ofInstant(instant, utcZoneId)
+    ZonedDateTime.ofInstant(instant, zoneId)
   }
 
   def toDateTime(zonedDateTime: ZonedDateTime): DateTime = {

@@ -17,25 +17,24 @@
 package unit.logging
 
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.models.HasId
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 
-case class StubNotificationLogger() extends  NotificationLogger(MockitoSugarHelper.mock[CdsLogger]) {
-
-  override def debug(msg: => String)(implicit rm: HasId): Unit = println(msg)
-
-  override def debug(msg: =>String, url: =>String)(implicit rm: HasId): Unit = println(msg + url)
-
-  override def debug(msg: =>String, url: =>String, payload: =>String)(implicit rm: HasId): Unit = println(msg + url + payload)
-
-  override def debugWithHeaders(msg: =>String, headers: =>Seq[(String, String)]): Unit = println(msg + headers)
-
-  override def info(msg: =>String)(implicit rm: HasId): Unit = println(msg)
-
-  override def errorWithHeaders(msg: =>String, headers: =>Seq[(String, String)]): Unit = println(msg + headers)
-
-  override def error(msg: =>String)(implicit rm: HasId): Unit = println(msg)
-
-  override def error(msg: =>String, t: =>Throwable)(implicit rm: HasId): Unit = println(msg + t.toString)
-
-}
+//case class StubNotificationLogger() extends NotificationLogger(MockitoSugarHelper.mock[CdsLogger]) {
+//
+//  override def debug[A <: (msg: => String): Unit = println(msg)
+//
+//  override def debug(msg: =>String, url: =>String)(implicit rm: HasId): Unit = println(msg + url)
+//
+//  override def debug(msg: =>String, url: =>String, payload: =>String)(implicit rm: HasId): Unit = println(msg + url + payload)
+//
+//  override def debugWithHeaders(msg: =>String, headers: =>Seq[(String, String)]): Unit = println(msg + headers)
+//
+//  override def info(msg: =>String)(implicit rm: HasId): Unit = println(msg)
+//
+//  override def errorWithHeaders(msg: =>String, headers: =>Seq[(String, String)]): Unit = println(msg + headers)
+//
+//  override def error(msg: =>String)(implicit rm: HasId): Unit = println(msg)
+//
+//  override def error(msg: =>String, t: =>Throwable)(implicit rm: HasId): Unit = println(msg + t.toString)
+//
+//}

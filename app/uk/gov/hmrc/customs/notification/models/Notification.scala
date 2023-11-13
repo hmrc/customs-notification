@@ -19,18 +19,3 @@ package uk.gov.hmrc.customs.notification.models
 import play.api.libs.json.{Format, Json}
 import play.api.mvc.Headers
 
-case class Notification(notificationId: Option[NotificationId],
-                        conversationId: ConversationId,
-                        headers: Seq[Header],
-                        payload: String,
-                        contentType: String,
-                        mostRecentPushPullHttpStatus: Option[Int] = None){
-  private val caseInsensitiveHeaders = Headers(headers.map { h => h.name -> h.value }: _*)
-  override def toString: String = s"notificationId: ${notificationId.toString}, conversationId: ${conversationId.toString}, headers: ${headers.toString()}, contentType: $contentType"
-  def getHeader(name: String): Option[Header] = caseInsensitiveHeaders.get(name).map(Header(name, _))
-  def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h => h.name -> h.value }
-}
-
-object Notification {
-  implicit val notificationJF: Format[Notification] = Json.format[Notification]
-}

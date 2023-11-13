@@ -16,6 +16,7 @@
 
 package unit.logging
 
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.scalatest.MockitoSugar
+
 
 private[logging] object MockitoSugarHelper extends MockitoSugar

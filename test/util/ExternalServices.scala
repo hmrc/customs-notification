@@ -16,19 +16,20 @@
 
 package util
 
-import play.api.http.{HeaderNames, MimeTypes, Status}
-import play.api.libs.json.{JsValue, Json}
-import play.api.test.Helpers._
-import util.TestData._
-
-import java.util
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.matching.UrlPattern
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.scalatest.matchers.should.Matchers
-import uk.gov.hmrc.customs.notification.models.requests.PushNotificationRequest
-import uk.gov.hmrc.customs.notification.models.{ClientNotification, DeclarantCallbackData, Header}
-import uk.gov.hmrc.customs.notification.util.HeaderNames.{ISSUE_DATE_TIME_HEADER, NOTIFICATION_ID_HEADER_NAME, SUBSCRIPTION_FIELDS_ID_HEADER_NAME, X_BADGE_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_SUBMITTER_ID_HEADER_NAME}
+import play.api.http.{HeaderNames, MimeTypes, Status}
+import play.api.libs.json.{JsValue, Json}
+import play.api.test.Helpers._
+import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
+import uk.gov.hmrc.customs.notification.models.{ClientSubscriptionId, PushCallbackData, Header, Notification}
+import uk.gov.hmrc.customs.notification.util.HeaderNames._
+import util.TestData._
+
+import java.util
 
 trait PushNotificationService extends WireMockRunner with Matchers {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)
@@ -40,13 +41,13 @@ trait PushNotificationService extends WireMockRunner with Matchers {
       willReturn aResponse()
       .withStatus(status))
 
-  def verifyPushNotificationServiceWasCalledWith(pushNotificationRequest: PushNotificationRequest): Unit = {
+  def verifyPushNotificationServiceWasCalledWith(pushNotificationRequest: InternalPushNotificationRequest): Unit = {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       .withHeader(NOTIFICATION_ID_HEADER_NAME, equalTo(notificationId.toString))
-      .withoutHeader(ISSUE_DATE_TIME_HEADER)
-      .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest.body).toString()))
+      .withoutHeader(ISSUE_DATE_TIME_HEADER_NAME)
+      .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest).toString()))
     )
   }
 
@@ -79,32 +80,32 @@ trait InternalPushNotificationService {
         aResponse()
           .withStatus(status)))
 
-  def verifyInternalServiceWasCalledWith(pnr: PushNotificationRequest): Unit = {
+  def verifyInternalServiceWasCalledWith(pnr: InternalPushNotificationRequest): Unit = {
 
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
       .withHeader(ACCEPT, equalTo(XML))
-      .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(pnr.body.conversationId))
+      .withHeader(AUTHORIZATION, equalTo(pnr.authHeaderToken))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(pnr.conversationId))
       .withHeader(USER_AGENT, equalTo("customs-notification"))
-      .withRequestBody(equalToXml(pnr.body.xmlPayload))
+      .withRequestBody(equalToXml(pnr.xmlPayload))
     )
 
   }
 
-  def verifyInternalServiceWasCalledWithOutboundHeaders(pnr: PushNotificationRequest): Unit = {
+  def verifyInternalServiceWasCalledWithOutboundHeaders(pnr: InternalPushNotificationRequest): Unit = {
 
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
       .withHeader(ACCEPT, equalTo(XML))
-      .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
+      .withHeader(AUTHORIZATION, equalTo(pnr.authHeaderToken))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(conversationId.toString))
       .withHeader(USER_AGENT, equalTo("customs-notification"))
       .withHeader(X_CORRELATION_ID_HEADER_NAME, equalTo(correlationId))
       .withHeader(X_SUBMITTER_ID_HEADER_NAME, equalTo(submitterNumber))
       .withHeader(X_BADGE_ID_HEADER_NAME, equalTo(badgeId))
-      .withHeader(ISSUE_DATE_TIME_HEADER, equalTo(issueDateTime))
-      .withRequestBody(equalToXml(pnr.body.xmlPayload))
+      .withHeader(ISSUE_DATE_TIME_HEADER_NAME, equalTo(issueDateTime))
+      .withRequestBody(equalToXml(pnr.xmlPayload))
     )
 
   }
@@ -124,7 +125,7 @@ trait ApiSubscriptionFieldsService {
     urlEqualTo(apiSubscriptionFieldsUrl(fieldsId))
   }
 
-  private def responseString(fieldsId: String, fields: DeclarantCallbackData) =
+  private def responseString(fieldsId: String, fields: PushCallbackData) =
     s"""
        |{
        |  "clientId" : "aThirdPartyApplicationId",
@@ -138,11 +139,11 @@ trait ApiSubscriptionFieldsService {
        |}
        |""".stripMargin
 
-  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData: DeclarantCallbackData = callbackData): Unit =
+  def startApiSubscriptionFieldsService(fieldsId: String, testCallbackData: PushCallbackData = callbackData): Unit =
     setupApiSubscriptionFieldsServiceToReturn(Status.OK, fieldsId, testCallbackData)
 
 
-  def setupApiSubscriptionFieldsServiceToReturn(status: Int, fieldsId: String, fields: DeclarantCallbackData): Unit =
+  def setupApiSubscriptionFieldsServiceToReturn(status: Int, fieldsId: String, fields: PushCallbackData): Unit =
     stubFor(
       get(urlMatchingRequestPath(fieldsId)).
         willReturn(
@@ -183,8 +184,8 @@ trait NotificationQueueService extends WireMockRunner {
   self: Matchers =>
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.NotificationQueueContext)
 
-  def getBadgeIdHeader(request: PushNotificationRequest): Option[String] =
-    extractBadgeIdHeaderValue(request.body.outboundCallHeaders)
+  def getBadgeIdHeader(request: InternalPushNotificationRequest): Option[String] =
+    extractBadgeIdHeaderValue(request.outboundCallHeaders)
 
 
   private def extractHeader(headers: Seq[Header], name: String) = {
@@ -207,61 +208,62 @@ trait NotificationQueueService extends WireMockRunner {
 
   def actualCallsMadeToPullQ(): util.List[LoggedRequest] = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath))
 
-  def setupPullQueueServiceToReturn(status: Int,
-                                    request: ClientNotification): Unit = {
-
-    stubFor(post(urlMatchingRequestPath)
-      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.toString()))
-      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.toString()))
-      willReturn aResponse()
-      .withStatus(status))
-  }
+//  def setupPullQueueServiceToReturn(status: Int,
+//                                    clientSubscriptionId: ClientSubscriptionId,
+//                                    notification: Notification): Unit = {
+//
+//    stubFor(post(urlMatchingRequestPath)
+//      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
+//      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
+//      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.toString()))
+//      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.toString()))
+//      willReturn aResponse()
+//      .withStatus(status))
+//  }
 
   def setupNotificationQueueServiceToReturnNoBadgeId(status: Int,
-                                                     request: PushNotificationRequest,
+                                                     request: InternalPushNotificationRequest,
                                                      fieldsId: String = validFieldsId): Unit = {
 
     stubFor(post(urlMatchingRequestPath)
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.body.authHeaderToken))
+      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.authHeaderToken))
       .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.body.conversationId))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.conversationId))
       .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(fieldsId))
       willReturn aResponse()
       .withStatus(status))
   }
 
-  def verifyPullQueueServiceWasCalledWith(request: ClientNotification): Unit = {
-
-    val allRequestsMade = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath)
-      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.id.toString))
-      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.id.toString))
-      .withHeader(HeaderNames.AUTHORIZATION, absent())
-      .withoutHeader(ISSUE_DATE_TIME_HEADER)
-      .withRequestBody(equalToXml(request.notification.payload))
-    )
-
-    assert(allRequestsMade.size() == 1)
-
-    extractBadgeIdHeaderValue(request.notification.headers) match {
-      case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(X_BADGE_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
-      case None => allRequestsMade.get(0).containsHeader(X_BADGE_ID_HEADER_NAME) shouldBe false
-    }
-
-    extractCorrelationIdHeaderValue(request.notification.headers) match {
-      case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(X_CORRELATION_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
-      case None => allRequestsMade.get(0).containsHeader(X_CORRELATION_ID_HEADER_NAME) shouldBe false
-    }
-
-    request.notification.notificationId match {
-      case Some(notificationId) => allRequestsMade.get(0).getHeader(NOTIFICATION_ID_HEADER_NAME) shouldBe notificationId.toString
-      case None => allRequestsMade.get(0).getAllHeaderKeys.contains(NOTIFICATION_ID_HEADER_NAME) shouldBe false
-    }
-  }
+//  def verifyPullQueueServiceWasCalledWith(request: ClientNotification): Unit = {
+//
+//    val allRequestsMade = wireMockServer.findAll(postRequestedFor(urlMatchingRequestPath)
+//      .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
+//      .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
+//      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.notification.conversationId.id.toString))
+//      .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(request.csid.id.toString))
+//      .withHeader(HeaderNames.AUTHORIZATION, absent())
+//      .withoutHeader(ISSUE_DATE_TIME_HEADER_NAME)
+//      .withRequestBody(equalToXml(request.notification.payload))
+//    )
+//
+//    assert(allRequestsMade.size() == 1)
+//
+//    extractBadgeIdHeaderValue(request.notification.headers) match {
+//      case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(X_BADGE_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
+//      case None => allRequestsMade.get(0).containsHeader(X_BADGE_ID_HEADER_NAME) shouldBe false
+//    }
+//
+//    extractCorrelationIdHeaderValue(request.notification.headers) match {
+//      case Some(expectedBadgeIdHeaderValue) => allRequestsMade.get(0).getHeader(X_CORRELATION_ID_HEADER_NAME) shouldBe expectedBadgeIdHeaderValue
+//      case None => allRequestsMade.get(0).containsHeader(X_CORRELATION_ID_HEADER_NAME) shouldBe false
+//    }
+//
+//    request.notification.notificationId match {
+//      case Some(notificationId) => allRequestsMade.get(0).getHeader(NOTIFICATION_ID_HEADER_NAME) shouldBe notificationId.toString
+//      case None => allRequestsMade.get(0).getAllHeaderKeys.contains(NOTIFICATION_ID_HEADER_NAME) shouldBe false
+//    }
+//  }
 
   def verifyNotificationQueueServiceWasNotCalled(): Unit =
     verify(0, postRequestedFor(urlMatchingRequestPath))

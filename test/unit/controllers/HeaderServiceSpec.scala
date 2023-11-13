@@ -16,21 +16,18 @@
 
 package unit.controllers
 
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.http.HeaderNames._
 import play.api.mvc.Results._
-import play.api.mvc.{Action, AnyContent, ControllerComponents}
+import play.api.mvc.{Action, AnyContent}
 import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest, ErrorUnauthorized}
-import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
-import uk.gov.hmrc.customs.notification.services.HeadersActionFilter
+import uk.gov.hmrc.customs.notification.config.BasicAuthTokenConfig
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CLIENT_SUB_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import util.RequestHeaders._
-import util.TestData.basicAuthTokenValue
 import util.UnitSpec
-import uk.gov.hmrc.customs.notification.util.HeaderNames
-import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 
 import scala.util.Random
 
@@ -38,9 +35,7 @@ class HeaderServiceSpec extends UnitSpec with MockitoSugar with TableDrivenPrope
 
   private implicit val ec = Helpers.stubControllerComponents().executionContext
   private val mockLogger: NotificationLogger = mock[NotificationLogger]
-  private val mockConfigService = mock[CustomsNotificationConfig]
-
-  private val headerService = new HeadersActionFilter(mockConfigService, mockLogger)
+  private val mockBasicAuthTokenConfig = mock[BasicAuthTokenConfig]
 
   //  private val withAuthTokenConfigured: Action[AnyContent] = headerService.validateHeaders(Some(basicAuthTokenValue))(ec) async {
   //    Ok
@@ -67,7 +62,7 @@ class HeaderServiceSpec extends UnitSpec with MockitoSugar with TableDrivenPrope
       ("return OK result for Authorization header invalid when not configured to validate it", authTokenNotConfigured, ValidHeaders + BASIC_AUTH_HEADER_INVALID, Ok),
       ("return ErrorContentTypeHeaderInvalid result for content type header missing", withAuthTokenConfigured, ValidHeaders - CONTENT_TYPE, ErrorContentTypeHeaderInvalid.XmlResult),
       ("return ErrorAcceptHeaderInvalid result for accept header missing", withAuthTokenConfigured, ValidHeaders - ACCEPT, ErrorAcceptHeaderInvalid.XmlResult),
-      ("return ErrorClientIdMissing result for clientId header missing", withAuthTokenConfigured, ValidHeaders - X_CDS_CLIENT_ID_HEADER_NAME, ErrorGenericBadRequest.XmlResult),
+      ("return ErrorClientIdMissing result for clientId header missing", withAuthTokenConfigured, ValidHeaders - X_CLIENT_SUB_ID_HEADER_NAME, ErrorGenericBadRequest.XmlResult),
       ("return ErrorClientIdInvalid result for clientId header invalid", withAuthTokenConfigured, ValidHeaders + X_CDS_CLIENT_ID_INVALID, ErrorGenericBadRequest.XmlResult),
       ("return ErrorConversationIdMissing result for conversationId header missing", withAuthTokenConfigured, ValidHeaders - X_CONVERSATION_ID_HEADER_NAME, ErrorGenericBadRequest.XmlResult),
       ("return ErrorConversationIdInvalid result for conversationId header invalid", withAuthTokenConfigured, ValidHeaders + X_CONVERSATION_ID_INVALID, ErrorGenericBadRequest.XmlResult),

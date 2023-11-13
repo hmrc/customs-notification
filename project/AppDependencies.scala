@@ -6,14 +6,16 @@ object AppDependencies {
   private val mongoVersion = "1.1.0"
 
   val compile = Seq(
-    "uk.gov.hmrc.mongo" %% "hmrc-mongo-work-item-repo-play-28" % mongoVersion,
-    "bootstrap-backend-play-28" % "7.15.0"
+    "uk.gov.hmrc" %% "customs-api-common" % "1.58.0",
+    "uk.gov.hmrc.mongo" %% "hmrc-mongo-work-item-repo-play-28" % mongoVersion
   )
 
   val test = Seq(
+    "uk.gov.hmrc" %% "customs-api-common" % "1.58.0" % testScope classifier "tests",
     "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % testScope,
     "com.github.tomakehurst" % "wiremock-standalone" % "2.27.2" % testScope,
-    "org.scalatestplus" %% "mockito-3-4" % "3.2.10.0" % testScope,
+    "org.mockito" % "mockito-scala_2.13" % "1.17.29" % testScope,
+    "org.mockito" % "mockito-scala-scalatest_2.13" % "1.17.29" % testScope,
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-test-play-28" % mongoVersion % testScope,
     "com.vladsch.flexmark" % "flexmark-all" % "0.35.10"  % testScope,
     "uk.gov.hmrc" %% "bootstrap-test-play-28" % "7.15.0" % testScope,

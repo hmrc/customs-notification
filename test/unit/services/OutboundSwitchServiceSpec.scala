@@ -16,8 +16,8 @@
 
 package unit.services
 
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.Eventually
-import org.scalatestplus.mockito.MockitoSugar
 import util.UnitSpec
 
 class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventually {

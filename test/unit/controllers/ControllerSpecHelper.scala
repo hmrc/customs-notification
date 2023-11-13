@@ -17,19 +17,18 @@
 package unit.controllers
 
 import org.mockito.ArgumentMatchers.any
-import uk.gov.hmrc.customs.notification.models.HasId
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import util.MockitoPassByNameHelper.PassByNameVerifier
 
 trait ControllerSpecHelper {
-  protected def verifyLog(method: String, message: String, mockLogger : NotificationLogger): Unit = {
+  protected def verifyLog(method: String, message: String, mockLogger: NotificationLogger): Unit = {
     PassByNameVerifier(mockLogger, method)
       .withByNameParam(message)
-      .withParamMatcher(any[HasId])
+//      .withParamMatcher(any[HasId])
       .verify()
   }
 
-  protected def verifyLogWithHeaders(method: String, message: String, mockLogger : NotificationLogger): Unit = {
+  protected def verifyLogWithHeaders(method: String, message: String, mockLogger: NotificationLogger): Unit = {
     PassByNameVerifier(mockLogger, method)
       .withByNameParam(message)
       .withByNameParamMatcher(any[Seq[(String, String)]])

@@ -19,9 +19,9 @@ package unit.services
 import akka.actor.ActorSystem
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.config.{AppConfig, CustomsNotificationConfig, NotificationConfig, UnblockPollerConfig}

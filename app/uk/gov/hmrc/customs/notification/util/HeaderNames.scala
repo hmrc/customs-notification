@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.util
 
 object HeaderNames {
-  val X_CDS_CLIENT_ID_HEADER_NAME = "X-CDS-Client-ID"
+  val X_CLIENT_SUB_ID_HEADER_NAME = "X-CDS-Client-ID"
   val X_CLIENT_ID_HEADER_NAME = "X-Client-ID"
   val X_CONVERSATION_ID_HEADER_NAME = "X-Conversation-ID"
   val X_CORRELATION_ID_HEADER_NAME = "X-Correlation-ID"
@@ -25,5 +25,5 @@ object HeaderNames {
   val SUBSCRIPTION_FIELDS_ID_HEADER_NAME = "api-subscription-fields-id"
   val NOTIFICATION_ID_HEADER_NAME = "notification-id"
   val X_SUBMITTER_ID_HEADER_NAME = "X-Submitter-Identifier"
-  val ISSUE_DATE_TIME_HEADER = "X-IssueDateTime"
+  val ISSUE_DATE_TIME_HEADER_NAME = "X-IssueDateTime"
 }

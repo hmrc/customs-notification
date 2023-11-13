@@ -16,21 +16,20 @@
 
 package integration
 
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Inside}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.PushConnector
-import uk.gov.hmrc.customs.notification.models.requests.{PushNotificationRequest, PushNotificationRequestBody}
-import uk.gov.hmrc.customs.notification.models.{CallbackUrl, Header}
-import uk.gov.hmrc.customs.notification.util.HeaderNames.{ISSUE_DATE_TIME_HEADER, X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_SUBMITTER_ID_HEADER_NAME}
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.customs.notification.models.Header
+import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{ISSUE_DATE_TIME_HEADER_NAME, X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_SUBMITTER_ID_HEADER_NAME}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import unit.logging.StubCdsLogger
 import util.TestData._
 import util.{ExternalServicesConfiguration, InternalPushNotificationService, WireMockRunnerWithoutServer}
-import uk.gov.hmrc.http.HttpResponse
 
 import java.net.URL
 
@@ -46,19 +45,17 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
   private val stubCdsLogger = StubCdsLogger()
   private val validUrl = Some(new URL(s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}"))
 
-  def pnr(url: Option[URL] = validUrl): PushNotificationRequest = PushNotificationRequest(
-    CsidOne.id.toString,
-    PushNotificationRequestBody(
-      CallbackUrl(url),
+  def pnr(url: Option[URL] = validUrl): InternalPushNotificationRequest = PushNotificationRequest(
+      ???,
       "SECURITY_TOKEN",
       conversationId.id.toString,
       Seq(
         X_CORRELATION_ID_HEADER_NAME -> correlationId,
         X_BADGE_ID_HEADER_NAME -> badgeId,
         X_SUBMITTER_ID_HEADER_NAME -> submitterNumber,
-        ISSUE_DATE_TIME_HEADER -> issueDateTime
+        ISSUE_DATE_TIME_HEADER_NAME -> issueDateTime
       ).map(t => Header(t._1, t._2)),
-      ValidXML.toString())
+      ValidXML.toString()
   )
 
   override protected def beforeAll(): Unit = {

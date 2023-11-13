@@ -18,9 +18,9 @@ package unit.services
 
 import akka.actor.ActorSystem
 import org.mockito.Mockito._
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Seconds, Span}
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger

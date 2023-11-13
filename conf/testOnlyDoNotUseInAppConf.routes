@@ -11,4 +11,3 @@
 
 ->        /test-only/service                    dynamicservice.Routes
 ->        /                                     prod.Routes
-DELETE    /customs-notification/test-only/all   uk.gov.hmrc.customs.notification.testonly.TestOnlyController.deleteAll()
