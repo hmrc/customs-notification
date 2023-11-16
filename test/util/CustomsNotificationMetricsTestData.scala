@@ -29,7 +29,7 @@ object CustomsNotificationMetricsTestData {
     59, 0, UtcZoneId)
   val EventEnd: ZonedDateTime = EventStart.plusSeconds(2)
 
-  val ValidCustomsNotificationMetricsRequest: MetricsRequest =
-    models.requests.MetricsRequest(TestData.conversationId, EventStart, EventEnd)
+  val ValidCustomsNotificationMetricsRequest: MetricsRequest = ???
+//    models.requests.MetricsRequest(TestData.conversationId, EventStart, EventEnd)
 
 }

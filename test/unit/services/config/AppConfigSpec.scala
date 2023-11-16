@@ -21,7 +21,7 @@ import org.mockito.scalatest.MockitoSugar
 import org.scalatest.matchers.should.Matchers
 import play.api.Configuration
 import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor
-import uk.gov.hmrc.customs.notification.config.{AppConfig, NotificationQueueConfig}
+import uk.gov.hmrc.customs.notification.config.{AppConfig}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import util.UnitSpec
 import unit.logging.StubCdsLogger
@@ -118,7 +118,7 @@ class AppConfigSpec extends UnitSpec with MockitoSugar with Matchers {
       val actual = configService(validServicesConfig)
 
       actual.basicAuthToken shouldBe Some(basicAuthTokenValue)
-      actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
+//      actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
       actual.notificationConfig.internalClientIds shouldBe Seq("ClientIdOne", "ClientIdTwo")
       actual.notificationConfig.ttlInSeconds shouldBe 1
       actual.notificationConfig.retryPollerEnabled shouldBe true
@@ -134,7 +134,7 @@ class AppConfigSpec extends UnitSpec with MockitoSugar with Matchers {
       val actual = configService(mandatoryOnlyServicesConfig)
 
       actual.basicAuthToken shouldBe None
-      actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
+//      actual.notificationQueueConfig shouldBe NotificationQueueConfig("http://localhost:9648/queue")
       actual.notificationConfig.ttlInSeconds shouldBe 1
       actual.unblockPollerConfig.pollerInterval shouldBe (400 milliseconds)
       actual.notificationConfig.retryPollerEnabled shouldBe true

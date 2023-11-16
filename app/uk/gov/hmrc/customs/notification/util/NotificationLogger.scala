@@ -25,7 +25,7 @@ import scala.collection.immutable.ListMap
 
 @Singleton
 class NotificationLogger @Inject()(logger: CdsLogger) {
-  def debug[A](msg: => String): Unit = {
+  def debug(msg: => String): Unit = {
     logger.debug(msg)
   }
 
@@ -45,7 +45,11 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
     logger.warn(format(msg, toLog), t)
   }
 
-  def error[A](msg: => String, toLog: A)(implicit ev: Loggable[A]): Unit = {
+  def error(msg: => String): Unit = {
+    logger.error(msg)
+  }
+
+  def error[a](msg: => String, toLog: a)(implicit ev: Loggable[a]): Unit = {
     logger.error(format(msg, toLog))
   }
 

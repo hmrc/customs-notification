@@ -34,28 +34,27 @@ sealed trait CdsRequest {
   def url: URL
 
   def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier
-}
-
-trait PostRequest extends CdsRequest {
-  final override type RESPONSE = Unit
-
-  def body: POST_BODY
-
-  def writes: Writes[POST_BODY]
 
   def descriptor: String
 }
 
-trait GetRequest extends CdsRequest {
-  final override type POST_BODY = Nothing
+trait PostRequest extends CdsRequest {
+  final  type RESPONSE = Unit
+
+  def body: POST_BODY
+
+  def writes: Writes[POST_BODY]
 }
 
+trait GetRequest extends CdsRequest {
+  final  type POST_BODY = Nothing
+}
 
 case class ApiSubscriptionFieldsRequest(clientSubscriptionId: ClientSubscriptionId,
                                         baseUrl: URL) extends GetRequest {
   type RESPONSE = ApiSubscriptionFields
-  val url = new URL(s"${baseUrl.toString}/$clientSubscriptionId")
-
+  val url: URL = new URL(s"${baseUrl.toString}/$clientSubscriptionId")
+  val descriptor: String = "Api subscription fields"
   def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier =
     hc.withExtraHeaders(
       CONTENT_TYPE -> MimeTypes.JSON,
@@ -63,13 +62,17 @@ case class ApiSubscriptionFieldsRequest(clientSubscriptionId: ClientSubscription
     )
 }
 
+sealed trait PushOrPullRequest extends PostRequest {
+  def descriptor: String
+}
+
 case class PullNotificationRequest(clientSubscriptionId: ClientSubscriptionId,
                                    notification: Notification,
-                                   url: URL) extends PostRequest {
+                                   url: URL) extends PushOrPullRequest {
   type POST_BODY = String
   val body: String = notification.payload
   val writes: Writes[String] = StringWrites
-  val descriptor: String = "pull"
+  val descriptor: String = "Pull enqueue"
 
   def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier =
     HeaderCarrier(
@@ -89,11 +92,12 @@ case class InternalPushNotificationRequest(conversationId: ConversationId,
                                            authToken: Authorization,
                                            xmlPayload: String,
                                            outboundCallHeaders: Seq[Header],
-                                           url: URL) extends PostRequest {
+                                           url: URL) extends PushOrPullRequest {
   type POST_BODY = String
   val body: String = xmlPayload
   val writes: Writes[String] = StringWrites
-  val descriptor: String = "internal push"
+  val descriptor: String = "Internal push"
+
   def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier =
     hc
       .copy(authorization = Some(authToken))
@@ -110,13 +114,13 @@ case class InternalPushNotificationRequest(conversationId: ConversationId,
 case class ExternalPushNotificationRequest(notificationId: NotificationId,
                                            url: URL,
                                            authHeaderToken: Authorization,
-                                           xmlPayload: String) extends PostRequest {
+                                           xmlPayload: String) extends PushOrPullRequest {
   type POST_BODY = this.type
-  val body: ExternalPushNotificationRequest = this
+  val body: this.type = this
   val writes: Writes[this.type] = Json.writes[this.type]
-  val descriptor: String = "external push"
+  val descriptor: String = "External push"
 
-  override def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier =
+   def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier =
     hc.withExtraHeaders(
       ACCEPT -> MimeTypes.JSON,
       CONTENT_TYPE -> MimeTypes.JSON,
@@ -130,15 +134,15 @@ case class MetricsRequest(conversationId: ConversationId,
                           url: URL) extends PostRequest {
 
   type POST_BODY = this.type
-  val descriptor: String = "metrics"
   val body: this.type = this
+  val descriptor: String = "Metrics"
 
-  override val writes: Writes[this.type] = {
+   val writes: Writes[this.type] = {
     val additionalEventType = "eventType" -> JsString("NOTIFICATION")
-    Json.writes[this.type].transform((o: JsObject) => o + additionalEventType)
+    Json.writes[this.type].transform((o: JsObject) => o + additionalEventType - "url")
   }
 
-  override def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier =
+   def transformHeaderCarrier(hc: HeaderCarrier): HeaderCarrier =
     HeaderCarrier(
       requestId = hc.requestId,
       extraHeaders = List(

@@ -25,7 +25,6 @@ import play.api.test.Helpers
 import uk.gov.hmrc.customs.api.common.config.{ServiceConfig, ServiceConfigProvider}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.config.AppConfig
-import uk.gov.hmrc.customs.notification.connectors.PushConnector
 import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpReads, HttpResponse}
@@ -44,10 +43,10 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
   private implicit val hc: HeaderCarrier = HeaderCarrier()
   private implicit val rm = requestMetaData
 
-  private val connector = new PushConnector(
-    mockHttpClient,
-    mockLogger,
-    serviceConfigProvider)
+//  private val connector = new PushConnector(
+//    mockHttpClient,
+//    mockLogger,
+//    serviceConfigProvider)
 
   private val url = "the-url"
 

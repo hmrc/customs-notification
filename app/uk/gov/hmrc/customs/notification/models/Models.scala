@@ -17,26 +17,20 @@
 package uk.gov.hmrc.customs.notification.models
 
 import org.bson.types.ObjectId
-import org.joda.time.DateTime
 import play.api.libs.json._
-import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
+import uk.gov.hmrc.http.Authorization
 
+import java.net.URL
 import java.time.ZonedDateTime
 import java.util.UUID
+import scala.util.{Failure, Success, Try}
 
 case class ConversationId(id: UUID) extends AnyVal {
   override def toString: String = id.toString
 }
 
 object ConversationId {
-  implicit val conversationIdJF: Format[ConversationId] = new Format[ConversationId] {
-    def writes(conversationId: ConversationId) = JsString(conversationId.id.toString)
-
-    def reads(json: JsValue): JsResult[ConversationId] = json match {
-      case JsNull => JsError()
-      case _ => JsSuccess(ConversationId(json.as[UUID]))
-    }
-  }
+  implicit val conversationIdJF: Format[ConversationId] = Json.valueFormat
 }
 
 case class NotificationId(id: UUID) extends AnyVal {
@@ -44,18 +38,7 @@ case class NotificationId(id: UUID) extends AnyVal {
 }
 
 object NotificationId {
-  implicit val notificationIdJF: Format[NotificationId] = new Format[NotificationId] {
-    def writes(notificationId: NotificationId) = JsString(notificationId.id.toString)
-
-    def reads(json: JsValue): JsResult[NotificationId] = json match {
-      case JsNull => JsError()
-      case _ => JsSuccess(NotificationId(json.as[UUID]))
-    }
-  }
-}
-
-case class ClientId(id: String) extends AnyVal {
-  override def toString: String = id
+  implicit val notificationIdJF: Format[NotificationId] = Json.valueFormat
 }
 
 case class ClientSubscriptionId(id: UUID) extends AnyVal {
@@ -63,26 +46,14 @@ case class ClientSubscriptionId(id: UUID) extends AnyVal {
 }
 
 object ClientSubscriptionId {
-  implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] =
-    new Format[ClientSubscriptionId] {
-      def writes(csid: ClientSubscriptionId) = JsString(csid.id.toString)
-
-      def reads(json: JsValue): JsResult[ClientSubscriptionId] = json match {
-        case JsNull => JsError()
-        case _ => JsSuccess(ClientSubscriptionId(json.as[UUID]))
-      }
-    }
+  implicit val clientSubscriptionIdJF: Format[ClientSubscriptionId] = Json.valueFormat
 }
 
+case class ClientId(id: String) extends AnyVal {
+  override def toString: String = id
+}
 object ClientId {
-  implicit val clientIdJF: Format[ClientId] = new Format[ClientId] {
-    def writes(clientId: ClientId) = JsString(clientId.id)
-
-    def reads(json: JsValue): JsResult[ClientId] = json match {
-      case JsNull => JsError()
-      case _ => JsSuccess(ClientId(json.as[String]))
-    }
-  }
+  implicit val clientIdJF: Format[ClientId] = Json.valueFormat
 }
 
 case class FunctionCode(value: String) extends AnyVal {
@@ -99,6 +70,21 @@ case class Header(name: String, value: String) {
 
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
+}
+
+case class PushCallbackData(callbackUrl: Option[URL],
+                            securityToken: Authorization)
+
+object PushCallbackData {
+  implicit val authReads: Reads[Authorization] = Json.valueReads[Authorization]
+  implicit val urlReads: Reads[URL] = {
+    case JsString(urlStr) => Try(new URL(urlStr)) match {
+      case Success(url) => JsSuccess(url)
+      case Failure(_) => JsError("error.malformed.url")
+    }
+    case _ => JsError("error.expected.url")
+  }
+  implicit val reads: Reads[PushCallbackData] = Json.reads[PushCallbackData]
 }
 
 case class ApiSubscriptionFields(clientId: ClientId,
@@ -119,23 +105,11 @@ case class RequestMetadata(clientSubscriptionId: ClientSubscriptionId,
                            maybeMrn: Option[Mrn],
                            startTime: ZonedDateTime)
 
-case class Notification(notificationId: NotificationId,
+case class Notification(id: ObjectId,
+                        clientSubscriptionId: ClientSubscriptionId,
+                        clientId: ClientId,
+                        notificationId: NotificationId,
                         conversationId: ConversationId,
                         headers: Seq[Header],
                         payload: String,
-                        contentType: String,
-                        mostRecentPushPullHttpStatus: Option[Int] = None)
-
-object Notification {
-  implicit val notificationJF: Format[Notification] = Json.format[Notification]
-}
-case class NotificationWorkItem(_id: ClientSubscriptionId,
-                                clientId: ClientId,
-                                metricsStartDateTime: ZonedDateTime,
-                                notification: Notification)
-
-object NotificationWorkItem {
-  implicit val dateFormats: Format[DateTime] = MongoJodaFormats.dateTimeFormat
-  implicit val objectIdFormats: Format[ObjectId] = MongoFormats.objectIdFormat
-  implicit val format: OFormat[NotificationWorkItem] = Json.format[NotificationWorkItem]
-}
+                        metricsStartDateTime: ZonedDateTime)

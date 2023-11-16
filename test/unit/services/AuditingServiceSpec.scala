@@ -21,7 +21,7 @@ import org.mockito.scalatest.MockitoSugar
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.services.AuditingService
+import uk.gov.hmrc.customs.notification.services.{AuditingService, DateTimeService}
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, RequestId}
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
@@ -42,6 +42,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
   private val mockLogger = mock[NotificationLogger]
   private val mockAuditConnector = mock[AuditConnector]
+  private val mockDateTimeService = mock[DateTimeService]
   private implicit val rm = TestData.requestMetaData
   implicit val hc = HeaderCarrier(requestId = Some(RequestId("ABC")))
 
@@ -49,7 +50,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
     reset(mockAuditConnector)
   }
 
-  val auditingService = new AuditingService(mockLogger, mockAuditConnector)
+  val auditingService = new AuditingService(mockLogger, mockAuditConnector, mockDateTimeService)
 
   "AuditingService" should {
 
@@ -223,7 +224,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
 
     "should log error when auditing fails" in {
 
-      val auditingService = new AuditingService(mockLogger, mockAuditConnector)
+      val auditingService = new AuditingService(mockLogger, mockAuditConnector, mockDateTimeService)
 
       when(mockAuditConnector.sendExtendedEvent(any[ExtendedDataEvent])(any[HeaderCarrier], eqTo(ec))).thenReturn(Future.failed(new Exception))
 

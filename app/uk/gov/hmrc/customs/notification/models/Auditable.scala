@@ -44,12 +44,12 @@ object Auditable {
         KeyNames.Mrn -> r.maybeMrn.map(_.toString)
       )
 
-    implicit val auditableNotificationWorkItem: Auditable[NotificationWorkItem] = (n: NotificationWorkItem) =>
+    implicit val auditableNotification: Auditable[Notification] = (n: Notification) =>
       Map(
-        KeyNames.ConversationId -> Some(n.notification.conversationId.id.toString),
+        KeyNames.ConversationId -> Some(n.conversationId.toString),
         KeyNames.ClientId -> Some(n.clientId.id),
-        KeyNames.ClientSubscriptionId -> Some(n._id.toString),
-        KeyNames.NotificationId -> Some(n.notification.notificationId.toString)
+        KeyNames.ClientSubscriptionId -> Some(n.clientSubscriptionId.toString),
+        KeyNames.NotificationId -> Some(n.notificationId.toString)
       )
   }
 }

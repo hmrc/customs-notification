@@ -26,7 +26,7 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import util.ExternalServicesConfiguration
 
 trait ComponentTestSpec extends AnyFeatureSpec
@@ -62,7 +62,7 @@ trait ComponentTestSpec extends AnyFeatureSpec
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder().configure(acceptanceTestConfigs).build()
 
-  val repository: NotificationWorkItemRepo = app.injector.instanceOf[NotificationWorkItemRepo]
+  val repository: NotificationRepo = app.injector.instanceOf[NotificationRepo]
 
   val collection = repository.collection
 

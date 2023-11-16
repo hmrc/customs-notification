@@ -23,9 +23,9 @@ import org.mockito.Mockito._
 import org.mockito.scalatest.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.config.{CustomsNotificationConfig, NotificationConfig}
-import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.customs.notification.util.{NotificationLogger, NotificationWorkItemRepo}
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, Succeeded}
 import util.MockitoPassByNameHelper.PassByNameVerifier

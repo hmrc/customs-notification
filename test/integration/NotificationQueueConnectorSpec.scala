@@ -22,7 +22,7 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.connectors.NotificationQueueConnector
+import uk.gov.hmrc.customs.notification.services.HttpConnector
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
@@ -35,7 +35,8 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
   with NotificationQueueService
   with WireMockRunnerWithoutServer {
 
-  private lazy val connector = app.injector.instanceOf[NotificationQueueConnector]
+//  private lazy val connector = app.injector.instanceOf[NotificationQueueConnector]
+    private lazy val connector = app.injector.instanceOf[HttpConnector]
 
   val incomingBearerToken = "some_client's_bearer_token"
   val incomingAuthToken = s"Bearer $incomingBearerToken"

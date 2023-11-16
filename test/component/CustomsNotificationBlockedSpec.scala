@@ -18,7 +18,7 @@ package component
 
 import play.api.mvc.Result
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.models.Notification
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import util.TestData._
@@ -29,7 +29,7 @@ import scala.xml.XML.loadString
 
 class CustomsNotificationBlockedSpec extends ComponentTestSpec {
 
-  private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
+  private def permanentlyFailed(item: Notification): ProcessingStatus = PermanentlyFailed
   private val missingClientIdError =
     <errorResponse>
       <code>BAD_REQUEST</code>
@@ -50,8 +50,8 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
     Scenario("a valid request returns the correct blocked count") {
       Given("the API is available")
       And("there is data in the database")
-      await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
-      await(repository.pushNew(NotificationWorkItem2, repository.now(), permanentlyFailed))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), ???)) //permanentlyFailed
+      await(repository.pushNew(NotificationWorkItem2, repository.now(), ???))
 
       When("a GET request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, ValidBlockedCountRequest)
@@ -68,8 +68,8 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
     Scenario("a request without a client id header returns the correct error response") {
       Given("the API is available")
       And("there is data in the database")
-      await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
-      await(repository.pushNew(NotificationWorkItem2, repository.now(), permanentlyFailed))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), ???))
+      await(repository.pushNew(NotificationWorkItem2, repository.now(), ??? ))
 
       When("a GET request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, InvalidBlockedCountRequest)
@@ -89,9 +89,9 @@ class CustomsNotificationBlockedSpec extends ComponentTestSpec {
     Scenario("a request that removes blocks returns the correct response") {
       Given("the API is available")
       And("there is data in the database")
-      await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
-      await(repository.pushNew(NotificationWorkItem2, repository.now(), permanentlyFailed))
-      await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), ???))
+      await(repository.pushNew(NotificationWorkItem2, repository.now(), ???))
+      await(repository.pushNew(NotificationWorkItem3, repository.now(), ???))
 
       When("a DELETE request with data is sent to the API")
       val result: Option[Future[Result]] = route(app = app, ValidDeleteBlockedRequest)

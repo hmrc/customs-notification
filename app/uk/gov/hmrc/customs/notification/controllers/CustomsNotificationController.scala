@@ -30,28 +30,31 @@ import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableHeader
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
 import uk.gov.hmrc.customs.notification.models.errors.ControllerError._
-import uk.gov.hmrc.customs.notification.services.NotificationService.{DeclarantNotFound, NotificationServiceGenericError}
-import uk.gov.hmrc.customs.notification.services.{DateTimeService, NotificationService, UuidService}
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
+import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
+import uk.gov.hmrc.customs.notification.services.{DateTimeService, IncomingNotificationService, UuidService}
 import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
-import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo.MongoDbError
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
 import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import java.time.ZonedDateTime
 import java.util.{Locale, UUID}
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
 @Singleton
-class CustomsNotificationController @Inject()(cc: ControllerComponents,
-                                              customsNotificationService: NotificationService,
+class CustomsNotificationController @Inject()()(implicit
+                                              cc: ControllerComponents,
+                                              incomingNotificationService: IncomingNotificationService,
                                               dateTimeService: DateTimeService,
                                               uuidService: UuidService,
                                               basicAuthTokenConfig: BasicAuthTokenConfig,
-                                              workItemRepo: NotificationWorkItemRepo)(implicit ec: ExecutionContext,
-                                                                                      logger: NotificationLogger) extends BackendController(cc) {
+                                              workItemRepo: NotificationRepo,
+                                              logger: NotificationLogger,
+                                              ec: ExecutionContext) extends BackendController(cc) {
   override val controllerComponents: ControllerComponents = cc
 
   def submit(): Action[AnyContent] = Action.async { request =>
@@ -64,7 +67,7 @@ class CustomsNotificationController @Inject()(cc: ControllerComponents,
       startTime = dateTimeService.now()
       notificationId = NotificationId(uuidService.getRandomUuid())
       requestMetadata <- validateRequestMetadata(xml, notificationId, startTime).toFutureCdsResult
-      _ <- FutureCdsResult(customsNotificationService.handleNotification(xml, requestMetadata)(hc(request)))
+      _ <- FutureCdsResult(incomingNotificationService.process(xml)(requestMetadata, hc(request)))
     } yield ()).value.map({
       case Right(_) =>
         Results.Accepted
@@ -87,7 +90,7 @@ class CustomsNotificationController @Inject()(cc: ControllerComponents,
       ErrorResponse(BAD_REQUEST, BadRequestCode, BadlyFormedXml.message).XmlResult
     case DeclarantNotFound =>
       ErrorResponse(BAD_REQUEST, BadRequestCode, s"The $X_CLIENT_SUB_ID_HEADER_NAME header is invalid").XmlResult
-    case NotificationServiceGenericError =>
+    case InternalServiceError =>
       ErrorInternalServerError.XmlResult
     case e =>
       logger.error(s"Unhandled error: $e", headers)
@@ -104,29 +107,26 @@ class CustomsNotificationController @Inject()(cc: ControllerComponents,
       case Left(MissingClientId) =>
         logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling blocked-count endpoint", request.headers)
         ErrorResponse(BAD_REQUEST, BadRequestCode, MissingClientId.responseMessage).XmlResult
-      case Left(MongoDbError(t)) =>
-        logger.error(s"Unable to delete blocked flags due to $t", request.headers)
+      case Left(mongoDbError: MongoDbError) =>
+        logger.error(mongoDbError.message, request.headers)
         ErrorInternalServerError.XmlResult
     }
   }
 
   def deleteBlocked(): Action[AnyContent] = Action.async { request =>
-    (for {
-      clientId <- getClientId(request.headers).toFutureCdsResult
-      count <- FutureCdsResult(workItemRepo.unblockFailedAndBlockedByClientId(clientId))
-    } yield count).value.map {
-      case Right(0) =>
-        logger.info(s"No blocked flags deleted", request.headers)
-        ErrorNotFound.XmlResult
-      case Right(count) =>
-        logger.info(s"$count blocked flags deleted", request.headers)
-        Results.NoContent
+    getClientId(request.headers) match {
       case Left(MissingClientId) =>
         logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling delete blocked-flag endpoint", request.headers)
-        ErrorResponse(BAD_REQUEST, BadRequestCode, MissingClientId.responseMessage).XmlResult
-      case Left(MongoDbError(t)) =>
-        logger.error(s"Unable to delete blocked flags due to: $t", request.headers)
-        ErrorInternalServerError.XmlResult
+        Future.successful(ErrorResponse(BAD_REQUEST, BadRequestCode, MissingClientId.responseMessage).XmlResult)
+      case Right(clientId) =>
+        workItemRepo.unblockFailedAndBlocked(clientId).map {
+          case Left(mongoDbError) =>
+            logger.error(mongoDbError.message, request.headers)
+            ErrorInternalServerError.XmlResult
+          case Right(count) =>
+            logger.info(s"$count blocked flags deleted", request.headers)
+            Results.NoContent
+        }
     }
   }
 }

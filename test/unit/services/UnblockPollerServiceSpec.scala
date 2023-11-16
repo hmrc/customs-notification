@@ -25,8 +25,8 @@ import org.scalatest.concurrent.Eventually
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.config.{AppConfig, CustomsNotificationConfig, NotificationConfig, UnblockPollerConfig}
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.validClientSubscriptionId1
 import util.UnitSpec

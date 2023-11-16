@@ -42,10 +42,9 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers.{DELETE, GET}
 import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo.Dto.{NotificationWorkItem, NotificationWorkItemBody}
 import uk.gov.hmrc.customs.notification.util.DateTimeHelper
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
@@ -83,12 +82,12 @@ object TestData {
   val ClientIdOne = ClientId(ClientIdStringOne)
   type EmulatedServiceFailure = UnsupportedOperationException
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
-  val callbackUrl = PushCallback(new URL("http://callback"))
+//  val callbackUrl = PushCallback(new URL("http://callback"))
   val internalCallbackUrl = new URL("http://localhost:11111" + ExternalServicesConfiguration.InternalPushServiceContext)
   val invalidCallbackUrl = "Im-Invalid"
   val securityToken = "securityToken"
-  val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
-  val internalCallbackData = DeclarantCallbackData(PushCallback(internalCallbackUrl), securityToken)
+  val callbackData: PushCallbackData = ??? // DeclarantCallbackData(callbackUrl, securityToken)
+  val internalCallbackData =callbackData //DeclarantCallbackData(PushCallback(internalCallbackUrl), securityToken)
   val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
   val dateHeader = Header(ISSUE_DATE_TIME_HEADER_NAME, issueDateTime)
   val url = "http://some-url"
@@ -106,8 +105,8 @@ object TestData {
   val externalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader)
   val internalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader, dateHeader)
   val ValidXML: Elem = <Foo>Bar</Foo>
-  val externalPushNotificationRequest: InternalPushNotificationRequest = pushNotificationRequest(ValidXML, headers = externalPushNotificationRequestBodyHeaders)
-  val internalPushNotificationRequest: InternalPushNotificationRequest = pushNotificationRequest(ValidXML, internalCallbackData, internalPushNotificationRequestBodyHeaders)
+  val externalPushNotificationRequest: InternalPushNotificationRequest = ??? //pushNotificationRequest(ValidXML, headers = externalPushNotificationRequestBodyHeaders)
+  val internalPushNotificationRequest: InternalPushNotificationRequest = ??? //pushNotificationRequest(ValidXML, internalCallbackData, internalPushNotificationRequestBodyHeaders)
   val somePushNotificationRequest: Option[InternalPushNotificationRequest] = Some(externalPushNotificationRequest)
   val Year = 2017
   val MonthOfYear = 7
@@ -130,29 +129,29 @@ object TestData {
   val payload3 = "<foo3></foo3>"
   val requestMetaDataHeaders = Seq(Header(X_BADGE_ID_HEADER_NAME, badgeId), Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber), Header(X_CORRELATION_ID_HEADER_NAME, correlationId), Header(ISSUE_DATE_TIME_HEADER_NAME, issueDateTime))
   val headers = Seq(Header("h1", "v1"), Header("h2", "v2"))
-  val notification1 = Notification(notificationId, conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
+  val notification1: NotificationWorkItem = ??? ///NotificationWorkItemBody(notificationId, conversationId, requestMetaDataHeaders, payload1, MimeTypes.XML)
   private val XmlCharsetUtf8 = MimeTypes.XML + "; charset=UTF-8"
-  val notification2 = Notification(notificationId, conversationId, headers, payload2, XmlCharsetUtf8)
-  val notification3 = Notification(notificationId, conversationId, headers, payload3, XmlCharsetUtf8)
+  val notification2 =notification1 //NotificationWorkItemBody(notificationId, conversationId, headers, payload2, XmlCharsetUtf8)
+  val notification3 =notification1 //NotificationWorkItemBody(notificationId, conversationId, headers, payload3, XmlCharsetUtf8)
   val requestMetaData = RequestMetadata(validClientSubscriptionId1, conversationId, notificationId, Some(Header(X_BADGE_ID_HEADER_NAME, badgeId)),
     Some(Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber)), Some(Header(X_CORRELATION_ID_HEADER_NAME, correlationId)),
     Some(Header(ISSUE_DATE_TIME_HEADER_NAME, issueDateTime)), Some(FunctionCode(functionCode)), Some(Mrn(mrn)), TimeReceivedZoned)
-  val NotificationWorkItem1 = repo.NotificationWorkItem(validClientSubscriptionId1, clientId1, TimeReceivedDateTime, notification = notification1)
+  val NotificationWorkItem1: NotificationWorkItem = ??? //repo.NotificationWorkItem(validClientSubscriptionId1, clientId1, TimeReceivedDateTime, notification = notification1)
   val NotificationWorkItem2 = NotificationWorkItem1
   val NotificationWorkItem3 = NotificationWorkItem1
   val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1
   val WorkItem1 = WorkItem(new ObjectId("5c46f7d70100000100ef835a"), TimeReceivedInstant, TimeReceivedInstant, TimeReceivedInstant, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
   val WorkItem3 = WorkItem1.copy(failureCount = 1)
-  val internalNotification = Notification(notificationId, ConversationId(UUID.fromString(internalPushNotificationRequest.conversationId)), internalPushNotificationRequest.outboundCallHeaders, ValidXML.toString(), "application/xml")
-  val internalNotificationWorkItem = repo.NotificationWorkItem(clientSubscriptionId, clientId1, TimeReceivedDateTime, internalNotification)
+//  val internalNotification = NotificationWorkItemBody(notificationId, ConversationId(UUID.fromString(internalPushNotificationRequest.conversationId)), internalPushNotificationRequest.outboundCallHeaders, ValidXML.toString(), "application/xml")
+  val internalNotificationWorkItem: NotificationWorkItem = ???  //repo.NotificationWorkItem(clientSubscriptionId, clientId1, TimeReceivedDateTime, internalNotification)
   val internalWorkItem = WorkItem(new ObjectId("5c46f7d70100000100ef835a"), TimeReceivedInstant, TimeReceivedInstant, TimeReceivedInstant, ToDo, 0, internalNotificationWorkItem)
   val NotUsedBsonId = "123456789012345678901234"
-  val DeclarantCallbackDataOneForPush = DeclarantCallbackData(PushCallback(new URL("http://URL")), "SECURITY_TOKEN")
-  val DeclarantCallbackDataOneForPull = DeclarantCallbackData(PullCallback, "SECURITY_TOKEN")
-  val ApiSubscriptionFieldsOneForPush = ApiSubscriptionFields(clientId1, DeclarantCallbackDataOneForPush)
-  val ApiSubscriptionFieldsOneForPull = models.ApiSubscriptionFields(clientId1, DeclarantCallbackDataOneForPull)
-  val PushNotificationRequest1 = PushNotificationRequest(PushCallback(new URL("http://URL")), "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1)
+  val DeclarantCallbackDataOneForPush: PushCallbackData = ??? // DeclarantCallbackData(PushCallback(new URL("http://URL")), "SECURITY_TOKEN")
+  val DeclarantCallbackDataOneForPull: PushCallbackData = ??? //DeclarantCallbackData(PullCallback, "SECURITY_TOKEN")
+  val ApiSubscriptionFieldsOneForPush = ???//ApiSubscriptionFields(clientId1, DeclarantCallbackDataOneForPush)
+  val ApiSubscriptionFieldsOneForPull = ???//models.ApiSubscriptionFields(clientId1, DeclarantCallbackDataOneForPull)
+//  val PushNotificationRequest1 = PushNotificationRequest(PushCallback(new URL("http://URL")), "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1)
 
 //  def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true, withNotificationId: Boolean = true): ClientNotification = {
 //    val correlationIdHeader = Header("x-cOrRelaTion-iD", correlationId)
@@ -177,7 +176,7 @@ object TestData {
 //    )
 //  }
 
-  def createPushNotificationRequestPayload(outboundUrl: Callback = callbackData.callbackUrl, securityToken: String = callbackData.securityToken,
+  def createPushNotificationRequestPayload(outboundUrl: PushCallbackData = ???, securityToken: String = ???,
                                            mayBeBadgeId: Option[String] = Some(badgeId), notificationPayload: NodeSeq = ValidXML,
                                            conversationId: String = validConversationId): JsValue = Json.parse(
     s"""
@@ -193,14 +192,16 @@ object TestData {
          |}
     """.stripMargin)
 
-  def pushNotificationRequest(xml: NodeSeq, cd: PushCallbackData = callbackData, headers: Seq[Header]): InternalPushNotificationRequest = {
-    PushNotificationRequest(
-      cd.callbackUrl,
-      cd.securityToken,
-      validConversationId,
-      headers,
-      xml.toString())
-  }
+  def pushNotificationRequest(xml: NodeSeq, cd: PushCallbackData = callbackData, headers: Seq[Header]): InternalPushNotificationRequest = ???
+
+//  {
+//    PushNotificationRequest(
+//      cd.callbackUrl,
+//      cd.securityToken,
+//      validConversationId,
+//      headers,
+//      xml.toString())
+//  }
 
   val ValidRequest: FakeRequest[NodeSeq] = FakeRequest()
     .withHeaders(X_CDS_CLIENT_ID_HEADER, X_CONVERSATION_ID_HEADER, CONTENT_TYPE_HEADER, ACCEPT_HEADER, BASIC_AUTH_HEADER, X_BADGE_ID_HEADER, X_SUBMITTER_ID_HEADER)

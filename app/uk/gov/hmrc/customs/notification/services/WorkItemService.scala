@@ -21,14 +21,15 @@ import com.kenshoo.play.metrics.Metrics
 import uk.gov.hmrc.customs.notification.config.ApiSubscriptionFieldsUrlConfig
 import uk.gov.hmrc.customs.notification.models.ApiSubscriptionFields
 import uk.gov.hmrc.customs.notification.models.requests.ApiSubscriptionFieldsRequest
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.util.HeaderNames.NOTIFICATION_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.util.{NotificationLogger, NotificationWorkItemRepo}
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
-class WorkItemService @Inject()(repository: NotificationWorkItemRepo,
+class WorkItemService @Inject()(repository: NotificationRepo,
                                 httpConnector: HttpConnector,
                                 logger: NotificationLogger,
                                 metrics: Metrics,
@@ -46,11 +47,10 @@ class WorkItemService @Inject()(repository: NotificationWorkItemRepo,
           firstOutstandingNotificationWorkItem.item._id,
           apiSubsFieldsUrlConfig.url)
 
-        val eventuallyMaybeApiSubscriptionFields =
-          httpConnector.get[ApiSubscriptionFields](apiSubsFieldsRequest)
-        eventuallyMaybeApiSubscriptionFields.map { maybeApiSubscriptionFields =>
-          maybeApiSubscriptionFields.map(apiSubscriptionFields => sendService.send(firstOutstandingNotificationWorkItem, apiSubscriptionFields))
-        }
+//          httpConnector.get(apiSubsFieldsRequest).flatMap()
+//        eventuallyMaybeApiSubscriptionFields.map { maybeApiSubscriptionFields =>
+//          maybeApiSubscriptionFields.map(apiSubscriptionFields => sendService.send(firstOutstandingNotificationWorkItem, apiSubscriptionFields, false))
+//        }
         Future.successful(true)
       case None =>
         Future.successful(false)

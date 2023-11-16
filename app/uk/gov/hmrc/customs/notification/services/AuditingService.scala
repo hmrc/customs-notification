@@ -40,8 +40,9 @@ class AuditingService @Inject()(logger: NotificationLogger,
   def auditFailure[A](pushCallbackData: PushCallbackData,
                       reason: String,
                       toAudit: A,
-                      auditType: AuditType)(implicit logEv: Loggable[A],
-                                            logAudit: Auditable[A],
+                      auditType: AuditType)(implicit
+                                            auditEv: Auditable[A],
+                                            logEv: Loggable[A],
                                             hc: HeaderCarrier): Unit = {
     val failureAuditDetail = FailureAuditDetail(
       pushCallbackData.callbackUrl,
@@ -55,8 +56,9 @@ class AuditingService @Inject()(logger: NotificationLogger,
   def auditSuccess[A](pushCallbackData: PushCallbackData,
                       payload: String,
                       toAudit: A,
-                      auditType: AuditType)(implicit logEv: Loggable[A],
-                                            logAudit: Auditable[A],
+                      auditType: AuditType)(implicit
+                                            auditEv: Auditable[A],
+                                            logEv: Loggable[A],
                                             hc: HeaderCarrier): Unit = {
     val successAuditDetail = SuccessAuditDetail(
       pushCallbackData.callbackUrl,
@@ -72,15 +74,15 @@ class AuditingService @Inject()(logger: NotificationLogger,
                                         auditDetail: AuditDetail,
                                         auditType: AuditType
                                        )(implicit hc: HeaderCarrier,
-                                         logEv: Loggable[A],
-                                         auditEv: Auditable[A]): Unit = {
-    val entityTags = auditEv.fieldsToAudit(toAudit).map { case (k, v) => k -> v.getOrElse("") }
+                                         auditEv: Auditable[A],
+                                         logEv: Loggable[A]): Unit = {
+    val tags = auditEv.fieldsToAudit(toAudit).map { case (k, v) => k -> v.getOrElse("") }
 
     auditConnector.sendExtendedEvent(
       ExtendedDataEvent(
         auditSource = "customs-notification",
         auditType = auditType.value,
-        tags = Map(TransactionName -> "customs-declaration-outbound-call") ++ entityTags,
+        tags = Map(TransactionName -> "customs-declaration-outbound-call") ++ tags,
         detail = auditDetail.toJs
       )).foreach {
       case AuditResult.Success =>

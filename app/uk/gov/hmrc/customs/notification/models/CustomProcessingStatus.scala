@@ -33,7 +33,7 @@ sealed trait CustomProcessingStatus {
 //However, the names of the objects are more accurate descriptions of the statuses
 //There is work remaining in order to fully decouple from the HMRC library version of ProcessingStatus which is not apt for our purposes
 //But I didn't want to break Mongo in the scope of this ticket (DCWL-1627)
-case object SuccessfullyCommunicated extends CustomProcessingStatus {
+case object SavedToBeSent extends CustomProcessingStatus {
   override val name: String = "in-progress"
   val convertToBson: BsonValue = new BsonString(name)
   val convertToHmrcProcessingStatus: ProcessingStatus = InProgress

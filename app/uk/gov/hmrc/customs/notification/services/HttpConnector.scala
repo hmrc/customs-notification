@@ -32,9 +32,8 @@ import scala.util.control.NonFatal
 @Singleton
 class HttpConnector @Inject()(http: HttpClient) {
 
-  def post(request: PostRequest)(implicit
-                                 hc: HeaderCarrier,
-                                 ec: ExecutionContext): Future[Either[HttpConnectorError, Unit]] = {
+  def post[R <: PostRequest](request: R)(implicit hc: HeaderCarrier,
+                                         ec: ExecutionContext): Future[Either[PostHttpConnectorError[R], Unit]] = {
     http.POST[request.POST_BODY, HttpResponse](
       request.url,
       request.body)(
@@ -52,10 +51,9 @@ class HttpConnector @Inject()(http: HttpClient) {
     }
   }
 
-  def get[A: ClassTag](request: GetRequest)(implicit
-                                            hc: HeaderCarrier,
-                                            ec: ExecutionContext,
-                                            responseParser: Reads[A]): Future[Either[HttpConnectorError, A]] = {
+  def get[R <: GetRequest, A](request: R)(implicit hc: HeaderCarrier,
+                                          ec: ExecutionContext,
+                                          responseReads: Reads[A]): Future[Either[HttpConnectorError[R], A]] = {
     http.GET[HttpResponse](
       request.url)(
       readRaw,
@@ -65,9 +63,7 @@ class HttpConnector @Inject()(http: HttpClient) {
           case status if Status.isSuccessful(status) =>
             Json.parse(response.body).asOpt[A] match {
               case Some(value) => Right(value)
-              case None =>
-                val responseDtoName = implicitly[ClassTag[A]].runtimeClass.getSimpleName
-                Left(ParseError(request, s"Could not parse response body to $responseDtoName.\nBody: ${response.body}"))
+              case None => Left(ParseError[R](request, response))
             }
           case _ => Left(ErrorResponse(request, response))
         }
@@ -78,13 +74,27 @@ class HttpConnector @Inject()(http: HttpClient) {
 }
 
 object HttpConnector {
-  sealed trait HttpConnectorError extends CdsError {
-    val request: CdsRequest
+  sealed trait HttpConnectorError[+R <: CdsRequest] extends CdsError {
+    val request: R
+    val message: String
   }
 
-  case class HttpClientError(request: CdsRequest, exception: Throwable) extends HttpConnectorError
+  sealed trait PostHttpConnectorError[+R <: CdsRequest] extends HttpConnectorError[R]
 
-  case class ErrorResponse(request: CdsRequest, response: HttpResponse) extends HttpConnectorError
+  case class HttpClientError[R <: CdsRequest](request: R,
+                                              exception: Throwable) extends PostHttpConnectorError[R] {
+    val message: String = s"HTTP client error while making ${request.descriptor} request with exception: ${exception.getMessage}"
+  }
 
-  case class ParseError(request: CdsRequest, message: String) extends HttpConnectorError
+  case class ErrorResponse[R <: CdsRequest](request: R,
+                                            response: HttpResponse) extends PostHttpConnectorError[R] {
+    val message: String = s"Error response with status code ${response.status} when making ${request.descriptor} request"
+  }
+
+  case class ParseError[R <: CdsRequest](request: R,
+                                                        response: HttpResponse) extends HttpConnectorError[R] {
+    val message: String = {
+      s"${request.descriptor} request succeeded but could not parse response body.\nBody: ${response.body}"
+    }
+  }
 }

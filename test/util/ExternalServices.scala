@@ -23,9 +23,8 @@ import org.scalatest.matchers.should.Matchers
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
-import uk.gov.hmrc.customs.notification.models.{ClientSubscriptionId, PushCallbackData, Header, Notification}
+import uk.gov.hmrc.customs.notification.models.{Header, PushCallbackData}
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import util.TestData._
 
@@ -47,7 +46,7 @@ trait PushNotificationService extends WireMockRunner with Matchers {
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       .withHeader(NOTIFICATION_ID_HEADER_NAME, equalTo(notificationId.toString))
       .withoutHeader(ISSUE_DATE_TIME_HEADER_NAME)
-      .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest).toString()))
+      .withRequestBody(equalToJson(Json.toJson("pushNotificationRequest").toString()))
     )
   }
 
@@ -85,8 +84,8 @@ trait InternalPushNotificationService {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
       .withHeader(ACCEPT, equalTo(XML))
-      .withHeader(AUTHORIZATION, equalTo(pnr.authHeaderToken))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(pnr.conversationId))
+      .withHeader(AUTHORIZATION, equalTo("pnr.authHeaderToken"))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo("pnr.conversationId"))
       .withHeader(USER_AGENT, equalTo("customs-notification"))
       .withRequestBody(equalToXml(pnr.xmlPayload))
     )
@@ -98,7 +97,7 @@ trait InternalPushNotificationService {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
       .withHeader(ACCEPT, equalTo(XML))
-      .withHeader(AUTHORIZATION, equalTo(pnr.authHeaderToken))
+      .withHeader(AUTHORIZATION, equalTo("pnr.authHeaderToken"))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(conversationId.toString))
       .withHeader(USER_AGENT, equalTo("customs-notification"))
       .withHeader(X_CORRELATION_ID_HEADER_NAME, equalTo(correlationId))
@@ -227,9 +226,9 @@ trait NotificationQueueService extends WireMockRunner {
 
     stubFor(post(urlMatchingRequestPath)
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.authHeaderToken))
+      .withHeader(HeaderNames.AUTHORIZATION, equalTo("request.authHeaderToken"))
       .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.conversationId))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo("request.conversationId"))
       .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(fieldsId))
       willReturn aResponse()
       .withStatus(status))

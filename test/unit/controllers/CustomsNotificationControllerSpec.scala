@@ -27,14 +27,14 @@ import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.BadRequestCode
 import uk.gov.hmrc.customs.notification.config.{AppConfig, BasicAuthTokenConfig}
-import uk.gov.hmrc.customs.notification.connectors.ConnectorName
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController
 import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models.{Header, RequestMetadata}
-import uk.gov.hmrc.customs.notification.services.{NotificationService, DateTimeService, UuidService}
-import uk.gov.hmrc.customs.notification.util.Error._
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
+import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
+import uk.gov.hmrc.customs.notification.services.{DateTimeService, IncomingNotificationService, UuidService}
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
-import uk.gov.hmrc.customs.notification.util.{NotificationLogger, NotificationWorkItemRepo}
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import unit.controllers.CustomsNotificationControllerSpec.TestData
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -48,7 +48,7 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
   with ResetMocksAfterEachAsyncTest {
 
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val mockCustomsNotificationService = mock[NotificationService]
+  private val incomingNotificationService = mock[IncomingNotificationService]
   private val mockUuidService = new UuidService {
     override def getRandomUuid(): UUID = TestData.NotificationId.id
   }
@@ -58,26 +58,23 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
   private val mockBasicAuthTokenConfig: BasicAuthTokenConfig = new BasicAuthTokenConfig(mock[AppConfig]) {
     override val token: String = TestData.basicAuthTokenValue
   }
-  private val mockWorkItemRepo = mock[NotificationWorkItemRepo]
-  private val controller =
-    new CustomsNotificationController(
-      Helpers.stubControllerComponents(),
-      mockNotificationLogger,
-      mockCustomsNotificationService,
-      mockDateTimeService,
-      mockUuidService,
-      mockBasicAuthTokenConfig,
-      mockWorkItemRepo
-    )(Helpers.stubControllerComponents().executionContext)
+  private val mockWorkItemRepo = mock[NotificationRepo]
+  private val controller = new CustomsNotificationController()(
+    Helpers.stubControllerComponents(),
+    incomingNotificationService,
+    mockDateTimeService,
+    mockUuidService,
+    mockBasicAuthTokenConfig,
+    mockWorkItemRepo,
+    mockNotificationLogger,
+    Helpers.stubControllerComponents().executionContext)
 
   "CustomsNotificationController" when {
 
     "processing a request for submit" should {
 
       "respond with status 202 Accepted for a valid request" in {
-        when(mockCustomsNotificationService.handleNotification(
-          eqTo(TestData.ValidXml),
-          eqTo(TestData.RequestMetaData))(*))
+        when(incomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(TestData.RequestMetaData), *))
           .thenReturn(Future.successful(Right(())))
         val actualF = controller.submit().apply(TestData.ValidSubmitRequest)
 
@@ -99,52 +96,58 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
         // TODO: Confirm if we should change the message to point out bad Content-Type header
         actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "Request body does not contain well-formed XML.").XmlResult)
       }
+
       "respond with status 401 Unauthorized for invalid Authorization header" in {
         val unauthorizedRequest = TestData.ValidSubmitRequest.withHeaders(AUTHORIZATION -> "INVALID TOKEN")
         val actualF = controller.submit().apply(unauthorizedRequest)
         actualF.map(_ shouldBe ErrorResponse(UNAUTHORIZED, "UNAUTHORIZED", "Basic token is missing or not authorized").XmlResult)
       }
 
+      "respond with status 406 Not Acceptable for a missing Accept request header" in {
+        val invalidRequest = TestData.ValidSubmitRequest.withHeaders(TestData.ValidHeaders.remove(ACCEPT))
+        val actualF = controller.submit().apply(invalidRequest)
+
+        actualF.map(_ shouldBe ErrorResponse(NOT_ACCEPTABLE, "ACCEPT_HEADER_INVALID", "The Accept header is missing").XmlResult)
+      }
+
       "respond with status 406 Not Acceptable for an invalid Accept request header" in {
         val invalidRequest = TestData.ValidSubmitRequest.withHeaders(ACCEPT -> MimeTypes.JSON)
         val actualF = controller.submit().apply(invalidRequest)
 
-        actualF.map(_ shouldBe ErrorResponse(NOT_ACCEPTABLE, "ACCEPT_HEADER_INVALID", "The Accept header is missing or invalid").XmlResult)
+        actualF.map(_ shouldBe ErrorResponse(NOT_ACCEPTABLE, "ACCEPT_HEADER_INVALID", "The Accept header is invalid").XmlResult)
       }
 
       "respond with status 400 Bad Request for a missing X-Conversation-ID header" in {
         val invalidRequest = TestData.ValidSubmitRequest.withHeaders(TestData.ValidHeaders.remove(X_CONVERSATION_ID_HEADER_NAME))
         val actualF = controller.submit().apply(invalidRequest)
 
-        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-Conversation-ID header is missing or invalid").XmlResult)
+        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-Conversation-ID header is missing").XmlResult)
       }
 
       "respond with status 400 Bad Request for a X-Conversation-ID header that is not a valid UUID" in {
         val invalidRequest = TestData.ValidSubmitRequest.withHeaders(X_CONVERSATION_ID_HEADER_NAME -> "not-a-uuid")
         val actualF = controller.submit().apply(invalidRequest)
 
-        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-Conversation-ID header is missing or invalid").XmlResult)
+        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-Conversation-ID header is invalid").XmlResult)
       }
 
       "respond with status 400 Bad Request for a missing X-CDS-Client-ID header" in {
         val invalidRequest = TestData.ValidSubmitRequest.withHeaders(TestData.ValidHeaders.remove(X_CLIENT_SUB_ID_HEADER_NAME))
         val actualF = controller.submit().apply(invalidRequest)
 
-        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-CDS-Client-ID header is missing or invalid").XmlResult)
+        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-CDS-Client-ID header is missing").XmlResult)
       }
 
       "respond with status 400 Bad Request for a X-CDS-Client-ID header that is not a valid UUID" in {
         val invalidRequest = TestData.ValidSubmitRequest.withHeaders(X_CLIENT_SUB_ID_HEADER_NAME -> "not-a-uuid")
         val actualF = controller.submit().apply(invalidRequest)
 
-        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-CDS-Client-ID header is missing or invalid").XmlResult)
+        actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-CDS-Client-ID header is invalid").XmlResult)
       }
 
       "respond with status 202 Accepted when the X-Correlation-ID header is missing" in {
         val requestMetadataWithoutCorrelationId = TestData.RequestMetaData.copy(maybeCorrelationId = None)
-        when(mockCustomsNotificationService.handleNotification(
-          eqTo(TestData.ValidXml),
-          eqTo(requestMetadataWithoutCorrelationId))(*))
+        when(incomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(requestMetadataWithoutCorrelationId), *))
           .thenReturn(Future.successful(Right(())))
         val invalidRequest = TestData.ValidSubmitRequest.withHeaders(TestData.ValidHeaders.remove(X_CORRELATION_ID_HEADER_NAME))
         val actualF = controller.submit().apply(invalidRequest)
@@ -159,39 +162,22 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
         actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-Correlation-ID header is invalid").XmlResult)
       }
 
-      "respond with status 400 Bad Request when there is a DeclarantNotFound error from CustomsNotificationService" in {
-        when(mockCustomsNotificationService.handleNotification(
-          eqTo(TestData.ValidXml),
-          eqTo(TestData.RequestMetaData))(*))
-          .thenReturn(Future.successful(Left(DeclarantNotFound(TestData.RequestMetaData))))
+      "respond with status 400 Bad Request when there is a DeclarantNotFound error from IncomingNotificationService" in {
+        when(incomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(TestData.RequestMetaData), *))
+          .thenReturn(Future.successful(Left(DeclarantNotFound)))
 
         val actualF = controller.submit().apply(TestData.ValidSubmitRequest)
 
         actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-CDS-Client-ID header is invalid").XmlResult)
       }
 
-      "respond with status 500 Internal Server Error when there is a HttpClientError from CustomsNotificationService" in {
-        val httpClientError = HttpClientError(ConnectorName(""), "", new Throwable(), TestData.RequestMetaData)
-        when(mockCustomsNotificationService.handleNotification(
-          eqTo(TestData.ValidXml),
-          eqTo(TestData.RequestMetaData))(*))
-          .thenReturn(Future.successful(Left(httpClientError)))
+      "respond with status 500 Internal Server Error when there is a InternalServiceError from IncomingNotificationService" in {
+        when(incomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(TestData.RequestMetaData), *))
+          .thenReturn(Future.successful(Left(InternalServiceError)))
 
         val actualF = controller.submit().apply(TestData.ValidSubmitRequest)
 
         actualF.map(_ shouldBe ErrorResponse(INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Internal server error").XmlResult)
-      }
-
-      "respond with status 500 Internal Server Error  when there is an UnexpectedResponse from CustomsNotificationService" in {
-        val unexpectedResponse = UnexpectedResponse(ConnectorName(""), "", IM_A_TEAPOT, TestData.RequestMetaData)
-        when(mockCustomsNotificationService.handleNotification(
-          eqTo(TestData.ValidXml),
-          eqTo(TestData.RequestMetaData))(*))
-          .thenReturn(Future.successful(Left(unexpectedResponse)))
-
-        val actualF = controller.submit().apply(TestData.ValidSubmitRequest)
-
-        actualF.map(_.header.status shouldBe INTERNAL_SERVER_ERROR)
       }
     }
 
@@ -216,22 +202,13 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
 
         actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-Client-ID header is missing").XmlResult)
       }
-
-      "respond with status 500 Internal Server Error when there is an error from the MongoDB driver" in {
-        val MongoException = new Exception("Oh no, Mongo!")
-        when(mockWorkItemRepo.blockedCount(eqTo(TestData.ClientId)))
-          .thenReturn(Future.successful(Left(MongoDbError(MongoException, TestData.ClientId))))
-        val actualF = controller.blockedCount().apply(TestData.ValidBlockedRequest)
-
-        actualF.map(_ shouldBe ErrorResponse(INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Internal server error").XmlResult)
-      }
     }
 
     "processing a request for deleteBlocked" should {
 
       "respond with status 204 No Content for a valid request" in {
         val expectedDeletedCount = 42
-        when(mockWorkItemRepo.unblockFailedAndBlockedByClientId(eqTo(TestData.ClientId)))
+        when(mockWorkItemRepo.unblockFailedAndBlocked(eqTo(TestData.ClientId)))
           .thenReturn(Future.successful(Right(expectedDeletedCount)))
         val actualF = controller.deleteBlocked().apply(TestData.ValidBlockedRequest)
 
@@ -243,22 +220,13 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
 
         actualF.map(_ shouldBe ErrorResponse(BAD_REQUEST, BadRequestCode, "The X-Client-ID header is missing").XmlResult)
       }
-
-      "respond with status 500 Internal Server Error when there is an error from the MongoDB driver" in {
-        val MongoException = new Exception("Oh no, Mongo!")
-        when(mockWorkItemRepo.unblockFailedAndBlockedByClientId(eqTo(TestData.ClientId)))
-          .thenReturn(Future.successful(Left(MongoDbError(MongoException, TestData.ClientId))))
-        val actualF = controller.deleteBlocked().apply(TestData.ValidBlockedRequest)
-
-        actualF.map(_ shouldBe ErrorResponse(INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Internal server error").XmlResult)
-      }
     }
   }
 }
 
 object CustomsNotificationControllerSpec {
   object TestData {
-    private val ClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-2222-4444-8888-161616161616"))
+    val ClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-2222-4444-8888-161616161616"))
     val ConversationId = models.ConversationId(UUID.fromString("00000000-4444-4444-AAAA-AAAAAAAAAAAA"))
     val NotificationId = models.NotificationId(UUID.fromString("00000000-9999-4444-9999-444444444444"))
     val BadgeId = "ABCDEF1234"

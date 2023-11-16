@@ -20,7 +20,6 @@ import org.mongodb.scala.bson.BsonDocument
 import play.api.mvc._
 import play.api.mvc.request.RequestTarget
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.models.repo.NotificationWorkItem
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.PermanentlyFailed
 import util.TestData._
@@ -37,7 +36,8 @@ class CustomsNotificationSpec extends ComponentTestSpec
 
   private val endpoint = "/customs-notification/notify"
 
-  private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
+//  private def permanentlyFailed(item: NotificationWorkItem): ProcessingStatus = PermanentlyFailed
+  private def permanentlyFailed: ProcessingStatus = PermanentlyFailed
 
   override protected def beforeAll(): Unit = {
     emptyCollection()
@@ -123,7 +123,7 @@ class CustomsNotificationSpec extends ComponentTestSpec
     Scenario("backend submits a valid request") {
 
       await(collection.deleteMany(BsonDocument()).toFuture())
-      await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
+      await(repository.pushNew(NotificationWorkItem1, repository.now(), _ => permanentlyFailed))
 
       startApiSubscriptionFieldsService(validFieldsId, callbackData)
       setupPushNotificationServiceToReturn()

@@ -21,7 +21,6 @@ import org.mockito.Mockito._
 import org.mockito.scalatest.MockitoSugar
 import org.scalatest.Inside
 import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.models.requests.InternalPushNotificationRequest
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.customs.notification.util.NotificationLogger

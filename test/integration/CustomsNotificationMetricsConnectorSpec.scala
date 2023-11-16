@@ -22,7 +22,6 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.{AuditService, CustomsNotificationMetricsService, ExternalServicesConfiguration}
 
@@ -33,7 +32,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
   with CustomsNotificationMetricsService
   with AuditService {
 
-  private lazy val connector = app.injector.instanceOf[CustomsNotificationMetricsConnector]
+//  private lazy val connector = app.injector.instanceOf[CustomsNotificationMetricsConnector]
   private implicit val mockLogger: CdsLogger = mock[CdsLogger]
 
   override protected def beforeAll(): Unit = {

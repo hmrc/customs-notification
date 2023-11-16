@@ -19,6 +19,7 @@ package uk.gov.hmrc.customs.notification.models
 import org.bson.types.ObjectId
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
+import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import scala.collection.immutable.ListMap
 
@@ -71,10 +72,16 @@ object Loggable {
         KeyNames.Mrn -> r.maybeMrn.map(_.toString)
       )
 
-    implicit val loggableNotificationWorkItem: Loggable[NotificationWorkItem] = (n: NotificationWorkItem) =>
+    implicit val loggableNotificationWorkItem: Loggable[Notification] = (n: Notification) =>
       ListMap(
-        KeyNames.ConversationId -> Some(n.notification.conversationId.toString),
-        KeyNames.ClientSubscriptionId -> Some(n._id.toString)
+        KeyNames.WorkItemId -> Some(n.id.toString),
+        KeyNames.ConversationId -> Some(n.conversationId.toString),
+        KeyNames.ClientId -> Some(n.clientId.toString),
+        KeyNames.ClientSubscriptionId -> Some(n.clientSubscriptionId.toString)
+      )
+    implicit val loggableClientSubscriptionId: Loggable[ClientSubscriptionId] = (id: ClientSubscriptionId) =>
+      ListMap(
+        KeyNames.ClientSubscriptionId -> Some(id.toString)
       )
 
     implicit val loggableObjectId: Loggable[ObjectId] = (id: ObjectId) =>
@@ -91,6 +98,8 @@ object Loggable {
       ListMap(
         KeyNames.ClientId -> Some(id.toString)
       )
+
+    implicit val loggableUnit: Loggable[Unit] = _ => ListMap.empty
 
     implicit def loggableTuple[A, B](implicit evA: Loggable[A], evB: Loggable[B]): Loggable[(A, B)] =
       (a: (A, B)) => evA.fieldsToLog(a._1) ++ evB.fieldsToLog(a._2)

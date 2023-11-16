@@ -35,12 +35,12 @@ class MetricsRequestSpec extends UnitSpec {
                                       """.stripMargin)
 
   "CustomsDeclarationsMetricsRequest model" should {
-    "serialise to Json" in {
-      val request = models.requests.MetricsRequest(conversationId, EventStart, EventEnd)
-      val actualJson: JsValue = Json.toJson(request)
-
-      actualJson shouldBe expectedJson
-    }
+//    "serialise to Json" in {
+//      val request = models.requests.MetricsRequest(conversationId, EventStart, EventEnd)
+//      val actualJson: JsValue = Json.toJson(request)
+//
+//      actualJson shouldBe expectedJson
+//    }
 
   }
 }

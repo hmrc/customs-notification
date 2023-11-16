@@ -17,78 +17,65 @@
 package uk.gov.hmrc.customs.notification.services
 
 import akka.actor.ActorSystem
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.config.{ApiSubscriptionFieldsUrlConfig, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.models.ApiSubscriptionFields.reads
-import uk.gov.hmrc.customs.notification.models.errors.CdsError
-import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, ClientSubscriptionId, FailedAndBlocked}
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.{loggableClientSubscriptionId, loggableNotificationWorkItem}
 import uk.gov.hmrc.customs.notification.models.requests.ApiSubscriptionFieldsRequest
-import uk.gov.hmrc.customs.notification.services.UnblockPollerService.NoFailedAndBlockedNotificationsFound
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
-import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
+import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableNotification
+import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
 import javax.inject._
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UnblockPollerService @Inject()(actorSystem: ActorSystem,
-                                     repo: NotificationWorkItemRepo,
-                                     pushOrPullService: SendService,
-                                     logger: CdsLogger,
+class UnblockPollerService @Inject()(implicit
+                                     actorSystem: ActorSystem,
+                                     repo: NotificationRepo,
+                                     sendService: SendService,
+                                     logger: NotificationLogger,
                                      customsNotificationConfig: CustomsNotificationConfig,
                                      apiSubsFieldsUrlConfig: ApiSubscriptionFieldsUrlConfig,
-                                     httpConnector: HttpConnector)(implicit executionContext: ExecutionContext) {
+                                     httpConnector: HttpConnector,
+                                     ec: ExecutionContext) {
   val pollerInterval: FiniteDuration = customsNotificationConfig.unblockPollerConfig.pollerInterval
 
-  actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
-    for {
-      failedAndBlockedCsids <- repo.failedAndBlockedGroupedByDistinctCsId().toFutureCdsResult
-      _ = logger.info(s"Unblock - discovered ${failedAndBlockedCsids.size} blocked csids (i.e. with status of ${FailedAndBlocked.name})")
-      _ = failedAndBlockedCsids.foreach(process)
-    } yield ()
-  }
-  }
+  actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => processFailedAndBlocked() }
 
-  def process(clientSubscriptionId: ClientSubscriptionId): Unit = {
-    implicit val hc: HeaderCarrier = HeaderCarrier()
-    for {
-      x <- repo.pullOutstandingWithFailedWith500ByCsId(clientSubscriptionId).toFutureCdsResult
-      mongoWorkItem <- x.toRight(NoFailedAndBlockedNotificationsFound).toFutureCdsResult
-      apiSubsFieldsRequest = ApiSubscriptionFieldsRequest(
-        mongoWorkItem.item._id,
-        apiSubsFieldsUrlConfig.url)
-      apiSubsFields <- httpConnector.get[ApiSubscriptionFields](apiSubsFieldsRequest).toFutureCdsResult
-    } yield ()
-  }
-  ////    .map { failedAndBlockedCsids: Set[ClientSubscriptionId] =>
-  ////        logger.info(s"Unblock - discovered ${failedAndBlockedCsids.size} blocked csids (i.e. with status of ${FailedAndBlocked.name})")
-  ////      failedAndBlockedCsids.foreach { csid =>
-  ////        notificationWorkItemRepo.pullOutstandingWithFailedWith500ByCsId(csid).map {
-  ////          case Some(workItem) =>
-  ////            implicit val hc: HeaderCarrier = HeaderCarrier()
-  ////            val apiSubsFieldsRequest = ApiSubscriptionFieldsRequest(workItem.item._id, apiSubsFieldsUrlConfig.url)
-  ////            val eventuallyMaybeApiSubscriptionFields = httpConnector.get(apiSubsFieldsRequest)
-  //              //          updateRepoForFailedResponse(mongoWorkItem, "GetApiSubscriptionFields", ???, false)
-  //
-  //              eventuallyMaybeApiSubscriptionFields.map(maybeApiSubscriptionFields => maybeApiSubscriptionFields.fold(())(apiSubscriptionFields =>
-  //                pushOrPullService.send(workItem, apiSubscriptionFields).foreach(ok =>
-  //                  if (ok) {
-  //                    // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
-  //                    //changing status to failed makes the item eligible for retry
-  //                    notificationWorkItemRepo.unblockFailedAndBlockedByCsId(csid).foreach { count =>
-  //                      logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
-  //                    }
-  //                  })))
-  //            case None =>
-  //              logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
-  //          }
-  //        }
-  //      }
-  //      ()
-}
+  actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => processFailedAndBlocked() }
 
-object UnblockPollerService {
-  case object NoFailedAndBlockedNotificationsFound extends CdsError
+  def processFailedAndBlocked(): Unit = {
+    repo.getSingleOutstandingFailedAndBlockedForEachCsId().map {
+      case Left(mongoDbError) =>
+        logger.error(mongoDbError.message)
+      case Right(clientSubscriptionIdSet) =>
+        clientSubscriptionIdSet.foreach { clientSubscriptionId =>
+
+          repo.getOutstandingFailedAndBlocked(clientSubscriptionId).flatMap {
+            case Left(_) =>
+              Future.successful(())
+            case Right(None) =>
+              logger.info(s"Unblocker found no notifications to unblock for this client subscription ID", clientSubscriptionId)
+              Future.successful(())
+            case Right(Some(notification)) =>
+              implicit val hc: HeaderCarrier = HeaderCarrier()
+              val apiSubsFieldsRequest = ApiSubscriptionFieldsRequest(notification.clientSubscriptionId, apiSubsFieldsUrlConfig.url)
+
+              httpConnector.get(apiSubsFieldsRequest).flatMap {
+                case Left(error) =>
+                  logger.error(error.message, notification)
+                  Future.successful(())
+                case Right(apiSubsFields) =>
+                  (for {
+                    _ <- sendService.send(notification, apiSubsFields).toFutureCdsResult
+                    _ <- repo.unblockFailedAndBlocked(clientSubscriptionId).toFutureCdsResult
+                  } yield ()).value
+              }
+          }
+        }
+    }
+  }
 }

@@ -16,66 +16,84 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import cats.implicits.toBifunctorOps
 import play.api.http.Status
 import uk.gov.hmrc.customs.notification.config.SendNotificationConfig
-import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.{loggableNotificationWorkItem, loggableObjectId, loggableTuple}
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotificationWorkItem
+import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
-import uk.gov.hmrc.customs.notification.models.requests.{ExternalPushNotificationRequest, InternalPushNotificationRequest, PostRequest, PullNotificationRequest}
-import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, FailedButNotBlocked, NotificationWorkItem, PushCallbackData}
+import uk.gov.hmrc.customs.notification.models.requests._
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
+import uk.gov.hmrc.customs.notification.services.AuditingService.AuditType
 import uk.gov.hmrc.customs.notification.services.HttpConnector._
-import uk.gov.hmrc.customs.notification.services.SendService.{SendServiceError, createRequest}
-import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
-import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo.MongoDbError
+import uk.gov.hmrc.customs.notification.services.SendService._
+import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits.FutureEitherExtensions
 import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.Succeeded
-import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SendService @Inject()(connector: HttpConnector,
-                            repo: NotificationWorkItemRepo,
+class SendService @Inject()(implicit
+                            connector: HttpConnector,
+                            repo: NotificationRepo,
                             config: SendNotificationConfig,
                             dateTimeService: DateTimeService,
-                            logger: NotificationLogger)(implicit ec: ExecutionContext) {
+                            logger: NotificationLogger,
+                            auditingService: AuditingService,
+                            ec: ExecutionContext) {
 
-  def send(mongoWorkItem: WorkItem[NotificationWorkItem],
-           apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[Either[SendServiceError.type , Unit]] = {
-    val request = createRequest(mongoWorkItem, apiSubscriptionFields, config)
-    (for {
-      _ <- connector.post(request).toFutureCdsResult
-      _ = logger.info(s"${request.descriptor} succeeded", mongoWorkItem.item)
-      _ <- repo.setCompletedStatus(mongoWorkItem, Succeeded).toFutureCdsResult
-    } yield ()).value.flatMap {
+  def send(notification: Notification,
+           apiSubscriptionFields: ApiSubscriptionFields)
+          (implicit hc: HeaderCarrier,
+           auditEv: Auditable[Notification],
+           logEv: Loggable[Notification]): Future[Either[SendServiceError.type, Unit]] =
+    send(notification, notification, apiSubscriptionFields)(hc, auditEv, logEv)
+
+  def send[A](notification: Notification,
+              toAudit: A,
+              apiSubscriptionFields: ApiSubscriptionFields)
+             (implicit hc: HeaderCarrier,
+              auditEv: Auditable[A],
+              logEv: Loggable[A]): Future[Either[SendServiceError.type, Unit]] = {
+    val request = createRequest(notification, apiSubscriptionFields, config)
+
+    connector.post(request).flatMap {
       case Right(_) =>
+        maybeAuditSuccessfulIfInternalPushFor(request)(apiSubscriptionFields, toAudit)
+        repo.setStatus(notification.id, Succeeded) // OK to not flatMap from this as presuming re-sending later is idempotent
+        logger.info(s"${request.descriptor} succeeded", notification)
         Future.successful(Right(()))
-      case Left(HttpClientError(r, exception)) =>
-        logger.error(s"${request.descriptor} failed with URL ${r.url.toString} and exception ${exception.getMessage}.", mongoWorkItem.item)
-        repo.incrementFailureCount(mongoWorkItem.id)
+      case Left(e: HttpClientError[_]) =>
+        maybeAuditFailureIfInternalPushFor(e)(apiSubscriptionFields, toAudit)
+        repo.incrementFailureCount(notification.id)
+        logger.error(e.message, notification)
         Future.successful(Left(SendServiceError))
-      case Left(ErrorResponse(req, res)) =>
-        repo.incrementFailureCount(mongoWorkItem.id)
+      case Left(e@ErrorResponse(req, res)) =>
+        repo.incrementFailureCount(notification.id)
+        maybeAuditFailureIfInternalPushFor(e)(apiSubscriptionFields, toAudit)
 
-        (if (Status.isServerError(res.status)) {
-          logger.error(s"Status response ${res.status} received while pushing notification to ${req.url}," +
-            s" blocking notifications for client subscriptionID", mongoWorkItem.item)
-          repo.setFailedAndBlocked(mongoWorkItem.id, res.status)
-        } else {
-          val availableAt = dateTimeService.now().plusMinutes(config.nonBlockingRetryAfterMinutes)
-          logger.error(s"Status response ${res.status} received while pushing notification to ${req.url}, setting availableAt to $availableAt", mongoWorkItem.item)
-          repo.setCompletedStatusWithAvailableAt(mongoWorkItem.id, FailedButNotBlocked.convertToHmrcProcessingStatus, res.status, availableAt)
-        }).map {
-          case Right(_) =>
-            Right(())
-          case Left(e: MongoDbError) =>
-            logger.error(s"Processing failed for notification due to: ${e.cause}", mongoWorkItem.id -> mongoWorkItem.item)
-            Left(SendServiceError)
-        }
-      case Left(e: MongoDbError) =>
-        logger.error(s"Processing failed for notification due to: ${e.cause}", mongoWorkItem.id -> mongoWorkItem.item)
-        Future.successful(Left(SendServiceError))
+        val repoSetStatusResult =
+          if (Status.isServerError(res.status)) {
+            logger.error(s"Status response ${res.status} received while pushing notification to ${req.url}, blocking notifications for client subscription ID", notification)
+            repo.setFailedAndBlocked(notification.id, res.status)
+            repo.blockFailedButNotBlocked(notification.clientSubscriptionId).map(_.map(_ => ()))
+          } else {
+            val whenToUnblock = dateTimeService.now().plusMinutes(config.nonBlockingRetryAfterMinutes)
+            logger.error(s"Status response ${res.status} received while pushing notification to ${req.url}, setting availableAt to $whenToUnblock", notification)
+
+            (for {
+              _ <- repo.setFailedButNotBlocked(notification.id, res.status, whenToUnblock).toFutureCdsResult
+              _ <- repo.blockFailedButNotBlocked(notification.clientSubscriptionId).toFutureCdsResult
+            } yield ()).value
+          }
+
+        repoSetStatusResult.map(_.leftMap { e =>
+          logger.error(s"Processing failed for notification due to: ${e.cause}", notification)
+          SendServiceError
+        })
     }
   }
 }
@@ -83,12 +101,11 @@ class SendService @Inject()(connector: HttpConnector,
 object SendService {
   case object SendServiceError extends CdsError
 
-  private def createRequest(mongoWorkItem: WorkItem[NotificationWorkItem],
+  private def createRequest(n: Notification,
                             apiSubscriptionFields: ApiSubscriptionFields,
-                            config: SendNotificationConfig): PostRequest = {
-    val n = mongoWorkItem.item.notification
+                            config: SendNotificationConfig): PushOrPullRequest = {
     apiSubscriptionFields.fields match {
-      case PushCallbackData(Some(url), securityToken) if config.internalClientIds.contains(mongoWorkItem.item.clientId) =>
+      case PushCallbackData(Some(url), securityToken) if config.internalClientIds.contains(n.clientId) =>
         InternalPushNotificationRequest(
           n.conversationId,
           securityToken,
@@ -104,9 +121,45 @@ object SendService {
           n.payload)
       case PushCallbackData(None, _) =>
         PullNotificationRequest(
-          mongoWorkItem.item._id,
+          n.clientSubscriptionId,
           n,
           config.pullUrl)
+    }
+  }
+
+  private def maybeAuditSuccessfulIfInternalPushFor[A](request: PushOrPullRequest)
+                                                      (apiSubscriptionFields: ApiSubscriptionFields,
+                                                       toAudit: A)
+                                                      (implicit hc: HeaderCarrier,
+                                                       auditEv: Auditable[A],
+                                                       logEv: Loggable[A],
+                                                       auditingService: AuditingService): Unit = request match {
+    case r: InternalPushNotificationRequest =>
+      auditingService.auditSuccess(
+        apiSubscriptionFields.fields,
+        r.xmlPayload,
+        toAudit,
+        AuditType.Outbound
+      )
+    case _ => ()
+  }
+
+  private def maybeAuditFailureIfInternalPushFor[A, R <: CdsRequest](error: PostHttpConnectorError[R])
+                                                                    (apiSubscriptionFields: ApiSubscriptionFields,
+                                                                     toAudit: A)
+                                                                    (implicit hc: HeaderCarrier,
+                                                                     auditEv: Auditable[A],
+                                                                     logEv: Loggable[A],
+                                                                     auditingService: AuditingService): Unit = {
+    error.request match {
+      case _: InternalPushNotificationRequest =>
+        auditingService.auditFailure(
+          apiSubscriptionFields.fields,
+          error.message,
+          toAudit,
+          AuditType.Outbound
+        )
+      case _ => ()
     }
   }
 }

@@ -22,9 +22,8 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.models.ClientSubscriptionId
-import uk.gov.hmrc.customs.notification.util.NotificationWorkItemRepo
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.http._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
@@ -39,7 +38,7 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
   with WireMockRunnerWithoutServer
   with GuiceOneAppPerSuite {
 
-  private val connector = app.injector.instanceOf[ApiSubscriptionFieldsConnector]
+//  private val connector = app.injector.instanceOf[ApiSubscriptionFieldsConnector]
   private val unexpectedHttpResponseStatus = NO_CONTENT
   private val badRequestMessage = """{"code": "BAD_REQUEST", "message": "Validation failed}"""
   private implicit val hc: HeaderCarrier = HeaderCarrier()
@@ -65,7 +64,7 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
       "non.blocking.retry.after.minutes" -> 10
     )).build()
 
-  val repo: NotificationWorkItemRepo = app.injector.instanceOf[NotificationWorkItemRepo]
+  val repo: NotificationRepo = app.injector.instanceOf[NotificationRepo]
 
   val validClientSubscriptionId: ClientSubscriptionId = ClientSubscriptionId(UUID.fromString(validFieldsId))
 
