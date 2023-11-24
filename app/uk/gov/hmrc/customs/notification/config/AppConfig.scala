@@ -17,57 +17,20 @@
 package uk.gov.hmrc.customs.notification.config
 
 import cats.data.Validated
+import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
-import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel, ServiceConfigProvider}
+import com.google.inject.AbstractModule
+import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.config.AppConfig.validateUrl
-import uk.gov.hmrc.customs.notification.models.ClientId
+import uk.gov.hmrc.customs.notification.config.AppConfig.{validateUrl, validateUuid}
+import uk.gov.hmrc.customs.notification.models.{ClientId, ClientSubscriptionId}
+import uk.gov.hmrc.http.Authorization
 
-import java.net.{URI, URL}
+import java.net.URL
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration._
-
-@Singleton
-class BasicAuthTokenConfig @Inject()(appConfig: AppConfig) {
-  val token: String = appConfig.basicAuthToken
-}
-
-@Singleton
-class SendNotificationConfig @Inject()(appConfig: AppConfig) {
-  val internalClientIds: Set[ClientId] = appConfig.notificationConfig.internalClientIds
-  val nonBlockingRetryAfterMinutes: Int = appConfig.notificationConfig.nonBlockingRetryAfterMinutes
-  val pullUrl: URL = appConfig.pullQueueUrl
-}
-
-@Singleton
-class ApiSubscriptionFieldsUrlConfig @Inject()(appConfig: AppConfig) {
-  val url: URL = appConfig.apiSubscriptionFieldsUrl
-}
-@Singleton
-class MetricsUrlConfig @Inject()(appConfig: AppConfig) {
-  val url: URL = appConfig.metricsUrl
-}
-
-case class CustomsNotificationConfig(basicAuthToken: String,
-                                     pullQueueUrl: URL,
-                                     apiSubscriptionFieldsUrl: URL,
-                                     notificationConfig: NotificationConfig,
-                                     notificationMetricsUrl: URL,
-                                     unblockPollerConfig: UnblockPollerConfig)
-
-
-case class NotificationConfig(internalClientIds: Set[ClientId],
-                              ttlInSeconds: Int,
-                              retryPollerEnabled: Boolean,
-                              retryPollerInterval: FiniteDuration,
-                              retryPollerAfterFailureInterval: FiniteDuration,
-                              retryPollerInProgressRetryAfter: FiniteDuration,
-                              retryPollerInstances: Int,
-                              nonBlockingRetryAfterMinutes: Int,
-                              hotFixTranslates: Seq[String] = Seq("old:new"))
-
-case class UnblockPollerConfig(pollerEnabled: Boolean, pollerInterval: FiniteDuration)
 
 /**
  * Responsible for reading the HMRC style Play2 configuration file, error handling, and de-serialising config into
@@ -77,52 +40,65 @@ case class UnblockPollerConfig(pollerEnabled: Boolean, pollerInterval: FiniteDur
  * application. If startup completes without any exceptions being thrown then dependent classes can be sure that
  * config has been loaded correctly.
  *
- * @param configValidatedNel adaptor for config services that returns a `ValidatedNel`
+ * @param c adaptor for config services that returns a `ValidatedNel`
  */
 @Singleton
-class AppConfig @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, logger: CdsLogger) {
-  //This class/file is fairly ridiculous but as it is config I have left the bizarre Nel stuff alone
-  private val config: CustomsNotificationConfig = {
-    val root = configValidatedNel.root
+class AppConfig @Inject()(c: ConfigValidatedNelAdaptor,
+                          logger: CdsLogger) {
+  val (
+    basicAuthToken: Authorization,
+    internalClientIds: Set[ClientId],
+    externalPushUrl: URL,
+    pullQueueUrl: URL,
+    apiSubscriptionFieldsUrl: URL,
+    metricsUrl: URL,
+    ttlInSeconds: Int,
+    retryFailedAndBlockedDelay: FiniteDuration,
+    retryFailedAndNotBlockedDelay: FiniteDuration,
+    retryPollerAfterFailureInterval: FiniteDuration,
+    failedAndNotBlockedAvailableAfterMinutes: Int,
+    hotFixTranslates: Map[ClientSubscriptionId, ClientSubscriptionId]
+    ) = {
 
-    (configValidatedNel.root.string("auth.token.internal"),
-      configValidatedNel.service("notification-queue").serviceUrl.andThen(validateUrl),
-      configValidatedNel.service("api-subscription-fields").serviceUrl.andThen(validateUrl), (
-      root.stringSeq("internal.clientIds").map(_.toSet.map(ClientId(_))),
-      root.int("ttlInSeconds"),
-      root.boolean("retry.poller.enabled"),
-      root.int("retry.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS)),
-      root.int("retry.poller.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS)),
-      root.int("retry.poller.inProgressRetryAfter.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS)),
-      root.int("retry.poller.instances"),
-      root.int("non.blocking.retry.after.minutes"),
-      root.stringSeq("hotfix.translates")
-    ).mapN(NotificationConfig),
-      configValidatedNel.service("customs-notification-metrics").serviceUrl.andThen(validateUrl),
-      (root.boolean("unblock.poller.enabled"), root.int("unblock.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS))).mapN(UnblockPollerConfig)
-    ).mapN(CustomsNotificationConfig).fold({
-      nel => // error case exposes nel (a NotEmptyList)
-        val errorMsg = "\n" + nel.toList.mkString("\n")
+    (c.root.string("auth.token.internal").map(Authorization),
+      c.root.stringSeq("internal.clientIds").map(_.toSet.map(ClientId(_))),
+      c.service("public-notification").serviceUrl andThen validateUrl,
+      c.service("notification-queue").serviceUrl andThen validateUrl,
+      c.service("api-subscription-fields").serviceUrl andThen validateUrl,
+      c.service("customs-notification-metrics").serviceUrl andThen validateUrl,
+      c.root.int("ttlInSeconds"),
+      c.root.int("retry.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS)),
+      c.root.int("unblock.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS)),
+      c.root.int("retry.poller.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS)),
+      c.root.int("non.blocking.retry.after.minutes"),
+      c.root.stringSeq("hotfix.translates").andThen(_.map { pair =>
+        val mapping = pair.split(":").toList
+        (validateUuid(mapping.head) -> validateUuid(mapping(1)))
+          .mapN { case (before, after) =>
+            ClientSubscriptionId(before) -> ClientSubscriptionId(after)
+          }
+      }.sequence.map(_.toMap))
+    ).mapN { case (a, b, c, d, e, f, g, h, i, j, k, l) =>
+      (a, b, c, d, e, f, g, h, i, j, k, l)
+    } match {
+      case Valid(c) => c
+      case Invalid(errors) =>
+        val errorMsg = errors.toList.mkString("\n")
         logger.error(errorMsg)
         throw new IllegalStateException(errorMsg)
-    },
-      config => config // success case exposes the value class
-    )
-    //The fold above is also similar to how we handle the error/success cases for Play2 forms, - again the underlying
-    //FP principles are the same.
-    // ***(No idea what this means but copied and pasted just in case makes sense to someone)***
+    }
   }
-
-  val basicAuthToken: String = config.basicAuthToken
-  val apiSubscriptionFieldsUrl: URL = config.apiSubscriptionFieldsUrl
-  val pullQueueUrl: URL = config.pullQueueUrl
-  val metricsUrl: URL = config.notificationMetricsUrl
-  val notificationConfig: NotificationConfig = config.notificationConfig
-  val unblockPollerConfig: UnblockPollerConfig = config.unblockPollerConfig
 }
+
+
+
 
 object AppConfig {
   def validateUrl(urlString: String): CustomsValidatedNel[URL] = {
-    Validated.catchNonFatal(new URL(urlString)).leftMap[String](e => e.getMessage).toValidatedNel
+    Validated.catchNonFatal(new URL(urlString)).leftMap(_.getMessage).toValidatedNel
+  }
+
+  def validateUuid(uuidString: String): CustomsValidatedNel[UUID] = {
+    Validated.catchNonFatal(UUID.fromString(uuidString)).leftMap(_.getMessage).toValidatedNel
   }
 }

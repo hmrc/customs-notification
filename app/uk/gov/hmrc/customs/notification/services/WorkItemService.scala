@@ -16,16 +16,14 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import com.codahale.metrics.MetricRegistry
 import com.kenshoo.play.metrics.Metrics
-import uk.gov.hmrc.customs.notification.config.ApiSubscriptionFieldsUrlConfig
-import uk.gov.hmrc.customs.notification.models.ApiSubscriptionFields
-import uk.gov.hmrc.customs.notification.models.requests.ApiSubscriptionFieldsRequest
+import uk.gov.hmrc.customs.notification.config.AppConfig
+import uk.gov.hmrc.customs.notification.connectors.HttpConnector
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
-import uk.gov.hmrc.customs.notification.util.HeaderNames.NOTIFICATION_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
+import java.time.ZonedDateTime
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -33,23 +31,19 @@ class WorkItemService @Inject()(repository: NotificationRepo,
                                 httpConnector: HttpConnector,
                                 logger: NotificationLogger,
                                 metrics: Metrics,
-                                apiSubsFieldsUrlConfig: ApiSubscriptionFieldsUrlConfig,
-                                dateTimeService: DateTimeService,
-                                sendService: SendService)(implicit ec: ExecutionContext) {
+                                config: AppConfig,
+                                now: () => ZonedDateTime,
+                                sendNotificationService: SendNotificationService)(implicit ec: ExecutionContext) {
   def processOne(): Future[Boolean] = {
-    val before = dateTimeService.now().toInstant
+    val before = now().toInstant
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(before, before).flatMap {
       case Some(firstOutstandingNotificationWorkItem) =>
         metrics.defaultRegistry.counter("declaration-digital-notification-retry-total-counter").inc()
         implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
-        val apiSubsFieldsRequest = ApiSubscriptionFieldsRequest(
-          firstOutstandingNotificationWorkItem.item._id,
-          apiSubsFieldsUrlConfig.url)
-
 //          httpConnector.get(apiSubsFieldsRequest).flatMap()
 //        eventuallyMaybeApiSubscriptionFields.map { maybeApiSubscriptionFields =>
-//          maybeApiSubscriptionFields.map(apiSubscriptionFields => sendService.send(firstOutstandingNotificationWorkItem, apiSubscriptionFields, false))
+//          maybeApiSubscriptionFields.map(apiSubscriptionFields => SendNotificationService.send(firstOutstandingNotificationWorkItem, apiSubscriptionFields, false))
 //        }
         Future.successful(true)
       case None =>

@@ -16,12 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.repo
 
-import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
-import uk.gov.hmrc.customs.notification.repo.NotificationRepo.Dto._
-import org.joda.time.DateTime
-import play.api.libs.json._
-import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
 import org.bson.types.ObjectId
+import org.joda.time.DateTime
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.{and, equal, gte, lt}
@@ -30,14 +26,17 @@ import org.mongodb.scala.model.Updates.{combine, inc, set}
 import org.mongodb.scala.model._
 import play.api.http.MimeTypes
 import play.api.http.Status.INTERNAL_SERVER_ERROR
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.config.CustomsNotificationConfig
+import play.api.libs.json._
+import uk.gov.hmrc.customs.notification.config.AppConfig
+import uk.gov.hmrc.customs.notification.models.CustomProcessingStatus.{FailedAndBlocked, FailedButNotBlocked, SavedToBeSent}
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo.Dto._
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo._
-import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.mongo.play.json.Codecs
+import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
 import uk.gov.hmrc.mongo.workitem.{ResultStatus, WorkItem, WorkItemFields, WorkItemRepository}
 import uk.gov.hmrc.mongo.{MongoComponent, MongoUtils}
 
@@ -49,9 +48,9 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class NotificationRepo @Inject()(mongo: MongoComponent,
-                                 customsNotificationConfig: CustomsNotificationConfig)
+                                 nowDateTime: () => ZonedDateTime,
+                                 config: AppConfig)
                                 (implicit logger: NotificationLogger,
-                                 dateTimeService: DateTimeService,
                                  ec: ExecutionContext) extends WorkItemRepository[NotificationWorkItem](
   collectionName = "notifications-work-item",
   mongoComponent = mongo,
@@ -66,18 +65,22 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
     failureCount = "failures",
     item = "clientNotification")) {
 
-  override def now(): Instant = dateTimeService.now().toInstant
+  override def now(): Instant = nowDateTime().toInstant
 
   private val mostRecentPushPullHttpStatusFieldName = s"${workItemFields.item}.notification.mostRecentPushPullHttpStatus"
 
+  /**
+   * Unless something exceptional happens with mongo in [[uk.gov.hmrc.customs.notification.services.SendNotificationService.send]],
+   * we should not have 'inProgress' notifications that need retrying
+   */
   override val inProgressRetryAfter: Duration = {
-    java.time.Duration.ofNanos(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toNanos)
+    java.time.Duration.ofSeconds(config.retryFailedAndNotBlockedDelay.toSeconds)
   }
 
   def saveWithLock(domainEntity: Notification,
                    processingStatus: CustomProcessingStatus): Future[Either[MongoDbError, Unit]] =
     catchMongoDbException("saving notification", domainEntity) {
-      val mongoWorkItem: WorkItem[NotificationWorkItem] = domainToRepo(domainEntity, processingStatus, None)
+      val mongoWorkItem: WorkItem[NotificationWorkItem] = domainToRepo(domainEntity, processingStatus, None, now())
       collection.insertOne(mongoWorkItem).toFuture().map(_ => mongoWorkItem)
     }
 
@@ -86,22 +89,22 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
       complete(id, status).map(_ => ())
     }
 
-  def setFailedAndBlocked(id: ObjectId, httpStatus: Int): Future[Either[MongoDbError, Unit]] =
+  def setFailedAndBlocked(id: ObjectId, maybeHttpStatus: Option[Int]): Future[Either[MongoDbError, Unit]] =
     catchMongoDbException(s"setting failed and blocked for notification", id) {
       complete(id, FailedAndBlocked.convertToHmrcProcessingStatus).flatMap { updateSuccessful =>
         if (updateSuccessful) {
-          setMostRecentPushPullHttpStatus(id, Some(httpStatus))
+          setMostRecentPushPullHttpStatus(id, maybeHttpStatus)
         } else {
           Future.successful(())
         }
       }
     }
 
-  def setFailedButNotBlocked(id: ObjectId, httpStatus: Int, availableAt: ZonedDateTime): Future[Either[MongoDbError, Unit]] =
+  def setFailedButNotBlocked(id: ObjectId, maybeHttpStatus: Option[Int], availableAt: ZonedDateTime): Future[Either[MongoDbError, Unit]] =
     catchMongoDbException(s"setting failed but not blocked for notification", id) {
       markAs(id, FailedButNotBlocked.convertToHmrcProcessingStatus, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
         if (updateSuccessful) {
-          setMostRecentPushPullHttpStatus(id, Some(httpStatus))
+          setMostRecentPushPullHttpStatus(id, maybeHttpStatus)
         } else {
           Future.successful(())
         }
@@ -134,7 +137,7 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
       collection.updateMany(selector, update).toFuture().map(_.getModifiedCount.toInt)
     }
 
-  def blockFailedButNotBlocked(csid: ClientSubscriptionId): Future[Either[MongoDbError, Int]] =
+  def blockAllFailedButNotBlocked(csid: ClientSubscriptionId): Future[Either[MongoDbError, Int]] =
     catchMongoDbException("setting all failed but not blocked notifications for client subscription ID to blocked", csid) {
       val selector = csIdAndStatusSelector(csid, FailedButNotBlocked)
       val update = updateStatusBson(FailedAndBlocked)
@@ -160,7 +163,7 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
         lt("availableAt", now()))
       collection.distinct[String]("clientNotification._id", selector)
         .toFuture()
-        .map(convertToClientSubscriptionIdSet)
+        .map(_.map(id => ClientSubscriptionId(UUID.fromString(id))).toSet)
     }
 
   def getOutstandingFailedAndBlocked(csid: ClientSubscriptionId): Future[Either[MongoDbError, Option[Notification]]] =
@@ -171,22 +174,15 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
         .toFutureOption().map(_.map(repoToDomain))
     }
 
-  def incrementFailureCount(id: ObjectId): Future[Unit] = {
-    val selector = equal(workItemFields.id, id)
-    val update = inc(workItemFields.failureCount, 1)
+  def incrementFailureCount(id: ObjectId): Future[Either[MongoDbError, Unit]] =
+    catchMongoDbException(s"incrementing failure count", id) {
+      val selector = equal(workItemFields.id, id)
+      val update = inc(workItemFields.failureCount, 1)
 
-    collection.findOneAndUpdate(selector, update).toFuture().map(_ => ())
-  }
+      collection.findOneAndUpdate(selector, update).toFuture().map(_ => ())
+    }
 
-  def deleteAll(): Future[Unit] = {
-    collection.deleteMany(BsonDocument()).toFuture().map(_ => ())
-  }
-
-  private def convertToClientSubscriptionIdSet(clientSubscriptionIds: Seq[String]): Set[ClientSubscriptionId] = {
-    clientSubscriptionIds.map(id => ClientSubscriptionId(UUID.fromString(id))).toSet
-  }
-
-  private def setMostRecentPushPullHttpStatus(id: ObjectId, httpStatus: Option[Int]): Future[Unit] = {
+  private def setMostRecentPushPullHttpStatus(id: ObjectId, httpStatus: Option[Int])(implicit ec: ExecutionContext): Future[Unit] = {
     collection.updateOne(
       filter = Filters.equal(workItemFields.id, id),
       update = Updates.combine(
@@ -212,7 +208,7 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
 
   //scalastyle:off method.length
   override def ensureIndexes(): Future[Seq[String]] = {
-    val ttlInSeconds = customsNotificationConfig.notificationConfig.ttlInSeconds
+    val ttlInSeconds = config.ttlInSeconds
     val WORK_ITEM_STATUS = workItemFields.status
     val WORK_ITEM_UPDATED_AT = workItemFields.updatedAt
     val TTL_INDEX_NAME = "createdAt-ttl-index"
@@ -276,18 +272,12 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
 
 object NotificationRepo {
   case class MongoDbError(doingWhat: String, cause: Throwable) extends CdsError {
-    val message: String = s"MongoDb error while $doingWhat. Exception: $cause"
+    val message: String = s"MongoDb error while $doingWhat. Exception: ${cause.getMessage}"
   }
 
-  def catchMongoDbException[A](doingWhat: String)(block: => Future[A])
-                              (implicit logger: NotificationLogger,
-                               ec: ExecutionContext): Future[Either[MongoDbError, A]] =
-    catchMongoDbException(doingWhat, (), shouldLog = false)(block)
-
-  def catchMongoDbException[A, L](doingWhat: String, toLog: L, shouldLog: Boolean = true)(block: => Future[A])
-                                 (implicit logger: NotificationLogger,
-                                  ev: Loggable[L],
-                                  ec: ExecutionContext): Future[Either[MongoDbError, A]] = {
+  def catchMongoDbException[A, L: Loggable](doingWhat: String, toLog: L, shouldLog: Boolean = true)(block: => Future[A])
+                                           (implicit logger: NotificationLogger,
+                                            ec: ExecutionContext): Future[Either[MongoDbError, A]] = {
     block.map(Right(_)).recover {
       case t: Throwable =>
         val e = MongoDbError(doingWhat, t)
@@ -298,9 +288,8 @@ object NotificationRepo {
 
   private def domainToRepo(n: Notification,
                            status: CustomProcessingStatus,
-                           mostRecentPushPullHttpStatus: Option[Int])
-                          (implicit dateTimeService: DateTimeService): WorkItem[NotificationWorkItem] = {
-    val now = dateTimeService.now().toInstant
+                           mostRecentPushPullHttpStatus: Option[Int],
+                           now: Instant): WorkItem[NotificationWorkItem] = {
     val notificationWorkItem =
       NotificationWorkItem(
         n.clientSubscriptionId,

@@ -24,19 +24,20 @@ import play.api.mvc._
 import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
-import uk.gov.hmrc.customs.notification.config.BasicAuthTokenConfig
+import uk.gov.hmrc.customs.notification.config.AppConfig
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController._
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableHeaders
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
 import uk.gov.hmrc.customs.notification.models.errors.ControllerError._
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
+import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
+import uk.gov.hmrc.customs.notification.services.IncomingNotificationService
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
-import uk.gov.hmrc.customs.notification.services.{DateTimeService, IncomingNotificationService, UuidService}
 import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
-import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
 import uk.gov.hmrc.customs.notification.util._
+import uk.gov.hmrc.http.Authorization
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import java.time.ZonedDateTime
@@ -47,26 +48,24 @@ import scala.xml.NodeSeq
 
 @Singleton
 class CustomsNotificationController @Inject()()(implicit
-                                              cc: ControllerComponents,
-                                              incomingNotificationService: IncomingNotificationService,
-                                              dateTimeService: DateTimeService,
-                                              uuidService: UuidService,
-                                              basicAuthTokenConfig: BasicAuthTokenConfig,
-                                              workItemRepo: NotificationRepo,
-                                              logger: NotificationLogger,
-                                              ec: ExecutionContext) extends BackendController(cc) {
+                                                cc: ControllerComponents,
+                                                incomingNotificationService: IncomingNotificationService,
+                                                now: () => ZonedDateTime,
+                                                newNotificationId: () => NotificationId,
+                                                appConfig: AppConfig,
+                                                workItemRepo: NotificationRepo,
+                                                logger: NotificationLogger,
+                                                ec: ExecutionContext) extends BackendController(cc) {
   override val controllerComponents: ControllerComponents = cc
 
   def submit(): Action[AnyContent] = Action.async { request =>
     implicit val h: Headers = request.headers
     (for {
-      _ <- authorize(basicAuthTokenConfig).toFutureCdsResult
+      _ <- authorize(appConfig.basicAuthToken).toFutureCdsResult
       _ <- validateAcceptHeader.toFutureCdsResult
       _ <- validateContentTypeHeader.toFutureCdsResult
       xml <- validateXml(request).toFutureCdsResult
-      startTime = dateTimeService.now()
-      notificationId = NotificationId(uuidService.getRandomUuid())
-      requestMetadata <- validateRequestMetadata(xml, notificationId, startTime).toFutureCdsResult
+      requestMetadata <- validateRequestMetadata(xml, newNotificationId(), now()).toFutureCdsResult
       _ <- FutureCdsResult(incomingNotificationService.process(xml)(requestMetadata, hc(request)))
     } yield ()).value.map({
       case Right(_) =>
@@ -220,8 +219,8 @@ private object CustomsNotificationController {
   private def getClientId(headers: Headers): Either[MissingClientId.type, ClientId] =
     validateMandatory(X_CLIENT_ID_HEADER_NAME, _.nonEmpty)(ClientId.apply)(_ => MissingClientId)(headers)
 
-  private def authorize(basicAuthTokenConfig: BasicAuthTokenConfig)(implicit h: Headers, logger: NotificationLogger): Either[InvalidBasicAuth, Unit] =
-    validateMandatory(AUTHORIZATION, _.contains(basicAuthTokenConfig.token))(_ => ()) { errorType =>
+  private def authorize(authToken: Authorization)(implicit h: Headers, logger: NotificationLogger): Either[InvalidBasicAuth, Unit] =
+    validateMandatory(AUTHORIZATION, _.contains(authToken.value))(_ => ()) { errorType =>
       val error = InvalidBasicAuth(errorType)
       logger.error(error.responseMessage, h)
       error

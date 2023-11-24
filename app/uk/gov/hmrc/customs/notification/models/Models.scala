@@ -72,11 +72,10 @@ object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
 }
 
-case class PushCallbackData(callbackUrl: Option[URL],
-                            securityToken: Authorization)
 
-object PushCallbackData {
-  implicit val authReads: Reads[Authorization] = Json.valueReads[Authorization]
+sealed trait ClientSendData
+
+object ClientSendData {
   implicit val urlReads: Reads[URL] = {
     case JsString(urlStr) => Try(new URL(urlStr)) match {
       case Success(url) => JsSuccess(url)
@@ -84,11 +83,32 @@ object PushCallbackData {
     }
     case _ => JsError("error.expected.url")
   }
+  implicit val parentReads: Reads[ClientSendData] = {
+    case o: JsObject => (o \ "callbackUrl").asOpt[URL] match {
+      case Some(callbackUrl) => (o \ "securityToken").asOpt[String] match {
+        case Some(securityToken) => JsSuccess(PushCallbackData(callbackUrl, Authorization(securityToken)))
+        case None => JsError("error.expected.securityToken")
+      }
+      case None => JsSuccess(SendToPullQueue)
+    }
+    case _ => JsError("error.expected.ClientSendData")
+  }
+}
+
+case object SendToPullQueue extends ClientSendData
+
+case class PushCallbackData(callbackUrl: URL,
+                            securityToken: Authorization) extends ClientSendData
+
+object PushCallbackData {
+  implicit val authReads: Reads[Authorization] = Json.valueReads[Authorization]
+
+  import uk.gov.hmrc.customs.notification.models.ClientSendData.urlReads
   implicit val reads: Reads[PushCallbackData] = Json.reads[PushCallbackData]
 }
 
 case class ApiSubscriptionFields(clientId: ClientId,
-                                 fields: PushCallbackData)
+                                 fields: ClientSendData)
 
 object ApiSubscriptionFields {
   implicit val reads: Reads[ApiSubscriptionFields] = Json.reads[ApiSubscriptionFields]

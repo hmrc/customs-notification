@@ -29,24 +29,26 @@ sealed trait CustomProcessingStatus {
   def convertToHmrcProcessingStatus: ProcessingStatus
 }
 
-//The name value doesn't match the name of the object because we don't want to break the DB
-//However, the names of the objects are more accurate descriptions of the statuses
-//There is work remaining in order to fully decouple from the HMRC library version of ProcessingStatus which is not apt for our purposes
-//But I didn't want to break Mongo in the scope of this ticket (DCWL-1627)
-case object SavedToBeSent extends CustomProcessingStatus {
-  override val name: String = "in-progress"
-  val convertToBson: BsonValue = new BsonString(name)
-  val convertToHmrcProcessingStatus: ProcessingStatus = InProgress
-}
+object CustomProcessingStatus {
+  //The name value doesn't match the name of the object because we don't want to break the DB
+  //However, the names of the objects are more accurate descriptions of the statuses
+  //There is work remaining in order to fully decouple from the HMRC library version of ProcessingStatus which is not apt for our purposes
+  //But I didn't want to break Mongo in the scope of this ticket (DCWL-1627)
+  case object SavedToBeSent extends CustomProcessingStatus {
+    override val name: String = "in-progress"
+    val convertToBson: BsonValue = new BsonString(name)
+    val convertToHmrcProcessingStatus: ProcessingStatus = InProgress
+  }
 
-case object FailedButNotBlocked extends CustomProcessingStatus {
-  override val name = "failed"
-  val convertToBson: BsonValue = new BsonString(name)
-  val convertToHmrcProcessingStatus: ResultStatus = Failed
-}
+  case object FailedButNotBlocked extends CustomProcessingStatus {
+    override val name = "failed"
+    val convertToBson: BsonValue = new BsonString(name)
+    val convertToHmrcProcessingStatus: ResultStatus = Failed
+  }
 
-case object FailedAndBlocked extends CustomProcessingStatus {
-  override val name = "permanently-failed"
-  val convertToBson: BsonValue = new BsonString(name)
-  val convertToHmrcProcessingStatus: ResultStatus = PermanentlyFailed
+  case object FailedAndBlocked extends CustomProcessingStatus {
+    override val name = "permanently-failed"
+    val convertToBson: BsonValue = new BsonString(name)
+    val convertToHmrcProcessingStatus: ResultStatus = PermanentlyFailed
+  }
 }

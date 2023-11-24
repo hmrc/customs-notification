@@ -19,7 +19,6 @@ package uk.gov.hmrc.customs.notification.models
 import org.bson.types.ObjectId
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
-import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import scala.collection.immutable.ListMap
 
@@ -72,7 +71,7 @@ object Loggable {
         KeyNames.Mrn -> r.maybeMrn.map(_.toString)
       )
 
-    implicit val loggableNotificationWorkItem: Loggable[Notification] = (n: Notification) =>
+    implicit val loggableNotification: Loggable[Notification] = (n: Notification) =>
       ListMap(
         KeyNames.WorkItemId -> Some(n.id.toString),
         KeyNames.ConversationId -> Some(n.conversationId.toString),

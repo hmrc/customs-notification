@@ -16,23 +16,18 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.DeclarantNotFound
 import org.mongodb.scala.bson.ObjectId
-import play.api.http.Status.NOT_FOUND
-import uk.gov.hmrc.customs.notification.config.{ApiSubscriptionFieldsUrlConfig, MetricsUrlConfig}
-import uk.gov.hmrc.customs.notification.models.ApiSubscriptionFields.reads
+import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MetricsConnector}
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableRequestMetadata
+import uk.gov.hmrc.customs.notification.models.CustomProcessingStatus.{FailedAndBlocked, SavedToBeSent}
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
-import uk.gov.hmrc.customs.notification.models.requests.{ApiSubscriptionFieldsRequest, MetricsRequest}
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
-import uk.gov.hmrc.customs.notification.services.AuditingService.AuditType
-import uk.gov.hmrc.customs.notification.services.HttpConnector._
-import uk.gov.hmrc.customs.notification.services.IncomingNotificationService._
-import uk.gov.hmrc.customs.notification.services.SendService.SendServiceError
-import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
+import uk.gov.hmrc.customs.notification.services.IncomingNotificationService._
+import uk.gov.hmrc.customs.notification.services.SendNotificationService.SendNotificationError
+import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
 import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -42,68 +37,51 @@ import scala.xml.NodeSeq
 
 @Singleton
 class IncomingNotificationService @Inject()(repo: NotificationRepo,
-                                            sendService: SendService,
-                                            dateTimeService: DateTimeService,
-                                            apiSubsFieldsUrlConfig: ApiSubscriptionFieldsUrlConfig,
-                                            metricsUrlConfig: MetricsUrlConfig,
-                                            httpConnector: HttpConnector,
-                                            auditingService: AuditingService,
+                                            sendNotificationService: SendNotificationService,
+                                            apiSubscriptionFieldsConnector: ApiSubscriptionFieldsConnector,
+                                            auditService: AuditService,
+                                            metricsConnector: MetricsConnector,
                                             logger: NotificationLogger,
-                                            objectIdService: ObjectIdService)(implicit ec: ExecutionContext) {
-  def process(payload: NodeSeq)(implicit requestMetadata: RequestMetadata, hc: HeaderCarrier): Future[Either[IncomingNotificationServiceError, Unit]] = {
-    val apiSubsFieldsRequest = ApiSubscriptionFieldsRequest(requestMetadata.clientSubscriptionId, apiSubsFieldsUrlConfig.url)
+                                            newObjectId: () => ObjectId)(implicit ec: ExecutionContext) {
+  def process(payload: NodeSeq)(implicit requestMetadata: RequestMetadata, hc: HeaderCarrier): Future[Either[Error, Unit]] = {
 
-    httpConnector.get(apiSubsFieldsRequest).flatMap {
-      case Left(error) =>
-        handleApiSubscriptionsFieldsError(error)
-      case Right(apiSubsFields) =>
-        auditingService.auditSuccess(apiSubsFields.fields, payload.toString, requestMetadata, AuditType.Inbound)
-
-        val newNotification = notificationFrom(objectIdService.newId(), payload, apiSubsFields.clientId, requestMetadata)
-        (for {
-          failedAndBlockedExist <- repo.checkFailedAndBlockedExist(requestMetadata.clientSubscriptionId).toFutureCdsResult
-          notificationStatus = if (failedAndBlockedExist) FailedAndBlocked else SavedToBeSent
-          _ <- repo.saveWithLock(newNotification, notificationStatus).toFutureCdsResult
-          _ = sendMetrics(newNotification)
-        } yield notificationStatus).value.flatMap {
-          case Left(_: MongoDbError) =>
-            Future.successful(Left(InternalServiceError))
-          case Right(FailedAndBlocked) =>
-            logger.info(s"Existing failed and blocked notifications found, incoming notification saved as failed and blocked", newNotification)
-            Future.successful(Right(()))
-          case Right(SavedToBeSent) =>
-            logger.info("Saved notification", newNotification)
-
-            sendService.send(newNotification, requestMetadata, apiSubsFields).flatMap {
-                case Left(SendServiceError) =>
-                  Future.successful(Left(InternalServiceError))
-                case Right(_) =>
-                  Future.successful(Right(()))
-              }
-        }
+    apiSubscriptionFieldsConnector.get(requestMetadata.clientSubscriptionId).flatMap {
+      case Left(ApiSubscriptionFieldsConnector.DeclarantNotFound) =>
+        Future.successful(Left(DeclarantNotFound))
+      case Left(ApiSubscriptionFieldsConnector.OtherError) =>
+        Future.successful(Left(InternalServiceError))
+      case Right(ApiSubscriptionFieldsConnector.Success(apiSubscriptionFields)) =>
+        processNotificationFor(apiSubscriptionFields, payload)
     }
   }
 
-  private def handleApiSubscriptionsFieldsError(e: HttpConnectorError[ApiSubscriptionFieldsRequest])
-                                               (implicit requestMetadata: RequestMetadata): Future[Left[IncomingNotificationServiceError, Nothing]] = e match {
-    case ErrorResponse(ApiSubscriptionFieldsRequest(_, _), response) if response.status == NOT_FOUND =>
-      logger.error("Declarant data not found for notification", requestMetadata)
-      Future.successful(Left(DeclarantNotFound))
-    case e: HttpConnectorError[_] =>
-      logger.error(e.message, requestMetadata)
-      Future.successful(Left(InternalServiceError))
-  }
+  private def processNotificationFor(apiSubscriptionFields: ApiSubscriptionFields,
+                                     payload: NodeSeq)(implicit requestMetadata: RequestMetadata, hc: HeaderCarrier): Future[Either[Error, Unit]] = {
+    auditService.sendIncomingNotificationEvent(apiSubscriptionFields.fields, payload.toString, requestMetadata)
 
-  private def sendMetrics(notification: Notification)(implicit hc: HeaderCarrier): Unit = {
+    val newNotification = notificationFrom(newObjectId(), payload, apiSubscriptionFields.clientId, requestMetadata)
+    (for {
+      failedAndBlockedExist <- repo.checkFailedAndBlockedExist(requestMetadata.clientSubscriptionId).toFutureCdsResult
+      notificationStatus = if (failedAndBlockedExist) FailedAndBlocked else SavedToBeSent
+      _ <- repo.saveWithLock(newNotification, notificationStatus).toFutureCdsResult
+      _ = metricsConnector.send(newNotification)
+    } yield notificationStatus).value flatMap {
+      case Left(_: MongoDbError) =>
+        Future.successful(Left(InternalServiceError))
+      case Right(FailedAndBlocked) =>
+        logger.info(s"Existing failed and blocked notifications found, incoming notification saved as failed and blocked", newNotification)
+        repo.setFailedAndBlocked(newNotification.id, None)
+        Future.successful(Right(()))
+      case Right(SavedToBeSent) =>
+        logger.info("Saved notification", newNotification)
 
-    def metricsRequest = MetricsRequest(
-      notification.conversationId,
-      notification.metricsStartDateTime,
-      dateTimeService.now(),
-      metricsUrlConfig.url)
-
-    httpConnector.post(metricsRequest)
-      .map(_.left.foreach(e => logger.error(e.message, notification)))
+        sendNotificationService.send(newNotification, requestMetadata, apiSubscriptionFields.fields).flatMap {
+          case Left(SendNotificationError) =>
+            Future.successful(Left(InternalServiceError))
+          case Right(_) =>
+            Future.successful(Right(()))
+        }
+    }
   }
 
   private def notificationFrom(newId: ObjectId, xml: NodeSeq, clientId: ClientId, requestMetadata: RequestMetadata): Notification = {
@@ -111,7 +89,7 @@ class IncomingNotificationService @Inject()(repo: NotificationRepo,
       (requestMetadata.maybeBadgeId ++
         requestMetadata.maybeSubmitterNumber ++
         requestMetadata.maybeCorrelationId ++
-        requestMetadata.maybeIssueDateTime).toSeq
+        requestMetadata.maybeIssueDateTime).toList
 
     Notification(
       newId,
@@ -128,9 +106,9 @@ class IncomingNotificationService @Inject()(repo: NotificationRepo,
 
 object IncomingNotificationService {
 
-  sealed trait IncomingNotificationServiceError extends CdsError
+  sealed trait Error extends CdsError
+  case object InternalServiceError extends Error
 
-  case object InternalServiceError extends IncomingNotificationServiceError
+  case object DeclarantNotFound extends Error
 
-  case object DeclarantNotFound extends IncomingNotificationServiceError
 }

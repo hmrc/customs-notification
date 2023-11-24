@@ -1,31 +1,27 @@
 package unit.services
 
+import org.scalatest.AppendedClues._
+import org.mockito.scalatest.MockitoSugar
+import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.{AnyWordSpec, AsyncWordSpec}
 import play.api.libs.json.{Format, Json}
-import unit.services.Foo
-import unit.services.Foo._
+
 class TestSpec extends AnyWordSpec
-  with Matchers{
+  with MockitoSugar
+  with Inside
+  with Matchers {
 
-"Test" when {
-  "json" should {
-    "do it" in {
-      val x = new Foo("Hi", "ignored")
-
-      info(Foo.testFormat.writes(x).toString())
+  "Test" when {
+    "x" should {
+      "y" in {
+        val y: Option[Int] = None
+        y shouldBe defined withClue "i.e. that the request body was not valid JSON"
+//        None shouldBe defined withClue "This wasn't defined?!?!?!"
+      }
     }
   }
 }
-}
-class Foo(val s: String,
-          x: String) {
-}
-object Foo {
 
-  def apply(s: String, x: String) = new Foo(s, x)
 
-  def unapply(f: Foo) = Some(f.s, "Bosk")
 
-  val testFormat: Format[Foo] = Json.format[Foo]
-}

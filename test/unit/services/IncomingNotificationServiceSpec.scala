@@ -16,37 +16,21 @@
 
 package unit.services
 
-import org.bson.types.ObjectId
-import org.mockito.captor._
 import org.mockito.scalatest.{AsyncMockitoSugar, ResetMocksAfterEachAsyncTest}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
-import play.api.http.HeaderNames.AUTHORIZATION
-import play.api.http.MimeTypes
-import play.api.http.Status.NOT_FOUND
-import play.api.mvc.{AnyContent, Headers}
-import play.api.test.Helpers.{ACCEPT, CONTENT_TYPE}
-import play.api.test.{FakeRequest, Helpers}
-import uk.gov.hmrc.customs.notification.config.{ApiSubscriptionFieldsUrlConfig, AppConfig, MetricsUrlConfig}
-import uk.gov.hmrc.customs.notification.models
-import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.models.requests.ApiSubscriptionFieldsRequest
+import play.api.test.Helpers
+import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MetricsConnector}
+import uk.gov.hmrc.customs.notification.models.CustomProcessingStatus.{FailedAndBlocked, SavedToBeSent}
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
-import uk.gov.hmrc.customs.notification.services.AuditingService.AuditType
-import uk.gov.hmrc.customs.notification.services.HttpConnector.ErrorResponse
-import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, IncomingNotificationServiceError, InternalServiceError}
+import uk.gov.hmrc.customs.notification.services.AuditService.SuccessAuditEventDetail
+import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
 import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
-import uk.gov.hmrc.http.{Authorization, HeaderCarrier, HttpResponse}
-import unit.services.IncomingNotificationServiceSpec.TestData
+import util.TestData
 
-import java.net.URL
-import java.time.{ZoneId, ZonedDateTime}
-import java.util.UUID
 import scala.concurrent.Future
-import scala.xml.NodeSeq
 
 class IncomingNotificationServiceSpec extends AsyncWordSpec
   with Matchers
@@ -54,85 +38,37 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
   with ResetMocksAfterEachAsyncTest {
 
   private val mockNotificationRepo = mock[NotificationRepo]
-  private val mockSendService = mock[SendService]
-  private val mockDateTimeService = new DateTimeService {
-    override def now(): ZonedDateTime = TestData.TimeNow
-  }
-  private val mockApiSubsFieldsUrlConfig: ApiSubscriptionFieldsUrlConfig = new ApiSubscriptionFieldsUrlConfig(mock[AppConfig]) {
-    override val url: URL = TestData.ApiSubsFieldsUrl
-  }
-  private val mockMetricsUrlConfig: MetricsUrlConfig = new MetricsUrlConfig(mock[AppConfig]) {
-    override val url: URL = TestData.MetricsUrl
-  }
-  private val mockHttpConnector = mock[HttpConnector]
-  private val mockAuditingService = mock[AuditingService]
+  private val mockSendNotificationService = mock[SendNotificationService]
+  private val mockApiSubsFieldsConnector = mock[ApiSubscriptionFieldsConnector]
+  private val mockAuditService = mock[AuditService]
+  private val mockMetricsConnector = mock[MetricsConnector]
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val mockObjectIdService: ObjectIdService = new ObjectIdService() {
-    override def newId(): ObjectId = TestData.ObjectId
-  }
   private val service: IncomingNotificationService =
     new IncomingNotificationService(
       mockNotificationRepo,
-      mockSendService,
-      mockDateTimeService,
-      mockApiSubsFieldsUrlConfig,
-      mockMetricsUrlConfig,
-      mockHttpConnector,
-      mockAuditingService,
+      mockSendNotificationService,
+      mockApiSubsFieldsConnector,
+      mockAuditService,
+      mockMetricsConnector,
       mockNotificationLogger,
-      mockObjectIdService)(Helpers.stubControllerComponents().executionContext)
+      () => TestData.ObjectId)(Helpers.stubControllerComponents().executionContext)
 
-  private def testWithValidPayload(): Future[Either[IncomingNotificationServiceError, Unit]] =
+  private def testWithValidPayload(): Future[Either[IncomingNotificationService.Error, Unit]] =
     service.process(TestData.ValidXml)(TestData.RequestMetadata, TestData.EmptyHeaderCarrier)
-
-  val captor = ArgCaptor[Notification]
 
   "process" when {
     "blocked notifications exist" should {
-      val notCaptor = ArgCaptor[Notification]
-      val statusCaptor = ArgCaptor[CustomProcessingStatus]
 
       def setup(): Unit = {
-        when(mockHttpConnector.get[ApiSubscriptionFieldsRequest, ApiSubscriptionFields](eqTo(TestData.ApiSubsFieldsRequest))(*, *, *))
-          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.ClientSubscriptionId)))
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+          .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
           .thenReturn(Future.successful(Right(true)))
         when(mockNotificationRepo.saveWithLock(eqTo(TestData.Notification), eqTo(FailedAndBlocked)))
           .thenReturn(Future.successful(Right(())))
-        when(mockHttpConnector.post(eqTo(TestData.MetricsRequest))(*, *))
-          .thenReturn(Future.successful(Right(())))
-        when(mockSendService.send(eqTo(TestData.Notification), eqTo(TestData.RequestMetadata), eqTo(TestData.ApiSubscriptionFields))(*, *, *))
-          .thenReturn(Future.successful(Right(())))
-      }
-
-      "return Right(Unit)" in {
-        setup()
-        testWithValidPayload().map { r =>
-          verify(mockNotificationRepo).saveWithLock(notCaptor, statusCaptor)
-          r shouldBe Right(())
-        }
-      }
-
-      behave like notifyAuditService(setup())
-
-      behave like notifyMetricsService(setup())
-
-      behave like notCallSendService(setup())
-
-      behave like notLogNotificationSaved(setup())
-    }
-
-    "no blocked notifications exist" should {
-      def setup(): Unit = {
-        when(mockHttpConnector.get[ApiSubscriptionFieldsRequest, ApiSubscriptionFields](eqTo(TestData.ApiSubsFieldsRequest))(*, *, *))
-          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.ClientSubscriptionId)))
-          .thenReturn(Future.successful(Right(false)))
-        when(mockNotificationRepo.saveWithLock(eqTo(TestData.Notification), eqTo(SavedToBeSent)))
-          .thenReturn(Future.successful(Right(())))
-        when(mockHttpConnector.post(eqTo(TestData.MetricsRequest))(*, *))
-          .thenReturn(Future.successful(Right(())))
-        when(mockSendService.send(eqTo(TestData.Notification), eqTo(TestData.RequestMetadata), eqTo(TestData.ApiSubscriptionFields))(*, *, *))
+//        when(.post(eqTo(TestData.MetricsRequest))(*, *))
+//          .thenReturn(Future.successful(Right(())))
+        when(mockSendNotificationService.send(eqTo(TestData.Notification), eqTo(TestData.RequestMetadata), eqTo(TestData.PushCallbackData))(*, *, *))
           .thenReturn(Future.successful(Right(())))
       }
 
@@ -145,14 +81,40 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
 
       behave like notifyMetricsService(setup())
 
-      "call the SendService" in {
+      behave like notCallSendNotificationService(setup())
+
+      behave like notLogNotificationSaved(setup())
+    }
+
+    "no blocked notifications exist" should {
+      def setup(): Unit = {
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+          .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
+          .thenReturn(Future.successful(Right(false)))
+        when(mockNotificationRepo.saveWithLock(eqTo(TestData.Notification), eqTo(SavedToBeSent)))
+          .thenReturn(Future.successful(Right(())))
+        when(mockSendNotificationService.send(eqTo(TestData.Notification), eqTo(TestData.RequestMetadata), eqTo(TestData.PushCallbackData))(*, *, *))
+          .thenReturn(Future.successful(Right(())))
+      }
+
+      "return Right(Unit)" in {
+        setup()
+        testWithValidPayload().map(_ shouldBe Right(()))
+      }
+
+      behave like notifyAuditService(setup())
+
+      behave like notifyMetricsService(setup())
+
+      "call the SendNotificationService" in {
         setup()
 
         testWithValidPayload().map { _ =>
-          verify(mockSendService).send(
+          verify(mockSendNotificationService).send(
             eqTo(TestData.Notification),
             eqTo(TestData.RequestMetadata),
-            eqTo(TestData.ApiSubscriptionFields))(eqTo(TestData.EmptyHeaderCarrier), *, *)
+            eqTo(TestData.PushCallbackData))(*, *, eqTo(TestData.EmptyHeaderCarrier))
           succeed
         }
       }
@@ -160,63 +122,62 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
       behave like logNotificationSaved(setup())
     }
 
-    "getting a ApiSubscriptionFields returns 404 Not Found" should {
-
-      def setupApiSubscriptionFieldsToReturnNotFound(): Unit =
-        when(mockHttpConnector.get[ApiSubscriptionFieldsRequest, ApiSubscriptionFields](eqTo(TestData.ApiSubsFieldsRequest))(*, *, *))
-          .thenReturn(Future.successful(Left(ErrorResponse(TestData.ApiSubsFieldsRequest, HttpResponse(NOT_FOUND, "")))))
+    "ApiSubscriptionFieldsConnector returns DeclarantNotFound" should {
+      def setup(): Unit =
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+          .thenReturn(Future.successful(Left(ApiSubscriptionFieldsConnector.DeclarantNotFound)))
 
       "return Left with DeclarantNotFound" in {
-        setupApiSubscriptionFieldsToReturnNotFound()
+        setup()
         testWithValidPayload().map(_ shouldBe Left(DeclarantNotFound))
       }
 
-      "not send a notification to the Audit Service" in {
-        setupApiSubscriptionFieldsToReturnNotFound()
+      "not notify the Audit Service" in {
+        setup()
         testWithValidPayload().map { _ =>
-          verify(mockAuditingService, never).auditSuccess(*, *, *, *)(*, *, *)
+          verify(mockAuditService, never).sendIncomingNotificationEvent(*, *, *)(*)
           succeed
         }
       }
 
-      behave like notNotifyMetricsService(setupApiSubscriptionFieldsToReturnNotFound())
+      behave like notNotifyMetricsService(setup())
 
-      behave like notCallSendService(setupApiSubscriptionFieldsToReturnNotFound())
+      behave like notCallSendNotificationService(setup())
 
-      behave like notLogNotificationSaved(setupApiSubscriptionFieldsToReturnNotFound())
+      behave like notLogNotificationSaved(setup())
     }
 
-    "repository check for existing failed and blocked notifications" should {
-      val error = MongoDbError(s"checking if failed and blocked notifications exist for client subscription ID ${TestData.ClientSubscriptionId}", TestData.Exception)
+    "repository check for existing failed and blocked notifications fails" should {
+      val error = MongoDbError(s"checking if failed and blocked notifications exist for client subscription ID ${TestData.OldClientSubscriptionId}", TestData.Exception)
 
-      def setupMongoError(): Unit = {
-        when(mockHttpConnector.get[ApiSubscriptionFieldsRequest, ApiSubscriptionFields](eqTo(TestData.ApiSubsFieldsRequest))(*, *, *))
-          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.ClientSubscriptionId)))
+      def setup(): Unit = {
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+          .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
           .thenReturn(Future.successful(
             Left(error)
           ))
       }
 
       "return Left with a MongoDB error" in {
-        setupMongoError()
+        setup()
         testWithValidPayload().map(_ shouldBe Left(InternalServiceError))
       }
 
-      behave like notifyAuditService(setupMongoError())
+      behave like notifyAuditService(setup())
 
-      behave like notNotifyMetricsService(setupMongoError())
+      behave like notNotifyMetricsService(setup())
 
-      behave like notCallSendService(setupMongoError())
+      behave like notCallSendNotificationService(setup())
 
-      behave like notLogNotificationSaved(setupMongoError())
+      behave like notLogNotificationSaved(setup())
     }
 
     "saving notification to repository fails" should {
       def setup(): Unit = {
-        when(mockHttpConnector.get[ApiSubscriptionFieldsRequest, ApiSubscriptionFields](eqTo(TestData.ApiSubsFieldsRequest))(*, *, *))
-          .thenReturn(Future.successful(Right(TestData.ApiSubscriptionFields)))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.ClientSubscriptionId)))
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+          .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
           .thenReturn(Future.successful(Right(true)))
         when(mockNotificationRepo.saveWithLock(eqTo(TestData.Notification), eqTo(FailedAndBlocked)))
           .thenReturn(Future.successful(Left(MongoDbError("saving notification", TestData.Exception))))
@@ -226,7 +187,7 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
 
       behave like notNotifyMetricsService(setup())
 
-      behave like notCallSendService(setup())
+      behave like notCallSendNotificationService(setup())
 
       behave like notLogNotificationSaved(setup())
     }
@@ -236,7 +197,7 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
     s"send a notification to the Metrics Service" in {
       setup
       testWithValidPayload().map { _ =>
-        verify(mockHttpConnector).post(eqTo(TestData.MetricsRequest))(*, *)
+        verify(mockMetricsConnector).send(eqTo(TestData.Notification))(eqTo(TestData.EmptyHeaderCarrier))
         succeed
       }
     }
@@ -246,9 +207,7 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
     s"log that a notification has been saved" in {
       setup
       testWithValidPayload().map { _ =>
-        verify(mockNotificationLogger).info(eqTo("Saved notification"), captor.capture)(*)
-        info(captor.value.toString)
-        info(TestData.Notification.toString)
+        verify(mockNotificationLogger).info(eqTo("Saved notification"), eqTo(TestData.Notification))(*)
         succeed
       }
     }
@@ -258,11 +217,10 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
     s"send a notification to the Audit Service" in {
       setup
       testWithValidPayload().map { _ =>
-        verify(mockAuditingService).auditSuccess(
+        verify(mockAuditService).sendIncomingNotificationEvent(
           eqTo(TestData.PushCallbackData),
           eqTo(TestData.ValidXml.toString),
-          eqTo(TestData.RequestMetadata),
-          eqTo(AuditType.Inbound))(*, *, *)
+          eqTo(TestData.RequestMetadata))(eqTo(TestData.EmptyHeaderCarrier))
         succeed
       }
     }
@@ -272,17 +230,17 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
     s"not send a notification to the Metrics Service" in {
       setup
       testWithValidPayload().map { _ =>
-        verify(mockHttpConnector, never).post(*)(*, *)
+        verify(mockMetricsConnector, never).send(*)(*)
         succeed
       }
     }
   }
 
-  private def notCallSendService(setup: => Unit): Unit = {
+  private def notCallSendNotificationService(setup: => Unit): Unit = {
     s"not call the PushOrPullService" in {
       setup
       testWithValidPayload().map { _ =>
-        verify(mockSendService, never).send(*, *, *)(*, *, *)
+        verify(mockSendNotificationService, never).send(*, *, *)(*, *, *)
         succeed
       }
     }
@@ -296,74 +254,5 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
         succeed
       }
     }
-  }
-}
-
-object IncomingNotificationServiceSpec {
-  object TestData {
-    val TimeNow = ZonedDateTime.of(2023, 12, 25, 0, 0, 1, 0, ZoneId.of("UTC")) // scalastyle:ignore
-    val IssueDateTime = ZonedDateTime.of(2023, 1, 1, 0, 0, 1, 0, ZoneId.of("UTC")) // scalastyle:ignore
-    val ClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-2222-4444-8888-161616161616"))
-    val ClientId = models.ClientId("Client1")
-    val ClientPushUrl = new URL("http://www.example.net")
-    val PushCallbackData = models.PushCallbackData(Some(ClientPushUrl), Authorization("SECURITY_TOKEN"))
-    val ApiSubscriptionFields = models.ApiSubscriptionFields(ClientId, PushCallbackData)
-    val ConversationId = models.ConversationId(UUID.fromString("00000000-4444-4444-AAAA-AAAAAAAAAAAA"))
-    val NotificationId = models.NotificationId(UUID.fromString("00000000-9999-4444-9999-444444444444"))
-    val BadgeId = "ABCDEF1234"
-    val SubmitterId = "IAMSUBMITTER"
-    val CorrelationId = "CORRID2234"
-    val ValidXml: NodeSeq = <Foo>Bar</Foo>
-    val BasicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
-    val ApiSubsFieldsUrl = new URL("http://www.example.com")
-    val MetricsUrl = new URL("http://www.example.org")
-    val ValidHeaders: Headers = Headers(
-      List(
-        X_CLIENT_SUB_ID_HEADER_NAME -> ClientSubscriptionId.toString,
-        X_CONVERSATION_ID_HEADER_NAME -> ConversationId.toString,
-        CONTENT_TYPE -> (MimeTypes.XML + "; charset=UTF-8"),
-        ACCEPT -> MimeTypes.XML,
-        AUTHORIZATION -> BasicAuthTokenValue,
-        X_BADGE_ID_HEADER_NAME -> BadgeId,
-        X_SUBMITTER_ID_HEADER_NAME -> SubmitterId,
-        X_CORRELATION_ID_HEADER_NAME -> CorrelationId
-      ): _*
-    )
-
-    val ValidSubmitRequest: FakeRequest[AnyContent] = FakeRequest().withHeaders(ValidHeaders).withXmlBody(ValidXml)
-
-    val RequestMetadata: RequestMetadata = models.RequestMetadata(ClientSubscriptionId, ConversationId, NotificationId,
-      Some(Header(X_BADGE_ID_HEADER_NAME, BadgeId)), Some(Header(X_SUBMITTER_ID_HEADER_NAME, SubmitterId)), Some(Header(X_CORRELATION_ID_HEADER_NAME, CorrelationId)),
-      Some(Header(ISSUE_DATE_TIME_HEADER_NAME, IssueDateTime.toString)), None, None, TimeNow)
-
-    val ApiSubsFieldsRequest = ApiSubscriptionFieldsRequest(ClientSubscriptionId, ApiSubsFieldsUrl)
-
-    val MetricsRequest = requests.MetricsRequest(
-      ConversationId,
-      TimeNow,
-      TimeNow,
-      MetricsUrl)
-
-    val ObjectId = new ObjectId("aaaaaaaaaaaaaaaaaaaaaaaa")
-
-    val Notification: Notification = {
-      val headers = (RequestMetadata.maybeBadgeId ++
-        RequestMetadata.maybeSubmitterNumber ++
-        RequestMetadata.maybeCorrelationId ++
-        RequestMetadata.maybeIssueDateTime).toSeq
-
-      models.Notification(
-        ObjectId,
-        ClientSubscriptionId,
-        ClientId,
-        NotificationId,
-        ConversationId,
-        headers,
-        ValidXml.toString,
-        TimeNow)
-    }
-
-    val EmptyHeaderCarrier: HeaderCarrier = HeaderCarrier()
-    val Exception: Throwable = new RuntimeException()
   }
 }

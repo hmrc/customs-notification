@@ -16,32 +16,31 @@
 
 package uk.gov.hmrc.customs.notification.util
 
-import com.google.inject.Inject
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.models._
 
-import javax.inject.Singleton
-import scala.collection.immutable.ListMap
+import javax.inject.{Inject, Singleton}
 
+// TODO: Write tests
 @Singleton
 class NotificationLogger @Inject()(logger: CdsLogger) {
   def debug(msg: => String): Unit = {
     logger.debug(msg)
   }
 
-  def debug[A](msg: => String, toLog: A)(implicit ev: Loggable[A]): Unit = {
+  def debug[A: Loggable](msg: => String, toLog: A): Unit = {
     logger.debug(format(msg, toLog))
   }
 
-  def info[A](msg: => String, toLog: A)(implicit ev: Loggable[A]): Unit = {
+  def info[A: Loggable](msg: => String, toLog: A): Unit = {
     logger.info(format(msg, toLog))
   }
 
-  def warn[A](msg: => String, toLog: A)(implicit ev: Loggable[A]): Unit = {
+  def warn[A: Loggable](msg: => String, toLog: A): Unit = {
     logger.warn(format(msg, toLog))
   }
 
-  def warn[A](msg: => String, t: => Throwable, toLog: A)(implicit ev: Loggable[A]): Unit = {
+  def warn[A: Loggable](msg: => String, t: => Throwable, toLog: A): Unit = {
     logger.warn(format(msg, toLog), t)
   }
 
@@ -49,11 +48,11 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
     logger.error(msg)
   }
 
-  def error[a](msg: => String, toLog: a)(implicit ev: Loggable[a]): Unit = {
+  def error[A: Loggable](msg: => String, toLog: A): Unit = {
     logger.error(format(msg, toLog))
   }
 
-  def error[A](msg: => String, t: => Throwable, toLog: A)(implicit ev: Loggable[A]): Unit = {
+  def error[A: Loggable](msg: => String, t: => Throwable, toLog: A): Unit = {
     logger.error(format(msg, toLog), t)
   }
 
