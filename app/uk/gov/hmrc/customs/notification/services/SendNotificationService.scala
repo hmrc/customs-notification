@@ -29,7 +29,6 @@ import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.Succeeded
 
-import java.time.ZonedDateTime
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -37,9 +36,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class SendNotificationService @Inject()(sendNotificationConnector: SendNotificationConnector,
                                         repo: NotificationRepo,
                                         config: AppConfig,
-                                        now: () => ZonedDateTime,
-                                        logger: NotificationLogger,
-                                        auditService: AuditService)(implicit ec: ExecutionContext) {
+                                        dateTimeService: DateTimeService,
+                                        logger: NotificationLogger)(implicit ec: ExecutionContext) {
 
   def send(notification: Notification,
            clientSendData: ClientSendData)
@@ -62,11 +60,11 @@ class SendNotificationService @Inject()(sendNotificationConnector: SendNotificat
 
         (error match {
           case e: ClientSendError =>
-            val whenToUnblock = now().plusMinutes(config.failedAndNotBlockedAvailableAfterMinutes)
-            logger.error(s"Setting availableAt to $whenToUnblock", notification)
+            val whenToUnblock = dateTimeService.now().plusMinutes(config.failedAndNotBlockedAvailableAfterMinutes)
+            logger.error(s"Sending notification failed. Setting availableAt to $whenToUnblock", notification)
             repo.setFailedButNotBlocked(notification.id, e.maybeStatus, whenToUnblock)
           case e: ServerSendError =>
-            logger.error(s"Blocking notifications for client subscription ID", notification)
+            logger.error(s"Sending notification failed. Blocking notifications for client subscription ID", notification)
             repo.setFailedAndBlocked(notification.id, Some(e.status))
             repo.blockAllFailedButNotBlocked(notification.clientSubscriptionId).map(_.map(_ => ()))
         }).map(_.leftMap(_ => SendNotificationError))

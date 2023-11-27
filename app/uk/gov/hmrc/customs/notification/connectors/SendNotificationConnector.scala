@@ -72,6 +72,7 @@ class SendNotificationConnector @Inject()(http: HttpConnector,
     val body = notification.payload
 
     def sendToAuditIfSuccessful(): Unit = auditService.sendSuccessfulInternalPushEvent(pushCallbackData, body, toAuditIfInternalPush)
+
     def sendToAuditIfFailed(failureReason: String): Unit = auditService.sendFailedInternalPushEvent(pushCallbackData, failureReason, toAuditIfInternalPush)
 
     http.post(

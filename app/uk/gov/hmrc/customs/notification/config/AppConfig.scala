@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.customs.notification.config
 
-import cats.data.Validated
+import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
 import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.config.AppConfig.{validateUrl, validateUuid}
+import uk.gov.hmrc.customs.notification.config.AppConfig.{parseCsidTranslation, validateUrl, validateUuid}
 import uk.gov.hmrc.customs.notification.models.{ClientId, ClientSubscriptionId}
 import uk.gov.hmrc.http.Authorization
 
@@ -53,11 +53,13 @@ class AppConfig @Inject()(c: ConfigValidatedNelAdaptor,
     apiSubscriptionFieldsUrl: URL,
     metricsUrl: URL,
     ttlInSeconds: Int,
+    enableRetryScheduler: Boolean,
     retryFailedAndBlockedDelay: FiniteDuration,
     retryFailedAndNotBlockedDelay: FiniteDuration,
     retryPollerAfterFailureInterval: FiniteDuration,
+    retryMetricCounterName: String,
     failedAndNotBlockedAvailableAfterMinutes: Int,
-    hotFixTranslates: Map[ClientSubscriptionId, ClientSubscriptionId]
+    hotFixTranslates: Map[ClientSubscriptionId, ClientSubscriptionId],
     ) = {
 
     (c.root.string("auth.token.internal").map(Authorization),
@@ -67,20 +69,14 @@ class AppConfig @Inject()(c: ConfigValidatedNelAdaptor,
       c.service("api-subscription-fields").serviceUrl andThen validateUrl,
       c.service("customs-notification-metrics").serviceUrl andThen validateUrl,
       c.root.int("ttlInSeconds"),
+      c.root.boolean("retry.scheduler.enabled"),
       c.root.int("retry.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS)),
       c.root.int("unblock.poller.interval.milliseconds").map(millis => Duration(millis, TimeUnit.MILLISECONDS)),
       c.root.int("retry.poller.retryAfterFailureInterval.seconds").map(seconds => Duration(seconds, TimeUnit.SECONDS)),
+      c.root.string("retry.metric.name"),
       c.root.int("non.blocking.retry.after.minutes"),
-      c.root.stringSeq("hotfix.translates").andThen(_.map { pair =>
-        val mapping = pair.split(":").toList
-        (validateUuid(mapping.head) -> validateUuid(mapping(1)))
-          .mapN { case (before, after) =>
-            ClientSubscriptionId(before) -> ClientSubscriptionId(after)
-          }
-      }.sequence.map(_.toMap))
-    ).mapN { case (a, b, c, d, e, f, g, h, i, j, k, l) =>
-      (a, b, c, d, e, f, g, h, i, j, k, l)
-    } match {
+      c.root.stringSeq("hotfix.translates").andThen(parseCsidTranslation)
+    ).tupled match {
       case Valid(c) => c
       case Invalid(errors) =>
         val errorMsg = errors.toList.mkString("\n")
@@ -90,15 +86,22 @@ class AppConfig @Inject()(c: ConfigValidatedNelAdaptor,
   }
 }
 
-
-
-
-object AppConfig {
+private object AppConfig {
   def validateUrl(urlString: String): CustomsValidatedNel[URL] = {
     Validated.catchNonFatal(new URL(urlString)).leftMap(_.getMessage).toValidatedNel
   }
 
   def validateUuid(uuidString: String): CustomsValidatedNel[UUID] = {
     Validated.catchNonFatal(UUID.fromString(uuidString)).leftMap(_.getMessage).toValidatedNel
+  }
+
+  def parseCsidTranslation(mappings: Seq[String]): CustomsValidatedNel[Map[ClientSubscriptionId, ClientSubscriptionId]] = {
+    mappings.map { pair =>
+      val mapping = pair.split(":").toList
+      (validateUuid(mapping.head) -> validateUuid(mapping(1)))
+        .mapN { case (before, after) =>
+          ClientSubscriptionId(before) -> ClientSubscriptionId(after)
+        }
+    }.sequence.map(_.toMap)
   }
 }

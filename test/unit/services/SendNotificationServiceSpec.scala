@@ -27,6 +27,7 @@ import uk.gov.hmrc.customs.notification.connectors.{SendNotificationConnector =>
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableNotification
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
 import uk.gov.hmrc.customs.notification.models.{ClientSendData, Notification}
+import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
 import uk.gov.hmrc.customs.notification.services.SendNotificationService.SendNotificationError
@@ -48,16 +49,17 @@ class SendNotificationServiceSpec extends AsyncWordSpec
   private val mockSendNotificationConnector = mock[SendCon]
   private val mockRepo = mock[NotificationRepo]
   private val mockConfig = mock[AppConfig]
+  private val mockDateTimeService = new DateTimeService{
+    override def now(): ZonedDateTime = TestData.TimeNow
+  }
   private val mockNotificationLogger = mock[NotificationLogger]
-  private val mockAuditService = mock[AuditService]
   private val service = new SendNotificationService(
     mockSendNotificationConnector,
     mockRepo,
     mockConfig,
-    () => TestData.TimeNow,
-    mockNotificationLogger,
-    mockAuditService)(Helpers.stubControllerComponents().executionContext)
-  implicit private val hc: HeaderCarrier = TestData.EmptyHeaderCarrier
+    mockDateTimeService,
+    mockNotificationLogger)(Helpers.stubControllerComponents().executionContext)
+  implicit private val hc: HeaderCarrier = TestData.HeaderCarrier
 
   private val retryDelay = 10
   private val retryOn = ZonedDateTime.of(2023, 12, 25, 0, 10, 1, 0, ZoneId.of("UTC")) // scalastyle:off magic.number
@@ -75,7 +77,7 @@ class SendNotificationServiceSpec extends AsyncWordSpec
           .send(
             eqTo(TestData.Notification),
             eqTo(TestData.PushCallbackData),
-            eqTo(TestData.Notification))(*, *, eqTo(TestData.EmptyHeaderCarrier)))
+            eqTo(TestData.Notification))(*, *, eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(SendCon.SuccessfullySent(SendCon.ExternalPush(TestData.PushCallbackData)))))
         when(mockRepo.setStatus(eqTo(TestData.ObjectId), eqTo(ProcessingStatus.Succeeded)))
           .thenReturn(Future.successful(Right(())))
@@ -94,7 +96,7 @@ class SendNotificationServiceSpec extends AsyncWordSpec
           .send(
             eqTo(TestData.Notification),
             eqTo(TestData.PushCallbackData),
-            eqTo(TestData.Notification))(*, *, eqTo(TestData.EmptyHeaderCarrier)))
+            eqTo(TestData.Notification))(*, *, eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(SendCon.SuccessfullySent(SendCon.InternalPush(TestData.PushCallbackData)))))
       }
 
@@ -113,7 +115,7 @@ class SendNotificationServiceSpec extends AsyncWordSpec
           .send(
             eqTo(TestData.Notification),
             eqTo(TestData.PushCallbackData),
-            eqTo(TestData.Notification))(*, *, eqTo(TestData.EmptyHeaderCarrier)))
+            eqTo(TestData.Notification))(*, *, eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Left(SendCon.ClientSendError(None))))
         when(mockRepo.incrementFailureCount(eqTo(TestData.ObjectId)))
           .thenReturn(Future.successful(Right(())))
@@ -131,7 +133,7 @@ class SendNotificationServiceSpec extends AsyncWordSpec
         setup()
         service.send(TestData.Notification, TestData.PushCallbackData).map { _ =>
           verify(mockNotificationLogger).error(
-            eqTo("Setting availableAt to 2023-12-25T00:10:01Z[UTC]"),
+            eqTo("Sending notification failed. Setting availableAt to 2023-12-25T00:10:01Z[UTC]"),
             eqTo(TestData.Notification))(*)
           succeed
         }
@@ -163,13 +165,13 @@ class SendNotificationServiceSpec extends AsyncWordSpec
           .send(
             eqTo(TestData.Notification),
             eqTo(TestData.PushCallbackData),
-            eqTo(TestData.Notification))(*, *, eqTo(TestData.EmptyHeaderCarrier)))
+            eqTo(TestData.Notification))(*, *, eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Left(SendCon.ServerSendError(INTERNAL_SERVER_ERROR))))
         when(mockRepo.incrementFailureCount(eqTo(TestData.ObjectId)))
           .thenReturn(Future.successful(Right(())))
         when(mockRepo.setFailedAndBlocked(eqTo(TestData.ObjectId), eqTo(Some(INTERNAL_SERVER_ERROR))))
           .thenReturn(Future.successful(Right(())))
-        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TestData.OldClientSubscriptionId)))
+        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TestData.NewClientSubscriptionId)))
           .thenReturn(Future.successful(Right(1)))
       }
 
@@ -183,7 +185,7 @@ class SendNotificationServiceSpec extends AsyncWordSpec
         setup()
         service.send(TestData.Notification, TestData.PushCallbackData).map { _ =>
           verify(mockNotificationLogger).error(
-            eqTo("Blocking notifications for client subscription ID"),
+            eqTo("Sending notification failed. Blocking notifications for client subscription ID"),
             eqTo(TestData.Notification))(*)
           succeed
         }
@@ -202,7 +204,7 @@ class SendNotificationServiceSpec extends AsyncWordSpec
       "set all previous FailedButNotBlocked notifications for the client subscription ID to blocked" in {
         setup()
         service.send(TestData.Notification, TestData.PushCallbackData).map { _ =>
-          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TestData.OldClientSubscriptionId))
+          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TestData.NewClientSubscriptionId))
           succeed
         }
       }
@@ -214,11 +216,11 @@ class SendNotificationServiceSpec extends AsyncWordSpec
           .send(
             eqTo(TestData.Notification),
             eqTo(TestData.PushCallbackData),
-            eqTo(TestData.Notification))(*, *, eqTo(TestData.EmptyHeaderCarrier)))
+            eqTo(TestData.Notification))(*, *, eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Left(SendCon.ServerSendError(INTERNAL_SERVER_ERROR))))
         when(mockRepo.incrementFailureCount(eqTo(TestData.ObjectId)))
           .thenReturn(Future.successful(Right(())))
-        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TestData.OldClientSubscriptionId)))
+        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TestData.NewClientSubscriptionId)))
           .thenReturn(Future.successful(Left(MongoDbError("setting failed and blocked for notification", TestData.Exception))))
       }
 
@@ -231,7 +233,7 @@ class SendNotificationServiceSpec extends AsyncWordSpec
       "still block previously FailedButNotBlocked notifications for that client subscription ID" in {
         setup()
         service.send(TestData.Notification, TestData.PushCallbackData).map { _ =>
-          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TestData.OldClientSubscriptionId))
+          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TestData.NewClientSubscriptionId))
           succeed
         }
       }

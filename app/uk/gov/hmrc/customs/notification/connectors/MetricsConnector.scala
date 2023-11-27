@@ -14,25 +14,27 @@
  * limitations under the License.
  */
 
-
 package uk.gov.hmrc.customs.notification.connectors
 
+import com.kenshoo.play.metrics.Metrics
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.libs.json.Writes.StringWrites
 import play.api.libs.json._
 import uk.gov.hmrc.customs.notification.config.AppConfig
 import uk.gov.hmrc.customs.notification.models._
+import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.http.HeaderCarrier
 
-import java.time.ZonedDateTime
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class MetricsConnector @Inject()(httpConnector: HttpConnector,
                                  config: AppConfig,
-                                 now: () => ZonedDateTime) {
-  def send(notification: Notification)(implicit hc: HeaderCarrier): Unit = {
+                                 graphiteMetrics: Metrics,
+                                 dateTimeService: DateTimeService)(implicit ec: ExecutionContext) {
+  def send(notification: Notification)(implicit hc: HeaderCarrier): Future[Unit] = {
     val updatedHc = {
       HeaderCarrier(
         requestId = hc.requestId,
@@ -46,7 +48,7 @@ class MetricsConnector @Inject()(httpConnector: HttpConnector,
     val body = Json.obj(
       "conversationId" -> notification.conversationId,
       "eventStart" -> notification.metricsStartDateTime,
-      "eventEnd" -> now(),
+      "eventEnd" -> dateTimeService.now(),
       "eventType" -> "NOTIFICATION"
     )
 
@@ -56,6 +58,11 @@ class MetricsConnector @Inject()(httpConnector: HttpConnector,
       hc = updatedHc,
       requestDescriptor = "metrics",
       shouldSendRequestToAuditing = false
-    )
+    ).map(_.fold(_ => (), _ => ()))
+  }
+
+  def incrementRetryCounter(): Unit = {
+    val counterName = config.retryMetricCounterName
+    graphiteMetrics.defaultRegistry.counter(counterName).inc()
   }
 }

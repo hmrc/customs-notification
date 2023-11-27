@@ -21,23 +21,26 @@ import org.scalatest.FutureOutcome
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
 import play.api.http.HeaderNames.AUTHORIZATION
-import play.api.mvc.{AnyContent, Headers, Results}
+import play.api.mvc.{AnyContent, Headers, RequestHeader, Results}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, Helpers}
 import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.BadRequestCode
+import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.config.AppConfig
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController
+import uk.gov.hmrc.customs.notification.models.{ClientSubscriptionId, NotificationId}
+import uk.gov.hmrc.customs.notification.services.{ClientSubscriptionIdTranslationHotfixService, DateTimeService, HeaderCarrierService, IncomingNotificationService, NewNotificationIdService}
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
-import uk.gov.hmrc.customs.notification.services.IncomingNotificationService
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
-import uk.gov.hmrc.http.Authorization
+import uk.gov.hmrc.http.{Authorization, HeaderCarrier}
 import unit.controllers.CustomsNotificationControllerSpec._
 import util.TestData
 
+import java.time.ZonedDateTime
 import scala.concurrent.Future
 
 class CustomsNotificationControllerSpec extends AsyncWordSpec
@@ -45,15 +48,29 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
   with AsyncMockitoSugar
   with ResetMocksAfterEachAsyncTest {
 
+  private val mockCsidTranslationHotfixService = new ClientSubscriptionIdTranslationHotfixService(mock[CdsLogger], mock[AppConfig]){
+    override def translate(csid: ClientSubscriptionId): ClientSubscriptionId = TestData.NewClientSubscriptionId
+  }
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockIncomingNotificationService = mock[IncomingNotificationService]
+  private val mockDateTimeService = new DateTimeService {
+    override def now(): ZonedDateTime = TestData.TimeNow
+  }
+  private val mockHcService = new HeaderCarrierService {
+    override def hcFrom(request: RequestHeader): HeaderCarrier = TestData.HeaderCarrier
+  }
+  private val mockNewNotificationIdService = new NewNotificationIdService{
+    override def newId(): NotificationId = TestData.NotificationId
+  }
   private val mockConfig = mock[AppConfig]
   private val mockWorkItemRepo = mock[NotificationRepo]
   private val controller = new CustomsNotificationController()(
     Helpers.stubControllerComponents(),
+    mockCsidTranslationHotfixService,
     mockIncomingNotificationService,
-    () => TestData.TimeNow,
-    () => TestData.NotificationId,
+    mockDateTimeService,
+    mockHcService,
+    mockNewNotificationIdService,
     mockConfig,
     mockWorkItemRepo,
     mockNotificationLogger,
@@ -142,7 +159,7 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
 
       "respond with status 202 Accepted when the X-Correlation-ID header is missing" in {
         val RequestMetadataWithoutCorrelationId = TestData.RequestMetadata.copy(maybeCorrelationId = None)
-        when(mockIncomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(RequestMetadataWithoutCorrelationId), *))
+        when(mockIncomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(RequestMetadataWithoutCorrelationId), eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(())))
         val invalidRequest = ValidSubmitRequest.withHeaders(ValidHeaders.remove(X_CORRELATION_ID_HEADER_NAME))
         val actualF = controller.submit().apply(invalidRequest)
@@ -158,7 +175,7 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
       }
 
       "respond with status 400 Bad Request when there is a DeclarantNotFound error from IncomingNotificationService" in {
-        when(mockIncomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(TestData.RequestMetadata), *))
+        when(mockIncomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(TestData.RequestMetadata), eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Left(DeclarantNotFound)))
 
         val actualF = controller.submit().apply(ValidSubmitRequest)
@@ -167,7 +184,7 @@ class CustomsNotificationControllerSpec extends AsyncWordSpec
       }
 
       "respond with status 500 Internal Server Error when there is a InternalServiceError from IncomingNotificationService" in {
-        when(mockIncomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(TestData.RequestMetadata), *))
+        when(mockIncomingNotificationService.process(eqTo(TestData.ValidXml))(eqTo(TestData.RequestMetadata), eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Left(InternalServiceError)))
 
         val actualF = controller.submit().apply(ValidSubmitRequest)

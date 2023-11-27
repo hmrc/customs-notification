@@ -19,6 +19,7 @@ package uk.gov.hmrc.customs.notification.services
 import com.kenshoo.play.metrics.Metrics
 import uk.gov.hmrc.customs.notification.config.AppConfig
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector
+import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
@@ -32,10 +33,10 @@ class WorkItemService @Inject()(repository: NotificationRepo,
                                 logger: NotificationLogger,
                                 metrics: Metrics,
                                 config: AppConfig,
-                                now: () => ZonedDateTime,
+                                dateTimeService: DateTimeService,
                                 sendNotificationService: SendNotificationService)(implicit ec: ExecutionContext) {
   def processOne(): Future[Boolean] = {
-    val before = now().toInstant
+    val before = dateTimeService.now().toInstant
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(before, before).flatMap {
       case Some(firstOutstandingNotificationWorkItem) =>
         metrics.defaultRegistry.counter("declaration-digital-notification-retry-total-counter").inc()

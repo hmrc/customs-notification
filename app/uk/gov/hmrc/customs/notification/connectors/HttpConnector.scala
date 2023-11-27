@@ -45,7 +45,7 @@ private class NoAuditHttpClient @Inject()(override val actorSystem: ActorSystem,
 
 @Singleton
 class HttpConnector @Inject()(http: HttpClient,
-                              noAuditHttp: HttpClient)(implicit ec: ExecutionContext) {
+                              noAuditHttp: NoAuditHttpClient)(implicit ec: ExecutionContext) {
 
   /**
    * Send a POST request via HTTP

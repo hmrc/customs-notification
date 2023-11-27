@@ -20,12 +20,11 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.http.Status.NOT_FOUND
 import uk.gov.hmrc.customs.notification.config.AppConfig
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector.{DeclarantNotFound, _}
+import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector.{Success, _}
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
-import uk.gov.hmrc.customs.notification.services.ClientSubscriptionIdTranslationHotfixService
 import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -35,12 +34,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ApiSubscriptionFieldsConnector @Inject()(httpConnector: HttpConnector,
-                                               hotfixService: ClientSubscriptionIdTranslationHotfixService,
                                                logger: NotificationLogger,
                                                config: AppConfig)(implicit ec: ExecutionContext) {
   def get(clientSubscriptionId: ClientSubscriptionId)(implicit hc: HeaderCarrier): Future[Either[Error, Success]] = {
-    val currentCsid = hotfixService.translate(clientSubscriptionId)
-    val url = new URL(s"${config.apiSubscriptionFieldsUrl.toString}/$currentCsid")
+    val url = new URL(s"${config.apiSubscriptionFieldsUrl.toString}/$clientSubscriptionId")
     val newHc = {
       HeaderCarrier(
         requestId = hc.requestId,

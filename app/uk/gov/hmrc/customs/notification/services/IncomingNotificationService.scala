@@ -42,7 +42,7 @@ class IncomingNotificationService @Inject()(repo: NotificationRepo,
                                             auditService: AuditService,
                                             metricsConnector: MetricsConnector,
                                             logger: NotificationLogger,
-                                            newObjectId: () => ObjectId)(implicit ec: ExecutionContext) {
+                                            newObjectIdService: NewObjectIdService)(implicit ec: ExecutionContext) {
   def process(payload: NodeSeq)(implicit requestMetadata: RequestMetadata, hc: HeaderCarrier): Future[Either[Error, Unit]] = {
 
     apiSubscriptionFieldsConnector.get(requestMetadata.clientSubscriptionId).flatMap {
@@ -59,7 +59,7 @@ class IncomingNotificationService @Inject()(repo: NotificationRepo,
                                      payload: NodeSeq)(implicit requestMetadata: RequestMetadata, hc: HeaderCarrier): Future[Either[Error, Unit]] = {
     auditService.sendIncomingNotificationEvent(apiSubscriptionFields.fields, payload.toString, requestMetadata)
 
-    val newNotification = notificationFrom(newObjectId(), payload, apiSubscriptionFields.clientId, requestMetadata)
+    val newNotification = notificationFrom(newObjectIdService.newId(), payload, apiSubscriptionFields.clientId, requestMetadata)
     (for {
       failedAndBlockedExist <- repo.checkFailedAndBlockedExist(requestMetadata.clientSubscriptionId).toFutureCdsResult
       notificationStatus = if (failedAndBlockedExist) FailedAndBlocked else SavedToBeSent

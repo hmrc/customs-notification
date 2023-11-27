@@ -16,6 +16,7 @@
 
 package unit.services
 
+import org.bson.types.ObjectId
 import org.mockito.scalatest.{AsyncMockitoSugar, ResetMocksAfterEachAsyncTest}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
@@ -24,7 +25,6 @@ import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnect
 import uk.gov.hmrc.customs.notification.models.CustomProcessingStatus.{FailedAndBlocked, SavedToBeSent}
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
-import uk.gov.hmrc.customs.notification.services.AuditService.SuccessAuditEventDetail
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
@@ -43,6 +43,9 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
   private val mockAuditService = mock[AuditService]
   private val mockMetricsConnector = mock[MetricsConnector]
   private val mockNotificationLogger = mock[NotificationLogger]
+  private val mockNewObjectIdService = new NewObjectIdService{
+    override def newId(): ObjectId = TestData.ObjectId
+  }
   private val service: IncomingNotificationService =
     new IncomingNotificationService(
       mockNotificationRepo,
@@ -51,23 +54,21 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
       mockAuditService,
       mockMetricsConnector,
       mockNotificationLogger,
-      () => TestData.ObjectId)(Helpers.stubControllerComponents().executionContext)
+      mockNewObjectIdService)(Helpers.stubControllerComponents().executionContext)
 
   private def testWithValidPayload(): Future[Either[IncomingNotificationService.Error, Unit]] =
-    service.process(TestData.ValidXml)(TestData.RequestMetadata, TestData.EmptyHeaderCarrier)
+    service.process(TestData.ValidXml)(TestData.RequestMetadata, TestData.HeaderCarrier)
 
   "process" when {
     "blocked notifications exist" should {
 
       def setup(): Unit = {
-        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.NewClientSubscriptionId))(eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.NewClientSubscriptionId)))
           .thenReturn(Future.successful(Right(true)))
         when(mockNotificationRepo.saveWithLock(eqTo(TestData.Notification), eqTo(FailedAndBlocked)))
           .thenReturn(Future.successful(Right(())))
-//        when(.post(eqTo(TestData.MetricsRequest))(*, *))
-//          .thenReturn(Future.successful(Right(())))
         when(mockSendNotificationService.send(eqTo(TestData.Notification), eqTo(TestData.RequestMetadata), eqTo(TestData.PushCallbackData))(*, *, *))
           .thenReturn(Future.successful(Right(())))
       }
@@ -88,9 +89,9 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
 
     "no blocked notifications exist" should {
       def setup(): Unit = {
-        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.NewClientSubscriptionId))(eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.NewClientSubscriptionId)))
           .thenReturn(Future.successful(Right(false)))
         when(mockNotificationRepo.saveWithLock(eqTo(TestData.Notification), eqTo(SavedToBeSent)))
           .thenReturn(Future.successful(Right(())))
@@ -114,7 +115,7 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
           verify(mockSendNotificationService).send(
             eqTo(TestData.Notification),
             eqTo(TestData.RequestMetadata),
-            eqTo(TestData.PushCallbackData))(*, *, eqTo(TestData.EmptyHeaderCarrier))
+            eqTo(TestData.PushCallbackData))(*, *, eqTo(TestData.HeaderCarrier))
           succeed
         }
       }
@@ -124,7 +125,7 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
 
     "ApiSubscriptionFieldsConnector returns DeclarantNotFound" should {
       def setup(): Unit =
-        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.NewClientSubscriptionId))(eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Left(ApiSubscriptionFieldsConnector.DeclarantNotFound)))
 
       "return Left with DeclarantNotFound" in {
@@ -148,12 +149,12 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
     }
 
     "repository check for existing failed and blocked notifications fails" should {
-      val error = MongoDbError(s"checking if failed and blocked notifications exist for client subscription ID ${TestData.OldClientSubscriptionId}", TestData.Exception)
+      val error = MongoDbError(s"checking if failed and blocked notifications exist for client subscription ID ${TestData.NewClientSubscriptionId}", TestData.Exception)
 
       def setup(): Unit = {
-        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.NewClientSubscriptionId))(eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.NewClientSubscriptionId)))
           .thenReturn(Future.successful(
             Left(error)
           ))
@@ -175,9 +176,9 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
 
     "saving notification to repository fails" should {
       def setup(): Unit = {
-        when(mockApiSubsFieldsConnector.get(eqTo(TestData.OldClientSubscriptionId))(eqTo(TestData.EmptyHeaderCarrier)))
+        when(mockApiSubsFieldsConnector.get(eqTo(TestData.NewClientSubscriptionId))(eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields))))
-        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.OldClientSubscriptionId)))
+        when(mockNotificationRepo.checkFailedAndBlockedExist(eqTo(TestData.NewClientSubscriptionId)))
           .thenReturn(Future.successful(Right(true)))
         when(mockNotificationRepo.saveWithLock(eqTo(TestData.Notification), eqTo(FailedAndBlocked)))
           .thenReturn(Future.successful(Left(MongoDbError("saving notification", TestData.Exception))))
@@ -197,7 +198,7 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
     s"send a notification to the Metrics Service" in {
       setup
       testWithValidPayload().map { _ =>
-        verify(mockMetricsConnector).send(eqTo(TestData.Notification))(eqTo(TestData.EmptyHeaderCarrier))
+        verify(mockMetricsConnector).send(eqTo(TestData.Notification))(eqTo(TestData.HeaderCarrier))
         succeed
       }
     }
@@ -220,7 +221,7 @@ class IncomingNotificationServiceSpec extends AsyncWordSpec
         verify(mockAuditService).sendIncomingNotificationEvent(
           eqTo(TestData.PushCallbackData),
           eqTo(TestData.ValidXml.toString),
-          eqTo(TestData.RequestMetadata))(eqTo(TestData.EmptyHeaderCarrier))
+          eqTo(TestData.RequestMetadata))(eqTo(TestData.HeaderCarrier))
         succeed
       }
     }

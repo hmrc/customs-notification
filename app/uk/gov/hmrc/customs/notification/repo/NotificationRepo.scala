@@ -32,6 +32,7 @@ import uk.gov.hmrc.customs.notification.models.CustomProcessingStatus.{FailedAnd
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
+import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo.Dto._
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo._
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
@@ -48,7 +49,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class NotificationRepo @Inject()(mongo: MongoComponent,
-                                 nowDateTime: () => ZonedDateTime,
+                                 dateTimeService: DateTimeService,
                                  config: AppConfig)
                                 (implicit logger: NotificationLogger,
                                  ec: ExecutionContext) extends WorkItemRepository[NotificationWorkItem](
@@ -65,9 +66,9 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
     failureCount = "failures",
     item = "clientNotification")) {
 
-  override def now(): Instant = nowDateTime().toInstant
+  override def now(): Instant = dateTimeService.now().toInstant
 
-  private val mostRecentPushPullHttpStatusFieldName = s"${workItemFields.item}.notification.mostRecentPushPullHttpStatus"
+  private lazy val mostRecentPushPullHttpStatusFieldName = s"${workItemFields.item}.notification.mostRecentPushPullHttpStatus"
 
   /**
    * Unless something exceptional happens with mongo in [[uk.gov.hmrc.customs.notification.services.SendNotificationService.send]],
@@ -110,6 +111,11 @@ class NotificationRepo @Inject()(mongo: MongoComponent,
         }
       }
     }
+
+  def getSingleOutstanding(): Future[Either[MongoDbError, Option[Notification]]] =
+  catchMongoDbException("getting outstanding notification to be retried", ()) {
+    pullOutstanding(now(), now()).map(_.map(repoToDomain))
+  }
 
   def blockedCount(clientId: ClientId): Future[Either[MongoDbError, Int]] =
     catchMongoDbException("getting blocked count", clientId) {

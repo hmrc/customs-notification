@@ -14,19 +14,26 @@
  * limitations under the License.
  */
 
-package integration.connectors
+package component
 
-import integration.{Spy, IntegrationBaseSpec, IntegrationRouter}
+import com.github.tomakehurst.wiremock.client.WireMock._
+import component.ApiSubscriptionFieldsConnectorSpec.{invalidClientSubscriptionId, validPath}
+import integration.IntegrationBaseSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.{BeforeAndAfterEach, DoNotDiscover, Suites}
+import org.scalatest.{DoNotDiscover, Suites}
 import org.scalatestplus.play.ConfiguredServer
+import play.api.http.Status.{NOT_FOUND, OK}
 import play.api.http.{HeaderNames, MimeTypes}
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, PushCallbackData}
 import uk.gov.hmrc.http.HeaderCarrier
-import util.TestData
+import util.IntegrationTest.Responses.apiSubscriptionFieldsOk
+import util.{IntegrationTest, TestData}
+
+import java.util.UUID
 
 /**
  * Convenience class to only test this suite, as running suite directly will complain with the following:
@@ -39,29 +46,16 @@ private class TestOnlyApiSubscriptionFieldsConnectorSpec extends Suites(new ApiS
 class ApiSubscriptionFieldsConnectorSpec extends AnyWordSpec
   with ConfiguredServer
   with FutureAwaits
-  with BeforeAndAfterEach
   with DefaultAwaitTimeout
-  with Matchers{
+  with Matchers {
 
   private def connector = app.injector.instanceOf[ApiSubscriptionFieldsConnector]
-  private def spy = app.injector.instanceOf[Spy]
 
-  override def beforeEach(): Unit = {
-    spy.reset()
-    super.beforeEach()
-  }
-
-    "ApiSubscriptionFieldsConnector" should {
-    "call the correct URL once" in {
-      val expectedFieldsId = TestData.NewClientSubscriptionId
-
-      await(connector.get(TestData.OldClientSubscriptionId)(HeaderCarrier()))
-
-      spy.requests should have length 1
-      spy.request.url shouldBe s"${IntegrationRouter.TestOrigin}/field/00000000-8888-4444-2222-111111111111"
-    }
-
+  "ApiSubscriptionFieldsConnector" should {
     "parse response when external service responds with 200 OK and payload" in {
+      stubFor(get(urlMatching(validPath))
+        .willReturn(aResponse().withStatus(OK).withBody(apiSubscriptionFieldsOk)))
+
       val expected =
         Right(
           ApiSubscriptionFieldsConnector.Success(
@@ -69,26 +63,32 @@ class ApiSubscriptionFieldsConnectorSpec extends AnyWordSpec
           )
         )
 
-      val actual = await(connector.get(TestData.OldClientSubscriptionId)(HeaderCarrier()))
+      val actual = await(connector.get(TestData.NewClientSubscriptionId)(HeaderCarrier()))
+
       actual shouldBe expected
     }
 
     "send the required headers" in {
-      val expectedHeaders = List(
-        HeaderNames.ACCEPT -> MimeTypes.JSON,
-        HeaderNames.CONTENT_TYPE -> MimeTypes.JSON
-      )
+      await(connector.get(TestData.NewClientSubscriptionId)(HeaderCarrier()))
 
-      await(connector.get(TestData.OldClientSubscriptionId)(HeaderCarrier()))
-      spy.request.headers should contain allElementsOf expectedHeaders
+      verify(getRequestedFor(urlMatching(validPath))
+        .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
+        .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON)))
     }
 
     "return DeclarantNotFound when external service responds with 404 Not Found" in {
+      stubFor(get(urlMatching(validPath))
+        .willReturn(aResponse().withStatus(NOT_FOUND)))
+
       val expected = Left(ApiSubscriptionFieldsConnector.DeclarantNotFound)
 
-      val actual = await(connector.get(TestData.InvalidClientSubscriptionId)(HeaderCarrier()))
+      val actual = await(connector.get(invalidClientSubscriptionId)(HeaderCarrier()))
       actual shouldBe expected
-      spy.requests should have length 1
     }
   }
+}
+
+object ApiSubscriptionFieldsConnectorSpec{
+  val invalidClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-0000-0000-0000-000000000000"))
+  val validPath: String = IntegrationTest.ApiSubsFieldsUrlContext + "/" + TestData.NewClientSubscriptionId.toString
 }

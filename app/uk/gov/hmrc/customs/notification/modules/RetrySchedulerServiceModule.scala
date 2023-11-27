@@ -16,14 +16,11 @@
 
 package uk.gov.hmrc.customs.notification.modules
 
-import java.time.Clock
-
 import com.google.inject.AbstractModule
-import uk.gov.hmrc.customs.notification.services.UnblockPollerService
-import uk.gov.hmrc.customs.notification.util.WorkItemProcessingScheduler
+import uk.gov.hmrc.customs.notification.services.{RetryScheduler, RetryService}
 
-class UnblockPollerModule extends AbstractModule {
+class RetrySchedulerServiceModule extends AbstractModule {
   override def configure(): Unit = {
-    bind(classOf[UnblockPollerService]).asEagerSingleton()
+    bind(classOf[RetryScheduler]).asEagerSingleton()
   }
 }

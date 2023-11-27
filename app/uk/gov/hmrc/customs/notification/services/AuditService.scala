@@ -20,43 +20,43 @@ import com.google.inject.Inject
 import play.api.libs.json.{JsObject, Json}
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableRequestMetadata
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableRequestMetadata
-import uk.gov.hmrc.customs.notification.models.{Auditable, ClientSendData, Loggable, PushCallbackData, RequestMetadata, SendToPullQueue}
+import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.services.AuditService._
 import uk.gov.hmrc.customs.notification.util.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames}
-import uk.gov.hmrc.play.audit.EventKeys.TransactionName
+import uk.gov.hmrc.play.audit.EventKeys
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
 import uk.gov.hmrc.play.audit.model.ExtendedDataEvent
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import javax.inject.Singleton
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AuditService @Inject()(logger: NotificationLogger,
                              auditConnector: AuditConnector,
-                             now: () => ZonedDateTime)(implicit ec: ExecutionContext) {
+                             dateTimeService: DateTimeService)(implicit ec: ExecutionContext) {
 
   def sendSuccessfulInternalPushEvent[A: Auditable : Loggable](pushCallbackData: PushCallbackData,
                                                                payload: String,
-                                                               toAudit: A)(implicit headerCarrier: HeaderCarrier): Unit = {
+                                                               toAudit: A)(implicit headerCarrier: HeaderCarrier): Future[Unit] = {
     val successAuditEventDetail = SuccessAuditEventDetail(
       maybePushCallbackData = Some(pushCallbackData),
       payload = payload,
-      generatedAt = now(),
+      generatedAt = dateTimeService.now(),
       headerCarrier = headerCarrier)
 
     sendAuditEvent(toAudit, successAuditEventDetail, AuditType.Outbound)
   }
 
-  def sendFailedInternalPushEvent[A: Auditable: Loggable](pushCallbackData: PushCallbackData,
-                                                          failureReason: String,
-                                                          toAudit: A)(implicit headerCarrier: HeaderCarrier): Unit = {
+  def sendFailedInternalPushEvent[A: Auditable : Loggable](pushCallbackData: PushCallbackData,
+                                                           failureReason: String,
+                                                           toAudit: A)(implicit headerCarrier: HeaderCarrier): Future[Unit] = {
     val failedAuditEventDetail = FailedAuditEventDetail(
       maybePushCallbackData = Some(pushCallbackData),
       failureReason = failureReason,
-      generatedAt = now()
+      generatedAt = dateTimeService.now()
     )
 
     sendAuditEvent(toAudit, failedAuditEventDetail, AuditType.Outbound)
@@ -65,34 +65,34 @@ class AuditService @Inject()(logger: NotificationLogger,
   def sendIncomingNotificationEvent(callbackData: ClientSendData,
                                     xmlPayload: String,
                                     toAudit: RequestMetadata)
-                                   (implicit hc: HeaderCarrier): Unit = {
-      val maybePushCallbackData = callbackData match {
-        case SendToPullQueue => None
-        case d: PushCallbackData => Some(d)
-      }
-      val successAuditEventDetail = SuccessAuditEventDetail(
-        maybePushCallbackData,
-        xmlPayload,
-        now(),
-        hc)
+                                   (implicit hc: HeaderCarrier): Future[Unit] = {
+    val maybePushCallbackData = callbackData match {
+      case SendToPullQueue => None
+      case p: PushCallbackData => Some(p)
+    }
+    val successAuditEventDetail = SuccessAuditEventDetail(
+      maybePushCallbackData,
+      xmlPayload,
+      dateTimeService.now(),
+      hc)
 
     sendAuditEvent(toAudit, successAuditEventDetail, AuditType.Inbound)
   }
 
   private def sendAuditEvent[A: Loggable](toAudit: A,
-                                  auditDetail: AuditEventDetail,
-                                  auditType: AuditType
-                                 )(implicit auditEv: Auditable[A],
-                                   hc: HeaderCarrier): Unit = {
+                                          auditDetail: AuditEventDetail,
+                                          auditType: AuditType
+                                         )(implicit auditEv: Auditable[A],
+                                           hc: HeaderCarrier): Future[Unit] = {
     val tags = auditEv.fieldsToAudit(toAudit).map { case (k, v) => k -> v.getOrElse("") }
 
     auditConnector.sendExtendedEvent(
       ExtendedDataEvent(
         auditSource = "customs-notification",
         auditType = auditType.value,
-        tags = Map(TransactionName -> "customs-declaration-outbound-call") ++ tags,
+        tags = Map(EventKeys.TransactionName -> "customs-declaration-outbound-call") ++ tags,
         detail = auditDetail.toJs
-      )).foreach {
+      )).map {
       case AuditResult.Success =>
         logger.info(s"Successfully audited ${auditDetail.result} event", toAudit)
       case AuditResult.Disabled =>
@@ -115,18 +115,16 @@ object AuditService {
 
     def generatedAt: ZonedDateTime
 
-    protected val baseJs: JsObject = Json.obj(
+    def extraFields: JsObject
+
+    final def toJs: JsObject = Json.obj(
       "result" -> result,
       "generatedAt" -> generatedAt.toInstant.truncatedTo(ChronoUnit.MILLIS)) ++
       maybePushCallbackData.fold(Json.obj()) { pushCallbackData =>
         Json.obj(
           "outboundCallUrl" -> pushCallbackData.callbackUrl.toString,
-          "outboundCallAuthToken" -> pushCallbackData.securityToken.toString)
-      }
-
-    def extraFields: JsObject
-
-    final def toJs: JsObject = baseJs ++ extraFields
+          "outboundCallAuthToken" -> pushCallbackData.securityToken.value)
+      } ++ extraFields
   }
 
   case class FailedAuditEventDetail(maybePushCallbackData: Option[PushCallbackData],

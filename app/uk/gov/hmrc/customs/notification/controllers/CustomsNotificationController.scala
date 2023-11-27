@@ -30,9 +30,9 @@ import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableHeader
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.models.errors.CdsError
 import uk.gov.hmrc.customs.notification.models.errors.ControllerError._
+import uk.gov.hmrc.customs.notification.services.{ClientSubscriptionIdTranslationHotfixService, DateTimeService, HeaderCarrierService, IncomingNotificationService, NewNotificationIdService}
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo
 import uk.gov.hmrc.customs.notification.repo.NotificationRepo.MongoDbError
-import uk.gov.hmrc.customs.notification.services.IncomingNotificationService
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
 import uk.gov.hmrc.customs.notification.util.FutureCdsResult.Implicits._
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
@@ -49,11 +49,13 @@ import scala.xml.NodeSeq
 @Singleton
 class CustomsNotificationController @Inject()()(implicit
                                                 cc: ControllerComponents,
+                                                hotfixService: ClientSubscriptionIdTranslationHotfixService,
                                                 incomingNotificationService: IncomingNotificationService,
-                                                now: () => ZonedDateTime,
-                                                newNotificationId: () => NotificationId,
+                                                dateTimeService: DateTimeService,
+                                                hcService: HeaderCarrierService,
+                                                newNotificationIdService: NewNotificationIdService,
                                                 appConfig: AppConfig,
-                                                workItemRepo: NotificationRepo,
+                                                repo: NotificationRepo,
                                                 logger: NotificationLogger,
                                                 ec: ExecutionContext) extends BackendController(cc) {
   override val controllerComponents: ControllerComponents = cc
@@ -65,8 +67,8 @@ class CustomsNotificationController @Inject()()(implicit
       _ <- validateAcceptHeader.toFutureCdsResult
       _ <- validateContentTypeHeader.toFutureCdsResult
       xml <- validateXml(request).toFutureCdsResult
-      requestMetadata <- validateRequestMetadata(xml, newNotificationId(), now()).toFutureCdsResult
-      _ <- FutureCdsResult(incomingNotificationService.process(xml)(requestMetadata, hc(request)))
+      rm <- validateRequestMetadata(xml, newNotificationIdService.newId(), dateTimeService.now()).toFutureCdsResult
+      _ <- incomingNotificationService.process(xml)(rm, hcService.hcFrom(request)).toFutureCdsResult
     } yield ()).value.map({
       case Right(_) =>
         Results.Accepted
@@ -99,7 +101,7 @@ class CustomsNotificationController @Inject()()(implicit
   def blockedCount(): Action[AnyContent] = Action.async { request =>
     (for {
       clientId <- getClientId(request.headers).toFutureCdsResult
-      count <- FutureCdsResult(workItemRepo.blockedCount(clientId))
+      count <- FutureCdsResult(repo.blockedCount(clientId))
     } yield count).value.map {
       case Right(count) =>
         blockedCountOkResponseFrom(count)
@@ -118,7 +120,7 @@ class CustomsNotificationController @Inject()()(implicit
         logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling delete blocked-flag endpoint", request.headers)
         Future.successful(ErrorResponse(BAD_REQUEST, BadRequestCode, MissingClientId.responseMessage).XmlResult)
       case Right(clientId) =>
-        workItemRepo.unblockFailedAndBlocked(clientId).map {
+        repo.unblockFailedAndBlocked(clientId).map {
           case Left(mongoDbError) =>
             logger.error(mongoDbError.message, request.headers)
             ErrorInternalServerError.XmlResult
@@ -174,10 +176,12 @@ private object CustomsNotificationController {
                                       notificationId: NotificationId,
                                       startTime: ZonedDateTime)
                                      (implicit h: Headers,
+                                      hotfixService: ClientSubscriptionIdTranslationHotfixService,
                                       logger: NotificationLogger): Either[InvalidHeaders, RequestMetadata] = {
-    val validateClientSubId = validateMandatory(X_CLIENT_SUB_ID_HEADER_NAME, _.matches(UuidRegex))(
-      id => ClientSubscriptionId(UUID.fromString(id))
-    )(InvalidClientSubId)
+    val validateClientSubId = validateMandatory(X_CLIENT_SUB_ID_HEADER_NAME, _.matches(UuidRegex)) { str =>
+      val oldCsid = ClientSubscriptionId(UUID.fromString(str))
+      hotfixService.translate(oldCsid)
+    }(InvalidClientSubId)
 
     val validateConversationId = validateMandatory(X_CONVERSATION_ID_HEADER_NAME, _.matches(UuidRegex))(
       id => ConversationId(UUID.fromString(id))
