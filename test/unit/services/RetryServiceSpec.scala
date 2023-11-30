@@ -22,9 +22,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MetricsConnector}
-import uk.gov.hmrc.customs.notification.repo.NotificationRepo
+import uk.gov.hmrc.customs.notification.models.Notification
+import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.customs.notification.util.NotificationLogger
+import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 import unit.services.RetryServiceSpec.anotherNotification
 import util.TestData
@@ -37,23 +38,23 @@ class RetryServiceSpec extends AsyncWordSpec
   with ResetMocksAfterEachAsyncTest {
 
 
-  private val mockNotificationRepo = mock[NotificationRepo]
-  private val mockSendNotificationService = mock[SendNotificationService]
+  private val mockNotificationRepo = mock[Repository]
+  private val mockSendService = mock[SendService]
   private val mockApiSubsFieldsConnector = mock[ApiSubscriptionFieldsConnector]
   private val mockNewHcService = new HeaderCarrierService() {
     override def newHc(): HeaderCarrier = TestData.HeaderCarrier
   }
   private val mockMetricsConnector = mock[MetricsConnector]
-  private val mockNotificationLogger = mock[NotificationLogger]
+  private val mockLogger = mock[Logger]
 
   private val service: RetryService =
     new RetryService(
       mockNotificationRepo,
-      mockSendNotificationService,
+      mockSendService,
       mockApiSubsFieldsConnector,
       mockNewHcService,
       mockMetricsConnector,
-      mockNotificationLogger)(Helpers.stubControllerComponents().executionContext)
+      mockLogger)(Helpers.stubControllerComponents().executionContext)
 
   "RetryService.processFailedAndNotBlocked" when {
     "called" should {
@@ -70,15 +71,15 @@ class RetryServiceSpec extends AsyncWordSpec
             Future.successful(Right(ApiSubscriptionFieldsConnector.Success(TestData.ApiSubscriptionFields)))
           )
 
-        when(mockSendNotificationService.send(eqTo(TestData.Notification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier), *, *))
+        when(mockSendService.send(eqTo(TestData.Notification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(())))
 
-        when(mockSendNotificationService.send(eqTo(anotherNotification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier), *, *))
+        when(mockSendService.send(eqTo(anotherNotification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier)))
           .thenReturn(Future.successful(Right(())))
 
         service.retryFailedAndNotBlocked().map { _ =>
-          verify(mockSendNotificationService).send(eqTo(TestData.Notification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier), *, *)
-          verify(mockSendNotificationService).send(eqTo(anotherNotification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier), *, *)
+          verify(mockSendService).send(eqTo(TestData.Notification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier))
+          verify(mockSendService).send(eqTo(anotherNotification), eqTo(TestData.PushCallbackData))(eqTo(TestData.HeaderCarrier))
           succeed
         }
       }
@@ -87,6 +88,6 @@ class RetryServiceSpec extends AsyncWordSpec
 }
 
 object RetryServiceSpec {
-  val anotherNotificationId = new ObjectId("bbbbbbbbbbbbbbbbbbbbbbbb")
-  val anotherNotification = TestData.Notification.copy(id = anotherNotificationId)
+  val anotherNotificationObjectId = new ObjectId("bbbbbbbbbbbbbbbbbbbbbbbb")
+  val anotherNotification: Notification = TestData.Notification.copy(id = anotherNotificationObjectId)
 }

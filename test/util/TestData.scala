@@ -19,7 +19,6 @@ package util
 import org.bson.types.ObjectId
 import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.http
 import uk.gov.hmrc.http.{Authorization, HeaderCarrier, RequestId}
 
@@ -35,9 +34,9 @@ object TestData {
   val NewClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-8888-4444-2222-111111111111"))
   val OldClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-2222-4444-8888-161616161616"))
   val ClientId = models.ClientId("Client1")
-  val ClientPushUrl = new URL("http://www.example.net")
+  val ClientCallbackUrl = new URL("http://www.example.net")
   val PushSecurityToken = Authorization("SECURITY_TOKEN")
-  val PushCallbackData = models.PushCallbackData(ClientPushUrl, PushSecurityToken)
+  val PushCallbackData = models.PushCallbackData(ClientCallbackUrl, PushSecurityToken)
   val ApiSubscriptionFields = models.ApiSubscriptionFields(ClientId, PushCallbackData)
   val ConversationId = models.ConversationId(UUID.fromString("00000000-4444-4444-AAAA-AAAAAAAAAAAA"))
   val NotificationId = models.NotificationId(UUID.fromString("00000000-9999-4444-9999-444444444444"))
@@ -49,14 +48,14 @@ object TestData {
   val MetricsUrl = new URL("http://www.example.org")
 
   val RequestMetadata: RequestMetadata = models.RequestMetadata(NewClientSubscriptionId, ConversationId, NotificationId,
-    Some(Header(X_BADGE_ID_HEADER_NAME, BadgeId)), Some(Header(X_SUBMITTER_ID_HEADER_NAME, SubmitterId)), Some(Header(X_CORRELATION_ID_HEADER_NAME, CorrelationId)),
-    Some(Header(ISSUE_DATE_TIME_HEADER_NAME, IssueDateTime.toString)), None, None, TimeNow)
+    Some(Header.forBadgeId(BadgeId)), Some(Header.forSubmitterId(SubmitterId)), Some(Header.forCorrelationId(CorrelationId)),
+    Some(Header.forIssueDateTime(IssueDateTime.toString)), None, None, TimeNow)
 
   val ObjectId = new ObjectId("aaaaaaaaaaaaaaaaaaaaaaaa")
 
   val Notification: Notification = {
     val headers = (RequestMetadata.maybeBadgeId ++
-      RequestMetadata.maybeSubmitterNumber ++
+      RequestMetadata.maybeSubmitterId ++
       RequestMetadata.maybeCorrelationId ++
       RequestMetadata.maybeIssueDateTime).toSeq
 

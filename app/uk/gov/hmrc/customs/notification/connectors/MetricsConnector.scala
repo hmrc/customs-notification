@@ -21,7 +21,7 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.libs.json.Writes.StringWrites
 import play.api.libs.json._
-import uk.gov.hmrc.customs.notification.config.AppConfig
+import uk.gov.hmrc.customs.notification.config.MetricsConfig
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.http.HeaderCarrier
@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class MetricsConnector @Inject()(httpConnector: HttpConnector,
-                                 config: AppConfig,
+                                 config: MetricsConfig,
                                  graphiteMetrics: Metrics,
                                  dateTimeService: DateTimeService)(implicit ec: ExecutionContext) {
   def send(notification: Notification)(implicit hc: HeaderCarrier): Future[Unit] = {
@@ -53,7 +53,7 @@ class MetricsConnector @Inject()(httpConnector: HttpConnector,
     )
 
     httpConnector.post(
-      url = config.metricsUrl,
+      url = config.url,
       body = body,
       hc = updatedHc,
       requestDescriptor = "metrics",
@@ -62,7 +62,7 @@ class MetricsConnector @Inject()(httpConnector: HttpConnector,
   }
 
   def incrementRetryCounter(): Unit = {
-    val counterName = config.retryMetricCounterName
+    val counterName = config.retryCounterName
     graphiteMetrics.defaultRegistry.counter(counterName).inc()
   }
 }

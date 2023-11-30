@@ -19,12 +19,11 @@ package uk.gov.hmrc.customs.notification.connectors
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.http.Status.NOT_FOUND
-import uk.gov.hmrc.customs.notification.config.AppConfig
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector.{Success, _}
+import uk.gov.hmrc.customs.notification.config.ApiSubscriptionFieldsConfig
+import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector._
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
 import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.models.errors.CdsError
 import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -34,10 +33,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ApiSubscriptionFieldsConnector @Inject()(httpConnector: HttpConnector,
-                                               logger: NotificationLogger,
-                                               config: AppConfig)(implicit ec: ExecutionContext) {
+                                               logger: Logger,
+                                               config: ApiSubscriptionFieldsConfig)(implicit ec: ExecutionContext) {
   def get(clientSubscriptionId: ClientSubscriptionId)(implicit hc: HeaderCarrier): Future[Either[Error, Success]] = {
-    val url = new URL(s"${config.apiSubscriptionFieldsUrl.toString}/$clientSubscriptionId")
+    val url = new URL(s"${config.url.toString}/$clientSubscriptionId")
     val newHc = {
       HeaderCarrier(
         requestId = hc.requestId,
@@ -68,7 +67,7 @@ class ApiSubscriptionFieldsConnector @Inject()(httpConnector: HttpConnector,
 
 object ApiSubscriptionFieldsConnector {
 
-  sealed trait Error extends CdsError
+  sealed trait Error
 
   case class Success(apiSubscriptionFields: ApiSubscriptionFields)
 

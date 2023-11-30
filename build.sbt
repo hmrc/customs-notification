@@ -70,7 +70,7 @@ lazy val integrationComponentTestSettings =
       CdsIntegrationComponentTest / testGrouping := forkedJvmPerTestConfig((Test / definedTests).value, "integration", "component")
     )
 
-lazy val commonSettings: Seq[Setting[_]] = publishingSettings ++ gitStampSettings
+lazy val commonSettings: Seq[Setting[_]] = gitStampSettings
 
 lazy val scoverageSettings: Seq[Setting[_]] = Seq(
   coverageExcludedPackages := List(

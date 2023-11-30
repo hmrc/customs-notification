@@ -26,26 +26,32 @@ import play.api._
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc.RequestHeader
+import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
 import uk.gov.hmrc.customs.notification.models.NotificationId
-import uk.gov.hmrc.customs.notification.services.{DateTimeService, HeaderCarrierService, NewNotificationIdService, NewObjectIdService}
+import uk.gov.hmrc.customs.notification.repo.Repository
+import uk.gov.hmrc.customs.notification.services.{DateTimeService, HeaderCarrierService, NotificationIdService, ObjectIdService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.http.config.AuditingConfig
 import uk.gov.hmrc.play.audit.http.connector.{AuditChannel, AuditConnector, DatastreamMetrics}
-import util.{IntegrationTest, TestData}
+import util.{IntegrationTestData, TestData}
 
 import java.time.ZonedDateTime
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 trait IntegrationBaseSpec extends TestSuite
+  with FutureAwaits
+  with DefaultAwaitTimeout
   with BeforeAndAfterEach
   with BeforeAndAfterAll
   with GuiceOneServerPerSuite {
 
-  lazy val wireMockServer = new WireMockServer(wireMockConfig().port(IntegrationTest.TestPort))
+  lazy val wireMockServer = new WireMockServer(wireMockConfig().port(IntegrationTestData.TestPort))
 
   override def beforeAll(): Unit = {
     super.beforeAll()
     if (!wireMockServer.isRunning) wireMockServer.start()
-    WireMock.configureFor(IntegrationTest.TestHost, IntegrationTest.TestPort)
+    WireMock.configureFor(IntegrationTestData.TestHost, IntegrationTestData.TestPort)
   }
 
   override def afterAll(): Unit = {
@@ -59,55 +65,84 @@ trait IntegrationBaseSpec extends TestSuite
   override def beforeEach(): Unit = {
     super.beforeEach()
     wireMockServer.resetAll()
+    mockDateTimeService.reset()
+    mockObjectIdService.reset()
+    if (clearRepoBeforeEachTest) await(mockRepo.collection.drop().toFuture())
   }
+
+  protected val clearRepoBeforeEachTest: Boolean = false
+  protected lazy val mockRepo: Repository = app.injector.instanceOf[Repository]
+  protected val mockDateTimeService: MockDateTimeService = new MockDateTimeService
+  protected val mockObjectIdService: MockObjectIdService = new MockObjectIdService
 
   override def fakeApplication(): Application = new GuiceApplicationBuilder()
     .overrides(
       bind[AuditConnector].toInstance(MockAuditConnector),
-      bind[DateTimeService].toInstance(MockDateTimeService),
-      bind[NewNotificationIdService].toInstance(MockNewNotificationIdService),
-      bind[NewObjectIdService].toInstance(MockNewObjectIdService),
+      bind[DateTimeService].toInstance(mockDateTimeService),
+      bind[NotificationIdService].toInstance(MockNotificationIdService),
+      bind[ObjectIdService].toInstance(mockObjectIdService),
       bind[HeaderCarrierService].toInstance(MockHeaderCarrierService)
     )
     .configure(Map(
       "auditing.enabled" -> false,
       "metrics.enabled" -> false,
-      "retry.scheduler.enabled" -> false,
       "auth.token.internal" -> TestData.BasicAuthTokenValue,
-      "internal.clientIds.0" -> TestData.InternalClientId.id,
-      "microservice.services.public-notification.host" -> IntegrationTest.TestHost,
-      "microservice.services.public-notification.port" -> IntegrationTest.TestPort,
-      "microservice.services.public-notification.context" -> IntegrationTest.ExternalPushUrlContext,
-      "microservice.services.notification-queue.host" -> IntegrationTest.TestHost,
-      "microservice.services.notification-queue.port" -> IntegrationTest.TestPort,
-      "microservice.services.notification-queue.context" -> IntegrationTest.PullQueueContext,
-      "microservice.services.api-subscription-fields.host" -> IntegrationTest.TestHost,
-      "microservice.services.api-subscription-fields.port" -> IntegrationTest.TestPort,
-      "microservice.services.api-subscription-fields.context" -> IntegrationTest.ApiSubsFieldsUrlContext,
-      "microservice.services.customs-notification-metrics.host" -> IntegrationTest.TestHost,
-      "microservice.services.customs-notification-metrics.port" -> IntegrationTest.TestPort,
-      "microservice.services.customs-notification-metrics.context" -> IntegrationTest.MetricsUrlContext,
-      "ttlInSeconds" -> 42,
-      "retry.poller.interval.milliseconds" -> 2000,
-      "unblock.poller.interval.milliseconds" -> 2000,
-      "retry.poller.retryAfterFailureInterval.seconds" -> 2,
+      "internal.clientIds" -> List(TestData.InternalClientId.id),
+      "microservice.services.public-notification.host" -> IntegrationTestData.TestHost,
+      "microservice.services.public-notification.port" -> IntegrationTestData.TestPort,
+      "microservice.services.public-notification.context" -> IntegrationTestData.ExternalPushUrlContext,
+      "microservice.services.notification-queue.host" -> IntegrationTestData.TestHost,
+      "microservice.services.notification-queue.port" -> IntegrationTestData.TestPort,
+      "microservice.services.notification-queue.context" -> IntegrationTestData.PullQueueContext,
+      "microservice.services.api-subscription-fields.host" -> IntegrationTestData.TestHost,
+      "microservice.services.api-subscription-fields.port" -> IntegrationTestData.TestPort,
+      "microservice.services.api-subscription-fields.context" -> IntegrationTestData.ApiSubsFieldsUrlContext,
+      "microservice.services.customs-notification-metrics.host" -> IntegrationTestData.TestHost,
+      "microservice.services.customs-notification-metrics.port" -> IntegrationTestData.TestPort,
+      "microservice.services.customs-notification-metrics.context" -> IntegrationTestData.MetricsUrlContext,
+      "retry.metric-name" -> "some-metric-counter-name",
+      "notification-ttl" -> "14 days",
+      "retry.scheduler.enabled" -> false,
+      "retry.failed-and-blocked.delay" -> "150 seconds",
+      "retry.failed-but-not-blocked.delay" -> "1 minute",
+      "retry.failed-but-not-blocked.available-after" -> "10 minutes",
       "non.blocking.retry.after.minutes" -> 1,
-      "hotfix.translates.0" -> s"${TestData.OldClientSubscriptionId.toString}:${TestData.NewClientSubscriptionId.toString}",
+      "hotfix.translates" -> Map(TestData.OldClientSubscriptionId.toString -> TestData.NewClientSubscriptionId.toString),
       "mongodb.uri" -> "mongodb://localhost:27017/customs-notification"
     ))
     .build()
 }
 
-object MockDateTimeService extends DateTimeService {
-  override def now(): ZonedDateTime = TestData.TimeNow
+class MockDateTimeService extends DateTimeService {
+  var time: ZonedDateTime = TestData.TimeNow
+
+  override def now(): ZonedDateTime = time
+
+  def travelForwardsInTime(duration: FiniteDuration): Unit = {
+    time = time.plus(duration.toJava)
+  }
+
+  def reset(): Unit = {
+    time = TestData.TimeNow
+  }
 }
 
-object MockNewNotificationIdService extends NewNotificationIdService {
+object MockNotificationIdService extends NotificationIdService {
   override def newId(): NotificationId = TestData.NotificationId
 }
 
-object MockNewObjectIdService extends NewObjectIdService {
-  override def newId(): ObjectId = TestData.ObjectId
+class MockObjectIdService extends ObjectIdService {
+  var idToGive: ObjectId = TestData.ObjectId
+
+  override def newId(): ObjectId = idToGive
+
+  def nextTimeGive(id: ObjectId): Unit = {
+    idToGive = id
+  }
+
+  def reset(): Unit = {
+    idToGive = TestData.ObjectId
+  }
 }
 
 object MockHeaderCarrierService extends HeaderCarrierService {

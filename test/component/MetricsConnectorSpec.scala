@@ -28,7 +28,7 @@ import play.api.test.Helpers.{ACCEPT, CONTENT_TYPE}
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
 import uk.gov.hmrc.customs.notification.connectors.MetricsConnector
 import uk.gov.hmrc.http.HeaderCarrier
-import util.{IntegrationTest, TestData}
+import util.{IntegrationTestData, TestData}
 
 /**
  * Convenience class to only test this suite, as running suite directly will complain with the following:
@@ -52,7 +52,7 @@ class MetricsConnectorSpec extends AnyWordSpec
     "send the correct headers" in {
       await(connector.send(TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.MetricsUrlContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.MetricsUrlContext))
         .withHeader(ACCEPT, equalTo(MimeTypes.JSON))
         .withHeader(CONTENT_TYPE, equalTo(MimeTypes.JSON)))
     }
@@ -60,14 +60,14 @@ class MetricsConnectorSpec extends AnyWordSpec
     "send the correct body" in {
       await(connector.send(TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.MetricsUrlContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.MetricsUrlContext))
         .withRequestBody(equalToJson(
           Json.obj(
             "eventType" -> "NOTIFICATION",
             "conversationId" -> TestData.ConversationId.toString,
             "eventStart" -> TestData.TimeNow,
             "eventEnd" -> TestData.TimeNow
-          ).toString()
+          ).toString
         )))
     }
   }

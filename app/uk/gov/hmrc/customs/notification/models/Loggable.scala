@@ -64,7 +64,7 @@ object Loggable {
         KeyNames.ClientSubscriptionId -> Some(r.clientSubscriptionId.toString),
         KeyNames.NotificationId -> Some(r.notificationId.toString),
         KeyNames.BadgeId -> r.maybeBadgeId.map(_.value),
-        KeyNames.Submitter -> r.maybeSubmitterNumber.map(_.value),
+        KeyNames.Submitter -> r.maybeSubmitterId.map(_.value),
         KeyNames.CorrelationId -> r.maybeCorrelationId.map(_.value),
         KeyNames.FunctionCode -> r.maybeFunctionCode.map(_.toString),
         KeyNames.IssueDateTime -> r.maybeIssueDateTime.map(_.value),

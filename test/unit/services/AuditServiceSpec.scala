@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023 HM Revenue & Customs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package unit.services
 
 import _root_.util.TestData
@@ -12,7 +28,7 @@ import uk.gov.hmrc.customs.notification.models.Auditable
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableNotification
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
 import uk.gov.hmrc.customs.notification.services.{AuditService, DateTimeService}
-import uk.gov.hmrc.customs.notification.util.NotificationLogger
+import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.EventKeys.TransactionName
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
@@ -27,14 +43,14 @@ class AuditServiceSpec extends AsyncWordSpec
   with Inside
   with ResetMocksAfterEachAsyncTest {
 
-  private val mockNotificationLogger = mock[NotificationLogger]
+  private val mockLogger = mock[Logger]
   private val mockAuditConnector = mock[AuditConnector]
   private val mockDateTimeService = new DateTimeService {
     override def now(): ZonedDateTime = TestData.TimeNow
   }
 
   private val service = new AuditService(
-    mockNotificationLogger,
+    mockLogger,
     mockAuditConnector,
     mockDateTimeService)(Helpers.stubControllerComponents().executionContext)
 
@@ -67,7 +83,7 @@ class AuditServiceSpec extends AsyncWordSpec
 
         inside(detail.asOpt[JsObject]) { case Some(JsObject(o)) =>
           o should contain allElementsOf Json.obj(
-            "outboundCallUrl" -> TestData.ClientPushUrl.toString,
+            "outboundCallUrl" -> TestData.ClientCallbackUrl.toString,
             "outboundCallAuthToken" -> TestData.PushSecurityToken.value,
             "payload" -> TestData.ValidXml.toString,
             "result" -> "SUCCESS"

@@ -20,13 +20,12 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.{MimeTypes, Status}
 import play.api.libs.json.Writes.StringWrites
 import play.api.libs.json._
-import uk.gov.hmrc.customs.notification.config.AppConfig
+import uk.gov.hmrc.customs.notification.config.SendConfig
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
-import uk.gov.hmrc.customs.notification.connectors.SendNotificationConnector._
+import uk.gov.hmrc.customs.notification.connectors.SendConnector._
 import uk.gov.hmrc.customs.notification.models.Header.jsonFormat
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
 import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.models.errors.CdsError
 import uk.gov.hmrc.customs.notification.services.AuditService
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.customs.notification.util._
@@ -36,10 +35,10 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SendNotificationConnector @Inject()(http: HttpConnector,
-                                          config: AppConfig,
-                                          auditService: AuditService,
-                                          logger: NotificationLogger)(implicit ec: ExecutionContext) {
+class SendConnector @Inject()(http: HttpConnector,
+                              config: SendConfig,
+                              auditService: AuditService,
+                              logger: Logger)(implicit ec: ExecutionContext) {
   def send[A: Auditable : Loggable](notification: Notification,
                                     clientSendData: ClientSendData,
                                     toAuditIfInternalPush: A)(implicit hc: HeaderCarrier): Future[Either[SendError, SuccessfullySent]] = {
@@ -160,7 +159,7 @@ class SendNotificationConnector @Inject()(http: HttpConnector,
   }
 }
 
-object SendNotificationConnector {
+object SendConnector {
   sealed trait SendRequest {
     val name: String
   }
@@ -179,7 +178,7 @@ object SendNotificationConnector {
 
   case class SuccessfullySent(requestType: SendRequest)
 
-  sealed trait SendError extends CdsError
+  sealed trait SendError
 
   case class ClientSendError(maybeStatus: Option[Int]) extends SendError
 

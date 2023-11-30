@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.models.errors
+package uk.gov.hmrc.customs.notification.util
 
-trait CdsError
+object Helpers {
+  def ignore[A]: A => Unit = (_: A) => ()
+}

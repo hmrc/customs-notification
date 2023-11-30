@@ -27,14 +27,14 @@ import play.api.http.{HeaderNames, MimeTypes}
 import play.api.libs.json.Json
 import play.api.test.Helpers.{ACCEPT, AUTHORIZATION, CONTENT_TYPE}
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
-import uk.gov.hmrc.customs.notification.connectors.SendNotificationConnector
-import uk.gov.hmrc.customs.notification.connectors.SendNotificationConnector._
+import uk.gov.hmrc.customs.notification.connectors.SendConnector
+import uk.gov.hmrc.customs.notification.connectors.SendConnector._
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableNotification
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
 import uk.gov.hmrc.customs.notification.models.SendToPullQueue
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.http.HeaderCarrier
-import util.{IntegrationTest, TestData}
+import util.{IntegrationTestData, TestData}
 
 import java.net.URL
 
@@ -43,23 +43,22 @@ import java.net.URL
  * "Trait ConfiguredServer needs an Application value associated with key "org.scalatestplus.play.app" in the config map."
  */
 @DoNotDiscover
-private class TestOnlySendNotificationConnectorSpec extends Suites(new SendNotificationConnectorSpec) with IntegrationBaseSpec
+private class TestOnlySendConnectorSpec extends Suites(new SendConnectorSpec) with IntegrationBaseSpec
 
 @DoNotDiscover
-class SendNotificationConnectorSpec extends AnyWordSpec
+class SendConnectorSpec extends AnyWordSpec
   with ConfiguredServer
   with FutureAwaits
   with DefaultAwaitTimeout
   with Matchers {
 
-  private def connector = app.injector.instanceOf[SendNotificationConnector]
+  private def connector = app.injector.instanceOf[SendConnector]
 
   implicit val hc: HeaderCarrier = TestData.HeaderCarrier
 
-  "SendNotificationConnector when making an external push request" should {
-
+  "SendConnector when making an external push request" should {
     "return a Success(ExternalPush) when external service responds with 200 OK" in {
-      stubFor(post(urlMatching(IntegrationTest.ExternalPushUrlContext))
+      stubFor(post(urlMatching(IntegrationTestData.ExternalPushUrlContext))
         .willReturn(aResponse().withStatus(OK)))
 
       val expected = Right(SuccessfullySent(ExternalPush(TestData.PushCallbackData)))
@@ -71,10 +70,10 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     "send the correct body" in {
       await(connector.send(TestData.Notification, TestData.PushCallbackData, TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.ExternalPushUrlContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.ExternalPushUrlContext))
         .withRequestBody(equalToJson {
           Json.obj(
-            "url" -> TestData.ClientPushUrl.toString,
+            "url" -> TestData.ClientCallbackUrl.toString,
             "conversationId" -> TestData.ConversationId.toString,
             "authHeaderToken" -> TestData.PushSecurityToken.value,
             "outboundCallHeaders" -> Json.arr(
@@ -89,17 +88,17 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     "send the required headers" in {
       await(connector.send(TestData.Notification, TestData.PushCallbackData, TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.ExternalPushUrlContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.ExternalPushUrlContext))
         .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
         .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
         .withHeader(NOTIFICATION_ID_HEADER_NAME, equalTo(TestData.NotificationId.toString)))
     }
 
     "return an ClientSendError(ExternalPush) given a Bad Request 400 response" in {
-      stubFor(post(urlMatching(IntegrationTest.ExternalPushUrlContext))
+      stubFor(post(urlMatching(IntegrationTestData.ExternalPushUrlContext))
         .willReturn(aResponse().withStatus(BAD_REQUEST)))
 
-      val expected = Left(SendNotificationConnector.ClientSendError(Some(BAD_REQUEST)))
+      val expected = Left(SendConnector.ClientSendError(Some(BAD_REQUEST)))
 
       val actual = await(connector.send(TestData.Notification, TestData.PushCallbackData, TestData.Notification))
 
@@ -107,10 +106,10 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     }
 
     "return an ServerSendError(ExternalPush) given a Internal Server Error 500 response" in {
-      stubFor(post(urlMatching(IntegrationTest.ExternalPushUrlContext))
+      stubFor(post(urlMatching(IntegrationTestData.ExternalPushUrlContext))
         .willReturn(aResponse().withStatus(INTERNAL_SERVER_ERROR)))
 
-      val expected = Left(SendNotificationConnector.ServerSendError(INTERNAL_SERVER_ERROR))
+      val expected = Left(SendConnector.ServerSendError(INTERNAL_SERVER_ERROR))
 
       val actual = await(connector.send(TestData.Notification, TestData.PushCallbackData, TestData.Notification))
 
@@ -119,19 +118,19 @@ class SendNotificationConnectorSpec extends AnyWordSpec
   }
 
 
-  "SendNotificationConnector when making an internal push request" should {
-    val internalPushUrl = new URL(s"${IntegrationTest.TestOrigin}${IntegrationTest.InternalPushUrlContext}")
+  "SendConnector when making an internal push request" should {
+    val internalPushUrl = new URL(s"${IntegrationTestData.TestOrigin}${IntegrationTestData.InternalPushUrlContext}")
     val internalClientNotification = TestData.Notification.copy(clientId = TestData.InternalClientId)
     val internalPushCallbackData = TestData.PushCallbackData.copy(callbackUrl = internalPushUrl)
 
     "return a Success(InternalPush) when external service responds with 200 OK" in {
-      stubFor(post(urlMatching(IntegrationTest.InternalPushUrlContext))
+      stubFor(post(urlMatching(IntegrationTestData.InternalPushUrlContext))
         .willReturn(aResponse().withStatus(OK)))
 
-      val internalPushUrl = new URL(s"${IntegrationTest.TestOrigin}${IntegrationTest.InternalPushUrlContext}")
+      val internalPushUrl = new URL(s"${IntegrationTestData.TestOrigin}${IntegrationTestData.InternalPushUrlContext}")
       val internalClientNotification = TestData.Notification.copy(clientId = TestData.InternalClientId)
       val internalPushCallbackData = TestData.PushCallbackData.copy(callbackUrl = internalPushUrl)
-      val expected = Right(SuccessfullySent(SendNotificationConnector.InternalPush(internalPushCallbackData)))
+      val expected = Right(SuccessfullySent(SendConnector.InternalPush(internalPushCallbackData)))
 
       val actual = await(connector.send(internalClientNotification, internalPushCallbackData, TestData.Notification))
 
@@ -143,14 +142,14 @@ class SendNotificationConnectorSpec extends AnyWordSpec
 
       await(connector.send(internalClientNotification, internalPushCallbackData, TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.InternalPushUrlContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.InternalPushUrlContext))
         .withRequestBody(expectedBody))
     }
 
     "send all headers" in {
       await(connector.send(internalClientNotification, internalPushCallbackData, TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.InternalPushUrlContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.InternalPushUrlContext))
         .withHeader(CONTENT_TYPE, equalTo(MimeTypes.XML))
         .withHeader(ACCEPT, equalTo(MimeTypes.XML))
         .withHeader(AUTHORIZATION, equalTo(TestData.PushSecurityToken.value))
@@ -162,10 +161,10 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     }
 
     "return an ClientSendError(ExternalPush) given a Bad Request 400 response" in {
-      stubFor(post(urlMatching(IntegrationTest.InternalPushUrlContext))
+      stubFor(post(urlMatching(IntegrationTestData.InternalPushUrlContext))
         .willReturn(aResponse().withStatus(BAD_REQUEST)))
 
-      val expected = Left(SendNotificationConnector.ClientSendError(Some(BAD_REQUEST)))
+      val expected = Left(SendConnector.ClientSendError(Some(BAD_REQUEST)))
 
       val actual = await(connector.send(internalClientNotification, internalPushCallbackData, TestData.Notification))
 
@@ -173,10 +172,10 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     }
 
     "return an ServerSendError(ExternalPush) given a Internal Server Error 500 response" in {
-      stubFor(post(urlMatching(IntegrationTest.InternalPushUrlContext))
+      stubFor(post(urlMatching(IntegrationTestData.InternalPushUrlContext))
         .willReturn(aResponse().withStatus(INTERNAL_SERVER_ERROR)))
 
-      val expected = Left(SendNotificationConnector.ServerSendError(INTERNAL_SERVER_ERROR))
+      val expected = Left(SendConnector.ServerSendError(INTERNAL_SERVER_ERROR))
 
       val actual = await(connector.send(internalClientNotification, internalPushCallbackData, TestData.Notification))
 
@@ -184,10 +183,10 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     }
   }
 
-  "SendNotificationConnector when making an pull queue request" should {
+  "SendConnector when making an pull queue request" should {
 
     "return a Success(Pull) when external service responds with 200 OK" in {
-      stubFor(post(urlMatching(IntegrationTest.PullQueueContext))
+      stubFor(post(urlMatching(IntegrationTestData.PullQueueContext))
         .willReturn(aResponse().withStatus(OK)))
 
       val expected = Right(SuccessfullySent(Pull))
@@ -201,14 +200,14 @@ class SendNotificationConnectorSpec extends AnyWordSpec
 
       await(connector.send(TestData.Notification, SendToPullQueue, TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.PullQueueContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.PullQueueContext))
         .withRequestBody(expectedBody))
     }
 
     "send the required headers" in {
       await(connector.send(TestData.Notification, SendToPullQueue, TestData.Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTest.PullQueueContext))
+      verify(postRequestedFor(urlMatching(IntegrationTestData.PullQueueContext))
         .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
         .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(TestData.ConversationId.toString))
         .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(TestData.NewClientSubscriptionId.toString))
@@ -217,10 +216,10 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     }
 
     "return an ClientSendError(Pull) given a Bad Request 400 response" in {
-      stubFor(post(urlMatching(IntegrationTest.PullQueueContext))
+      stubFor(post(urlMatching(IntegrationTestData.PullQueueContext))
         .willReturn(aResponse().withStatus(BAD_REQUEST)))
 
-      val expected = Left(SendNotificationConnector.ClientSendError(Some(BAD_REQUEST)))
+      val expected = Left(SendConnector.ClientSendError(Some(BAD_REQUEST)))
 
       val actual = await(connector.send(TestData.Notification, SendToPullQueue, TestData.Notification))
 
@@ -228,10 +227,10 @@ class SendNotificationConnectorSpec extends AnyWordSpec
     }
 
     "return an ServerSendError(ExternalPush) given a Internal Server Error 500 response" in {
-      stubFor(post(urlMatching(IntegrationTest.PullQueueContext))
+      stubFor(post(urlMatching(IntegrationTestData.PullQueueContext))
         .willReturn(aResponse().withStatus(INTERNAL_SERVER_ERROR)))
 
-      val expected = Left(SendNotificationConnector.ServerSendError(INTERNAL_SERVER_ERROR))
+      val expected = Left(SendConnector.ServerSendError(INTERNAL_SERVER_ERROR))
 
       val actual = await(connector.send(TestData.Notification, SendToPullQueue, TestData.Notification))
 

@@ -18,6 +18,7 @@ package uk.gov.hmrc.customs.notification.models
 
 import org.bson.types.ObjectId
 import play.api.libs.json._
+import uk.gov.hmrc.customs.notification.util.HeaderNames.{ISSUE_DATE_TIME_HEADER_NAME, X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_SUBMITTER_ID_HEADER_NAME}
 import uk.gov.hmrc.http.Authorization
 
 import java.net.URL
@@ -52,6 +53,7 @@ object ClientSubscriptionId {
 case class ClientId(id: String) extends AnyVal {
   override def toString: String = id
 }
+
 object ClientId {
   implicit val clientIdJF: Format[ClientId] = Json.valueFormat
 }
@@ -70,6 +72,10 @@ case class Header(name: String, value: String) {
 
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
+  def forBadgeId(value: String): Header = apply(X_BADGE_ID_HEADER_NAME, value)
+  def forSubmitterId(value: String): Header = apply(X_SUBMITTER_ID_HEADER_NAME, value)
+  def forCorrelationId(value: String): Header = apply(X_CORRELATION_ID_HEADER_NAME, value)
+  def forIssueDateTime(value: String): Header = apply(ISSUE_DATE_TIME_HEADER_NAME, value)
 }
 
 
@@ -118,7 +124,7 @@ case class RequestMetadata(clientSubscriptionId: ClientSubscriptionId,
                            conversationId: ConversationId,
                            notificationId: NotificationId,
                            maybeBadgeId: Option[Header],
-                           maybeSubmitterNumber: Option[Header],
+                           maybeSubmitterId: Option[Header],
                            maybeCorrelationId: Option[Header],
                            maybeIssueDateTime: Option[Header],
                            maybeFunctionCode: Option[FunctionCode],

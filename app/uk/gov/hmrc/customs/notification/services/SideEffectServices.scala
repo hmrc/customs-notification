@@ -16,35 +16,33 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import akka.actor.ActorSystem
 import org.bson.types.ObjectId
-import play.api.mvc.{Request, RequestHeader}
+import play.api.mvc.RequestHeader
 import uk.gov.hmrc.customs.notification.models.NotificationId
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.HeaderCarrierConverter
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
-import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import javax.inject.Singleton
 
 @Singleton
-class DateTimeService @Inject()() {
+class DateTimeService() {
   def now(): ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
 }
 
 @Singleton
-class NewNotificationIdService @Inject()() {
+class NotificationIdService() {
   def newId(): NotificationId = NotificationId(UUID.randomUUID())
 }
 
 @Singleton
-class NewObjectIdService @Inject()() {
+class ObjectIdService() {
   def newId(): ObjectId = new ObjectId()
 }
+
 @Singleton
-class HeaderCarrierService @Inject()() {
+class HeaderCarrierService() {
   def newHc(): HeaderCarrier = HeaderCarrier()
 
   def hcFrom(request: RequestHeader): HeaderCarrier = HeaderCarrierConverter.fromRequest(request)

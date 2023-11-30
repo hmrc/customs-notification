@@ -22,7 +22,7 @@ import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableRequ
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableRequestMetadata
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.services.AuditService._
-import uk.gov.hmrc.customs.notification.util.NotificationLogger
+import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames}
 import uk.gov.hmrc.play.audit.EventKeys
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
@@ -34,7 +34,7 @@ import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AuditService @Inject()(logger: NotificationLogger,
+class AuditService @Inject()(logger: Logger,
                              auditConnector: AuditConnector,
                              dateTimeService: DateTimeService)(implicit ec: ExecutionContext) {
 

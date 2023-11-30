@@ -30,8 +30,8 @@ import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnecto
 import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, PushCallbackData}
 import uk.gov.hmrc.http.HeaderCarrier
-import util.IntegrationTest.Responses.apiSubscriptionFieldsOk
-import util.{IntegrationTest, TestData}
+import util.IntegrationTestData.Responses.apiSubscriptionFieldsOkFor
+import util.{IntegrationTestData, TestData}
 
 import java.util.UUID
 
@@ -54,12 +54,15 @@ class ApiSubscriptionFieldsConnectorSpec extends AnyWordSpec
   "ApiSubscriptionFieldsConnector" should {
     "parse response when external service responds with 200 OK and payload" in {
       stubFor(get(urlMatching(validPath))
-        .willReturn(aResponse().withStatus(OK).withBody(apiSubscriptionFieldsOk)))
+        .willReturn(
+          aResponse()
+            .withStatus(OK)
+            .withBody(apiSubscriptionFieldsOkFor(TestData.ClientId, TestData.NewClientSubscriptionId, TestData.ClientCallbackUrl))))
 
       val expected =
         Right(
           ApiSubscriptionFieldsConnector.Success(
-            ApiSubscriptionFields(TestData.ClientId, PushCallbackData(TestData.ClientPushUrl, TestData.PushSecurityToken))
+            ApiSubscriptionFields(TestData.ClientId, PushCallbackData(TestData.ClientCallbackUrl, TestData.PushSecurityToken))
           )
         )
 
@@ -88,7 +91,7 @@ class ApiSubscriptionFieldsConnectorSpec extends AnyWordSpec
   }
 }
 
-object ApiSubscriptionFieldsConnectorSpec{
+object ApiSubscriptionFieldsConnectorSpec {
   val invalidClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-0000-0000-0000-000000000000"))
-  val validPath: String = IntegrationTest.ApiSubsFieldsUrlContext + "/" + TestData.NewClientSubscriptionId.toString
+  val validPath: String = IntegrationTestData.ApiSubsFieldsUrlContext + "/" + TestData.NewClientSubscriptionId.toString
 }

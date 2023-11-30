@@ -21,5 +21,6 @@ import org.scalatest.Suites
 
 class AllComponentSpecs extends Suites(
   new ApiSubscriptionFieldsConnectorSpec,
-  new SendNotificationConnectorSpec,
-  new MetricsConnectorSpec) with IntegrationBaseSpec
+  new SendConnectorSpec,
+  new MetricsConnectorSpec)
+  with IntegrationBaseSpec

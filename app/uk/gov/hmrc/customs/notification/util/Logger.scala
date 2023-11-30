@@ -16,14 +16,16 @@
 
 package uk.gov.hmrc.customs.notification.util
 
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.models._
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import javax.inject.{Inject, Singleton}
 
-// TODO: Write tests
 @Singleton
-class NotificationLogger @Inject()(logger: CdsLogger) {
+class Logger @Inject()(servicesConfig: ServicesConfig) {
+  private lazy val loggerName: String = servicesConfig.getString("application.logger.name")
+  private lazy val logger = play.api.Logger(loggerName)
+
   def debug(msg: => String): Unit = {
     logger.debug(msg)
   }
@@ -34,6 +36,10 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
 
   def info[A: Loggable](msg: => String, toLog: A): Unit = {
     logger.info(format(msg, toLog))
+  }
+
+  def warn(msg: => String): Unit = {
+    logger.warn(msg)
   }
 
   def warn[A: Loggable](msg: => String, toLog: A): Unit = {

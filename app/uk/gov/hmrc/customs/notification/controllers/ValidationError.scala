@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.models.errors
+package uk.gov.hmrc.customs.notification.controllers
 
 import cats.data.NonEmptyList
 import play.api.http.HeaderNames._
 import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CLIENT_ID_HEADER_NAME, X_CLIENT_SUB_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
-sealed trait ControllerError extends CdsError
-object ControllerError {
 
-  case object BadlyFormedXml extends ControllerError {
+sealed trait SubmitValidationError
+object ValidationError {
+
+  case object BadlyFormedXml extends SubmitValidationError {
     val message: String = s"Request body does not contain well-formed XML."
   }
 
@@ -37,28 +38,28 @@ object ControllerError {
     }
   }
 
-  case class InvalidBasicAuth(errorType: HeaderErrorType) extends HeaderError with ControllerError {
+  case class InvalidBasicAuth(errorType: HeaderErrorType) extends HeaderError with SubmitValidationError {
     val headerName: String = AUTHORIZATION
     override val responseMessage: String = "Basic token is missing or not authorized"
   }
 
-  case class InvalidContentType(errorType: HeaderErrorType) extends HeaderError with ControllerError {
+  case class InvalidContentType(errorType: HeaderErrorType) extends HeaderError with SubmitValidationError {
     val headerName: String = CONTENT_TYPE
     override val responseMessage: String = s"The $headerName header is not text/xml or application/xml"
   }
 
-  case class InvalidAccept(errorType: HeaderErrorType) extends HeaderError with ControllerError {
+  case class InvalidAccept(errorType: HeaderErrorType) extends HeaderError with SubmitValidationError {
     val headerName: String = ACCEPT
   }
 
-  case class InvalidHeaders(errors: NonEmptyList[CdsHeaderError]) extends ControllerError
+  case class InvalidHeaders(errors: NonEmptyList[CdsHeaderError]) extends SubmitValidationError
   sealed trait CdsHeaderError extends HeaderError
 
-  case class InvalidClientSubId(errorType: HeaderErrorType) extends CdsHeaderError with ControllerError {
+  case class InvalidClientSubId(errorType: HeaderErrorType) extends CdsHeaderError {
     val headerName: String = X_CLIENT_SUB_ID_HEADER_NAME
   }
 
-  case class InvalidConversationId(errorType: HeaderErrorType) extends CdsHeaderError with ControllerError {
+  case class InvalidConversationId(errorType: HeaderErrorType) extends CdsHeaderError {
     val headerName: String = X_CONVERSATION_ID_HEADER_NAME
   }
 
@@ -67,7 +68,7 @@ object ControllerError {
     val headerName: String = X_CORRELATION_ID_HEADER_NAME
   }
 
-  case object MissingClientId extends CdsHeaderError with ControllerError {
+  case object MissingClientId extends CdsHeaderError {
     val errorType: HeaderErrorType = MissingHeaderValue
     val headerName: String = X_CLIENT_ID_HEADER_NAME
   }
