@@ -16,6 +16,14 @@
 
 package uk.gov.hmrc.customs.notification.models
 
+sealed abstract case class AuditContext private(fieldsToAudit: Map[String, Option[String]])
+
+object AuditContext {
+  def apply[A](entity: A)(implicit a: Auditable[A]): AuditContext = {
+    new AuditContext(a.fieldsToAudit(entity)) {}
+  }
+}
+
 trait Auditable[A] {
   def fieldsToAudit(a: A): Map[String, Option[String]]
 }
@@ -36,7 +44,7 @@ object Auditable {
     implicit val auditableRequestMetadata: Auditable[RequestMetadata] = (r: RequestMetadata) =>
       Map(
         KeyNames.ConversationId -> Some(r.conversationId.toString),
-        KeyNames.ClientSubscriptionId -> Some(r.clientSubscriptionId.toString),
+        KeyNames.ClientSubscriptionId -> Some(r.csid.toString),
         KeyNames.NotificationId -> Some(r.notificationId.toString),
         KeyNames.BadgeId -> r.maybeBadgeId.map(_.value),
         KeyNames.FunctionCode -> r.maybeFunctionCode.map(_.toString),
@@ -48,7 +56,7 @@ object Auditable {
       Map(
         KeyNames.ConversationId -> Some(n.conversationId.toString),
         KeyNames.ClientId -> Some(n.clientId.id),
-        KeyNames.ClientSubscriptionId -> Some(n.clientSubscriptionId.toString),
+        KeyNames.ClientSubscriptionId -> Some(n.csid.toString),
         KeyNames.NotificationId -> Some(n.notificationId.toString)
       )
   }

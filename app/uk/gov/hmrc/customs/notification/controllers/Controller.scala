@@ -18,20 +18,22 @@ package uk.gov.hmrc.customs.notification.controllers
 
 import play.api.mvc._
 import uk.gov.hmrc.customs.notification.config.BasicAuthConfig
-import uk.gov.hmrc.customs.notification.controllers.ValidationError._
 import uk.gov.hmrc.customs.notification.controllers.Responses._
-import uk.gov.hmrc.customs.notification.controllers.Validation._
-import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableHeaders
+import uk.gov.hmrc.customs.notification.controllers.ValidationError._
+import uk.gov.hmrc.customs.notification.models.LogContext
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.{loggableHeaders, loggableRequestMetadata}
 import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits._
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.customs.notification.util._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.xml.NodeSeq
 
 @Singleton
 class Controller @Inject()()(implicit
@@ -42,47 +44,48 @@ class Controller @Inject()()(implicit
                              newNotificationIdService: NotificationIdService,
                              csidTranslationHotfixService: CsidTranslationHotfixService,
                              basicAuthConfig: BasicAuthConfig,
-                             repo: Repository,
-                             logger: Logger) extends BackendController(cc) {
+                             repo: Repository) extends BackendController(cc) with Logger with Validation {
   override val controllerComponents: ControllerComponents = cc
   implicit val ec: ExecutionContext = cc.executionContext
 
-  def submit(): Action[AnyContent] = {
-    Action.async { request =>
+  def submit(): Action[NodeSeq] = {
+    Action.async(parse.xml) { request =>
       implicit val h: Headers = request.headers
+      implicit val lc: LogContext = LogContext(request.headers)
 
       (for {
-        _ <- authorize(basicAuthConfig.token).toFutureEither
+        _ <- authorise(basicAuthConfig.token).toFutureEither
         _ <- validateAcceptHeader.toFutureEither
-        _ <- validateContentTypeHeader.toFutureEither
-        xml <- validateXml(request).toFutureEither
-        rm <- validateRequestMetadata(xml, newNotificationIdService.newId(), dateTimeService.now()).toFutureEither
-      } yield (xml, rm)).value.flatMap({
+        rm <- validateRequestMetadata(request.body, newNotificationIdService.newId(), dateTimeService.now()).toFutureEither
+      } yield (request.body, rm)).value.flatMap {
         case Left(error) =>
-          Future.successful(handleValidationError(error))
+          logger.debug(s"Headers:\n${request.headers.headers.map { case (k, v) => s"$k: $v" }.mkString("\n")}")
+          logger.error(error.errorMessage)
+          Future.successful {
+            handleValidationError(error)
+          }
         case Right((xml, rm)) =>
-          incomingNotificationService.process(xml)(rm, hcService.hcFrom(request)).map {
+          implicit val hc: HeaderCarrier = hcService.hcFrom(request)
+          implicit val lc: LogContext = LogContext(rm)
+
+          incomingNotificationService.process(xml, rm).map {
             case Left(error) =>
               handleProcessingError(error)
             case Right(_) =>
               Results.Accepted
           }
-      })
+      }
     }
   }
 
   private def handleValidationError(error: SubmitValidationError): Result = error match {
     case e: InvalidBasicAuth =>
       Responses.Unauthorised(e.responseMessage)
-    case e: InvalidContentType =>
-      Responses.UnsupportedMediaType(e.responseMessage)
     case e: InvalidAccept =>
       Responses.NotAcceptable(e.responseMessage)
     case InvalidHeaders(headerErrors) =>
       // Pick first error to keep in line with original short-circuiting behaviour
       Responses.BadRequest(headerErrors.head.responseMessage)
-    case BadlyFormedXml =>
-      Responses.BadRequest(BadlyFormedXml.message)
   }
 
   private def handleProcessingError(error: IncomingNotificationService.Error): Result = error match {
@@ -93,14 +96,16 @@ class Controller @Inject()()(implicit
   }
 
   def blockedCount(): Action[AnyContent] = Action.async { request =>
+    implicit val lc: LogContext = LogContext(request.headers)
+
     getClientId(request.headers) match {
       case Left(MissingClientId) =>
-        logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling blocked-count endpoint", request.headers)
+        logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling blocked-count endpoint")
         Future.successful(Responses.BadRequest(MissingClientId.responseMessage))
       case Right(clientId) =>
         repo.getFailedAndBlockedCount(clientId).map {
           case Left(mongoDbError) =>
-            logger.error(mongoDbError.message, request.headers)
+            logger.error(mongoDbError.message)
             Responses.InternalServerError()
           case Right(count) =>
             blockedCountOkResponseFrom(count)
@@ -109,17 +114,19 @@ class Controller @Inject()()(implicit
   }
 
   def deleteBlocked(): Action[AnyContent] = Action.async { request =>
+    implicit val lc: LogContext = LogContext(request.headers)
+
     getClientId(request.headers) match {
       case Left(MissingClientId) =>
-        logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling delete blocked-flag endpoint", request.headers)
+        logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling delete blocked-flag endpoint")
         Future.successful(Responses.BadRequest(MissingClientId.responseMessage))
       case Right(clientId) =>
         repo.unblockFailedAndBlocked(clientId).map {
           case Left(mongoDbError) =>
-            logger.error(mongoDbError.message, request.headers)
+            logger.error(mongoDbError.message)
             Responses.InternalServerError()
           case Right(count) =>
-            logger.info(s"$count FailedAndBlocked notifications set to FailedButNotBlocked", request.headers)
+            logger.info(s"$count FailedAndBlocked notifications set to FailedButNotBlocked")
             Results.NoContent
         }
     }

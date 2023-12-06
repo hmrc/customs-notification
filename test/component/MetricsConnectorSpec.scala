@@ -17,7 +17,7 @@
 package component
 
 import com.github.tomakehurst.wiremock.client.WireMock._
-import integration.IntegrationBaseSpec
+import integration.IntegrationSpecBase
 import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -27,7 +27,8 @@ import play.api.libs.json.Json
 import play.api.test.Helpers.{ACCEPT, CONTENT_TYPE}
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
 import uk.gov.hmrc.customs.notification.connectors.MetricsConnector
-import uk.gov.hmrc.http.HeaderCarrier
+import util.TestData.Implicits._
+import util.TestData._
 import util.{IntegrationTestData, TestData}
 
 /**
@@ -35,7 +36,7 @@ import util.{IntegrationTestData, TestData}
  * "Trait ConfiguredServer needs an Application value associated with key "org.scalatestplus.play.app" in the config map."
  */
 @DoNotDiscover
-private class TestOnlySendMetricsConnectorSpec extends Suites(new MetricsConnectorSpec) with IntegrationBaseSpec
+private class TestOnlySendMetricsConnectorSpec extends Suites(new MetricsConnectorSpec) with IntegrationSpecBase
 
 @DoNotDiscover
 class MetricsConnectorSpec extends AnyWordSpec
@@ -46,11 +47,9 @@ class MetricsConnectorSpec extends AnyWordSpec
 
   private def connector = app.injector.instanceOf[MetricsConnector]
 
-  implicit val hc: HeaderCarrier = TestData.HeaderCarrier
-
   "MetricsConnector when sending a request" should {
     "send the correct headers" in {
-      await(connector.send(TestData.Notification))
+      await(connector.send(Notification))
 
       verify(postRequestedFor(urlMatching(IntegrationTestData.MetricsUrlContext))
         .withHeader(ACCEPT, equalTo(MimeTypes.JSON))
@@ -58,7 +57,7 @@ class MetricsConnectorSpec extends AnyWordSpec
     }
 
     "send the correct body" in {
-      await(connector.send(TestData.Notification))
+      await(connector.send(Notification))
 
       verify(postRequestedFor(urlMatching(IntegrationTestData.MetricsUrlContext))
         .withRequestBody(equalToJson(

@@ -20,9 +20,11 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import play.api.Configuration
 import play.api.http.Status
-import play.api.libs.json.{Json, Reads, Writes}
+import play.api.libs.json.{JsObject, Reads}
+import play.api.libs.json.{Json => PlayJson}
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
+import uk.gov.hmrc.customs.notification.models.Payload
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.http.hooks.HttpHook
 import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse}
@@ -32,6 +34,7 @@ import java.net.URL
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
+import scala.xml.NodeSeq
 
 @Singleton
 private class NoAuditHttpClient @Inject()(override val actorSystem: ActorSystem,
@@ -55,21 +58,20 @@ class HttpConnector @Inject()(http: HttpClient,
    * @param ec      The ExecutionContext to execute the HTTP request on
    * @return Eventually [[scala.Unit]] if response status is 2xx, or a [[connectors.HttpConnector.PostHttpConnectorError]] otherwise
    */
-  def post[A](url: URL,
-              body: A,
-              hc: HeaderCarrier,
-              requestDescriptor: String,
-              shouldSendRequestToAuditing: Boolean)(implicit writes: Writes[A]): Future[Either[PostHttpConnectorError, Unit]] = {
-    val bodyAsString = Json.stringify(writes.writes(body))
-    post(url, bodyAsString, hc, requestDescriptor, shouldSendRequestToAuditing)
-  }
-
   def post(url: URL,
-           body: String,
+           body: RequestBody,
            hc: HeaderCarrier,
            requestDescriptor: String,
            shouldSendRequestToAuditing: Boolean): Future[Either[PostHttpConnectorError, Unit]] = {
-    chooseHttpClient(shouldSendRequestToAuditing).POSTString[HttpResponse](url, body)(readRaw, hc, ec)
+    val httpClientToUse: HttpClient = chooseHttpClient(shouldSendRequestToAuditing)
+
+    val bodyAsString: String = body match {
+      case RequestBody.Xml(underlying) => underlying.toString
+      case RequestBody.Json(underlying) => PlayJson.stringify(underlying)
+    }
+
+    httpClientToUse
+      .POSTString[HttpResponse](url, bodyAsString)(readRaw, hc, ec)
       .map { response =>
         response.status match {
           case status if Status.isSuccessful(status) => Right(())
@@ -93,11 +95,14 @@ class HttpConnector @Inject()(http: HttpClient,
              hc: HeaderCarrier,
              requestDescriptor: String,
              shouldSendRequestToAuditing: Boolean)(implicit responseReads: Reads[A]): Future[Either[GetHttpConnectorError, A]] = {
-    chooseHttpClient(shouldSendRequestToAuditing).GET[HttpResponse](url)(readRaw, hc, ec)
+    val httpClientToUse = chooseHttpClient(shouldSendRequestToAuditing)
+
+    httpClientToUse
+      .GET[HttpResponse](url)(readRaw, hc, ec)
       .map { response =>
         response.status match {
           case status if Status.isSuccessful(status) =>
-            Json.parse(response.body).asOpt[A] match {
+            PlayJson.parse(response.body).asOpt[A] match {
               case Some(value) => Right(value)
               case None => Left(ParseError(requestDescriptor, response))
             }
@@ -112,6 +117,22 @@ class HttpConnector @Inject()(http: HttpClient,
 }
 
 object HttpConnector {
+  sealed trait RequestBody {
+    type A
+
+    def underlying: A
+  }
+
+  object RequestBody{
+    case class Xml(underlying: Payload) extends RequestBody {
+      type A = Payload
+    }
+
+    case class Json(underlying: JsObject) extends RequestBody {
+      type A = JsObject
+    }
+  }
+
   sealed trait HttpConnectorError {
     def message: String
   }

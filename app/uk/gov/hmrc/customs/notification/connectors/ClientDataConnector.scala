@@ -19,10 +19,9 @@ package uk.gov.hmrc.customs.notification.connectors
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.http.Status.NOT_FOUND
-import uk.gov.hmrc.customs.notification.config.ApiSubscriptionFieldsConfig
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector._
+import uk.gov.hmrc.customs.notification.config.ClientDataConfig
+import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector._
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
-import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
@@ -32,11 +31,13 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class ApiSubscriptionFieldsConnector @Inject()(httpConnector: HttpConnector,
-                                               logger: Logger,
-                                               config: ApiSubscriptionFieldsConfig)(implicit ec: ExecutionContext) {
-  def get(clientSubscriptionId: ClientSubscriptionId)(implicit hc: HeaderCarrier): Future[Either[Error, Success]] = {
-    val url = new URL(s"${config.url.toString}/$clientSubscriptionId")
+class ClientDataConnector @Inject()(httpConnector: HttpConnector,
+                                    config: ClientDataConfig)
+                                   (implicit ec: ExecutionContext) extends Logger {
+  def get(csid: ClientSubscriptionId)
+         (implicit hc: HeaderCarrier,
+          lc: LogContext): Future[Either[Error, Success]] = {
+    val url = new URL(s"${config.url.toString}/$csid")
     val newHc = {
       HeaderCarrier(
         requestId = hc.requestId,
@@ -46,7 +47,7 @@ class ApiSubscriptionFieldsConnector @Inject()(httpConnector: HttpConnector,
       )
     }
 
-    httpConnector.get[ApiSubscriptionFields](
+    httpConnector.get[ClientData](
       url = url,
       hc = newHc,
       requestDescriptor = "API subscription fields",
@@ -56,7 +57,7 @@ class ApiSubscriptionFieldsConnector @Inject()(httpConnector: HttpConnector,
     case Right(a) =>
       Right(Success(a))
     case Left(ErrorResponse(_, response)) if response.status == NOT_FOUND =>
-      logger.error("Declarant data not found for client subscription ID", clientSubscriptionId)
+      logger.error("Declarant data not found for client subscription ID")
       Left(DeclarantNotFound)
     case Left(e) =>
       logger.error(e.message)
@@ -64,12 +65,11 @@ class ApiSubscriptionFieldsConnector @Inject()(httpConnector: HttpConnector,
   }
 }
 
-
-object ApiSubscriptionFieldsConnector {
+object ClientDataConnector {
 
   sealed trait Error
 
-  case class Success(apiSubscriptionFields: ApiSubscriptionFields)
+  case class Success(clientData: ClientData)
 
   case object DeclarantNotFound extends Error
 

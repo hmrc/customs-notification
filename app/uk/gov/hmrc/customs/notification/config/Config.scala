@@ -21,9 +21,8 @@ import cats.data.{Validated, ValidatedNel}
 import cats.implicits._
 import play.api.ConfigLoader._
 import play.api.{ConfigLoader, Configuration}
-import uk.gov.hmrc.customs.notification.config.ConfigValidator._
+import uk.gov.hmrc.customs.notification.config.ConfigValidator.{get, _}
 import uk.gov.hmrc.customs.notification.models.{ClientId, ClientSubscriptionId}
-import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.Authorization
 
 import java.net.URL
@@ -44,7 +43,7 @@ import scala.concurrent.duration._
 
 @Singleton
 class BasicAuthConfig @Inject()(c: ConfigValidator) {
-  val token = c.basicAuthToken
+  val token: Authorization = c.basicAuthToken
 }
 
 @Singleton
@@ -52,11 +51,10 @@ class SendConfig @Inject()(c: ConfigValidator) {
   val internalClientIds: Set[ClientId] = c.internalClientIds
   val externalPushUrl: URL = c.externalPushUrl
   val pullQueueUrl: URL = c.pullQueueUrl
-  val failedAndNotBlockedAvailableAfter: FiniteDuration = c.failedAndNotBlockedAvailableAfter
 }
 
 @Singleton
-class ApiSubscriptionFieldsConfig @Inject()(c: ConfigValidator) {
+class ClientDataConfig @Inject()(c: ConfigValidator) {
   val url: URL = c.apiSubscriptionFieldsUrl
 }
 
@@ -67,10 +65,17 @@ class MetricsConfig @Inject()(c: ConfigValidator) {
 }
 
 @Singleton
-class RetryConfig @Inject()(c: ConfigValidator) {
+class RetryAvailableAfterConfig @Inject()(c: ConfigValidator) {
+  val failedButNotBlocked: FiniteDuration = c.failedButNotBlockedAvailableAfter
+  val failedAndBlocked: FiniteDuration = c.failedAndBlockedAvailableAfter
+}
+
+@Singleton
+class RetrySchedulerConfig @Inject()(c: ConfigValidator) {
   val enabled: Boolean = c.enableRetryScheduler
   val failedAndBlockedDelay: FiniteDuration = c.retryFailedAndBlockedDelay
   val failedButNotBlockedDelay: FiniteDuration = c.retryFailedButNotBlockedDelay
+  val retryBufferSize: Int = c.retryBufferSize
 }
 
 @Singleton
@@ -105,9 +110,11 @@ class ConfigValidator @Inject()(implicit config: Configuration) {
     enableRetryScheduler: Boolean,
     retryFailedAndBlockedDelay: FiniteDuration,
     retryFailedButNotBlockedDelay: FiniteDuration,
-    failedAndNotBlockedAvailableAfter: FiniteDuration,
+    failedButNotBlockedAvailableAfter: FiniteDuration,
+    failedAndBlockedAvailableAfter: FiniteDuration,
     retryMetricCounterName: String,
-    newByOldCsids: Map[ClientSubscriptionId, ClientSubscriptionId],
+    retryBufferSize: Int,
+    newByOldCsids: Map[ClientSubscriptionId, ClientSubscriptionId]
     ) = {
 
     (get[Authorization]("auth.token.internal"),
@@ -121,7 +128,9 @@ class ConfigValidator @Inject()(implicit config: Configuration) {
       get[FiniteDuration]("retry.failed-and-blocked.delay"),
       get[FiniteDuration]("retry.failed-but-not-blocked.delay"),
       get[FiniteDuration]("retry.failed-but-not-blocked.available-after"),
+      get[FiniteDuration]("retry.failed-and-blocked.available-after"),
       get[String]("retry.metric-name"),
+      get[Int]("retry.buffer-size"),
       get[Map[ClientSubscriptionId, ClientSubscriptionId]]("hotfix.translates")
     ).tupled match {
       case Valid(c) => c

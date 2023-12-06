@@ -20,12 +20,11 @@ import cats.data.NonEmptyList
 import play.api.http.HeaderNames._
 import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CLIENT_ID_HEADER_NAME, X_CLIENT_SUB_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 
-sealed trait SubmitValidationError
-object ValidationError {
+sealed trait SubmitValidationError {
+  def errorMessage: String
+}
 
-  case object BadlyFormedXml extends SubmitValidationError {
-    val message: String = s"Request body does not contain well-formed XML."
-  }
+object ValidationError {
 
   sealed trait HeaderError {
     def headerName: String
@@ -33,26 +32,30 @@ object ValidationError {
     def errorType: HeaderErrorType
 
     def responseMessage: String = errorType match {
-      case MissingHeaderValue => s"The $headerName header is missing"
-      case InvalidHeaderValue => s"The $headerName header is invalid"
+      case MissingHeaderValue => s"The $headerName header is missing."
+      case InvalidHeaderValue => s"The $headerName header is invalid."
     }
   }
 
   case class InvalidBasicAuth(errorType: HeaderErrorType) extends HeaderError with SubmitValidationError {
     val headerName: String = AUTHORIZATION
-    override val responseMessage: String = "Basic token is missing or not authorized"
-  }
-
-  case class InvalidContentType(errorType: HeaderErrorType) extends HeaderError with SubmitValidationError {
-    val headerName: String = CONTENT_TYPE
-    override val responseMessage: String = s"The $headerName header is not text/xml or application/xml"
+    override val responseMessage: String = "Basic token is missing or not authorized."
+    val errorMessage: String = responseMessage
   }
 
   case class InvalidAccept(errorType: HeaderErrorType) extends HeaderError with SubmitValidationError {
     val headerName: String = ACCEPT
+    val errorMessage: String = responseMessage
   }
 
-  case class InvalidHeaders(errors: NonEmptyList[CdsHeaderError]) extends SubmitValidationError
+  case class InvalidHeaders(errors: NonEmptyList[CdsHeaderError]) extends SubmitValidationError {
+    val errorMessage: String =
+      errors
+        .toList
+        .map(_.responseMessage)
+        .mkString(";\n")
+  }
+
   sealed trait CdsHeaderError extends HeaderError
 
   case class InvalidClientSubId(errorType: HeaderErrorType) extends CdsHeaderError {

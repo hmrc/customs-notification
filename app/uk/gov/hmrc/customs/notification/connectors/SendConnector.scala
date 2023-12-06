@@ -18,44 +18,85 @@ package uk.gov.hmrc.customs.notification.connectors
 
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.{MimeTypes, Status}
-import play.api.libs.json.Writes.StringWrites
 import play.api.libs.json._
 import uk.gov.hmrc.customs.notification.config.SendConfig
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
+import uk.gov.hmrc.customs.notification.connectors.SendConnector.Request.{ExternalPushDescriptor, InternalPushDescriptor, PullDescriptor}
 import uk.gov.hmrc.customs.notification.connectors.SendConnector._
 import uk.gov.hmrc.customs.notification.models.Header.jsonFormat
-import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.services.AuditService
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
-import uk.gov.hmrc.customs.notification.util._
+import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 
+import java.net.URL
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SendConnector @Inject()(http: HttpConnector,
                               config: SendConfig,
-                              auditService: AuditService,
-                              logger: Logger)(implicit ec: ExecutionContext) {
-  def send[A: Auditable : Loggable](notification: Notification,
-                                    clientSendData: ClientSendData,
-                                    toAuditIfInternalPush: A)(implicit hc: HeaderCarrier): Future[Either[SendError, SuccessfullySent]] = {
-    clientSendData match {
-      case p: PushCallbackData if config.internalClientIds.contains(notification.clientId) =>
-        handleInternalPush(notification, p, toAuditIfInternalPush)
-      case p: PushCallbackData =>
-        handleExternalPush(notification, p)
-      case SendToPullQueue =>
-        handlePull(notification)
+                              auditService: AuditService)
+                             (implicit ec: ExecutionContext) extends Logger {
+
+  def send(notification: Notification,
+           clientSendData: SendData)
+          (implicit hc: HeaderCarrier,
+           lc: LogContext,
+           ac: AuditContext): Future[Either[SendError, SuccessfullySent]] = {
+    val request = createRequestFrom(notification, clientSendData)
+
+    val response =
+      http.post(
+        url = request.callbackUrl,
+        body = request.body,
+        hc = request.headerCarrier,
+        requestDescriptor = request.descriptor.value,
+        shouldSendRequestToAuditing = true
+      )
+
+    response.map {
+      case Right(()) =>
+        request.doIfSuccess()
+        Right(SuccessfullySent(request.descriptor))
+      case Left(httpError) =>
+        request.doIfFailed(httpError.message)
+        logger.error(httpError.message)
+        val error = httpError match {
+          case _: HttpClientError =>
+            ClientError
+          case ErrorResponse(_, r) if Status.isClientError(r.status) || Status.isRedirect(r.status) =>
+            ClientError
+          case _: ErrorResponse =>
+            ServerError
+        }
+        Left(error)
     }
   }
 
-  private def handleInternalPush[A: Auditable : Loggable](notification: Notification,
-                                                          pushCallbackData: PushCallbackData,
-                                                          toAuditIfInternalPush: A)(implicit hc: HeaderCarrier): Future[Either[SendError, SuccessfullySent]] = {
-    val updatedHc = hc
+  private def createRequestFrom(notification: Notification,
+                                clientSendData: SendData)
+                               (implicit hc: HeaderCarrier,
+                                logContext: LogContext,
+                                auditContext: AuditContext): Request = {
+    clientSendData match {
+      case p: PushCallbackData if config.internalClientIds.contains(notification.clientId) =>
+        InternalPush(p, notification)
+      case p: PushCallbackData =>
+        ExternalPush(p, notification)
+      case SendToPullQueue =>
+        Pull(notification)
+    }
+  }
+
+  private case class InternalPush(pushCallbackData: PushCallbackData,
+                                  notification: Notification)
+                                 (implicit prevHc: HeaderCarrier,
+                                  logContext: LogContext,
+                                  auditContext: AuditContext) extends Request {
+    val descriptor: Request.Descriptor = InternalPushDescriptor
+    val headerCarrier: HeaderCarrier = prevHc
       .copy(authorization = Some(pushCallbackData.securityToken))
       .withExtraHeaders(
         List(
@@ -66,121 +107,98 @@ class SendConnector @Inject()(http: HttpConnector,
         ) ++ notification.headers.map(_.toTuple): _*
       )
 
-    val request = InternalPush(pushCallbackData)
+    val callbackUrl: URL = pushCallbackData.callbackUrl
+    val body: RequestBody.Xml = RequestBody.Xml(notification.payload)
 
-    val body = notification.payload
+    override def doIfSuccess(): Unit = auditService.sendSuccessfulInternalPushEvent(pushCallbackData, notification.payload)
 
-    def sendToAuditIfSuccessful(): Unit = auditService.sendSuccessfulInternalPushEvent(pushCallbackData, body, toAuditIfInternalPush)
-
-    def sendToAuditIfFailed(failureReason: String): Unit = auditService.sendFailedInternalPushEvent(pushCallbackData, failureReason, toAuditIfInternalPush)
-
-    http.post(
-      url = pushCallbackData.callbackUrl,
-      body = body,
-      hc = updatedHc,
-      requestDescriptor = request.name,
-      shouldSendRequestToAuditing = true
-    ).map(processResult(notification, request, sendToAuditIfSuccessful _, sendToAuditIfFailed))
+    override def doIfFailed(failureReason: String): Unit = auditService.sendFailedInternalPushEvent(pushCallbackData, failureReason)
 
   }
 
-  private def handleExternalPush(notification: Notification, pushCallbackData: PushCallbackData)(implicit hc: HeaderCarrier): Future[Either[SendError, SuccessfullySent]] = {
-    val updatedHc =
-      hc.withExtraHeaders(
+  private case class ExternalPush(pushCallbackData: PushCallbackData,
+                                  notification: Notification)
+                                 (implicit prevHc: HeaderCarrier) extends Request {
+    val descriptor: Request.Descriptor = ExternalPushDescriptor
+    val headerCarrier: HeaderCarrier = prevHc
+      .withExtraHeaders(
         ACCEPT -> MimeTypes.JSON,
         CONTENT_TYPE -> MimeTypes.JSON,
         NOTIFICATION_ID_HEADER_NAME -> notification.notificationId.toString
       )
-
-    val body = {
+    val callbackUrl: URL = config.externalPushUrl
+    val body: RequestBody.Json = RequestBody.Json {
       val updatedOutboundCallHeaders = notification.headers.filterNot(_.name.equals(ISSUE_DATE_TIME_HEADER_NAME))
       Json.obj(
         "conversationId" -> notification.conversationId.toString,
         "url" -> pushCallbackData.callbackUrl.toString,
         "authHeaderToken" -> pushCallbackData.securityToken.value,
         "outboundCallHeaders" -> updatedOutboundCallHeaders,
-        "xmlPayload" -> notification.payload
+        "xmlPayload" -> notification.payload.toString
       )
     }
-
-    val request = ExternalPush(pushCallbackData)
-
-    http.post(
-      url = config.externalPushUrl,
-      body = body,
-      hc = updatedHc,
-      requestDescriptor = request.name,
-      shouldSendRequestToAuditing = true
-    ).map(processResult(notification, request))
   }
 
-  private def handlePull(notification: Notification)(implicit hc: HeaderCarrier): Future[Either[SendError, SuccessfullySent]] = {
-    val newHc = HeaderCarrier(
-      requestId = hc.requestId,
+  private case class Pull(notification: Notification)
+                         (implicit prevHc: HeaderCarrier) extends Request {
+    val descriptor: Request.Descriptor = PullDescriptor
+
+    override def callbackUrl: URL = config.pullQueueUrl
+
+    override val body: RequestBody.Xml = RequestBody.Xml(notification.payload)
+
+    override def headerCarrier: HeaderCarrier = HeaderCarrier(
+      requestId = prevHc.requestId,
       extraHeaders = List(
         CONTENT_TYPE -> MimeTypes.XML,
         X_CONVERSATION_ID_HEADER_NAME -> notification.conversationId.toString,
-        SUBSCRIPTION_FIELDS_ID_HEADER_NAME -> notification.clientSubscriptionId.toString,
+        SUBSCRIPTION_FIELDS_ID_HEADER_NAME -> notification.csid.toString,
         NOTIFICATION_ID_HEADER_NAME -> notification.notificationId.toString) ++
         notification.headers.collectFirst { case h@Header(X_BADGE_ID_HEADER_NAME, _) => h.toTuple } ++
         notification.headers.collectFirst { case h@Header(X_CORRELATION_ID_HEADER_NAME, _) => h.toTuple }
     )
-
-    http.post(
-      url = config.pullQueueUrl,
-      body = notification.payload,
-      newHc,
-      requestDescriptor = Pull.name,
-      shouldSendRequestToAuditing = true
-    ).map(processResult(notification, Pull))
-  }
-
-  private def processResult(notification: Notification,
-                            request: SendRequest,
-                            doIfSuccess: () => Unit = () => (),
-                            doIfFailedWithErrorMsg: String => Unit = _ => ())(before: Either[PostHttpConnectorError, Unit]): Either[SendError, SuccessfullySent] = {
-    before match {
-      case Right(()) =>
-        doIfSuccess()
-        Right(SuccessfullySent(request))
-      case Left(httpError) =>
-        doIfFailedWithErrorMsg(httpError.message)
-        logger.error(httpError.message, notification)
-        val error = httpError match {
-          case _: HttpClientError =>
-            ClientSendError(None)
-          case ErrorResponse(_, r) if Status.isClientError(r.status) || Status.isRedirect(r.status) =>
-            ClientSendError(Some(r.status))
-          case ErrorResponse(_, r) =>
-            ServerSendError(r.status)
-        }
-        Left(error)
-    }
   }
 }
 
+
 object SendConnector {
-  sealed trait SendRequest {
-    val name: String
+  sealed trait Request {
+    def descriptor: Request.Descriptor
+
+    def callbackUrl: URL
+
+    def body: HttpConnector.RequestBody
+
+    def headerCarrier: HeaderCarrier
+
+    def doIfSuccess(): Unit = ()
+
+    def doIfFailed(message: String): Unit = ()
   }
 
-  case class InternalPush(pushCallbackData: PushCallbackData) extends SendRequest {
-    val name: String = "internal push"
+  object Request {
+    sealed trait Descriptor {
+      val value: String
+    }
+
+    case object InternalPushDescriptor extends Descriptor {
+      val value: String = "internal push"
+    }
+
+    case object ExternalPushDescriptor extends Descriptor {
+      val value: String = "external push"
+    }
+
+    case object PullDescriptor extends Descriptor {
+      val value: String = "pull enqueue"
+    }
   }
 
-  case class ExternalPush(pushCallbackData: PushCallbackData) extends SendRequest {
-    val name: String = "external push"
-  }
-
-  case object Pull extends SendRequest {
-    val name: String = "pull enqueue"
-  }
-
-  case class SuccessfullySent(requestType: SendRequest)
+  case class SuccessfullySent(descriptor: Request.Descriptor)
 
   sealed trait SendError
 
-  case class ClientSendError(maybeStatus: Option[Int]) extends SendError
+  case object ClientError extends SendError
 
-  case class ServerSendError(status: Int) extends SendError
+  case object ServerError extends SendError
 }

@@ -22,27 +22,30 @@ import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, Permanen
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus => LegacyStatus, ResultStatus => LegacyResultStatus}
 
 sealed trait ProcessingStatus {
-  final def name: String = legacyStatus.name
-
-  final def toBson: BsonValue = new BsonString(name)
+  def name: String
+  final def toBson: BsonValue = new BsonString(legacyStatus.name)
 
   def legacyStatus: LegacyStatus
 }
 
 object ProcessingStatus {
   case object Succeeded extends ProcessingStatus {
+    val name = "Succeeded"
     val legacyStatus: LegacyResultStatus = LegacyStatus.Succeeded
   }
 
   case object SavedToBeSent extends ProcessingStatus {
+    val name = "SavedToBeSent"
     val legacyStatus: LegacyStatus = InProgress
   }
 
   case object FailedAndBlocked extends ProcessingStatus {
+    val name = "FailedAndBlocked"
     val legacyStatus: LegacyResultStatus = PermanentlyFailed
   }
 
   case object FailedButNotBlocked extends ProcessingStatus {
+    val name = "FailedButNotBlocked"
     val legacyStatus: LegacyResultStatus = Failed
   }
 }

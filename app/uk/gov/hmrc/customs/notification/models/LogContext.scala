@@ -17,10 +17,23 @@
 package uk.gov.hmrc.customs.notification.models
 
 import org.bson.types.ObjectId
-import play.api.mvc.Headers
+import play.api.mvc.{Headers, RequestHeader}
 import uk.gov.hmrc.customs.notification.util.HeaderNames._
 
 import scala.collection.immutable.ListMap
+
+sealed abstract case class LogContext private(fieldsToLog: ListMap[String, String])
+
+object LogContext {
+  def apply[A](entity: A)(implicit l: Loggable[A]): LogContext = {
+    val filteredFields =
+      l.fieldsToLog(entity)
+        .collect { case (k, Some(v)) => k -> v }
+    new LogContext(filteredFields){}
+  }
+
+  val empty: LogContext = new LogContext(ListMap.empty) {}
+}
 
 trait Loggable[A] {
   def fieldsToLog(a: A): ListMap[String, Option[String]]
@@ -30,7 +43,7 @@ object Loggable {
   object KeyNames {
     val ConversationId = "conversationId"
     val ClientId = "clientId"
-    val ClientSubscriptionId = "fieldsId"
+    val ClientSubscriptionId = "csid"
     val NotificationId = "notificationId"
     val BadgeId = "badgeId"
     val Submitter = "submitterIdentifier"
@@ -61,7 +74,7 @@ object Loggable {
     implicit val loggableRequestMetadata: Loggable[RequestMetadata] = (r: RequestMetadata) =>
       ListMap(
         KeyNames.ConversationId -> Some(r.conversationId.toString),
-        KeyNames.ClientSubscriptionId -> Some(r.clientSubscriptionId.toString),
+        KeyNames.ClientSubscriptionId -> Some(r.csid.toString),
         KeyNames.NotificationId -> Some(r.notificationId.toString),
         KeyNames.BadgeId -> r.maybeBadgeId.map(_.value),
         KeyNames.Submitter -> r.maybeSubmitterId.map(_.value),
@@ -76,7 +89,7 @@ object Loggable {
         KeyNames.WorkItemId -> Some(n.id.toString),
         KeyNames.ConversationId -> Some(n.conversationId.toString),
         KeyNames.ClientId -> Some(n.clientId.toString),
-        KeyNames.ClientSubscriptionId -> Some(n.clientSubscriptionId.toString)
+        KeyNames.ClientSubscriptionId -> Some(n.csid.toString)
       )
     implicit val loggableClientSubscriptionId: Loggable[ClientSubscriptionId] = (id: ClientSubscriptionId) =>
       ListMap(

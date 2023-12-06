@@ -16,15 +16,14 @@
 
 package uk.gov.hmrc.customs.notification.services
 
+import cats.implicits.toBifunctorOps
 import org.mongodb.scala.bson.ObjectId
-import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MetricsConnector}
+import uk.gov.hmrc.customs.notification.connectors.{ClientDataConnector, MetricsConnector}
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableRequestMetadata
-import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.repo.Repository.MongoDbError
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService._
-import uk.gov.hmrc.customs.notification.services.SendService.SendError
 import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits._
 import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
@@ -36,30 +35,38 @@ import scala.xml.NodeSeq
 @Singleton
 class IncomingNotificationService @Inject()(repo: Repository,
                                             sendService: SendService,
-                                            apiSubscriptionFieldsConnector: ApiSubscriptionFieldsConnector,
+                                            clientDataConnector: ClientDataConnector,
                                             auditService: AuditService,
                                             metricsConnector: MetricsConnector,
-                                            logger: Logger,
-                                            newObjectIdService: ObjectIdService)(implicit ec: ExecutionContext) {
-  def process(payload: NodeSeq)(implicit requestMetadata: RequestMetadata, hc: HeaderCarrier): Future[Either[Error, Unit]] = {
+                                            newObjectIdService: ObjectIdService)
+                                           (implicit ec: ExecutionContext) extends Logger {
+  def process(payload: NodeSeq,
+              requestMetadata: RequestMetadata)
+             (implicit hc: HeaderCarrier,
+              lc: LogContext): Future[Either[Error, Unit]] = {
 
-    apiSubscriptionFieldsConnector.get(requestMetadata.clientSubscriptionId).flatMap {
-      case Left(ApiSubscriptionFieldsConnector.DeclarantNotFound) =>
+    clientDataConnector.get(requestMetadata.csid).flatMap {
+      case Left(ClientDataConnector.DeclarantNotFound) =>
         Future.successful(Left(DeclarantNotFound))
-      case Left(ApiSubscriptionFieldsConnector.OtherError) =>
+      case Left(ClientDataConnector.OtherError) =>
         Future.successful(Left(InternalServiceError))
-      case Right(ApiSubscriptionFieldsConnector.Success(apiSubscriptionFields)) =>
-        processNotificationFor(apiSubscriptionFields, payload)
+      case Right(ClientDataConnector.Success(clientData)) =>
+        processNotificationFor(clientData, payload, requestMetadata)
     }
   }
 
-  private def processNotificationFor(apiSubscriptionFields: ApiSubscriptionFields,
-                                     payload: NodeSeq)(implicit requestMetadata: RequestMetadata, hc: HeaderCarrier): Future[Either[Error, Unit]] = {
-    auditService.sendIncomingNotificationEvent(apiSubscriptionFields.fields, payload.toString, requestMetadata)
+  private def processNotificationFor(clientData: ClientData,
+                                     payload: NodeSeq,
+                                     requestMetadata: RequestMetadata)
+                                    (implicit hc: HeaderCarrier,
+                                     lc: LogContext): Future[Either[Error, Unit]] = {
+    implicit val ac: AuditContext = AuditContext(requestMetadata)
 
-    val newNotification = notificationFrom(newObjectIdService.newId(), payload, apiSubscriptionFields.clientId, requestMetadata)
+    val newNotification = notificationFrom(newObjectIdService.newId(), payload, clientData.clientId, requestMetadata)
+    auditService.sendIncomingNotificationEvent(clientData.sendData, newNotification.payload)
+
     (for {
-      failedAndBlockedExist <- repo.checkFailedAndBlockedExist(requestMetadata.clientSubscriptionId).toFutureEither
+      failedAndBlockedExist <- repo.checkFailedAndBlockedExist(requestMetadata.csid).toFutureEither
       whatToDo = if (failedAndBlockedExist) BlockAndAbort else ContinueToSend
       _ <- repo.insert(newNotification, whatToDo.stateToSave).toFutureEither
       _ = metricsConnector.send(newNotification)
@@ -67,21 +74,17 @@ class IncomingNotificationService @Inject()(repo: Repository,
       case Left(_: MongoDbError) =>
         Future.successful(Left(InternalServiceError))
       case Right(BlockAndAbort) =>
-        logger.info(s"Existing FailedAndBlocked notifications found, incoming notification saved as FailedAndBlocked", newNotification)
+        logger.info(s"Existing FailedAndBlocked notifications found, incoming notification saved as FailedAndBlocked")
         Future.successful(Right(()))
       case Right(ContinueToSend) =>
-        logger.info("Saved notification", newNotification)
+        logger.info("Saved notification")
 
-        sendService.send(newNotification, requestMetadata, apiSubscriptionFields.fields).flatMap {
-          case Left(SendError) =>
-            Future.successful(Left(InternalServiceError))
-          case Right(_) =>
-            Future.successful(Right(()))
-        }
+        sendService.send(newNotification, clientData.sendData)
+          .map(_.leftMap(_ => InternalServiceError))
     }
   }
 
-  private def notificationFrom(newId: ObjectId, xml: NodeSeq, clientId: ClientId, requestMetadata: RequestMetadata): Notification = {
+  private def notificationFrom(newId: ObjectId, payload: NodeSeq, clientId: ClientId, requestMetadata: RequestMetadata): Notification = {
     val headers =
       (requestMetadata.maybeBadgeId ++
         requestMetadata.maybeSubmitterId ++
@@ -90,12 +93,12 @@ class IncomingNotificationService @Inject()(repo: Repository,
 
     Notification(
       newId,
-      requestMetadata.clientSubscriptionId,
+      requestMetadata.csid,
       clientId,
       requestMetadata.notificationId,
       requestMetadata.conversationId,
       headers,
-      xml.toString(),
+      Payload.from(payload),
       requestMetadata.startTime
     )
   }

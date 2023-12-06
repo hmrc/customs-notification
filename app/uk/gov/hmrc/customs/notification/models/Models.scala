@@ -17,14 +17,18 @@
 package uk.gov.hmrc.customs.notification.models
 
 import org.bson.types.ObjectId
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
-import uk.gov.hmrc.customs.notification.util.HeaderNames.{ISSUE_DATE_TIME_HEADER_NAME, X_BADGE_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME, X_SUBMITTER_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.repo.Repository.Dto.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.util.HeaderNames._
 import uk.gov.hmrc.http.Authorization
+import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import java.net.URL
 import java.time.ZonedDateTime
 import java.util.UUID
 import scala.util.{Failure, Success, Try}
+import scala.xml.NodeSeq
 
 case class ConversationId(id: UUID) extends AnyVal {
   override def toString: String = id.toString
@@ -72,16 +76,20 @@ case class Header(name: String, value: String) {
 
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
+
   def forBadgeId(value: String): Header = apply(X_BADGE_ID_HEADER_NAME, value)
+
   def forSubmitterId(value: String): Header = apply(X_SUBMITTER_ID_HEADER_NAME, value)
+
   def forCorrelationId(value: String): Header = apply(X_CORRELATION_ID_HEADER_NAME, value)
+
   def forIssueDateTime(value: String): Header = apply(ISSUE_DATE_TIME_HEADER_NAME, value)
 }
 
 
-sealed trait ClientSendData
+sealed trait SendData
 
-object ClientSendData {
+object SendData {
   implicit val urlReads: Reads[URL] = {
     case JsString(urlStr) => Try(new URL(urlStr)) match {
       case Success(url) => JsSuccess(url)
@@ -89,7 +97,7 @@ object ClientSendData {
     }
     case _ => JsError("error.expected.url")
   }
-  implicit val parentReads: Reads[ClientSendData] = {
+  implicit val parentReads: Reads[SendData] = {
     case o: JsObject => (o \ "callbackUrl").asOpt[URL] match {
       case Some(callbackUrl) => (o \ "securityToken").asOpt[String] match {
         case Some(securityToken) => JsSuccess(PushCallbackData(callbackUrl, Authorization(securityToken)))
@@ -101,26 +109,30 @@ object ClientSendData {
   }
 }
 
-case object SendToPullQueue extends ClientSendData
+case object SendToPullQueue extends SendData
 
 case class PushCallbackData(callbackUrl: URL,
-                            securityToken: Authorization) extends ClientSendData
+                            securityToken: Authorization) extends SendData
 
 object PushCallbackData {
   implicit val authReads: Reads[Authorization] = Json.valueReads[Authorization]
 
-  import uk.gov.hmrc.customs.notification.models.ClientSendData.urlReads
+  import uk.gov.hmrc.customs.notification.models.SendData.urlReads
+
   implicit val reads: Reads[PushCallbackData] = Json.reads[PushCallbackData]
 }
 
-case class ApiSubscriptionFields(clientId: ClientId,
-                                 fields: ClientSendData)
+case class ClientData(clientId: ClientId,
+                      sendData: SendData)
 
-object ApiSubscriptionFields {
-  implicit val reads: Reads[ApiSubscriptionFields] = Json.reads[ApiSubscriptionFields]
+object ClientData {
+  implicit val reads: Reads[ClientData] = (
+    (__ \ "clientId").read[ClientId] and
+      (__ \ "fields").read[SendData]
+    )(ClientData.apply _)
 }
 
-case class RequestMetadata(clientSubscriptionId: ClientSubscriptionId,
+case class RequestMetadata(csid: ClientSubscriptionId,
                            conversationId: ConversationId,
                            notificationId: NotificationId,
                            maybeBadgeId: Option[Header],
@@ -132,10 +144,18 @@ case class RequestMetadata(clientSubscriptionId: ClientSubscriptionId,
                            startTime: ZonedDateTime)
 
 case class Notification(id: ObjectId,
-                        clientSubscriptionId: ClientSubscriptionId,
+                        csid: ClientSubscriptionId,
                         clientId: ClientId,
                         notificationId: NotificationId,
                         conversationId: ConversationId,
                         headers: Seq[Header],
-                        payload: String,
+                        payload: Payload,
                         metricsStartDateTime: ZonedDateTime)
+
+sealed abstract case class Payload private(underlying: String)
+
+object Payload {
+  def from(xml: NodeSeq): Payload = new Payload(xml.toString) {}
+
+  def from(repo: WorkItem[NotificationWorkItem]): Payload = new Payload(repo.item.notification.payload) {}
+}

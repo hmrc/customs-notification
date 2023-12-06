@@ -17,21 +17,22 @@
 package component
 
 import com.github.tomakehurst.wiremock.client.WireMock._
-import component.ApiSubscriptionFieldsConnectorSpec.{invalidClientSubscriptionId, validPath}
-import integration.IntegrationBaseSpec
+import component.ClientDataConnectorSpec.{invalidClientSubscriptionId, validPath}
+import integration.IntegrationSpecBase
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{DoNotDiscover, Suites}
 import org.scalatestplus.play.ConfiguredServer
-import play.api.http.Status.{NOT_FOUND, OK}
+import play.api.http.Status.NOT_FOUND
 import play.api.http.{HeaderNames, MimeTypes}
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
-import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
+import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector
 import uk.gov.hmrc.customs.notification.models
-import uk.gov.hmrc.customs.notification.models.{ApiSubscriptionFields, PushCallbackData}
-import uk.gov.hmrc.http.HeaderCarrier
-import util.IntegrationTestData.Responses.apiSubscriptionFieldsOkFor
-import util.{IntegrationTestData, TestData}
+import uk.gov.hmrc.customs.notification.models.{PushCallbackData, SendToPullQueue}
+import util.IntegrationTestData.ApiSubsFieldsUrlContext
+import util.IntegrationTestData.Stubs.stubClientDataFor
+import util.TestData.Implicits._
+import util.TestData._
 
 import java.util.UUID
 
@@ -40,39 +41,49 @@ import java.util.UUID
  * "Trait ConfiguredServer needs an Application value associated with key "org.scalatestplus.play.app" in the config map."
  */
 @DoNotDiscover
-private class TestOnlyApiSubscriptionFieldsConnectorSpec extends Suites(new ApiSubscriptionFieldsConnectorSpec) with IntegrationBaseSpec
+private class TestOnlyClientDataConnectorSpec extends Suites(new ClientDataConnectorSpec) with IntegrationSpecBase
 
 @DoNotDiscover
-class ApiSubscriptionFieldsConnectorSpec extends AnyWordSpec
+class ClientDataConnectorSpec extends AnyWordSpec
   with ConfiguredServer
   with FutureAwaits
   with DefaultAwaitTimeout
   with Matchers {
 
-  private def connector = app.injector.instanceOf[ApiSubscriptionFieldsConnector]
+  private def connector = app.injector.instanceOf[ClientDataConnector]
 
-  "ApiSubscriptionFieldsConnector" should {
-    "parse response when external service responds with 200 OK and payload" in {
-      stubFor(get(urlMatching(validPath))
-        .willReturn(
-          aResponse()
-            .withStatus(OK)
-            .withBody(apiSubscriptionFieldsOkFor(TestData.ClientId, TestData.NewClientSubscriptionId, TestData.ClientCallbackUrl))))
+  "ClientDataConnector" should {
+    "correctly parse client data for PushCallbackData" in {
+      stubClientDataFor(ClientId, NewClientSubscriptionId, Some(ClientCallbackUrl))
 
       val expected =
         Right(
-          ApiSubscriptionFieldsConnector.Success(
-            ApiSubscriptionFields(TestData.ClientId, PushCallbackData(TestData.ClientCallbackUrl, TestData.PushSecurityToken))
+          ClientDataConnector.Success(
+            models.ClientData(ClientId, PushCallbackData(ClientCallbackUrl, PushSecurityToken))
           )
         )
 
-      val actual = await(connector.get(TestData.NewClientSubscriptionId)(HeaderCarrier()))
+      val actual = await(connector.get(NewClientSubscriptionId))
+
+      actual shouldBe expected
+    }
+    "correctly parse client data for SendToPullQueue" in {
+      stubClientDataFor(ClientId, NewClientSubscriptionId, None)
+
+      val expected =
+        Right(
+          ClientDataConnector.Success(
+            models.ClientData(ClientId, SendToPullQueue)
+          )
+        )
+
+      val actual = await(connector.get(NewClientSubscriptionId))
 
       actual shouldBe expected
     }
 
     "send the required headers" in {
-      await(connector.get(TestData.NewClientSubscriptionId)(HeaderCarrier()))
+      await(connector.get(NewClientSubscriptionId))
 
       verify(getRequestedFor(urlMatching(validPath))
         .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
@@ -83,15 +94,15 @@ class ApiSubscriptionFieldsConnectorSpec extends AnyWordSpec
       stubFor(get(urlMatching(validPath))
         .willReturn(aResponse().withStatus(NOT_FOUND)))
 
-      val expected = Left(ApiSubscriptionFieldsConnector.DeclarantNotFound)
+      val expected = Left(ClientDataConnector.DeclarantNotFound)
 
-      val actual = await(connector.get(invalidClientSubscriptionId)(HeaderCarrier()))
+      val actual = await(connector.get(invalidClientSubscriptionId))
       actual shouldBe expected
     }
   }
 }
 
-object ApiSubscriptionFieldsConnectorSpec {
+object ClientDataConnectorSpec {
   val invalidClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-0000-0000-0000-000000000000"))
-  val validPath: String = IntegrationTestData.ApiSubsFieldsUrlContext + "/" + TestData.NewClientSubscriptionId.toString
+  val validPath: String = ApiSubsFieldsUrlContext + "/" + NewClientSubscriptionId.toString
 }

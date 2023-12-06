@@ -23,25 +23,30 @@ import play.mvc.Http.Status._
 
 private object Responses {
   def blockedCountOkResponseFrom(count: Int): Result = {
-    // @formatter:off
-    val countXml = <pushNotificationBlockedCount>{count}</pushNotificationBlockedCount>
-    // @formatter:on
-    Ok(s"<?xml version='1.0' encoding='UTF-8'?>\n$countXml").as(ContentTypes.XML)
+    val countXml =
+      <pushNotificationBlockedCount>
+        {count}
+      </pushNotificationBlockedCount>
+    Ok(scala.xml.Utility.trim(countXml)).as(ContentTypes.XML)
   }
 
   class Response(val status: Int,
-                         val cdsCode: String) extends play.api.mvc.Results.Status(status) {
+                 val cdsCode: String) extends play.api.mvc.Results.Status(status) {
 
     def apply(message: String): Result = {
-      val body = "<?xml version='1.0' encoding='UTF-8'?>\n" +
-        <errorResponse>
-          <code>
-            {cdsCode}
-          </code>
-          <message>
-            {message}
-          </message>
-        </errorResponse>
+      val body = {
+        val xml = {
+          <errorResponse>
+            <code>
+              {cdsCode}
+            </code>
+            <message>
+              {message}
+            </message>
+          </errorResponse>
+        }
+        scala.xml.Utility.trim(xml).toString
+      }
 
       Status(status)(body).as(ContentTypes.XML)
     }
@@ -50,6 +55,7 @@ private object Responses {
   object BadRequest extends Response(BAD_REQUEST, "BAD_REQUEST") {
     def apply(): Result = super.apply("Bad request")
   }
+
   object NotFound extends Response(NOT_FOUND, "NOT_FOUND") {
     def apply(): Result = super.apply("Resource was not found")
   }
@@ -60,7 +66,7 @@ private object Responses {
 
   object UnsupportedMediaType extends Response(UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE")
 
-  object InternalServerError extends Response(INTERNAL_SERVER_ERROR, "INTERNAL_SERVICE_ERROR"){
+  object InternalServerError extends Response(INTERNAL_SERVER_ERROR, "INTERNAL_SERVICE_ERROR") {
     def apply(): Result = super.apply("Internal server error")
   }
 }

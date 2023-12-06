@@ -17,20 +17,19 @@
 package uk.gov.hmrc.customs.notification.services
 
 import uk.gov.hmrc.customs.notification.config.CsidTranslationHotfixConfig
-import uk.gov.hmrc.customs.notification.models.ClientSubscriptionId
+import uk.gov.hmrc.customs.notification.models.{ClientSubscriptionId, LogContext}
 import uk.gov.hmrc.customs.notification.util.Logger
 
 import javax.inject.{Inject, Singleton}
 
 
 @Singleton
-class CsidTranslationHotfixService @Inject()(logger: Logger,
-                                             config: CsidTranslationHotfixConfig) {
+class CsidTranslationHotfixService @Inject()(config: CsidTranslationHotfixConfig) extends Logger{
 
-  def translate(csid: ClientSubscriptionId): ClientSubscriptionId = {
+  def translate(csid: ClientSubscriptionId)(implicit lc: LogContext): ClientSubscriptionId = {
     val safeCsid = config.newByOldCsids.getOrElse(csid, csid)
     if (safeCsid != csid) {
-      logger.warn(s"FieldsIdMapperHotFix: translating fieldsId (aka client subscription ID) [$csid] to [$safeCsid].")
+      logger.warn(s"Translating client subscription ID [$csid] to [$safeCsid].")
     }
     safeCsid
   }

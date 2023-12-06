@@ -16,58 +16,59 @@
 
 package uk.gov.hmrc.customs.notification.util
 
-import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import play.api.Mode
+import uk.gov.hmrc.customs.notification.models.LogContext
 
-import javax.inject.{Inject, Singleton}
+trait Logger {
 
-@Singleton
-class Logger @Inject()(servicesConfig: ServicesConfig) {
-  private lazy val loggerName: String = servicesConfig.getString("application.logger.name")
-  private lazy val logger = play.api.Logger(loggerName)
+  private val _logger: play.api.Logger = play.api.Logger(getClass)
+  // So we can, for example, call 'logger.info()' instead of info because that's nicer
+  val logger: Logger = this
 
-  def debug(msg: => String): Unit = {
-    logger.debug(msg)
+  def debug(message: => String)(implicit lc: LogContext): Unit = {
+    _logger.debug(format(message))
   }
 
-  def debug[A: Loggable](msg: => String, toLog: A): Unit = {
-    logger.debug(format(msg, toLog))
+  def info(message: => String)(implicit lc: LogContext): Unit = {
+    _logger.info(format(message))
   }
 
-  def info[A: Loggable](msg: => String, toLog: A): Unit = {
-    logger.info(format(msg, toLog))
+  def warn(message: => String)(implicit lc: LogContext): Unit = {
+    _logger.warn(format(message))
   }
 
-  def warn(msg: => String): Unit = {
-    logger.warn(msg)
+  def warn(message: => String, t: => Throwable)(implicit lc: LogContext): Unit = {
+    _logger.warn(format(message), t)
   }
 
-  def warn[A: Loggable](msg: => String, toLog: A): Unit = {
-    logger.warn(format(msg, toLog))
+  def error(message: => String)(implicit lc: LogContext): Unit = {
+    _logger.error(format(message))
   }
 
-  def warn[A: Loggable](msg: => String, t: => Throwable, toLog: A): Unit = {
-    logger.warn(format(msg, toLog), t)
+  def error(msg: => String, t: => Throwable)(implicit lc: LogContext): Unit = {
+    _logger.error(format(msg), t)
   }
 
-  def error(msg: => String): Unit = {
-    logger.error(msg)
-  }
+  def format(msg: String)(implicit lc: LogContext): String = {
+    val b = new StringBuilder()
 
-  def error[A: Loggable](msg: => String, toLog: A): Unit = {
-    logger.error(format(msg, toLog))
-  }
+    // Make logs easier to read in test mode
+    def newLineIfTest(): Unit =
+      if (play.api.Logger.applicationMode.contains(Mode.Test)) {
+        b.append('\n')
+      }
 
-  def error[A: Loggable](msg: => String, t: => Throwable, toLog: A): Unit = {
-    logger.error(format(msg, toLog), t)
-  }
-
-  def format[A](msg: String, toLog: A)(implicit ev: Loggable[A]): String = {
-    val prefix = {
-      ev.fieldsToLog(toLog)
-        .collect { case (k, Some(v)) => s"[$k=$v]" }
-        .mkString
+    lc.fieldsToLog.foreach { case (k, v) =>
+      b.append('[')
+      b.append(k)
+      b.append('=')
+      b.append(v)
+      b.append(']')
     }
-    s"$prefix $msg"
+    b.append(' ')
+    newLineIfTest()
+    b.append(msg)
+    newLineIfTest()
+    b.result()
   }
 }

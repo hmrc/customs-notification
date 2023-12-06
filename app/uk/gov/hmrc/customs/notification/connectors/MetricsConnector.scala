@@ -22,8 +22,10 @@ import play.api.http.MimeTypes
 import play.api.libs.json.Writes.StringWrites
 import play.api.libs.json._
 import uk.gov.hmrc.customs.notification.config.MetricsConfig
+import uk.gov.hmrc.customs.notification.connectors.HttpConnector.RequestBody
 import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.services.DateTimeService
+import uk.gov.hmrc.customs.notification.util.Helpers.ignore
 import uk.gov.hmrc.http.HeaderCarrier
 
 import javax.inject.{Inject, Singleton}
@@ -54,11 +56,11 @@ class MetricsConnector @Inject()(httpConnector: HttpConnector,
 
     httpConnector.post(
       url = config.url,
-      body = body,
+      body = RequestBody.Json(body),
       hc = updatedHc,
       requestDescriptor = "metrics",
       shouldSendRequestToAuditing = false
-    ).map(_.fold(_ => (), _ => ()))
+    ).map(ignore)
   }
 
   def incrementRetryCounter(): Unit = {

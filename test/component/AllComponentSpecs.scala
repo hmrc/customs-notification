@@ -16,11 +16,11 @@
 
 package component
 
-import integration.IntegrationBaseSpec
+import integration.IntegrationSpecBase
 import org.scalatest.Suites
 
 class AllComponentSpecs extends Suites(
-  new ApiSubscriptionFieldsConnectorSpec,
+  new ClientDataConnectorSpec,
   new SendConnectorSpec,
   new MetricsConnectorSpec)
-  with IntegrationBaseSpec
+  with IntegrationSpecBase
