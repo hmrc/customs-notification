@@ -21,7 +21,7 @@
 
     <appender name="STDOUT" class="ConsoleAppender">
         <encoder class="PatternLayoutEncoder">
-            <pattern>%date{ISO8601} level=[%level] logger=[%logger] thread=[%thread] rid=[%X{X-Request-ID}] user=[%X{Authorization}] message=[%message] %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
+            <pattern>[%level][%logger][%.3thread]%message %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
         </encoder>
     </appender>
 
@@ -45,20 +45,10 @@
         </encoder>
     </appender>
 
-    <logger name="accesslog" level="INFO" additivity="false">
-        <appender-ref ref="ACCESS_LOG_FILE"/>
-    </logger>
-    <logger name="com.ning.http.client.providers.netty" additivity="false">
-        <appender-ref ref="STDOUT_IGNORE_NETTY"/>
-    </logger>
-    <logger name="uk.gov" level="ERROR"/>
-    <logger name="application" level="WARN"/>
-    <logger name="connector" level="ERROR">
-        <appender-ref ref="STDOUT"/>
-    </logger>
-    <logger name="customs-notification" level="${logger.customs-notification:-DEBUG}"/>
+    <logger name="uk.gov.hmrc.customs.notification" level="DEBUG"/>
+    <logger name="integration" level="DEBUG"/>
 
-    <root level="ERROR">
+    <root level="WARN">
         <appender-ref ref="FILE"/>
         <appender-ref ref="FILE_JSON"/>
         <appender-ref ref="STDOUT"/>
