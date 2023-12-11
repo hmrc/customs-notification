@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.customs.notification.models
 
-sealed abstract case class AuditContext private(fieldsToAudit: Map[String, Option[String]])
+case class AuditContext private(fieldsToAudit: Map[String, Option[String]])
 
 object AuditContext {
   def apply[A](entity: A)(implicit a: Auditable[A]): AuditContext = {

@@ -16,39 +16,23 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import akka.actor.ActorSystem
-import com.typesafe.config.Config
-import play.api.Configuration
+import play.api.Logging
 import play.api.http.Status
-import play.api.libs.json.{JsObject, Reads}
-import play.api.libs.json.{Json => PlayJson}
-import play.api.libs.ws.WSClient
-import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
+import play.api.libs.json.{JsObject, Reads, Json as PlayJson}
+import uk.gov.hmrc.customs.notification.connectors.HttpConnector.*
 import uk.gov.hmrc.customs.notification.models.Payload
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
-import uk.gov.hmrc.http.hooks.HttpHook
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse}
-import uk.gov.hmrc.play.http.ws._
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import java.net.URL
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-import scala.xml.NodeSeq
 
 @Singleton
-private class NoAuditHttpClient @Inject()(override val actorSystem: ActorSystem,
-                                          config: Configuration,
-                                          override val wsClient: WSClient) extends HttpClient with WSHttp {
-
-  override protected def configuration: Config = config.underlying
-
-  override val hooks: Seq[HttpHook] = Nil
-}
-
-@Singleton
-class HttpConnector @Inject()(http: HttpClient,
-                              noAuditHttp: NoAuditHttpClient)(implicit ec: ExecutionContext) {
+class HttpConnector @Inject()(httpClient: HttpClientV2)
+                             (implicit ec: ExecutionContext) extends Logging{
 
   /**
    * Send a POST request via HTTP
@@ -61,21 +45,22 @@ class HttpConnector @Inject()(http: HttpClient,
   def post(url: URL,
            body: RequestBody,
            hc: HeaderCarrier,
-           requestDescriptor: String,
-           shouldSendRequestToAuditing: Boolean): Future[Either[PostHttpConnectorError, Unit]] = {
-    val httpClientToUse: HttpClient = chooseHttpClient(shouldSendRequestToAuditing)
-
+           requestDescriptor: String): Future[Either[PostHttpConnectorError, Unit]] = {
     val bodyAsString: String = body match {
       case RequestBody.Xml(underlying) => underlying.toString
       case RequestBody.Json(underlying) => PlayJson.stringify(underlying)
     }
 
-    httpClientToUse
-      .POSTString[HttpResponse](url, bodyAsString)(readRaw, hc, ec)
+    httpClient
+      .post(url)(hc)
+      .withBody(bodyAsString)
+      .execute
       .map { response =>
         response.status match {
-          case status if Status.isSuccessful(status) => Right(())
-          case _ => Left(ErrorResponse(requestDescriptor, response))
+          case status if Status.isSuccessful(status) =>
+            Right(())
+          case _ =>
+            Left(ErrorResponse(requestDescriptor, response))
         }
       }.recover {
       case NonFatal(t) => Left(HttpClientError(requestDescriptor, t))
@@ -93,12 +78,10 @@ class HttpConnector @Inject()(http: HttpClient,
    */
   def get[A](url: URL,
              hc: HeaderCarrier,
-             requestDescriptor: String,
-             shouldSendRequestToAuditing: Boolean)(implicit responseReads: Reads[A]): Future[Either[GetHttpConnectorError, A]] = {
-    val httpClientToUse = chooseHttpClient(shouldSendRequestToAuditing)
-
-    httpClientToUse
-      .GET[HttpResponse](url)(readRaw, hc, ec)
+             requestDescriptor: String)(implicit responseReads: Reads[A]): Future[Either[GetHttpConnectorError, A]] = {
+    httpClient
+      .get(url)(hc)
+      .execute
       .map { response =>
         response.status match {
           case status if Status.isSuccessful(status) =>
@@ -112,8 +95,6 @@ class HttpConnector @Inject()(http: HttpClient,
       case NonFatal(t) => Left(HttpClientError(requestDescriptor, t))
     }
   }
-
-  private def chooseHttpClient(shouldAudit: Boolean): HttpClient = if (shouldAudit) http else noAuditHttp
 }
 
 object HttpConnector {
@@ -123,7 +104,7 @@ object HttpConnector {
     def underlying: A
   }
 
-  object RequestBody{
+  object RequestBody {
     case class Xml(underlying: Payload) extends RequestBody {
       type A = Payload
     }
@@ -148,7 +129,7 @@ object HttpConnector {
 
   case class ErrorResponse(requestDescriptor: String, response: HttpResponse)
     extends PostHttpConnectorError with GetHttpConnectorError {
-    val message: String = s"Error response with status code ${response.status} when making $requestDescriptor request"
+    val message: String = s"Received response with status code ${response.status} when making $requestDescriptor request"
   }
 
   case class ParseError(requestDescriptor: String, response: HttpResponse)

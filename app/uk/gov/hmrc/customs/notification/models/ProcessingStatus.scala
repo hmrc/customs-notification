@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.models
 import org.bson.BsonString
 import org.mongodb.scala.bson.BsonValue
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
-import uk.gov.hmrc.mongo.workitem.{ProcessingStatus => LegacyStatus, ResultStatus => LegacyResultStatus}
+import uk.gov.hmrc.mongo.workitem.{ProcessingStatus as LegacyStatus, ResultStatus as LegacyResultStatus}
 
 sealed trait ProcessingStatus {
   def name: String

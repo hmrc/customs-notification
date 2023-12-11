@@ -1,66 +1,66 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+<configuration>
+    <import class="uk.gov.hmrc.play.logging.JsonEncoder"/>
+    <import class="ch.qos.logback.classic.encoder.PatternLayoutEncoder"/>
+    <import class="ch.qos.logback.core.FileAppender"/>
+    <import class="ch.qos.logback.core.ConsoleAppender"/>
+
+    <appender name="FILE" class="FileAppender">
         <file>logs/customs-notification.log</file>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+        <encoder class="PatternLayoutEncoder">
             <pattern>%date{ISO8601} level=[%level] logger=[%logger] thread=[%thread] message=[%message] %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
         </encoder>
     </appender>
 
-    <appender name="FILE_JSON" class="ch.qos.logback.core.FileAppender">
+    <appender name="FILE_JSON" class="FileAppender">
         <file>logs/customs-notification-json.log</file>
-        <encoder class="uk.gov.hmrc.play.logging.JsonEncoder"/>
+        <encoder class="JsonEncoder"/>
     </appender>
 
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+    <appender name="STDOUT" class="ConsoleAppender">
+        <encoder class="PatternLayoutEncoder">
             <pattern>%date{ISO8601} level=[%level] logger=[%logger] thread=[%thread] rid=[%X{X-Request-ID}] user=[%X{Authorization}] message=[%message] %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
         </encoder>
     </appender>
 
-    <appender name="STDOUT_IGNORE_NETTY" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+    <appender name="STDOUT_IGNORE_NETTY" class="ConsoleAppender">
+        <encoder class="PatternLayoutEncoder">
             <pattern>%date{ISO8601} level=[%level] logger=[%logger] thread=[%thread] rid=[not-available] user=[not-available] message=[%message] %replace(exception=[%xException]){'^exception=\[\]$',''}%n</pattern>
         </encoder>
     </appender>
 
-    <appender name="ACCESS_LOG_FILE" class="ch.qos.logback.core.FileAppender">
+    <appender name="ACCESS_LOG_FILE" class="FileAppender">
         <file>logs/access.log</file>
-        <encoder>
+        <encoder class="PatternLayoutEncoder">
             <pattern>%message%n</pattern>
         </encoder>
     </appender>
 
-    <appender name="CONNECTOR_LOG_FILE" class="ch.qos.logback.core.FileAppender">
+    <appender name="CONNECTOR_LOG_FILE" class="FileAppender">
         <file>logs/connector.log</file>
-        <encoder>
+        <encoder class="PatternLayoutEncoder">
             <pattern>%message%n</pattern>
         </encoder>
     </appender>
-
 
     <logger name="accesslog" level="INFO" additivity="false">
-        <appender-ref ref="ACCESS_LOG_FILE" />
+        <appender-ref ref="ACCESS_LOG_FILE"/>
     </logger>
-
     <logger name="com.ning.http.client.providers.netty" additivity="false">
-        <appender-ref ref="STDOUT_IGNORE_NETTY" />
+        <appender-ref ref="STDOUT_IGNORE_NETTY"/>
     </logger>
-
     <logger name="uk.gov" level="ERROR"/>
-
     <logger name="application" level="WARN"/>
-
     <logger name="connector" level="ERROR">
         <appender-ref ref="STDOUT"/>
     </logger>
-
     <logger name="customs-notification" level="${logger.customs-notification:-DEBUG}"/>
 
     <root level="ERROR">
         <appender-ref ref="FILE"/>
-        <appender-ref ref="FILE_JSON" />
+        <appender-ref ref="FILE_JSON"/>
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

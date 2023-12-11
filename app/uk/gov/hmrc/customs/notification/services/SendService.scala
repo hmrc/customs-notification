@@ -16,23 +16,26 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import uk.gov.hmrc.customs.notification.config.{RetryAvailableAfterConfig, SendConfig}
+import uk.gov.hmrc.customs.notification.config.RetryDelayConfig
 import uk.gov.hmrc.customs.notification.connectors.SendConnector
-import uk.gov.hmrc.customs.notification.connectors.SendConnector._
-import uk.gov.hmrc.customs.notification.models._
+import uk.gov.hmrc.customs.notification.connectors.SendConnector.*
+import uk.gov.hmrc.customs.notification.models.*
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
 import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.repo.Repository.MongoDbError
+import uk.gov.hmrc.customs.notification.util.*
 import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits.FutureEitherExtensions
-import uk.gov.hmrc.customs.notification.util._
 import uk.gov.hmrc.http.HeaderCarrier
 
+import java.time.ZonedDateTime
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SendService @Inject()(sendConnector: SendConnector,
                             repo: Repository,
-                            retryAvailableAfterConfig: RetryAvailableAfterConfig,
+                            retryDelayConfig: RetryDelayConfig,
                             dateTimeService: DateTimeService)
                            (implicit ec: ExecutionContext) extends Logger {
   def send(notification: Notification,
@@ -46,30 +49,50 @@ class SendService @Inject()(sendConnector: SendConnector,
         logger.info(s"${requestDescriptor.value.capitalize} succeeded")
         Future.successful(Right(()))
       case Left(error: SendError) =>
-        error match {
-          case ClientError =>
-            val failedButNotBlockedAvailableFrom =
-              dateTimeService.now()
-                .plusSeconds(retryAvailableAfterConfig.failedButNotBlocked.toSeconds)
-
-            logger.error(s"Failed to send notification due to client error. Setting availableAt to $failedButNotBlockedAvailableFrom")
-
-            repo.setFailedButNotBlocked(
-              notification.id,
-              failedButNotBlockedAvailableFrom
-            )
-          case ServerError =>
-            val failedAndBlockedAvailableFrom =
-              dateTimeService.now()
-                .plusSeconds(retryAvailableAfterConfig.failedAndBlocked.toSeconds)
-
-            logger.error(s"Failed to send notification due to server error. Blocking notifications for client subscription ID")
-
-            (for {
-              _ <- repo.setFailedAndBlocked(notification.id, failedAndBlockedAvailableFrom).toFutureEither
-              _ <- repo.blockAllFailedButNotBlocked(notification.csid).toFutureEither
-            } yield ()).value
+        val whatToDo = error match {
+          case ClientError => DoWhenClientError
+          case ServerError => DoWhenServerError
         }
+        logger.error(whatToDo.errorMessage)
+        whatToDo.doWith(notification)
+    }
+  }
+
+  private sealed trait WhatToDo {
+    def retryDelay: FiniteDuration
+
+    final def availableAt(): ZonedDateTime = dateTimeService.now().plusSeconds(retryDelay.toSeconds)
+
+    def errorMessage: String
+
+    def doWith(notification: Notification): Future[Either[MongoDbError, Unit]]
+  }
+
+  private case object DoWhenClientError extends WhatToDo {
+    val retryDelay: FiniteDuration = retryDelayConfig.failedButNotBlocked
+    val errorMessage: String = s"Failed to send notification due to client error. Setting availableAt to ${availableAt()}"
+
+    def doWith(notification: Notification): Future[Either[MongoDbError, Unit]] = {
+      repo.setFailedButNotBlocked(
+        notification.id,
+        availableAt()
+      )(LogContext(notification))
+    }
+  }
+
+  private case object DoWhenServerError extends WhatToDo {
+    val retryDelay: FiniteDuration = retryDelayConfig.failedAndBlocked
+    val errorMessage: String =
+      s"Failed to send notification due to client error." +
+        " Blocking outstanding notifications for client subscription ID" +
+        s" and setting availableAt to ${availableAt()}"
+
+    def doWith(notification: Notification): Future[Either[MongoDbError, Unit]] = {
+      implicit val lc: LogContext = LogContext(notification)
+      (for {
+        _ <- repo.setFailedAndBlocked(notification.id, availableAt()).toFutureEither
+        _ <- repo.blockAllFailedButNotBlocked(notification.csid).toFutureEither
+      } yield ()).value
     }
   }
 }

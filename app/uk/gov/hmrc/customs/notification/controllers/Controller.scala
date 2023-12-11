@@ -16,18 +16,19 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
-import play.api.mvc._
+import play.api.mvc.{Action, AnyContent, ControllerComponents, Headers, Result, Results as PlayResults}
 import uk.gov.hmrc.customs.notification.config.BasicAuthConfig
-import uk.gov.hmrc.customs.notification.controllers.Responses._
-import uk.gov.hmrc.customs.notification.controllers.ValidationError._
-import uk.gov.hmrc.customs.notification.models.LogContext
+import uk.gov.hmrc.customs.notification.controllers.Results.*
+import uk.gov.hmrc.customs.notification.controllers.errors.{SubmitValidationError, Validation}
+import uk.gov.hmrc.customs.notification.controllers.errors.ValidationError.*
+import uk.gov.hmrc.customs.notification.models.{LogContext, NotificationId}
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.{loggableHeaders, loggableRequestMetadata}
 import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
-import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits._
-import uk.gov.hmrc.customs.notification.util.HeaderNames._
-import uk.gov.hmrc.customs.notification.util._
+import uk.gov.hmrc.customs.notification.services.*
+import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits.*
+import uk.gov.hmrc.customs.notification.util.HeaderNames.*
+import uk.gov.hmrc.customs.notification.util.*
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
@@ -41,7 +42,7 @@ class Controller @Inject()()(implicit
                              incomingNotificationService: IncomingNotificationService,
                              dateTimeService: DateTimeService,
                              hcService: HeaderCarrierService,
-                             newNotificationIdService: NotificationIdService,
+                             uuidService: UuidService,
                              csidTranslationHotfixService: CsidTranslationHotfixService,
                              basicAuthConfig: BasicAuthConfig,
                              repo: Repository) extends BackendController(cc) with Logger with Validation {
@@ -56,10 +57,11 @@ class Controller @Inject()()(implicit
       (for {
         _ <- authorise(basicAuthConfig.token).toFutureEither
         _ <- validateAcceptHeader.toFutureEither
-        rm <- validateRequestMetadata(request.body, newNotificationIdService.newId(), dateTimeService.now()).toFutureEither
+        notificationId = NotificationId(uuidService.randomUuid())
+        now = dateTimeService.now()
+        rm <- validateRequestMetadata(request.body, notificationId, now).toFutureEither
       } yield (request.body, rm)).value.flatMap {
         case Left(error) =>
-          logger.debug(s"Headers:\n${request.headers.headers.map { case (k, v) => s"$k: $v" }.mkString("\n")}")
           logger.error(error.errorMessage)
           Future.successful {
             handleValidationError(error)
@@ -72,7 +74,7 @@ class Controller @Inject()()(implicit
             case Left(error) =>
               handleProcessingError(error)
             case Right(_) =>
-              Results.Accepted
+              PlayResults.Accepted
           }
       }
     }
@@ -80,19 +82,19 @@ class Controller @Inject()()(implicit
 
   private def handleValidationError(error: SubmitValidationError): Result = error match {
     case e: InvalidBasicAuth =>
-      Responses.Unauthorised(e.responseMessage)
+      Results.Unauthorised(e.responseMessage)
     case e: InvalidAccept =>
-      Responses.NotAcceptable(e.responseMessage)
+      Results.NotAcceptable(e.responseMessage)
     case InvalidHeaders(headerErrors) =>
       // Pick first error to keep in line with original short-circuiting behaviour
-      Responses.BadRequest(headerErrors.head.responseMessage)
+      Results.BadRequest(headerErrors.head.responseMessage)
   }
 
   private def handleProcessingError(error: IncomingNotificationService.Error): Result = error match {
     case DeclarantNotFound =>
-      Responses.BadRequest(s"The $X_CLIENT_SUB_ID_HEADER_NAME header is invalid")
+      Results.BadRequest(s"The $X_CLIENT_SUB_ID_HEADER_NAME header is invalid.")
     case InternalServiceError =>
-      Responses.InternalServerError()
+      Results.InternalServerError()
   }
 
   def blockedCount(): Action[AnyContent] = Action.async { request =>
@@ -101,12 +103,12 @@ class Controller @Inject()()(implicit
     getClientId(request.headers) match {
       case Left(MissingClientId) =>
         logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling blocked-count endpoint")
-        Future.successful(Responses.BadRequest(MissingClientId.responseMessage))
+        Future.successful(Results.BadRequest(MissingClientId.responseMessage))
       case Right(clientId) =>
         repo.getFailedAndBlockedCount(clientId).map {
           case Left(mongoDbError) =>
             logger.error(mongoDbError.message)
-            Responses.InternalServerError()
+            Results.InternalServerError()
           case Right(count) =>
             blockedCountOkResponseFrom(count)
         }
@@ -119,15 +121,20 @@ class Controller @Inject()()(implicit
     getClientId(request.headers) match {
       case Left(MissingClientId) =>
         logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling delete blocked-flag endpoint")
-        Future.successful(Responses.BadRequest(MissingClientId.responseMessage))
+        Future.successful(Results.BadRequest(MissingClientId.responseMessage))
       case Right(clientId) =>
         repo.unblockFailedAndBlocked(clientId).map {
           case Left(mongoDbError) =>
             logger.error(mongoDbError.message)
-            Responses.InternalServerError()
+            Results.InternalServerError()
           case Right(count) =>
-            logger.info(s"$count FailedAndBlocked notifications set to FailedButNotBlocked")
-            Results.NoContent
+            if (count > 0) {
+              logger.info(s"$count FailedAndBlocked notifications set to FailedButNotBlocked")
+              PlayResults.NoContent
+            } else {
+              logger.info("No FailedAndBlocked notifications found")
+              Results.NotFound()
+            }
         }
     }
   }

@@ -18,8 +18,9 @@ package uk.gov.hmrc.customs.notification.services
 
 import com.google.inject.Inject
 import play.api.libs.json.{JsObject, Json}
-import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.services.AuditService._
+import uk.gov.hmrc.customs.notification.config.AppConfig
+import uk.gov.hmrc.customs.notification.models.*
+import uk.gov.hmrc.customs.notification.services.AuditService.*
 import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames}
 import uk.gov.hmrc.play.audit.EventKeys
@@ -33,7 +34,9 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AuditService @Inject()(auditConnector: AuditConnector,
-                             dateTimeService: DateTimeService)
+                             dateTimeService: DateTimeService,
+                             appConfig: AppConfig,
+                             uuidService: UuidService)
                             (implicit ec: ExecutionContext) extends Logger {
 
   def sendSuccessfulInternalPushEvent(pushCallbackData: PushCallbackData,
@@ -91,7 +94,9 @@ class AuditService @Inject()(auditConnector: AuditConnector,
 
     auditConnector.sendExtendedEvent(
       ExtendedDataEvent(
-        auditSource = "customs-notification",
+        eventId = uuidService.randomUuid().toString,
+        generatedAt = dateTimeService.now().toInstant,
+        auditSource = appConfig.name,
         auditType = auditType.value,
         tags = Map(EventKeys.TransactionName -> "customs-declaration-outbound-call") ++ tags,
         detail = auditDetail.toJs
@@ -148,7 +153,7 @@ object AuditService {
     val extraFields: JsObject = {
       val explicitHeaders = headerCarrier.headers(HeaderNames.explicitlyIncludedHeaders)
       Json.obj(
-        "payload" -> payload.underlying,
+        "payload" -> payload.toString,
         "payloadHeaders" -> (explicitHeaders ++ headerCarrier.extraHeaders).toString)
     }
   }

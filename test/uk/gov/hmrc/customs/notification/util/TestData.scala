@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package util
+package uk.gov.hmrc.customs.notification.util
 
 import org.bson.types.ObjectId
 import uk.gov.hmrc.customs.notification.models
-import uk.gov.hmrc.customs.notification.models._
+import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.http
 import uk.gov.hmrc.http.{Authorization, HeaderCarrier, RequestId}
 
@@ -30,36 +30,40 @@ import scala.xml.NodeSeq
 object TestData {
   object Implicits {
     implicit val LogContext: LogContext = models.LogContext.empty
-    implicit val AuditContext: AuditContext = models.AuditContext(())(_ => Map.empty)
+    implicit val EmptyAuditContext: models.AuditContext = models.AuditContext(())(_ => Map.empty)
     implicit val HeaderCarrier: HeaderCarrier = http.HeaderCarrier(requestId = Some(RequestId("some-request-id"))) // Not pure; encodes current point in time
   }
   val BasicAuthTokenValue = "YmFzaWN1c2VyOmJhc2ljcGFzc3dvcmQ="
   val TimeNow = ZonedDateTime.of(2023, 12, 25, 0, 0, 1, 0, ZoneId.of("UTC")) // scalastyle:off magic.number
   val IssueDateTime = TimeNow
-  val NewClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-8888-4444-2222-111111111111"))
-  val OldClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-2222-4444-8888-161616161616"))
+  val TranslatedCsid = models.ClientSubscriptionId(UUID.fromString("00000000-8888-4444-2222-111111111111"))
+  val UntranslatedCsid = models.ClientSubscriptionId(UUID.fromString("00000000-2222-4444-8888-161616161616"))
   val ClientId = models.ClientId("Client1")
-  val ClientCallbackUrl = new URL("http://www.example.net")
+  val ClientCallbackUrl = new URL("http://www.example.local")
   val PushSecurityToken = Authorization("SECURITY_TOKEN")
   val PushCallbackData = models.PushCallbackData(ClientCallbackUrl, PushSecurityToken)
   val ClientData = models.ClientData(ClientId, PushCallbackData)
   val ConversationId = models.ConversationId(UUID.fromString("00000000-4444-4444-AAAA-AAAAAAAAAAAA"))
-  val NotificationId = models.NotificationId(UUID.fromString("00000000-9999-4444-9999-444444444444"))
+  val SomeUuid = UUID.fromString("00000000-9999-4444-9999-444444444444")
+  val NotificationId = models.NotificationId(SomeUuid)
   val BadgeId = "ABCDEF1234"
   val SubmitterId = "IAMSUBMITTER"
   val CorrelationId = "CORRID2234"
-  val ValidXml: NodeSeq = <Foo>Bar</Foo>
+  val FunctionCode = models.FunctionCode("01")
+  val Mrn = models.Mrn("19GB3955NQ36213969")
+  val ValidXml: NodeSeq = <Too><Response><Declaration><ID>{Mrn.value}</ID><FunctionCode>{FunctionCode.value}</FunctionCode></Declaration></Response></Too>
   val Payload = models.Payload.from(ValidXml)
   val ApiSubscriptionFieldsUrl = new URL("http://www.example.com")
   val MetricsUrl = new URL("http://www.example.org")
 
-  val RequestMetadata: RequestMetadata = models.RequestMetadata(NewClientSubscriptionId, ConversationId, NotificationId,
+  val RequestMetadata: RequestMetadata = models.RequestMetadata(TranslatedCsid, ConversationId, NotificationId,
     Some(Header.forBadgeId(BadgeId)), Some(Header.forSubmitterId(SubmitterId)), Some(Header.forCorrelationId(CorrelationId)),
-    Some(Header.forIssueDateTime(IssueDateTime.toString)), None, None, TimeNow)
+    Some(Header.forIssueDateTime(IssueDateTime.toString)), Some(FunctionCode), Some(Mrn), TimeNow)
 
   val ObjectId = new ObjectId("aaaaaaaaaaaaaaaaaaaaaaaa")
 
-  val Notification: Notification = {
+  val Notification = notificationFor(TimeNow)
+  def notificationFor(time: ZonedDateTime): Notification = {
     val headers = (RequestMetadata.maybeBadgeId ++
       RequestMetadata.maybeSubmitterId ++
       RequestMetadata.maybeCorrelationId ++
@@ -67,13 +71,13 @@ object TestData {
 
     models.Notification(
       ObjectId,
-      NewClientSubscriptionId,
+      TranslatedCsid,
       ClientId,
       NotificationId,
       ConversationId,
       headers,
       Payload,
-      TimeNow)
+      time)
   }
 
   val Exception: Throwable = new RuntimeException("Some error happened")

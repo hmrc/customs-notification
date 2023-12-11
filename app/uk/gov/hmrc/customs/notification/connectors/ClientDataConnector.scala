@@ -20,10 +20,10 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.http.Status.NOT_FOUND
 import uk.gov.hmrc.customs.notification.config.ClientDataConfig
-import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector._
-import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
-import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.util._
+import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector.*
+import uk.gov.hmrc.customs.notification.connectors.HttpConnector.*
+import uk.gov.hmrc.customs.notification.models.*
+import uk.gov.hmrc.customs.notification.util.*
 import uk.gov.hmrc.http.HeaderCarrier
 
 import java.net.URL
@@ -50,8 +50,7 @@ class ClientDataConnector @Inject()(httpConnector: HttpConnector,
     httpConnector.get[ClientData](
       url = url,
       hc = newHc,
-      requestDescriptor = "API subscription fields",
-      shouldSendRequestToAuditing = true
+      requestDescriptor = "API subscription fields"
     )
   }.map {
     case Right(a) =>

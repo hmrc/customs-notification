@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package component
+package uk.gov.hmrc.customs.notification.connectors
 
-import com.github.tomakehurst.wiremock.client.WireMock._
-import integration.IntegrationSpecBase
-import org.scalatest._
+import com.github.tomakehurst.wiremock.client.WireMock.*
+import org.scalatest.*
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.play.ConfiguredServer
@@ -26,14 +25,13 @@ import play.api.http.MimeTypes
 import play.api.libs.json.Json
 import play.api.test.Helpers.{ACCEPT, CONTENT_TYPE}
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
-import uk.gov.hmrc.customs.notification.connectors.MetricsConnector
-import util.TestData.Implicits._
-import util.TestData._
-import util.{IntegrationTestData, TestData}
+import uk.gov.hmrc.customs.notification.IntegrationSpecBase
+import uk.gov.hmrc.customs.notification.util.IntegrationTestHelpers.*
+import uk.gov.hmrc.customs.notification.util.TestData.*
+import uk.gov.hmrc.customs.notification.util.TestData.Implicits.*
 
 /**
- * Convenience class to only test this suite, as running suite directly will complain with the following:
- * "Trait ConfiguredServer needs an Application value associated with key "org.scalatestplus.play.app" in the config map."
+ * Convenience class to only test this suite, as no app is available when running suite directly
  */
 @DoNotDiscover
 private class TestOnlySendMetricsConnectorSpec extends Suites(new MetricsConnectorSpec) with IntegrationSpecBase
@@ -51,7 +49,7 @@ class MetricsConnectorSpec extends AnyWordSpec
     "send the correct headers" in {
       await(connector.send(Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTestData.MetricsUrlContext))
+      verify(postRequestedFor(urlMatching(PathFor.Metrics))
         .withHeader(ACCEPT, equalTo(MimeTypes.JSON))
         .withHeader(CONTENT_TYPE, equalTo(MimeTypes.JSON)))
     }
@@ -59,13 +57,13 @@ class MetricsConnectorSpec extends AnyWordSpec
     "send the correct body" in {
       await(connector.send(Notification))
 
-      verify(postRequestedFor(urlMatching(IntegrationTestData.MetricsUrlContext))
+      verify(postRequestedFor(urlMatching(PathFor.Metrics))
         .withRequestBody(equalToJson(
           Json.obj(
             "eventType" -> "NOTIFICATION",
-            "conversationId" -> TestData.ConversationId.toString,
-            "eventStart" -> TestData.TimeNow,
-            "eventEnd" -> TestData.TimeNow
+            "conversationId" -> ConversationId.toString,
+            "eventStart" -> TimeNow,
+            "eventEnd" -> TimeNow
           ).toString
         )))
     }

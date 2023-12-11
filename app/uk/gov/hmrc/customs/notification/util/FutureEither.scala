@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.util
 
 import cats.implicits.toBifunctorOps
-import uk.gov.hmrc.customs.notification.util.Helpers.ignore
+import uk.gov.hmrc.customs.notification.util.Helpers.ignoreResult
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -31,7 +31,7 @@ case class FutureEither[+E, +A](value: Future[Either[E, A]]) {
     })
 
   def withUnitAsError(implicit ec: ExecutionContext): FutureEither[Unit, A] =
-    FutureEither(value.map(_.leftMap(ignore)))
+    FutureEither(value.map(_.leftMap(ignoreResult)))
 }
 
 object FutureEither {

@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.controllers
+package uk.gov.hmrc.customs.notification.controllers.errors
 
-import cats.implicits._
+import cats.implicits.*
 import play.api.http.HeaderNames.{ACCEPT, AUTHORIZATION}
-import play.api.mvc._
+import play.api.mvc.*
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.notification.controllers.ValidationError._
-import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.services._
-import uk.gov.hmrc.customs.notification.util.HeaderNames._
-import uk.gov.hmrc.customs.notification.util.Helpers.ignore
+import uk.gov.hmrc.customs.notification.controllers.errors.ValidationError.*
+import uk.gov.hmrc.customs.notification.models.*
+import uk.gov.hmrc.customs.notification.services.*
+import uk.gov.hmrc.customs.notification.util.HeaderNames.*
+import uk.gov.hmrc.customs.notification.util.Helpers.ignoreResult
 import uk.gov.hmrc.http.Authorization
 
 import java.time.ZonedDateTime
@@ -109,7 +109,7 @@ trait Validation {
       headerName = AUTHORIZATION,
       predicate = _.contains(authToken.value),
       mapError = InvalidBasicAuth,
-      mapValue = ignore
+      mapValue = ignoreResult
     )
 
   def validateAcceptHeader(implicit h: Headers): Either[InvalidAccept, Unit] =
@@ -117,7 +117,7 @@ trait Validation {
       headerName = ACCEPT,
       predicate = _.contains(MimeTypes.XML),
       mapError = InvalidAccept,
-      mapValue = ignore
+      mapValue = ignoreResult
     )
 
   private def validateMandatory[E, A](headerName: String,

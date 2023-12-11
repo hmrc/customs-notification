@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.controllers
+package uk.gov.hmrc.customs.notification.controllers.errors
 
 import cats.data.NonEmptyList
-import play.api.http.HeaderNames._
+import play.api.http.HeaderNames.*
 import uk.gov.hmrc.customs.notification.util.HeaderNames.{X_CLIENT_ID_HEADER_NAME, X_CLIENT_SUB_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
 
 sealed trait SubmitValidationError {

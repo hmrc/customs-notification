@@ -18,9 +18,9 @@ package uk.gov.hmrc.customs.notification.models
 
 import org.bson.types.ObjectId
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json._
+import play.api.libs.json.*
 import uk.gov.hmrc.customs.notification.repo.Repository.Dto.NotificationWorkItem
-import uk.gov.hmrc.customs.notification.util.HeaderNames._
+import uk.gov.hmrc.customs.notification.util.HeaderNames.*
 import uk.gov.hmrc.http.Authorization
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
@@ -152,7 +152,9 @@ case class Notification(id: ObjectId,
                         payload: Payload,
                         metricsStartDateTime: ZonedDateTime)
 
-sealed abstract case class Payload private(underlying: String)
+case class Payload private(underlying: String) {
+  override val toString: String = underlying
+}
 
 object Payload {
   def from(xml: NodeSeq): Payload = new Payload(xml.toString) {}

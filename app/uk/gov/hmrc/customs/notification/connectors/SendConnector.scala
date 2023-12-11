@@ -18,15 +18,15 @@ package uk.gov.hmrc.customs.notification.connectors
 
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.{MimeTypes, Status}
-import play.api.libs.json._
+import play.api.libs.json.*
 import uk.gov.hmrc.customs.notification.config.SendConfig
-import uk.gov.hmrc.customs.notification.connectors.HttpConnector._
+import uk.gov.hmrc.customs.notification.connectors.HttpConnector.*
 import uk.gov.hmrc.customs.notification.connectors.SendConnector.Request.{ExternalPushDescriptor, InternalPushDescriptor, PullDescriptor}
-import uk.gov.hmrc.customs.notification.connectors.SendConnector._
+import uk.gov.hmrc.customs.notification.connectors.SendConnector.*
 import uk.gov.hmrc.customs.notification.models.Header.jsonFormat
-import uk.gov.hmrc.customs.notification.models._
+import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.customs.notification.services.AuditService
-import uk.gov.hmrc.customs.notification.util.HeaderNames._
+import uk.gov.hmrc.customs.notification.util.HeaderNames.*
 import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -47,14 +47,14 @@ class SendConnector @Inject()(http: HttpConnector,
            ac: AuditContext): Future[Either[SendError, SuccessfullySent]] = {
     val request = createRequestFrom(notification, clientSendData)
 
-    val response =
+    val response = {
       http.post(
         url = request.callbackUrl,
         body = request.body,
         hc = request.headerCarrier,
-        requestDescriptor = request.descriptor.value,
-        shouldSendRequestToAuditing = true
+        requestDescriptor = request.descriptor.value
       )
+    }
 
     response.map {
       case Right(()) =>
@@ -96,16 +96,20 @@ class SendConnector @Inject()(http: HttpConnector,
                                   logContext: LogContext,
                                   auditContext: AuditContext) extends Request {
     val descriptor: Request.Descriptor = InternalPushDescriptor
-    val headerCarrier: HeaderCarrier = prevHc
-      .copy(authorization = Some(pushCallbackData.securityToken))
-      .withExtraHeaders(
+    val headerCarrier: HeaderCarrier = {
+      val extraHeaders = {
         List(
           CONTENT_TYPE -> MimeTypes.XML,
           ACCEPT -> MimeTypes.XML,
           NOTIFICATION_ID_HEADER_NAME -> notification.id.toString,
           X_CONVERSATION_ID_HEADER_NAME -> notification.conversationId.toString
-        ) ++ notification.headers.map(_.toTuple): _*
-      )
+        ) ++ notification.headers.map(_.toTuple)
+      }
+
+      prevHc
+        .copy(authorization = Some(pushCallbackData.securityToken))
+        .withExtraHeaders(extraHeaders *)
+    }
 
     val callbackUrl: URL = pushCallbackData.callbackUrl
     val body: RequestBody.Xml = RequestBody.Xml(notification.payload)

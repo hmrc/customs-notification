@@ -19,9 +19,9 @@ package uk.gov.hmrc.customs.notification.controllers
 import play.api.http.ContentTypes
 import play.api.mvc.Result
 import play.api.mvc.Results.{Ok, Status}
-import play.mvc.Http.Status._
+import play.mvc.Http.Status.*
 
-private object Responses {
+private object Results {
   def blockedCountOkResponseFrom(count: Int): Result = {
     val countXml =
       <pushNotificationBlockedCount>
@@ -34,19 +34,17 @@ private object Responses {
                  val cdsCode: String) extends play.api.mvc.Results.Status(status) {
 
     def apply(message: String): Result = {
-      val body = {
-        val xml = {
-          <errorResponse>
-            <code>
-              {cdsCode}
-            </code>
-            <message>
-              {message}
-            </message>
-          </errorResponse>
-        }
-        scala.xml.Utility.trim(xml).toString
-      }
+      val xml =
+        <errorResponse>
+          <code>
+            {cdsCode}
+          </code>
+          <message>
+            {message}
+          </message>
+        </errorResponse>
+
+      val body = scala.xml.Utility.trim(xml).toString
 
       Status(status)(body).as(ContentTypes.XML)
     }
@@ -57,7 +55,7 @@ private object Responses {
   }
 
   object NotFound extends Response(NOT_FOUND, "NOT_FOUND") {
-    def apply(): Result = super.apply("Resource was not found")
+    def apply(): Result = super.apply("Resource was not found.")
   }
 
   object Unauthorised extends Response(UNAUTHORIZED, "UNAUTHORIZED")
@@ -66,7 +64,7 @@ private object Responses {
 
   object UnsupportedMediaType extends Response(UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE")
 
-  object InternalServerError extends Response(INTERNAL_SERVER_ERROR, "INTERNAL_SERVICE_ERROR") {
-    def apply(): Result = super.apply("Internal server error")
+  object InternalServerError extends Response(INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR") {
+    def apply(): Result = super.apply("Internal server error.")
   }
 }

@@ -18,25 +18,25 @@ package uk.gov.hmrc.customs.notification.repo
 
 
 import org.bson.types.ObjectId
-import org.joda.time.DateTime
 import org.mongodb.scala.Observable
+import org.mongodb.scala.bson.BsonDateTime
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.Filters.*
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, set}
-import org.mongodb.scala.model._
+import org.mongodb.scala.model.*
 import play.api.http.MimeTypes
-import play.api.libs.json._
+import play.api.libs.json.*
 import uk.gov.hmrc.customs.notification.config.RepoConfig
+import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.customs.notification.models.ProcessingStatus.{FailedAndBlocked, FailedButNotBlocked, SavedToBeSent, Succeeded}
-import uk.gov.hmrc.customs.notification.models._
-import uk.gov.hmrc.customs.notification.repo.Repository.Dto._
-import uk.gov.hmrc.customs.notification.repo.Repository._
+import uk.gov.hmrc.customs.notification.repo.Repository.*
+import uk.gov.hmrc.customs.notification.repo.Repository.Dto.*
 import uk.gov.hmrc.customs.notification.services.DateTimeService
-import uk.gov.hmrc.customs.notification.util.Helpers.ignore
+import uk.gov.hmrc.customs.notification.util.Helpers.ignoreResult
 import uk.gov.hmrc.customs.notification.util.Logger
-import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
+import uk.gov.hmrc.mongo.play.json.formats.MongoFormats
 import uk.gov.hmrc.mongo.workitem.{WorkItem, WorkItemFields, WorkItemRepository}
 import uk.gov.hmrc.mongo.{MongoComponent, MongoUtils}
 
@@ -45,7 +45,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.DurationConverters.ScalaDurationOps
-import scala.xml.XML
 
 @Singleton
 class Repository @Inject()(mongo: MongoComponent,
@@ -71,16 +70,24 @@ class Repository @Inject()(mongo: MongoComponent,
   override val inProgressRetryAfter: Duration = config.inProgressRetryDelay.toJava
 
   def insert(domainEntity: Notification,
-             processingStatus: ProcessingStatus)
-            (implicit lc: LogContext): Future[Either[MongoDbError, Unit]] =
+             processingStatus: ProcessingStatus,
+             availableAt: ZonedDateTime,
+             failureCount: Int)
+            (implicit lc: LogContext): Future[Either[MongoDbError, Unit]] = {
     catchExceptions("saving notification") {
-      val mongoWorkItem: WorkItem[NotificationWorkItem] = domainToRepo(domainEntity, processingStatus, now())
-      collection.insertOne(mongoWorkItem).toFuture().map(ignore)
+      val mongoWorkItem: WorkItem[NotificationWorkItem] =
+        domainToRepo(
+          domainEntity,
+          processingStatus,
+          availableAt.toInstant,
+          failureCount)
+      collection.insertOne(mongoWorkItem).toFuture().map(ignoreResult)
     }
+  }
 
   def setSucceeded(id: ObjectId)(implicit lc: LogContext): Future[Either[MongoDbError, Unit]] =
     catchExceptions(s"setting notification to Succeeded") {
-      markAs(id, Succeeded.legacyStatus).map(ignore)
+      markAs(id, Succeeded.legacyStatus).map(ignoreResult)
     }
 
   def setFailedAndBlocked(id: ObjectId, availableAt: ZonedDateTime)(implicit lc: LogContext): Future[Either[MongoDbError, Unit]] =
@@ -147,16 +154,13 @@ class Repository @Inject()(mongo: MongoComponent,
       collection.updateMany(selector, update).toFuture().map(_.getModifiedCount.toInt)
     }
 
-  def blockAllFailedButNotBlocked(csid: ClientSubscriptionId)(implicit lc: LogContext): Future[Either[MongoDbError, Int]] =
+  def blockAllFailedButNotBlocked(csid: ClientSubscriptionId)(implicit lc: LogContext): Future[Either[MongoDbError, Unit]] =
     catchExceptions("setting all FailedButNotBlocked notifications for client subscription ID to FailedAndBlocked") {
       val selector = and(
         equalToCsid(csid),
         equalToStatus(FailedButNotBlocked))
       val update = updateStatusBson(FailedAndBlocked)
-      collection.updateMany(selector, update).toFuture().map { result =>
-        result.getModifiedCount.toInt
-      }
-    }
+      collection.updateMany(selector, update).toFuture().map(ignoreResult)}
 
   def checkFailedAndBlockedExist(csid: ClientSubscriptionId)(implicit lc: LogContext): Future[Either[MongoDbError, Boolean]] =
     catchExceptions(s"checking if FailedAndBlocked notifications exist") {
@@ -168,7 +172,7 @@ class Repository @Inject()(mongo: MongoComponent,
       collection.find(selector).first().toFutureOption().map(_.isDefined)
     }
 
-  def getAllOutstanding()(implicit lc: LogContext): Either[MongoDbError, Observable[Notification]] =
+  def getAllOutstanding(lc: LogContext): Either[MongoDbError, Observable[Notification]] =
     catchObservableExceptions("getting outstanding notifications to retry") {
       val selector: Bson =
         or(
@@ -182,14 +186,15 @@ class Repository @Inject()(mongo: MongoComponent,
           )
         )
       collection.find(selector).map(repoToDomain)
-    }
+    }(lc)
 
-  def getLatestOutstandingFailedAndBlockedForEachCsId()(implicit lc: LogContext): Either[MongoDbError, Observable[Notification]] =
+  def getLatestOutstandingFailedAndBlockedForEachCsId(lc: LogContext): Either[MongoDbError, Observable[Notification]] =
     catchObservableExceptions("getting a FailedAndBlocked notification for each distinct client subscription ID") {
       val latestAvailableAt = "latestAvailableAt"
       val docs1 = "docs1"
       val origAvailableAt = s"$docs1.${workItemFields.availableAt}"
       val docs2 = "docs2"
+      val docs3 = "docs3"
       val pipeline = List(
         Aggregates.`match`(
           equalToStatus(FailedAndBlocked)
@@ -202,7 +207,7 @@ class Repository @Inject()(mongo: MongoComponent,
         ),
         // We only want to unblock if *all* FailedAndBlocked notifications under a csid are due for unblocking
         Aggregates.`match`(
-          Filters.lte(latestAvailableAt, now())
+          Filters.lte(latestAvailableAt, BsonDateTime(now().toEpochMilli))
         ),
         Aggregates.project(Document(
           docs2 -> Document(
@@ -213,15 +218,19 @@ class Repository @Inject()(mongo: MongoComponent,
                 "$eq" -> List(s"$$$$$origAvailableAt", s"$$$latestAvailableAt")
               )
             )
+          ),
+          "_id" -> 0
+        )),
+        Aggregates.project(Document(
+          docs3 -> Document(
+            "$first" -> s"$$$docs2"
           )
         )),
-        Aggregates.unwind(s"$$$docs2"),
-        Aggregates.replaceWith(s"$$$docs2")
+        Aggregates.replaceWith(s"$$$docs3")
       )
 
       collection.aggregate(pipeline).map(repoToDomain)
-    }
-
+    }(lc)
 
   private def equalToCsid(csid: ClientSubscriptionId): Bson =
     Filters.equal(FieldNames.ClientSubscriptionId, csid.id.toString)
@@ -307,7 +316,7 @@ class Repository @Inject()(mongo: MongoComponent,
                                 (implicit ec: ExecutionContext,
                                  lc: LogContext): Future[Either[MongoDbError, A]] = {
     block.map { result =>
-      logger.debug(s"${doingWhat.capitalize}. Result: $result}")
+      //      logger.debug(s"${doingWhat.capitalize}. Result: $result}")
       Right(result)
     }.recover {
       case t: Throwable =>
@@ -326,7 +335,8 @@ object Repository {
 
   def domainToRepo(notification: Notification,
                    status: ProcessingStatus,
-                   updatedAt: Instant): WorkItem[NotificationWorkItem] = {
+                   updatedAt: Instant,
+                   failureCount: Int): WorkItem[NotificationWorkItem] = {
     val n = notification
     val notificationWorkItem = {
       NotificationWorkItem(
@@ -350,7 +360,7 @@ object Repository {
       updatedAt = updatedAt,
       availableAt = availableAt,
       status = status.legacyStatus,
-      failureCount = 0,
+      failureCount = failureCount,
       item = notificationWorkItem)
   }
 
@@ -389,7 +399,6 @@ object Repository {
                                     notification: NotificationWorkItemBody)
 
     object NotificationWorkItem {
-      implicit val dateFormats: Format[DateTime] = MongoJodaFormats.dateTimeFormat
       implicit val objectIdFormats: Format[ObjectId] = MongoFormats.objectIdFormat
       implicit val format: OFormat[NotificationWorkItem] = Json.format[NotificationWorkItem]
     }

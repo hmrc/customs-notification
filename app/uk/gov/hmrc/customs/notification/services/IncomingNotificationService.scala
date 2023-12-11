@@ -18,27 +18,31 @@ package uk.gov.hmrc.customs.notification.services
 
 import cats.implicits.toBifunctorOps
 import org.mongodb.scala.bson.ObjectId
+import uk.gov.hmrc.customs.notification.config.RetryDelayConfig
 import uk.gov.hmrc.customs.notification.connectors.{ClientDataConnector, MetricsConnector}
+import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableRequestMetadata
-import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.repo.Repository.MongoDbError
-import uk.gov.hmrc.customs.notification.services.IncomingNotificationService._
-import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits._
-import uk.gov.hmrc.customs.notification.util._
+import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.*
+import uk.gov.hmrc.customs.notification.util.*
+import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits.*
 import uk.gov.hmrc.http.HeaderCarrier
 
+import java.time.ZonedDateTime
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
 @Singleton
 class IncomingNotificationService @Inject()(repo: Repository,
+                                            dateTimeService: DateTimeService,
                                             sendService: SendService,
                                             clientDataConnector: ClientDataConnector,
                                             auditService: AuditService,
                                             metricsConnector: MetricsConnector,
-                                            newObjectIdService: ObjectIdService)
+                                            newObjectIdService: ObjectIdService,
+                                            retryDelayConfig: RetryDelayConfig)
                                            (implicit ec: ExecutionContext) extends Logger {
   def process(payload: NodeSeq,
               requestMetadata: RequestMetadata)
@@ -68,7 +72,8 @@ class IncomingNotificationService @Inject()(repo: Repository,
     (for {
       failedAndBlockedExist <- repo.checkFailedAndBlockedExist(requestMetadata.csid).toFutureEither
       whatToDo = if (failedAndBlockedExist) BlockAndAbort else ContinueToSend
-      _ <- repo.insert(newNotification, whatToDo.stateToSave).toFutureEither
+      _ = logger.error(s"TIME NOW IS: ${dateTimeService.now()}")
+      _ <- repo.insert(newNotification, whatToDo.statusToSave, whatToDo.availableAt, whatToDo.failureCount).toFutureEither
       _ = metricsConnector.send(newNotification)
     } yield whatToDo).value flatMap {
       case Left(_: MongoDbError) =>
@@ -102,21 +107,31 @@ class IncomingNotificationService @Inject()(repo: Repository,
       requestMetadata.startTime
     )
   }
-}
-
-object IncomingNotificationService {
 
   private sealed trait WhatToDo {
-    val stateToSave: ProcessingStatus
+    val failureCount: Int
+    val statusToSave: ProcessingStatus
+
+    def availableAt: ZonedDateTime
+
   }
 
   private case object ContinueToSend extends WhatToDo {
-    val stateToSave: ProcessingStatus = ProcessingStatus.SavedToBeSent
+    val failureCount: Int = 0
+    val statusToSave: ProcessingStatus = ProcessingStatus.SavedToBeSent
+
+    def availableAt: ZonedDateTime = dateTimeService.now()
   }
 
   private case object BlockAndAbort extends WhatToDo {
-    val stateToSave: ProcessingStatus = ProcessingStatus.FailedAndBlocked
+    val failureCount: Int = 1
+    val statusToSave: ProcessingStatus = ProcessingStatus.FailedAndBlocked
+
+    def availableAt: ZonedDateTime = dateTimeService.now().plusSeconds(retryDelayConfig.failedAndBlocked.toSeconds)
   }
+}
+
+object IncomingNotificationService {
 
   sealed trait Error
 

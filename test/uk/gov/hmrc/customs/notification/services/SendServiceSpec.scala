@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-package unit.services
+package uk.gov.hmrc.customs.notification.services
 
 import org.mockito.scalatest.{AsyncMockitoSugar, ResetMocksAfterEachAsyncTest}
 import org.scalatest.FutureOutcome
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
-import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.config.RetryAvailableAfterConfig
+import uk.gov.hmrc.customs.notification.config.RetryDelayConfig
 import uk.gov.hmrc.customs.notification.connectors.SendConnector
 import uk.gov.hmrc.customs.notification.connectors.SendConnector.Request.InternalPushDescriptor
 import uk.gov.hmrc.customs.notification.models
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
 import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.repo.Repository.MongoDbError
-import uk.gov.hmrc.customs.notification.services._
-import util.TestData.Implicits._
-import util.TestData._
+import uk.gov.hmrc.customs.notification.util.TestData.*
+import uk.gov.hmrc.customs.notification.util.TestData.Implicits.*
 
 import java.time.ZonedDateTime
 import scala.concurrent.Future
@@ -42,32 +41,34 @@ class SendServiceSpec extends AsyncWordSpec
 
   private val mockSendConnector = mock[SendConnector]
   private val mockRepo = mock[Repository]
-  private val mockConfig = mock[RetryAvailableAfterConfig]
+  private val mockRetryAvailableAfterConfig = mock[RetryDelayConfig]
   private val mockDateTimeService = new DateTimeService {
     override def now(): ZonedDateTime = TimeNow
   }
   private val service = new SendService(
     mockSendConnector,
     mockRepo,
-    mockConfig,
-    mockDateTimeService)(Helpers.stubControllerComponents().executionContext)
+    mockRetryAvailableAfterConfig,
+    mockDateTimeService)
 
   private val failedButNotBlockedRetryDelay = 10.minutes
   private val failedButNotBlockedAvailableAt = TimeNow.plusSeconds(failedButNotBlockedRetryDelay.toSeconds)
   private val failedAndBlockedRetryDelay = 150.seconds
   private val failedAndBlockedAvailableAt = TimeNow.plusSeconds(failedAndBlockedRetryDelay.toSeconds)
-
-  private def whenSendConnectorCalled() = when(mockSendConnector
-    .send(
-      eqTo(Notification),
-      eqTo(PushCallbackData))(eqTo(HeaderCarrier), eqTo(LogContext), eqTo(AuditContext)))
-
+  private val notificationLogContext = models.LogContext(Notification)
   override def withFixture(test: NoArgAsyncTest): FutureOutcome = {
-    when(mockConfig.failedButNotBlocked).thenReturn(failedButNotBlockedRetryDelay)
-    when(mockConfig.failedAndBlocked).thenReturn(failedAndBlockedRetryDelay)
+    when(mockRetryAvailableAfterConfig.failedButNotBlocked).thenReturn(failedButNotBlockedRetryDelay)
+    when(mockRetryAvailableAfterConfig.failedAndBlocked).thenReturn(failedAndBlockedRetryDelay)
 
     super.withFixture(test)
   }
+
+  private def whenSendConnectorCalled() =
+    when(
+      mockSendConnector
+        .send(
+          eqTo(Notification),
+          eqTo(PushCallbackData))(eqTo(HeaderCarrier), eqTo(LogContext), eqTo(EmptyAuditContext)))
 
   "send" when {
     "making send request to the SendService" should {
@@ -89,7 +90,9 @@ class SendServiceSpec extends AsyncWordSpec
       def setup(): Unit = {
         whenSendConnectorCalled()
           .thenReturn(Future.successful(Left(SendConnector.ClientError)))
-        when(mockRepo.setFailedButNotBlocked(eqTo(ObjectId), eqTo(failedButNotBlockedAvailableAt))(eqTo(LogContext)))
+        when(mockRepo.setFailedButNotBlocked(
+          id = eqTo(ObjectId),
+          availableAt = eqTo(failedButNotBlockedAvailableAt))(eqTo(models.LogContext(Notification))))
           .thenReturn(Future.successful(Right(())))
       }
 
@@ -104,7 +107,7 @@ class SendServiceSpec extends AsyncWordSpec
         service.send(Notification, PushCallbackData).map { _ =>
           verify(mockRepo).setFailedButNotBlocked(
             id = eqTo(ObjectId),
-            availableAt = eqTo(failedButNotBlockedAvailableAt))(eqTo(LogContext))
+            availableAt = eqTo(failedButNotBlockedAvailableAt))(eqTo(models.LogContext(Notification)))
           succeed
         }
       }
@@ -114,9 +117,9 @@ class SendServiceSpec extends AsyncWordSpec
       def setup(): Unit = {
         whenSendConnectorCalled()
           .thenReturn(Future.successful(Left(SendConnector.ServerError)))
-        when(mockRepo.setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(LogContext)))
+        when(mockRepo.setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(notificationLogContext)))
           .thenReturn(Future.successful(Right(())))
-        when(mockRepo.blockAllFailedButNotBlocked(eqTo(NewClientSubscriptionId))(eqTo(LogContext)))
+        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext)))
           .thenReturn(Future.successful(Right(1)))
       }
 
@@ -129,7 +132,7 @@ class SendServiceSpec extends AsyncWordSpec
       "set the current notification status to FailedAndBlocked in the repo" in {
         setup()
         service.send(Notification, PushCallbackData).map { _ =>
-          verify(mockRepo).setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(LogContext))
+          verify(mockRepo).setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(notificationLogContext))
           succeed
         }
       }
@@ -137,7 +140,7 @@ class SendServiceSpec extends AsyncWordSpec
       "set all previous FailedButNotBlocked notifications for the client subscription ID to blocked" in {
         setup()
         service.send(Notification, PushCallbackData).map { _ =>
-          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(NewClientSubscriptionId))(eqTo(LogContext))
+          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext))
           succeed
         }
       }
@@ -145,12 +148,13 @@ class SendServiceSpec extends AsyncWordSpec
 
     "has the repo return a MongoDbError when setting the current notification to FailedAndBlocked" should {
       val mongoDbError = MongoDbError("setting FailedAndBlocked for notification", Exception)
+
       def setup(): Unit = {
         whenSendConnectorCalled()
           .thenReturn(Future.successful(Left(SendConnector.ServerError)))
-        when(mockRepo.setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(LogContext)))
+        when(mockRepo.setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(notificationLogContext)))
           .thenReturn(Future.successful(Right(())))
-        when(mockRepo.blockAllFailedButNotBlocked(eqTo(NewClientSubscriptionId))(eqTo(LogContext)))
+        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext)))
           .thenReturn(Future.successful(Left(mongoDbError)))
       }
 
@@ -163,7 +167,7 @@ class SendServiceSpec extends AsyncWordSpec
       "still block previously FailedButNotBlocked notifications for that client subscription ID" in {
         setup()
         service.send(Notification, PushCallbackData).map { _ =>
-          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(NewClientSubscriptionId))(eqTo(LogContext))
+          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext))
           succeed
         }
       }

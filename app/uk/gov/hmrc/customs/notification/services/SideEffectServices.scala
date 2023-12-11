@@ -18,7 +18,6 @@ package uk.gov.hmrc.customs.notification.services
 
 import org.bson.types.ObjectId
 import play.api.mvc.RequestHeader
-import uk.gov.hmrc.customs.notification.models.NotificationId
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.HeaderCarrierConverter
 
@@ -32,8 +31,8 @@ class DateTimeService() {
 }
 
 @Singleton
-class NotificationIdService() {
-  def newId(): NotificationId = NotificationId(UUID.randomUUID())
+class UuidService() {
+  def randomUuid(): UUID = UUID.randomUUID()
 }
 
 @Singleton

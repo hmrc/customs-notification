@@ -17,12 +17,12 @@
 package uk.gov.hmrc.customs.notification.models
 
 import org.bson.types.ObjectId
-import play.api.mvc.{Headers, RequestHeader}
-import uk.gov.hmrc.customs.notification.util.HeaderNames._
+import play.api.mvc.Headers
+import uk.gov.hmrc.customs.notification.util.HeaderNames.*
 
 import scala.collection.immutable.ListMap
 
-sealed abstract case class LogContext private(fieldsToLog: ListMap[String, String])
+case class LogContext private(fieldsToLog: ListMap[String, String])
 
 object LogContext {
   def apply[A](entity: A)(implicit l: Loggable[A]): LogContext = {

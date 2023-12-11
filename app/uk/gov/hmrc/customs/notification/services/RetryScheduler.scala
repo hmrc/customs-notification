@@ -16,24 +16,24 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.mongodb.scala.{Observable, Observer, Subscription}
 import uk.gov.hmrc.customs.notification.config.RetrySchedulerConfig
-import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector._
+import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector.*
 import uk.gov.hmrc.customs.notification.connectors.{ClientDataConnector, MetricsConnector}
+import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableNotification
-import uk.gov.hmrc.customs.notification.models.Loggable.Implicits._
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.*
 import uk.gov.hmrc.customs.notification.models.ProcessingStatus.{FailedAndBlocked, FailedButNotBlocked}
-import uk.gov.hmrc.customs.notification.models._
 import uk.gov.hmrc.customs.notification.repo.Repository
 import uk.gov.hmrc.customs.notification.repo.Repository.MongoDbError
-import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits._
-import uk.gov.hmrc.customs.notification.util.Helpers.ignore
+import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits.*
+import uk.gov.hmrc.customs.notification.util.Helpers.ignoreResult
 import uk.gov.hmrc.customs.notification.util.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 
 import java.util.concurrent.atomic.AtomicInteger
-import javax.inject._
+import javax.inject.*
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -42,8 +42,8 @@ class RetryScheduler @Inject()(actorSystem: ActorSystem,
                                retryService: RetryService,
                                config: RetrySchedulerConfig)(implicit ec: ExecutionContext) {
   if (config.enabled) {
+    actorSystem.scheduler.scheduleWithFixedDelay(0.second, config.failedButNotBlockedDelay)(() => retryService.retryFailedButNotBlocked())
     actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, config.failedAndBlockedDelay)(() => retryService.retryFailedAndBlocked())
-    actorSystem.scheduler.scheduleWithFixedDelay(1.second, config.failedButNotBlockedDelay)(() => retryService.retryFailedButNotBlocked())
   }
 }
 
@@ -55,46 +55,39 @@ class RetryService @Inject()(repo: Repository,
                              metrics: MetricsConnector,
                              config: RetrySchedulerConfig)
                             (implicit ec: ExecutionContext) extends Logger {
-  def retryFailedButNotBlocked(): Future[Unit] = {
-    implicit val lc: LogContext = LogContext.empty
-
+  def retryFailedButNotBlocked(): Future[Unit] =
     retry(
       processingStatus = FailedButNotBlocked,
-      maybeRetry = repo.getAllOutstanding(),
+      maybeRetry = repo.getAllOutstanding,
       afterSingleSuccessfulRetry = _ => Future.unit
     )
-  }
 
-  def retryFailedAndBlocked(): Future[Unit] = {
-    implicit val lc: LogContext = LogContext.empty
-
+  def retryFailedAndBlocked(): Future[Unit] =
     retry(
       processingStatus = FailedAndBlocked,
-      maybeRetry = repo.getLatestOutstandingFailedAndBlockedForEachCsId(),
+      maybeRetry = repo.getLatestOutstandingFailedAndBlockedForEachCsId,
       afterSingleSuccessfulRetry = { notification =>
         implicit val lc: LogContext = LogContext(notification)
         (for {
           count <- repo.unblockFailedAndBlocked(notification.csid).toFutureEither
-          _ = logger.info(s"Unblocked and queued for retry [$count] FailedAndBlocked notifications for this client subscription ID")
-        } yield ()).value.map(ignore)
+          _ = logger.info(s"$count FailedAndBlocked notifications unblocked and queued for retry for this client subscription ID")
+        } yield ()).value.map(ignoreResult)
       }
     )
-  }
 
   private def retry(processingStatus: ProcessingStatus,
-                    maybeRetry: Either[MongoDbError, Observable[Notification]],
-                    afterSingleSuccessfulRetry: Notification => Future[Unit])
-                   (implicit lc: LogContext): Future[Unit] = {
+                    maybeRetry: LogContext => Either[MongoDbError, Observable[Notification]],
+                    afterSingleSuccessfulRetry: Notification => Future[Unit]): Future[Unit] = {
+    implicit val lc: LogContext = LogContext.empty
     metrics.incrementRetryCounter()
 
-    maybeRetry match {
+    maybeRetry(lc) match {
       case Left(error) =>
         logger.error(error.message)
         Future.unit
       case Right(notificationObs) =>
         val promise = Promise[Unit]()
 
-        // RetryObserver#onNext holds the retry logic
         notificationObs.subscribe(
           new RetryObserver(promise, processingStatus, afterSingleSuccessfulRetry)
         )
@@ -133,7 +126,7 @@ class RetryService @Inject()(repo: Repository,
               _ <- afterSingleSuccessfulRetry(notification).map(Right(_)).toFutureEither
               _ = totalProcessedCount.incrementAndGet()
             } yield ()).value
-              .map(_ => ignore {
+              .map(_ => ignoreResult {
                 subscription.request(1)
               })
         }
@@ -164,7 +157,7 @@ class RetryService @Inject()(repo: Repository,
 
       val allResults =
         Future.sequence(eventualResults)
-          .map { _ => doWhenComplete }
+          .map(_ => doWhenComplete)
 
       promise.completeWith(allResults)
     }

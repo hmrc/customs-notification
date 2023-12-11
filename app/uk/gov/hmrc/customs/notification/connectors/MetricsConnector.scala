@@ -16,16 +16,16 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import com.kenshoo.play.metrics.Metrics
+import com.codahale.metrics.MetricRegistry
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.libs.json.Writes.StringWrites
-import play.api.libs.json._
+import play.api.libs.json.*
 import uk.gov.hmrc.customs.notification.config.MetricsConfig
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector.RequestBody
-import uk.gov.hmrc.customs.notification.models._
+import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.customs.notification.services.DateTimeService
-import uk.gov.hmrc.customs.notification.util.Helpers.ignore
+import uk.gov.hmrc.customs.notification.util.Helpers.ignoreResult
 import uk.gov.hmrc.http.HeaderCarrier
 
 import javax.inject.{Inject, Singleton}
@@ -34,7 +34,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class MetricsConnector @Inject()(httpConnector: HttpConnector,
                                  config: MetricsConfig,
-                                 graphiteMetrics: Metrics,
+                                 graphiteMetricsRegistry: MetricRegistry,
                                  dateTimeService: DateTimeService)(implicit ec: ExecutionContext) {
   def send(notification: Notification)(implicit hc: HeaderCarrier): Future[Unit] = {
     val updatedHc = {
@@ -58,13 +58,12 @@ class MetricsConnector @Inject()(httpConnector: HttpConnector,
       url = config.url,
       body = RequestBody.Json(body),
       hc = updatedHc,
-      requestDescriptor = "metrics",
-      shouldSendRequestToAuditing = false
-    ).map(ignore)
+      requestDescriptor = "metrics"
+    ).map(ignoreResult)
   }
 
   def incrementRetryCounter(): Unit = {
     val counterName = config.retryCounterName
-    graphiteMetrics.defaultRegistry.counter(counterName).inc()
+    graphiteMetricsRegistry.counter(counterName).inc()
   }
 }

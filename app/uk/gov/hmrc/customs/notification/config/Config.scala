@@ -18,17 +18,17 @@ package uk.gov.hmrc.customs.notification.config
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{Validated, ValidatedNel}
-import cats.implicits._
-import play.api.ConfigLoader._
-import play.api.{ConfigLoader, Configuration}
-import uk.gov.hmrc.customs.notification.config.ConfigValidator.{get, _}
+import cats.implicits.*
+import play.api.ConfigLoader.*
+import play.api.{ConfigLoader, Configuration, Logging}
+import uk.gov.hmrc.customs.notification.config.ConfigValidator.{get, *}
 import uk.gov.hmrc.customs.notification.models.{ClientId, ClientSubscriptionId}
 import uk.gov.hmrc.http.Authorization
 
 import java.net.URL
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 /**
  * Responsible for reading the HMRC style Play2 configuration file, error handling, and de-serialising config into
@@ -40,6 +40,11 @@ import scala.concurrent.duration._
  *
  * @param c adaptor for config services that returns a `ValidatedNel`
  */
+
+@Singleton
+class AppConfig @Inject()(c: ConfigValidator) {
+  val name: String = c.name
+}
 
 @Singleton
 class BasicAuthConfig @Inject()(c: ConfigValidator) {
@@ -65,7 +70,7 @@ class MetricsConfig @Inject()(c: ConfigValidator) {
 }
 
 @Singleton
-class RetryAvailableAfterConfig @Inject()(c: ConfigValidator) {
+class RetryDelayConfig @Inject()(c: ConfigValidator) {
   val failedButNotBlocked: FiniteDuration = c.failedButNotBlockedAvailableAfter
   val failedAndBlocked: FiniteDuration = c.failedAndBlockedAvailableAfter
 }
@@ -94,12 +99,11 @@ class CsidTranslationHotfixConfig @Inject()(c: ConfigValidator) {
   val newByOldCsids: Map[ClientSubscriptionId, ClientSubscriptionId] = c.newByOldCsids
 }
 
-
 @Singleton
-class ConfigValidator @Inject()(implicit config: Configuration) {
-  private lazy val logger = play.api.Logger("customs-notification")
+class ConfigValidator @Inject()(implicit config: Configuration) extends Logging {
 
   val (
+    name: String,
     basicAuthToken: Authorization,
     internalClientIds: Set[ClientId],
     externalPushUrl: URL,
@@ -117,7 +121,8 @@ class ConfigValidator @Inject()(implicit config: Configuration) {
     newByOldCsids: Map[ClientSubscriptionId, ClientSubscriptionId]
     ) = {
 
-    (get[Authorization]("auth.token.internal"),
+    (get[String]("appName"),
+      get[Authorization]("auth.token.internal"),
       get[Set[ClientId]]("internal.clientIds"),
       getServiceUrl("public-notification"),
       getServiceUrl("notification-queue"),
@@ -125,10 +130,10 @@ class ConfigValidator @Inject()(implicit config: Configuration) {
       getServiceUrl("customs-notification-metrics"),
       get[FiniteDuration]("notification-ttl"),
       get[Boolean]("retry.scheduler.enabled"),
-      get[FiniteDuration]("retry.failed-and-blocked.delay"),
-      get[FiniteDuration]("retry.failed-but-not-blocked.delay"),
-      get[FiniteDuration]("retry.failed-but-not-blocked.available-after"),
-      get[FiniteDuration]("retry.failed-and-blocked.available-after"),
+      get[FiniteDuration]("retry.delay.failed-and-blocked"),
+      get[FiniteDuration]("retry.delay.failed-but-not-blocked"),
+      get[FiniteDuration]("retry.available-after.failed-but-not-blocked"),
+      get[FiniteDuration]("retry.available-after.failed-and-blocked"),
       get[String]("retry.metric-name"),
       get[Int]("retry.buffer-size"),
       get[Map[ClientSubscriptionId, ClientSubscriptionId]]("hotfix.translates")
@@ -155,7 +160,7 @@ object ConfigValidator {
       .toValidatedNel
   }
 
-  def getServiceUrl(name: String)(implicit config: Configuration): ValidatedNel[String, URL] = {
+  private def getServiceUrl(name: String)(implicit config: Configuration): ValidatedNel[String, URL] = {
     val rootPathPrefix = "microservice.services."
     val servicePathPrefix = s"$rootPathPrefix$name."
 
@@ -180,5 +185,10 @@ object ConfigValidator {
   implicit val clientIdsLoader: ConfigLoader[Set[ClientId]] = seqStringLoader.map(_.toSet.map(ClientId(_)))
   implicit val authLoader: ConfigLoader[Authorization] = stringLoader.map(Authorization)
   implicit val csidTranslationsLoader: ConfigLoader[Map[ClientSubscriptionId, ClientSubscriptionId]] =
-    mapLoader[String].map(_.map { case (k, v) => ClientSubscriptionId(UUID.fromString(k)) -> ClientSubscriptionId(UUID.fromString(v)) })
+    mapLoader[String]
+      .map(_
+        .map { case (k, v) =>
+          ClientSubscriptionId(UUID.fromString(k)) -> ClientSubscriptionId(UUID.fromString(v))
+        }
+      )
 }

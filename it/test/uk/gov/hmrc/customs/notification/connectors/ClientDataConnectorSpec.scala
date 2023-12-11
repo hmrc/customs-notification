@@ -14,47 +14,49 @@
  * limitations under the License.
  */
 
-package component
+package uk.gov.hmrc.customs.notification.connectors
 
-import com.github.tomakehurst.wiremock.client.WireMock._
-import component.ClientDataConnectorSpec.{invalidClientSubscriptionId, validPath}
-import integration.IntegrationSpecBase
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.WireMock.*
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.{DoNotDiscover, Suites}
+import org.scalatest.{DoNotDiscover, Suite}
 import org.scalatestplus.play.ConfiguredServer
-import play.api.http.Status.NOT_FOUND
+import play.api.http.Status.{NOT_FOUND, OK}
 import play.api.http.{HeaderNames, MimeTypes}
-import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
-import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector
-import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models.{PushCallbackData, SendToPullQueue}
-import util.IntegrationTestData.ApiSubsFieldsUrlContext
-import util.IntegrationTestData.Stubs.stubClientDataFor
-import util.TestData.Implicits._
-import util.TestData._
+import uk.gov.hmrc.customs.notification.util.IntegrationTestHelpers.PathFor.clientDataWithCsid
+import uk.gov.hmrc.customs.notification.util.TestData.*
+import uk.gov.hmrc.customs.notification.util.TestData.Implicits.*
+import uk.gov.hmrc.customs.notification.util.WireMockHelpers
+import uk.gov.hmrc.customs.notification.{IntegrationSpecBase, models}
 
 import java.util.UUID
 
 /**
- * Convenience class to only test this suite, as running suite directly will complain with the following:
- * "Trait ConfiguredServer needs an Application value associated with key "org.scalatestplus.play.app" in the config map."
+ * Convenience class to only test this suite, as no app is available when running suite directly
  */
 @DoNotDiscover
-private class TestOnlyClientDataConnectorSpec extends Suites(new ClientDataConnectorSpec) with IntegrationSpecBase
+private class TestOnlyClientDataConnectorSpec extends Suite with IntegrationSpecBase {
+  override def nestedSuites: IndexedSeq[Suite] =
+    Vector(new ClientDataConnectorSpec(wireMockServer))
+}
 
-@DoNotDiscover
-class ClientDataConnectorSpec extends AnyWordSpec
+class ClientDataConnectorSpec(val wireMockServer: WireMockServer) extends AnyWordSpec
   with ConfiguredServer
-  with FutureAwaits
-  with DefaultAwaitTimeout
+  with WireMockHelpers
+  with ScalaFutures
+  with IntegrationPatience
   with Matchers {
+
+  private val invalidClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-0000-0000-0000-000000000000"))
 
   private def connector = app.injector.instanceOf[ClientDataConnector]
 
   "ClientDataConnector" should {
     "correctly parse client data for PushCallbackData" in {
-      stubClientDataFor(ClientId, NewClientSubscriptionId, Some(ClientCallbackUrl))
+      stubGetClientDataOk()
 
       val expected =
         Right(
@@ -63,12 +65,12 @@ class ClientDataConnectorSpec extends AnyWordSpec
           )
         )
 
-      val actual = await(connector.get(NewClientSubscriptionId))
+      val actual = connector.get(TranslatedCsid).futureValue
 
       actual shouldBe expected
     }
     "correctly parse client data for SendToPullQueue" in {
-      stubClientDataFor(ClientId, NewClientSubscriptionId, None)
+      stub(get)(clientDataWithCsid(), OK, stubClientDataResponseBody(callbackUrl = None))
 
       val expected =
         Right(
@@ -77,32 +79,27 @@ class ClientDataConnectorSpec extends AnyWordSpec
           )
         )
 
-      val actual = await(connector.get(NewClientSubscriptionId))
-
+      val actual = connector.get(TranslatedCsid).futureValue
       actual shouldBe expected
     }
 
     "send the required headers" in {
-      await(connector.get(NewClientSubscriptionId))
+      stubGetClientDataOk()
+      connector.get(TranslatedCsid).futureValue
 
-      verify(getRequestedFor(urlMatching(validPath))
+      verify(getRequestedFor(urlMatching(clientDataWithCsid()))
         .withHeader(HeaderNames.ACCEPT, equalTo(MimeTypes.JSON))
         .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON)))
     }
 
     "return DeclarantNotFound when external service responds with 404 Not Found" in {
-      stubFor(get(urlMatching(validPath))
+      stubFor(get(urlMatching(clientDataWithCsid()))
         .willReturn(aResponse().withStatus(NOT_FOUND)))
 
       val expected = Left(ClientDataConnector.DeclarantNotFound)
 
-      val actual = await(connector.get(invalidClientSubscriptionId))
+      val actual = connector.get(invalidClientSubscriptionId).futureValue
       actual shouldBe expected
     }
   }
-}
-
-object ClientDataConnectorSpec {
-  val invalidClientSubscriptionId = models.ClientSubscriptionId(UUID.fromString("00000000-0000-0000-0000-000000000000"))
-  val validPath: String = ApiSubsFieldsUrlContext + "/" + NewClientSubscriptionId.toString
 }

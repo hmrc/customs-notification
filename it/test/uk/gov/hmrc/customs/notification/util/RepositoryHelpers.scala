@@ -16,6 +16,21 @@
 
 package uk.gov.hmrc.customs.notification.util
 
-object Helpers {
-  def ignoreResult[A]: A => Unit = (_: A) => ()
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.{BeforeAndAfterEach, Suite}
+import uk.gov.hmrc.customs.notification.repo.Repository
+
+trait RepositoryHelpers extends BeforeAndAfterEach{
+  self: Suite & ScalaFutures & IntegrationPatience =>
+
+  protected val repo: Repository
+  protected val mockDateTimeService: MockDateTimeService
+  protected val mockObjectIdService: MockObjectIdService
+
+  override def beforeEach(): Unit = {
+    repo.collection.drop().toFuture().futureValue
+    mockDateTimeService.timeTravelToNow()
+    mockObjectIdService.reset()
+    super.beforeEach()
+  }
 }
