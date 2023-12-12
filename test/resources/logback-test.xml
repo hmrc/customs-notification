@@ -58,7 +58,7 @@
 
     <logger name="customs-notification" level="DEBUG"/>
 
-    <root level="ERROR">
+    <root level="DEBUG">
         <appender-ref ref="FILE"/>
         <appender-ref ref="FILE_JSON" />
         <appender-ref ref="STDOUT"/>
