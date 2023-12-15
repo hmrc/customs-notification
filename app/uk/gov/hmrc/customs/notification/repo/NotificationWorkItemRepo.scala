@@ -60,7 +60,7 @@ trait NotificationWorkItemRepo {
 
   def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]]
 
-  def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
+  def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
 
   def fromPermanentlyFailedToFailedByCsId(csid: ClientSubscriptionId): Future[Int]
 
@@ -268,7 +268,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     clientSubscriptionIds.map(id => ClientSubscriptionId(UUID.fromString(id))).toSet
   }
 
-  override def pullOutstandingWithPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
+  override def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
     val update = updateStatusBson(InProgress)
     collection.findOneAndUpdate(selector, update, FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(false))

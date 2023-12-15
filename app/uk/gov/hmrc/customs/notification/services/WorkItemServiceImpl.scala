@@ -18,7 +18,6 @@ package uk.gov.hmrc.customs.notification.services
 
 import com.codahale.metrics.MetricRegistry
 import com.google.inject.ImplementedBy
-import com.kenshoo.play.metrics.Metrics
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
@@ -30,7 +29,6 @@ import uk.gov.hmrc.mongo.workitem.WorkItem
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-
 @ImplementedBy(classOf[WorkItemServiceImpl])
 trait WorkItemService {
 
@@ -42,7 +40,7 @@ class WorkItemServiceImpl @Inject()(
                                      pushOrPullService: PushOrPullService,
                                      dateTimeService: DateTimeService,
                                      logger: NotificationLogger,
-                                     metrics: Metrics,
+                                     metricRegistry: MetricRegistry,
                                      customsNotificationConfig: CustomsNotificationConfig
                                    )
                                    (implicit ec: ExecutionContext) extends WorkItemService {
@@ -65,12 +63,11 @@ class WorkItemServiceImpl @Inject()(
     eventuallyProcessedOne
   }
 
-  lazy val registry: MetricRegistry = metrics.defaultRegistry
 
   def incrementCountMetric(metric: String, workItem: WorkItem[NotificationWorkItem]): Unit = {
     implicit val loggingContext = workItem.item
     logger.debug(s"incrementing counter for metric: $metric")
-    registry.counter(s"$metric-counter").inc()
+    metricRegistry.counter(s"$metric-counter").inc()
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {

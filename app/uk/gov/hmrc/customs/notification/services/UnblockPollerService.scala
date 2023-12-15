@@ -42,29 +42,37 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
 
     actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
-      notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
-        logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name}: $permanentlyFailedCsids)")
-        logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name}): $permanentlyFailedCsids")
-        permanentlyFailedCsids.foreach { csid =>
-          notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsId(csid).map {
-            case Some(workItem) =>
-              pushOrPull(workItem).foreach {
-                case Success | ClientError =>
-                  // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
-                  //changing status to failed makes the item eligible for retry
-                  notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid).foreach { count =>
-                    logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
-                  }
-                case ServerError => Future.unit
-              }
-            case None =>
-              logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
-          }
+      notificationWorkItemRepo.distinctPermanentlyFailedByCsId()
+        .foreach { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
+          logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name}: $permanentlyFailedCsids)")
+          logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name}): $permanentlyFailedCsids")
+
+          permanentlyFailedCsids.foreach(retry)
         }
+    }
+    }
+  }
+
+  private def retry(csid: ClientSubscriptionId): Future[Unit] = {
+    for {
+      maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
+    } yield {
+      maybeWorkItem match {
+        case Some(workItem) =>
+          pushOrPull(workItem).foreach(handleResponse(csid))
+        case None =>
+          logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
       }
-      ()
     }
-    }
+  }
+
+  private def handleResponse(csid: ClientSubscriptionId)(response: Response): Unit = response match {
+    case Success | ClientError =>
+      notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid)
+        .foreach { count =>
+          logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
+        }
+    case ServerError => ()
   }
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Response] = {
@@ -89,7 +97,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                   .map(_ => ClientError)
               case HttpResultError(status, _) =>
                 notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
-                .map(_ =>ServerError)
+                  .map(_ => ServerError)
               case NonHttpError(cause) =>
                 logger.error(s"Error received while unblocking notification: ${cause.getMessage}")
                 Future.successful(ServerError)
@@ -107,7 +115,10 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
   }
 
   sealed trait Response
+
   case object ClientError extends Response
+
   case object ServerError extends Response
+
   case object Success extends Response
 }

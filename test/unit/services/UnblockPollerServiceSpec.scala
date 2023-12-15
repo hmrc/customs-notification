@@ -85,7 +85,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     "should poll the database and unblock any blocked notifications when ONE distinct CsId found" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(notificationWorkItemRepoMock.fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)).thenReturn(Future.successful(CountOfChangedStatuses))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Right(Push)))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
@@ -101,7 +101,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).pullSinglePfFor(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(1)).setCompletedStatus(WorkItem1.id, Succeeded)
         verify(notificationWorkItemRepoMock, times(1)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
@@ -131,7 +131,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     "should poll the database and NOT unblock any blocked notifications when pull for CsId returns None" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(None)
+      when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(None)
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
 
@@ -150,7 +150,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     "should poll the database and NOT unblock any blocked notifications when Push/Pull fails with a 5xx error" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.INTERNAL_SERVER_ERROR, BoomException)))))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -167,7 +167,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).pullSinglePfFor(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(1)).incrementFailureCount(WorkItem1.id)
         verify(notificationWorkItemRepoMock, times(1)).setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)
@@ -178,7 +178,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     "should poll the database and recover from Push/Pull exception" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.failed(BoomException))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
@@ -193,7 +193,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).pullSinglePfFor(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatus(any[ObjectId], any[ResultStatus])
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
@@ -203,7 +203,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     "should poll the database and recover from a 404 Push/Pull failure" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       private val exception = new IllegalStateException("BOOM!")
       private val httpResultError = HttpResultError(Helpers.NOT_FOUND, exception)
       private val pullError = PushOrPullError(Push, httpResultError)
@@ -224,7 +224,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).pullSinglePfFor(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(1)).setCompletedStatusWithAvailableAt(any[ObjectId], ArgumentMatchers.eq[ResultStatus](Failed), anyInt(), any[ZonedDateTime])
         verify(notificationWorkItemRepoMock, times(1)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
@@ -234,7 +234,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     "should poll the database and recover from a 500 Push/Pull failure" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
-      when(notificationWorkItemRepoMock.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
+      when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       private val exception = new IllegalStateException("BOOM!")
       private val httpResultError = HttpResultError(Helpers.INTERNAL_SERVER_ERROR, exception)
       private val pullError = PushOrPullError(Push, httpResultError)
@@ -252,7 +252,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
       eventually {
         verify(notificationWorkItemRepoMock, times(1)).distinctPermanentlyFailedByCsId()
-        verify(notificationWorkItemRepoMock, times(1)).pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1)
+        verify(notificationWorkItemRepoMock, times(1)).pullSinglePfFor(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(0)).setCompletedStatusWithAvailableAt(any[ObjectId], any[ResultStatus], anyInt(), any[ZonedDateTime])
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
