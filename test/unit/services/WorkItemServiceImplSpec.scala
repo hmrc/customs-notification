@@ -17,7 +17,6 @@
 package unit.services
 
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.kenshoo.play.metrics.Metrics
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
@@ -46,7 +45,6 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val mockPushOrPull = mock[PushOrPullService]
     private[WorkItemServiceImplSpec] val mockDateTimeService = mock[DateTimeService]
     private[WorkItemServiceImplSpec] val mockLogger = mock[NotificationLogger]
-    private[WorkItemServiceImplSpec] val mockMetrics = mock[Metrics]
     private[WorkItemServiceImplSpec] val mockMetricRegistry: MetricRegistry = mock[MetricRegistry]
     private[WorkItemServiceImplSpec] val mockCounter: Counter = mock[Counter]
     private[WorkItemServiceImplSpec] lazy val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
@@ -59,7 +57,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       1,
       120)
     private[WorkItemServiceImplSpec] val service = new WorkItemServiceImpl(
-      mockRepo, mockPushOrPull, mockDateTimeService, mockLogger, mockMetrics, mockCustomsNotificationConfig
+      mockRepo, mockPushOrPull, mockDateTimeService, mockLogger, mockMetricRegistry, mockCustomsNotificationConfig
     )
     private[WorkItemServiceImplSpec] val UtcZoneId = ZoneId.of("UTC")
     private[WorkItemServiceImplSpec] val now: ZonedDateTime = ZonedDateTime.now(UtcZoneId)
@@ -73,7 +71,6 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
     private[WorkItemServiceImplSpec] val httpResultError500 = HttpResultError(Helpers.INTERNAL_SERVER_ERROR, exception)
     private[WorkItemServiceImplSpec] val eventualFailed = Future.failed(exception)
 
-    when(mockMetrics.defaultRegistry).thenReturn(mockMetricRegistry)
     when(mockMetricRegistry.counter("declaration-digital-notification-retry-total-counter")).thenReturn(mockCounter)
     when(mockCustomsNotificationConfig.notificationConfig).thenReturn(notificationConfig)
 
