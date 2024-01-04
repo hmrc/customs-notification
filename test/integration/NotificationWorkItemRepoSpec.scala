@@ -308,7 +308,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1))
+      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))
 
       result.get.status shouldBe InProgress
       result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
@@ -320,7 +320,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullOutstandingWithPermanentlyFailedByCsId(validClientSubscriptionId1))
+      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))
 
       result.size shouldBe 0
     }

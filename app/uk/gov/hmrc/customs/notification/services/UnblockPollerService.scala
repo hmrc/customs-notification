@@ -42,65 +42,83 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
 
     actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
-      notificationWorkItemRepo.distinctPermanentlyFailedByCsId().map { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
-        logger.info(s"Unblock - discovered ${permanentlyFailedCsids.size} blocked csids (i.e. with status of ${PermanentlyFailed.name})")
-        logger.debug(s"Unblock - discovered $permanentlyFailedCsids blocked csids (i.e. with status of ${PermanentlyFailed.name})")
-        permanentlyFailedCsids.foreach { csid =>
-          notificationWorkItemRepo.pullOutstandingWithPermanentlyFailedByCsId(csid).map {
-            case Some(workItem) =>
-              pushOrPull(workItem).foreach(ok =>
-                if (ok) {
-                  // if we are able to push/pull we flip statues from PF -> F for this CsId by side effect - we do not wait for this to complete
-                  //changing status to failed makes the item eligible for retry
-                  notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid).foreach { count =>
-                    logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
-                  }
-                }
-              )
-            case None =>
-              logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
-          }
+      notificationWorkItemRepo.distinctPermanentlyFailedByCsId()
+        .foreach { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
+          logger.info(s"Unblock - discovered [${permanentlyFailedCsids.size}] blocked csids (i.e. with status of ${PermanentlyFailed.name}: $permanentlyFailedCsids)")
+          logger.debug(s"Unblock - discovered [$permanentlyFailedCsids] blocked csids (i.e. with status of ${PermanentlyFailed.name}): $permanentlyFailedCsids")
+
+          permanentlyFailedCsids.foreach(retry)
         }
-      }
-      ()
     }
     }
   }
 
-  private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Boolean] = {
+  private def retry(csid: ClientSubscriptionId): Future[Unit] = {
+    for {
+      maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
+    } yield {
+      maybeWorkItem match {
+        case Some(workItem) =>
+          pushOrPull(workItem).foreach(handleResponse(csid))
+        case None =>
+          logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
+      }
+    }
+  }
+
+  private def handleResponse(csid: ClientSubscriptionId)(response: Response): Unit = response match {
+    case Success | ClientError =>
+      notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid)
+        .foreach { count =>
+          logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
+        }
+    case ServerError => ()
+  }
+
+  private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Response] = {
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
-    pushOrPullService.send(workItem.item).map[Boolean] {
+    pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         logger.info(s"Unblock pilot for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
-        true
+        Future.successful(Success)
       case Left(PushOrPullError(connector, resultError)) =>
         logger.info(s"Unblock pilot for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
-          _ <- {
+          status <- {
             resultError match {
-              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+              case error@HttpResultError(status, _) if error.is3xx || error.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response ${httpResultError.status} received while trying unblock pilot, setting availableAt to $availableAt")
-                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
+                logger.error(s"Status response $status received while trying unblock pilot, setting availableAt to $availableAt and status to Failed")
+                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt)
+                  .map(_ => ClientError)
               case HttpResultError(status, _) =>
                 notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
+                  .map(_ => ServerError)
               case NonHttpError(cause) =>
                 logger.error(s"Error received while unblocking notification: ${cause.getMessage}")
-                Future.successful(())
+                Future.successful(ServerError)
             }
           }
-        } yield ()).recover {
+        } yield status).recover {
           case NonFatal(e) => logger.error("Error updating database", e)
+            ServerError
         }
-        false
     }.recover {
       case NonFatal(e) => // Should never happen
         logger.error(s"Unblock - error with pilot unblock of work item $workItem", e)
-        false
+        ServerError
     }
   }
+
+  sealed trait Response
+
+  case object ClientError extends Response
+
+  case object ServerError extends Response
+
+  case object Success extends Response
 }

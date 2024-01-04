@@ -35,5 +35,4 @@ object NotificationWorkItem {
   implicit val dateFormats = MongoJodaFormats.dateTimeFormat
   implicit val objectIdFormats: Format[ObjectId] = MongoFormats.objectIdFormat
   implicit val format = Json.format[NotificationWorkItem]
-
 }
