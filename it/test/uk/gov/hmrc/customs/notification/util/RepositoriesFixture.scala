@@ -18,17 +18,22 @@ package uk.gov.hmrc.customs.notification.util
 
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterEach, Suite}
-import uk.gov.hmrc.customs.notification.repo.Repository
+import org.scalatestplus.play.ServerProvider
+import uk.gov.hmrc.customs.notification.repositories.{BlockedCsidRepository, NotificationRepository}
 
-trait RepositoryHelpers extends BeforeAndAfterEach{
-  self: Suite & ScalaFutures & IntegrationPatience =>
+trait RepositoriesFixture extends BeforeAndAfterEach {
+  self: Suite & ServerProvider & ScalaFutures & IntegrationPatience =>
 
-  protected val repo: Repository
-  protected val mockDateTimeService: MockDateTimeService
-  protected val mockObjectIdService: MockObjectIdService
+  protected lazy val notificationRepo: NotificationRepository = app.injector.instanceOf[NotificationRepository]
+  protected lazy val blockedCsidRepo: BlockedCsidRepository = app.injector.instanceOf[BlockedCsidRepository]
+  protected def mockDateTimeService: MockDateTimeService
+  protected def mockObjectIdService: MockObjectIdService
 
   override def beforeEach(): Unit = {
-    repo.collection.drop().toFuture().futureValue
+    notificationRepo.underlying.collection.drop().toFuture().futureValue
+    blockedCsidRepo.collection.drop().toFuture().futureValue
+    notificationRepo.underlying.ensureIndexes().futureValue
+    blockedCsidRepo.ensureIndexes().futureValue
     mockDateTimeService.timeTravelToNow()
     mockObjectIdService.reset()
     super.beforeEach()

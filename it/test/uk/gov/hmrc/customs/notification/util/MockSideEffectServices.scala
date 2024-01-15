@@ -41,6 +41,11 @@ class MockDateTimeService extends DateTimeService with Logging {
     logger.debug(s"Time travelled backwards [$duration] to [$time]")
   }
 
+  def travelForwardsInTime(duration: FiniteDuration): Unit = {
+    time = time.plus(duration.toJava)
+    logger.debug(s"Time travelled forwards [$duration] to [$time]")
+  }
+
   def timeTravelToNow(): Unit = {
     time = TimeNow
     logger.debug(s"Time travelled back to the present ($time/${time.toInstant.toEpochMilli})")

@@ -43,7 +43,7 @@ object TestData {
   val PushSecurityToken = Authorization("SECURITY_TOKEN")
   val PushCallbackData = models.PushCallbackData(ClientCallbackUrl, PushSecurityToken)
   val ClientData = models.ClientData(ClientId, PushCallbackData)
-  val ConversationId = models.ConversationId(UUID.fromString("00000000-4444-4444-AAAA-AAAAAAAAAAAA"))
+  val ConversationId = models.ConversationId(UUID.fromString("00000000-4444-4444-aaaa-aaaaaaaaaaaa"))
   val SomeUuid = UUID.fromString("00000000-9999-4444-9999-444444444444")
   val NotificationId = models.NotificationId(SomeUuid)
   val BadgeId = "ABCDEF1234"

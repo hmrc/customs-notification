@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.customs.notification.models
 
-import org.bson.types.ObjectId
 import play.api.mvc.Headers
 import uk.gov.hmrc.customs.notification.util.HeaderNames.*
 
@@ -91,29 +90,5 @@ object Loggable {
         KeyNames.ClientId -> Some(n.clientId.toString),
         KeyNames.ClientSubscriptionId -> Some(n.csid.toString)
       )
-    implicit val loggableClientSubscriptionId: Loggable[ClientSubscriptionId] = (id: ClientSubscriptionId) =>
-      ListMap(
-        KeyNames.ClientSubscriptionId -> Some(id.toString)
-      )
-
-    implicit val loggableObjectId: Loggable[ObjectId] = (id: ObjectId) =>
-      ListMap(
-        KeyNames.WorkItemId -> Some(id.toString)
-      )
-
-    implicit val loggableConversationId: Loggable[ConversationId] = (id: ConversationId) =>
-      ListMap(
-        KeyNames.ConversationId -> Some(id.toString)
-      )
-
-    implicit val loggableClientId: Loggable[ClientId] = (id: ClientId) =>
-      ListMap(
-        KeyNames.ClientId -> Some(id.toString)
-      )
-
-    implicit val loggableUnit: Loggable[Unit] = _ => ListMap.empty
-
-    implicit def loggableTuple[A, B](implicit evA: Loggable[A], evB: Loggable[B]): Loggable[(A, B)] =
-      (a: (A, B)) => evA.fieldsToLog(a._1) ++ evB.fieldsToLog(a._2)
   }
 }

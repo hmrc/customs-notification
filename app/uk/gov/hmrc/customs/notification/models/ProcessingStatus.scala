@@ -19,33 +19,34 @@ package uk.gov.hmrc.customs.notification.models
 import org.bson.BsonString
 import org.mongodb.scala.bson.BsonValue
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
-import uk.gov.hmrc.mongo.workitem.{ProcessingStatus as LegacyStatus, ResultStatus as LegacyResultStatus}
+import uk.gov.hmrc.mongo.workitem.{ProcessingStatus as InternalStatus, ResultStatus as InternalResultStatus}
 
 sealed trait ProcessingStatus {
   def name: String
-  final def toBson: BsonValue = new BsonString(legacyStatus.name)
+  final def toBson: BsonValue = new BsonString(internalStatus.name)
 
-  def legacyStatus: LegacyStatus
+  def 
+  internalStatus: InternalStatus
 }
 
 object ProcessingStatus {
   case object Succeeded extends ProcessingStatus {
     val name = "Succeeded"
-    val legacyStatus: LegacyResultStatus = LegacyStatus.Succeeded
+    val internalStatus: InternalResultStatus = InternalStatus.Succeeded
   }
 
   case object SavedToBeSent extends ProcessingStatus {
     val name = "SavedToBeSent"
-    val legacyStatus: LegacyStatus = InProgress
+    val internalStatus: InternalStatus = InProgress
   }
 
   case object FailedAndBlocked extends ProcessingStatus {
     val name = "FailedAndBlocked"
-    val legacyStatus: LegacyResultStatus = PermanentlyFailed
+    val internalStatus: InternalResultStatus = PermanentlyFailed
   }
 
   case object FailedButNotBlocked extends ProcessingStatus {
     val name = "FailedButNotBlocked"
-    val legacyStatus: LegacyResultStatus = Failed
+    val internalStatus: InternalResultStatus = Failed
   }
 }

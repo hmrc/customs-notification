@@ -25,10 +25,11 @@ import uk.gov.hmrc.customs.notification.connectors.SendConnector
 import uk.gov.hmrc.customs.notification.connectors.SendConnector.Request.InternalPushDescriptor
 import uk.gov.hmrc.customs.notification.models
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
-import uk.gov.hmrc.customs.notification.repo.Repository
-import uk.gov.hmrc.customs.notification.repo.Repository.MongoDbError
+import uk.gov.hmrc.customs.notification.repositories.utils.Errors.MongoDbError
+import uk.gov.hmrc.customs.notification.repositories.{BlockedCsidRepository, NotificationRepository}
+import uk.gov.hmrc.customs.notification.services.SendService.{ClientError, ServerError, Success}
 import uk.gov.hmrc.customs.notification.util.TestData.*
-import uk.gov.hmrc.customs.notification.util.TestData.Implicits.*
+import uk.gov.hmrc.customs.notification.util.TestData.Implicits.{EmptyAuditContext, HeaderCarrier}
 
 import java.time.ZonedDateTime
 import scala.concurrent.Future
@@ -40,22 +41,24 @@ class SendServiceSpec extends AsyncWordSpec
   with ResetMocksAfterEachAsyncTest {
 
   private val mockSendConnector = mock[SendConnector]
-  private val mockRepo = mock[Repository]
+  private val mockNotificationRepo = mock[NotificationRepository]
+  private val mockBlockedCsidRepo = mock[BlockedCsidRepository]
   private val mockRetryAvailableAfterConfig = mock[RetryDelayConfig]
   private val mockDateTimeService = new DateTimeService {
     override def now(): ZonedDateTime = TimeNow
   }
   private val service = new SendService(
     mockSendConnector,
-    mockRepo,
+    mockNotificationRepo,
+    mockBlockedCsidRepo,
     mockRetryAvailableAfterConfig,
     mockDateTimeService)
 
   private val failedButNotBlockedRetryDelay = 10.minutes
   private val failedButNotBlockedAvailableAt = TimeNow.plusSeconds(failedButNotBlockedRetryDelay.toSeconds)
   private val failedAndBlockedRetryDelay = 150.seconds
-  private val failedAndBlockedAvailableAt = TimeNow.plusSeconds(failedAndBlockedRetryDelay.toSeconds)
-  private val notificationLogContext = models.LogContext(Notification)
+  private implicit val notificationLogContext = models.LogContext(Notification)
+
   override def withFixture(test: NoArgAsyncTest): FutureOutcome = {
     when(mockRetryAvailableAfterConfig.failedButNotBlocked).thenReturn(failedButNotBlockedRetryDelay)
     when(mockRetryAvailableAfterConfig.failedAndBlocked).thenReturn(failedAndBlockedRetryDelay)
@@ -68,7 +71,7 @@ class SendServiceSpec extends AsyncWordSpec
       mockSendConnector
         .send(
           eqTo(Notification),
-          eqTo(PushCallbackData))(eqTo(HeaderCarrier), eqTo(LogContext), eqTo(EmptyAuditContext)))
+          eqTo(PushCallbackData))(eqTo(HeaderCarrier), eqTo(notificationLogContext), eqTo(EmptyAuditContext)))
 
   "send" when {
     "making send request to the SendService" should {
@@ -77,84 +80,72 @@ class SendServiceSpec extends AsyncWordSpec
           .thenReturn(Future.successful(Right(SendConnector.SuccessfullySent(InternalPushDescriptor))))
       }
 
-      "return a Right(Unit)" in {
+      "return a Right(Success)" in {
         setup()
         service.send(Notification, PushCallbackData)
-          .map(_ shouldBe Right(()))
+          .map(_ shouldBe Right(Success))
       }
 
       behave like setNotificationStatusToSucceeded(setup(), Notification, PushCallbackData)
     }
 
-    "has the SendConnector return a client error" should {
+    "the SendConnector returns a client error" should {
       def setup(): Unit = {
         whenSendConnectorCalled()
           .thenReturn(Future.successful(Left(SendConnector.ClientError)))
-        when(mockRepo.setFailedButNotBlocked(
+        when(mockNotificationRepo.setFailedButNotBlocked(
           id = eqTo(ObjectId),
-          availableAt = eqTo(failedButNotBlockedAvailableAt))(eqTo(models.LogContext(Notification))))
+          availableAt = eqTo(failedButNotBlockedAvailableAt))(eqTo(notificationLogContext)))
           .thenReturn(Future.successful(Right(())))
       }
 
-      "return a Right(Unit)" in {
+      "return a Right(ClientError)" in {
         setup()
         service.send(Notification, PushCallbackData)
-          .map(_ shouldBe Right(()))
+          .map(_ shouldBe Right(ClientError))
       }
 
       "change the status of the notification to FailedButNotBlocked in the repo" in {
         setup()
         service.send(Notification, PushCallbackData).map { _ =>
-          verify(mockRepo).setFailedButNotBlocked(
+          verify(mockNotificationRepo).setFailedButNotBlocked(
             id = eqTo(ObjectId),
-            availableAt = eqTo(failedButNotBlockedAvailableAt))(eqTo(models.LogContext(Notification)))
+            availableAt = eqTo(failedButNotBlockedAvailableAt))(eqTo(notificationLogContext))
           succeed
         }
       }
     }
 
-    "has the SendConnector return a server error" should {
+    "the SendConnector returns a server error" should {
       def setup(): Unit = {
         whenSendConnectorCalled()
           .thenReturn(Future.successful(Left(SendConnector.ServerError)))
-        when(mockRepo.setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(notificationLogContext)))
+        when(mockNotificationRepo.setFailedAndBlocked(eqTo(ObjectId))(eqTo(notificationLogContext)))
           .thenReturn(Future.successful(Right(())))
-        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext)))
-          .thenReturn(Future.successful(Right(1)))
       }
 
-      "return a Right(())" in {
+      "return a Right(ServerError)" in {
         setup()
         service.send(Notification, PushCallbackData)
-          .map(_ shouldBe Right(()))
+          .map(_ shouldBe Right(ServerError))
       }
 
       "set the current notification status to FailedAndBlocked in the repo" in {
         setup()
         service.send(Notification, PushCallbackData).map { _ =>
-          verify(mockRepo).setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(notificationLogContext))
-          succeed
-        }
-      }
-
-      "set all previous FailedButNotBlocked notifications for the client subscription ID to blocked" in {
-        setup()
-        service.send(Notification, PushCallbackData).map { _ =>
-          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext))
+          verify(mockNotificationRepo).setFailedAndBlocked(eqTo(ObjectId))(eqTo(notificationLogContext))
           succeed
         }
       }
     }
 
-    "has the repo return a MongoDbError when setting the current notification to FailedAndBlocked" should {
+    "the repo returns a MongoDbError when setting the current notification to FailedAndBlocked" should {
       val mongoDbError = MongoDbError("setting FailedAndBlocked for notification", Exception)
 
       def setup(): Unit = {
         whenSendConnectorCalled()
           .thenReturn(Future.successful(Left(SendConnector.ServerError)))
-        when(mockRepo.setFailedAndBlocked(eqTo(ObjectId), eqTo(failedAndBlockedAvailableAt))(eqTo(notificationLogContext)))
-          .thenReturn(Future.successful(Right(())))
-        when(mockRepo.blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext)))
+        when(mockNotificationRepo.setFailedAndBlocked(eqTo(ObjectId))(eqTo(notificationLogContext)))
           .thenReturn(Future.successful(Left(mongoDbError)))
       }
 
@@ -163,22 +154,14 @@ class SendServiceSpec extends AsyncWordSpec
         service.send(Notification, PushCallbackData)
           .map(_ shouldBe Left(mongoDbError))
       }
-
-      "still block previously FailedButNotBlocked notifications for that client subscription ID" in {
-        setup()
-        service.send(Notification, PushCallbackData).map { _ =>
-          verify(mockRepo).blockAllFailedButNotBlocked(eqTo(TranslatedCsid))(eqTo(notificationLogContext))
-          succeed
-        }
-      }
     }
   }
 
   private def setNotificationStatusToSucceeded(setup: => Unit, n: models.Notification, c: models.SendData): Unit = {
-    "set notification status to Succeeded" in {
+    "deletes the notification" in {
       setup
       service.send(n, c).map { _ =>
-        verify(mockRepo).setSucceeded(eqTo(ObjectId))(eqTo(LogContext))
+        verify(mockNotificationRepo).setSucceeded(eqTo(ObjectId))(eqTo(notificationLogContext))
         succeed
       }
     }

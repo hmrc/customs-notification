@@ -1,48 +1,76 @@
 # Customs Notification
 
-The objective of this service is 
+The objective of this service is to receive notifications from the CDS backend and forward them to one of three destinations, depending on the client subscription configuration.
 
-1. Receive an update from CDS Backend System (Messaging) regarding a declaration that a CDS Client made earlier using Customs Declarations API
+## Types of notifications
 
-2. Fetch client details(Client’s provided callback URL and Security Token) using the CDS Client ID received in header
+The client subscription configuration is queried from [api-subscription-fields](https://github.com/hmrc/api-subscription-fields).
 
-3. Notify the CDS Client with the given payload by calling the notification gateway service with the payload or sending it to the pull queue
+Given a *client subscription ID* (or *csid*), the service will respond with a *client ID*, and potentially a *callback URL* and *security token*.
 
-4. Provide two endpoints for the counting and deleting of blocked flags which prevents notifications from being pushed.
+A particular *client ID* may be associated to more than one *client subscription ID*.
 
-5. Provide retry for notifications that have failed to be sent. This applies to notifications destined for the HMRC pull queue as well as pushing to external clients. 
+The contents of the response will determine the type and therefore destination of the notification:
 
-## Configuration for Internal Clients
+| Type          | [api-subscription-fields](https://github.com/hmrc/api-subscription-fields) response condition                                       | Notification send destination                                                        |
+|---------------|-------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| External push | Callback URL and security token exist                                                                                               | [customs-notification-gateway](https://github.com/hmrc/customs-notification-gateway) |
+| Internal push | Callback URL and security token exist, and client ID matches [internal clients list in config](#configuration-for-internal-clients) | Direct HTTP POST to callback URL                                                     |
+| Pull          | Callback URL does not exist                                                                                                         | [api-notification-pull](https://github.com/hmrc/api-notification-pull)               |
 
-Internal HMRC teams that have applications that receive Notifications need to have their client Ids added to the configuration.
-This is so that customs-notification-gateway/Squid Proxy can be bypassed and the Notifications sent directly over the internal network. 
-The entries should be in the following format:
- 
-    push.internal.clientIds.0 = "ClientIdOne"
-    push.internal.clientIds.1 = "ClientIdTwo"
-  
+## Retrying failed notifications
+A notification that fails to send is retried using a [circuit breaker](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker) pattern.
+
+Depending on the HTTP response code received,
+
+| State               | HTTP response code | Effect                                                                              | Retry behaviour                                                                                                                                                                                                                       |
+|---------------------|--------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Succeeded           | 2xx                | No effect                                                                           | _n/a_                                                                                                                                                                                                                                 |
+| FailedButNotBlocked | 3xx or 4xx         | No effect                                                                           | Notification is retried periodically                                                                                                                                                                                                  |
+| FailedAndBlocked    | 5xx                | Subsequent incoming notifications are set to *FailedAndBlocked* and csid is blocked | Exactly one notification for that csid is retried periodically. If the subsequent state of the notification is *Succeeded* or *FailedButNotBlocked* then the rest of the notifications for that csid are set to *FailedButNotBlocked* |
+
+The exact delays are detailed in the [Customs Declarations End-to-End Service Guide](https://developer.service.hmrc.gov.uk/guides/customs-declarations-end-to-end-service-guide/documentation/notifications.html#push-notifications).
+
+### Example
+
+
+
+<img alt="Failed notification time series diagram" src="diagrams/failed notifications.jpg" title="Diagram showing how blocked CSIDs interact" width="830" />
+
+## Context diagram
+<img alt="Context diagram" src="diagrams/context.jpg" title="Context diagram" width="830"/>
+
+## Component diagram
+<img alt="Component diagram" src="diagrams/component.png" title="Component diagram" width="830"/>
+
+## Configuration for internal clients
+
+Internal HMRC teams that have applications receiving notifications need to have their client IDs added to the configuration.
+This is so that customs-notification-gateway/Squid Proxy can be bypassed and notifications can be sent directly over the internal network. 
+
+The entries are stored under the `internal-client-ids` key in [application.conf](conf/application.conf).
 
 ## HTTP return codes
 
 ### Notify endpoint codes
 
-| HTTP Status   | Error code scenario                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------|
-| 202           | If request is processed successfully.                                                              |
-| 400           | If request has incorrect data, incorrect data format, missing parameters etc.                      |
-| 401           | If request has missing or invalid Authorization header (when configured to check the header).      |
-| 406           | If request has missing or invalid ACCEPT header.                                                   |
-| 415           | If request has missing or invalid Content-Type header.                                             |
-| 500           | In case of a system error such as time out, server down etc. ,this HTTP status code will be returned.|
+| HTTP Status | Scenario                                                                                         |
+|-------------|--------------------------------------------------------------------------------------------------|
+| 202         | The request is processed successfully.                                                           |
+| 400         | The request has incorrect data, incorrect data format, missing parameters etc.                   |
+| 401         | The request has a missing or invalid Authorization header (when configured to check the header). |
+| 406         | The request has a missing or invalid ACCEPT header.                                              |
+| 415         | The request has a missing or invalid Content-Type header.                                        |
+| 500         | There is a system error such as a timeout, network error etc.                                    |
 
 ### Blocked flag endpoint codes
 
-| HTTP Status   | Error code scenario                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------|
-| 200           | If blocked count request is processed successfully                                                 |
-| 204           | If remove blocked flags modifies some notifications                                                |
-| 404           | If delete blocked flags request fails to remove any blocked flags.                                 |
-| 500           | In case of a system error such as time out, server down etc. ,this HTTP status code will be returned.|
+| HTTP Status   | Scenario                                                                                              |
+| ------------- |-------------------------------------------------------------------------------------------------------|
+| 200           | If blocked count request is processed successfully                                                    |
+| 204           | If remove blocked flags modifies some notifications                                                   |
+| 404           | If delete blocked flags request fails to remove any blocked flags.                                    |
+| 500           | In case of a system error such as time out, server down etc. ,this HTTP status code will be returned. |
   
 
 ## Request Structure
@@ -80,70 +108,6 @@ Accept only requests having the header `Authorization: Basic YmFzaWN1c2VyOmJhc2l
 ### Delete blocked flags for a given client id
 
     curl -X DELETE http://customs-notification-host/customs-notification/blocked-flag -H 'X-Client-ID: AClientId'
-
-## Switching service endpoints
-
-Dynamic switching of service endpoints has been implemented for connectors. To configure dynamic
-switching of the endpoint there must be a corresponding section in the application config file
-(see example below). This should contain the endpoint config details.
-
-### Example
-The service `api-subscription-fields` has a `default` configuration and a `stub` configuration. Note
-that `default` configuration is declared directly inside the `api-subscription-fields` section.
-
-    {
-        ...
-        services {
-          ...
-
-          api-subscription-fields {
-            host = localhost
-            port = 9650
-            context = /field
-    
-            stub {
-              host = localhost
-              port = 9477
-              context = /api-subscription-fields/fields
-            }
-          }
-        }
-    }
-
-## Set stub configuration for service
-
-### Request
-
-    curl -X "POST" http://customs-notification-host/test-only/service/api-subscription-fields/configuration -H 'content-type: application/json' -d '{ "environment": "stub" }'
-
-### Response
-
-    The service api-subscription-fields is now configured to use the stub environment
-
-## Set default configuration for service
-
-### Request
-
-    curl -X "POST" http://customs-notification-host/test-only/service/api-subscription-fields/configuration -H 'content-type: application/json' -d '{ "environment": "default" }'
-
-### Response
-
-    The service api-subscription-fields is now configured to use the default environment
-
-## Get the current configuration for a service
-
-### REQUEST
-
-    curl -X "GET" http://customs-notification-host/test-only/service/api-subscription-fields/configuration
-
-### RESPONSE
-
-    {
-      "service": "api-subscription-fields",
-      "environment": "stub",
-      "url": "http://currenturl/api-subscription-fields"
-      "bearerToken": "current token"
-    }
 
 ## License
 

@@ -52,8 +52,6 @@ class ControllerErrorSpec(val wireMockServer: WireMockServer,
   with Matchers
   with GivenWhenThen {
 
-  override protected implicit lazy val wsClient: WSClient = app.injector.instanceOf[WSClient]
-
   private val invalidRequests = {
     val malformedXmlRequest = () =>
       wsUrl(Endpoints.Notify)

@@ -1,13 +1,7 @@
-
-logs
-project/project
-project/target
-target
 lib_managed
 tmp
 .history
 dist
-/.idea
 /*.iml
 /*.ipr
 /out
@@ -17,5 +11,12 @@ dist
 /RUNNING_PID
 /.settings
 *.iws
+project/project/
 
-/.bsp
+logs/
+target/
+.idea/
+.bsp/
+.metals/
+.vscode/
+.bloop/

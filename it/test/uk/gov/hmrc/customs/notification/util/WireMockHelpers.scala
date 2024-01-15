@@ -58,7 +58,8 @@ trait WireMockHelpers extends BeforeAndAfterEach {
           .withStatus(responseStatus)))
   }
 
-  def stubGetClientDataOk(): Unit = stub(get)(IntegrationTestHelpers.PathFor.clientDataWithCsid(), OK, stubClientDataResponseBody())
+  private val defaultStubClientDataResponseBody = stubClientDataResponseBody()
+  def stubGetClientDataOk(): Unit = stub(get)(IntegrationTestHelpers.PathFor.defaultClientData, OK, defaultStubClientDataResponseBody)
 
   def stubClientDataResponseBody(clientId: models.ClientId = ClientId,
                                  csid: models.ClientSubscriptionId = TranslatedCsid,

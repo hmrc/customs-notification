@@ -23,7 +23,7 @@ import play.api.libs.json.Writes.StringWrites
 import play.api.libs.json.*
 import uk.gov.hmrc.customs.notification.config.MetricsConfig
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector.RequestBody
-import uk.gov.hmrc.customs.notification.models.*
+import uk.gov.hmrc.customs.notification.models.Notification
 import uk.gov.hmrc.customs.notification.services.DateTimeService
 import uk.gov.hmrc.customs.notification.util.Helpers.ignoreResult
 import uk.gov.hmrc.http.HeaderCarrier

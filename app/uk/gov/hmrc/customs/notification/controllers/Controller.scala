@@ -19,16 +19,16 @@ package uk.gov.hmrc.customs.notification.controllers
 import play.api.mvc.{Action, AnyContent, ControllerComponents, Headers, Result, Results as PlayResults}
 import uk.gov.hmrc.customs.notification.config.BasicAuthConfig
 import uk.gov.hmrc.customs.notification.controllers.Results.*
-import uk.gov.hmrc.customs.notification.controllers.errors.{SubmitValidationError, Validation}
 import uk.gov.hmrc.customs.notification.controllers.errors.ValidationError.*
+import uk.gov.hmrc.customs.notification.controllers.errors.{SubmitValidationError, Validation}
 import uk.gov.hmrc.customs.notification.models.{LogContext, NotificationId}
 import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.{loggableHeaders, loggableRequestMetadata}
-import uk.gov.hmrc.customs.notification.repo.Repository
-import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
+import uk.gov.hmrc.customs.notification.repositories.BlockedCsidRepository
 import uk.gov.hmrc.customs.notification.services.*
-import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits.*
-import uk.gov.hmrc.customs.notification.util.HeaderNames.*
+import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.{DeclarantNotFound, InternalServiceError}
 import uk.gov.hmrc.customs.notification.util.*
+import uk.gov.hmrc.customs.notification.util.FutureEither.Ops.*
+import uk.gov.hmrc.customs.notification.util.HeaderNames.*
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
@@ -45,7 +45,7 @@ class Controller @Inject()()(implicit
                              uuidService: UuidService,
                              csidTranslationHotfixService: CsidTranslationHotfixService,
                              basicAuthConfig: BasicAuthConfig,
-                             repo: Repository) extends BackendController(cc) with Logger with Validation {
+                             blockedCsidRepo: BlockedCsidRepository) extends BackendController(cc) with Logger with Validation {
   override val controllerComponents: ControllerComponents = cc
   implicit val ec: ExecutionContext = cc.executionContext
 
@@ -105,7 +105,7 @@ class Controller @Inject()()(implicit
         logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling blocked-count endpoint")
         Future.successful(Results.BadRequest(MissingClientId.responseMessage))
       case Right(clientId) =>
-        repo.getFailedAndBlockedCount(clientId).map {
+        blockedCsidRepo.getFailedAndBlockedCount(clientId).map {
           case Left(mongoDbError) =>
             logger.error(mongoDbError.message)
             Results.InternalServerError()
@@ -123,7 +123,7 @@ class Controller @Inject()()(implicit
         logger.error(s"$X_CLIENT_ID_HEADER_NAME header missing when calling delete blocked-flag endpoint")
         Future.successful(Results.BadRequest(MissingClientId.responseMessage))
       case Right(clientId) =>
-        repo.unblockFailedAndBlocked(clientId).map {
+        blockedCsidRepo.unblockCsid(clientId).map {
           case Left(mongoDbError) =>
             logger.error(mongoDbError.message)
             Results.InternalServerError()
@@ -132,7 +132,7 @@ class Controller @Inject()()(implicit
               logger.info(s"$count FailedAndBlocked notifications set to FailedButNotBlocked")
               PlayResults.NoContent
             } else {
-              logger.info("No FailedAndBlocked notifications found")
+              logger.info("No FailedAndBlocked notifications found to unblock")
               Results.NotFound()
             }
         }

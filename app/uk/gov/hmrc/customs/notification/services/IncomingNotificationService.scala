@@ -18,31 +18,31 @@ package uk.gov.hmrc.customs.notification.services
 
 import cats.implicits.toBifunctorOps
 import org.mongodb.scala.bson.ObjectId
-import uk.gov.hmrc.customs.notification.config.RetryDelayConfig
 import uk.gov.hmrc.customs.notification.connectors.{ClientDataConnector, MetricsConnector}
 import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.customs.notification.models.Auditable.Implicits.auditableRequestMetadata
-import uk.gov.hmrc.customs.notification.repo.Repository
-import uk.gov.hmrc.customs.notification.repo.Repository.MongoDbError
+import uk.gov.hmrc.customs.notification.models.Loggable.Implicits.loggableNotification
+import uk.gov.hmrc.customs.notification.models.ProcessingStatus.{FailedAndBlocked, SavedToBeSent}
+import uk.gov.hmrc.customs.notification.repositories.utils.Errors.MongoDbError
+import uk.gov.hmrc.customs.notification.repositories.{BlockedCsidRepository, NotificationRepository}
 import uk.gov.hmrc.customs.notification.services.IncomingNotificationService.*
 import uk.gov.hmrc.customs.notification.util.*
-import uk.gov.hmrc.customs.notification.util.FutureEither.Implicits.*
+import uk.gov.hmrc.customs.notification.util.FutureEither.Ops.*
+import uk.gov.hmrc.customs.notification.util.Helpers.ignoreResult
 import uk.gov.hmrc.http.HeaderCarrier
 
-import java.time.ZonedDateTime
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
 @Singleton
-class IncomingNotificationService @Inject()(repo: Repository,
-                                            dateTimeService: DateTimeService,
+class IncomingNotificationService @Inject()(notificationRepo: NotificationRepository,
+                                            blockedCsidRepo: BlockedCsidRepository,
                                             sendService: SendService,
                                             clientDataConnector: ClientDataConnector,
                                             auditService: AuditService,
                                             metricsConnector: MetricsConnector,
-                                            newObjectIdService: ObjectIdService,
-                                            retryDelayConfig: RetryDelayConfig)
+                                            objectIdService: ObjectIdService)
                                            (implicit ec: ExecutionContext) extends Logger {
   def process(payload: NodeSeq,
               requestMetadata: RequestMetadata)
@@ -54,7 +54,7 @@ class IncomingNotificationService @Inject()(repo: Repository,
         Future.successful(Left(DeclarantNotFound))
       case Left(ClientDataConnector.OtherError) =>
         Future.successful(Left(InternalServiceError))
-      case Right(ClientDataConnector.Success(clientData)) =>
+      case Right(clientData) =>
         processNotificationFor(clientData, payload, requestMetadata)
     }
   }
@@ -62,31 +62,30 @@ class IncomingNotificationService @Inject()(repo: Repository,
   private def processNotificationFor(clientData: ClientData,
                                      payload: NodeSeq,
                                      requestMetadata: RequestMetadata)
-                                    (implicit hc: HeaderCarrier,
-                                     lc: LogContext): Future[Either[Error, Unit]] = {
+                                    (implicit hc: HeaderCarrier): Future[Either[Error, Unit]] = {
+    val newNotification = notificationFrom(objectIdService.newId(), payload, clientData.clientId, requestMetadata)
+    implicit val lc: LogContext = LogContext(newNotification)
     implicit val ac: AuditContext = AuditContext(requestMetadata)
-
-    val newNotification = notificationFrom(newObjectIdService.newId(), payload, clientData.clientId, requestMetadata)
     auditService.sendIncomingNotificationEvent(clientData.sendData, newNotification.payload)
 
     (for {
-      failedAndBlockedExist <- repo.checkFailedAndBlockedExist(requestMetadata.csid).toFutureEither
-      whatToDo = if (failedAndBlockedExist) BlockAndAbort else ContinueToSend
-      _ = logger.error(s"TIME NOW IS: ${dateTimeService.now()}")
-      _ <- repo.insert(newNotification, whatToDo.statusToSave, whatToDo.availableAt, whatToDo.failureCount).toFutureEither
+      csidIsBlocked <- blockedCsidRepo.checkIfCsidIsBlocked(requestMetadata.csid).toFutureEither
+      whatToDo = if (csidIsBlocked) BlockAndAbort else ContinueToSend
+      _ <- whatToDo.saveNotification(newNotification).toFutureEither
       _ = metricsConnector.send(newNotification)
-    } yield whatToDo).value flatMap {
-      case Left(_: MongoDbError) =>
-        Future.successful(Left(InternalServiceError))
-      case Right(BlockAndAbort) =>
-        logger.info(s"Existing FailedAndBlocked notifications found, incoming notification saved as FailedAndBlocked")
-        Future.successful(Right(()))
-      case Right(ContinueToSend) =>
-        logger.info("Saved notification")
-
-        sendService.send(newNotification, clientData.sendData)
-          .map(_.leftMap(_ => InternalServiceError))
-    }
+    } yield whatToDo).value
+      .flatMap {
+        case Left(_: MongoDbError) =>
+          Future.successful(Left(InternalServiceError))
+        case Right(BlockAndAbort) =>
+          logger.info(s"Existing FailedAndBlocked notifications found, incoming notification saved as FailedAndBlocked")
+          Future.successful(Right(()))
+        case Right(ContinueToSend) =>
+          logger.info("Saved notification")
+          sendService
+            .send(newNotification, clientData.sendData)
+            .map(_.bimap(_ => InternalServiceError, ignoreResult))
+      }
   }
 
   private def notificationFrom(newId: ObjectId, payload: NodeSeq, clientId: ClientId, requestMetadata: RequestMetadata): Notification = {
@@ -109,25 +108,22 @@ class IncomingNotificationService @Inject()(repo: Repository,
   }
 
   private sealed trait WhatToDo {
-    val failureCount: Int
-    val statusToSave: ProcessingStatus
-
-    def availableAt: ZonedDateTime
-
+    def saveNotification(n: Notification)
+                        (implicit lc: LogContext): Future[Either[MongoDbError, Unit]]
   }
 
   private case object ContinueToSend extends WhatToDo {
-    val failureCount: Int = 0
-    val statusToSave: ProcessingStatus = ProcessingStatus.SavedToBeSent
+    def saveNotification(n: Notification)
+                        (implicit lc: LogContext): Future[Either[MongoDbError, Unit]] =
+      notificationRepo.insert(n, SavedToBeSent, failureCount = 0)
 
-    def availableAt: ZonedDateTime = dateTimeService.now()
   }
 
   private case object BlockAndAbort extends WhatToDo {
-    val failureCount: Int = 1
-    val statusToSave: ProcessingStatus = ProcessingStatus.FailedAndBlocked
+    def saveNotification(n: Notification)
+                        (implicit lc: LogContext): Future[Either[MongoDbError, Unit]] =
+      notificationRepo.insert(n, FailedAndBlocked, failureCount = 1)
 
-    def availableAt: ZonedDateTime = dateTimeService.now().plusSeconds(retryDelayConfig.failedAndBlocked.toSeconds)
   }
 }
 

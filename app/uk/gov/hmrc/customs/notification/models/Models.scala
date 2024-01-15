@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.models
 import org.bson.types.ObjectId
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
-import uk.gov.hmrc.customs.notification.repo.Repository.Dto.NotificationWorkItem
+import uk.gov.hmrc.customs.notification.repositories.NotificationRepository.Dto.NotificationWorkItem
 import uk.gov.hmrc.customs.notification.util.HeaderNames.*
 import uk.gov.hmrc.http.Authorization
 import uk.gov.hmrc.mongo.workitem.WorkItem
@@ -90,23 +90,39 @@ object Header {
 sealed trait SendData
 
 object SendData {
-  implicit val urlReads: Reads[URL] = {
+  private val urlReads: Reads[URL] = {
     case JsString(urlStr) => Try(new URL(urlStr)) match {
       case Success(url) => JsSuccess(url)
       case Failure(_) => JsError("error.malformed.url")
     }
     case _ => JsError("error.expected.url")
   }
-  implicit val parentReads: Reads[SendData] = {
-    case o: JsObject => (o \ "callbackUrl").asOpt[URL] match {
-      case Some(callbackUrl) => (o \ "securityToken").asOpt[String] match {
-        case Some(securityToken) => JsSuccess(PushCallbackData(callbackUrl, Authorization(securityToken)))
-        case None => JsError("error.expected.securityToken")
+  implicit val reads: Reads[SendData] = {
+    case o: JsObject =>
+      o \ "callbackUrl" match {
+        case _: JsUndefined =>
+          JsSuccess(SendToPullQueue)
+        case JsDefined(value) =>
+          urlReads
+            .reads(value)
+            .flatMap { callbackUrl =>
+              (o \ "securityToken").asOpt[String] match {
+                case Some(securityToken) => JsSuccess(PushCallbackData(callbackUrl, Authorization(securityToken)))
+                case None => JsError("error.expected.securityToken")
+              }
+            }
       }
-      case None => JsSuccess(SendToPullQueue)
-    }
     case _ => JsError("error.expected.ClientSendData")
   }
+//
+//  implicit val writes: Writes[SendData] = {
+//    case SendToPullQueue => JsObject.empty
+//    case PushCallbackData(callbackUrl, securityToken) =>
+//      Json.obj(
+//        "callbackUrl" -> callbackUrl.toString,
+//        "securityToken" -> securityToken.value
+//      )
+//  }
 }
 
 case object SendToPullQueue extends SendData
@@ -114,22 +130,20 @@ case object SendToPullQueue extends SendData
 case class PushCallbackData(callbackUrl: URL,
                             securityToken: Authorization) extends SendData
 
-object PushCallbackData {
-  implicit val authReads: Reads[Authorization] = Json.valueReads[Authorization]
-
-  import uk.gov.hmrc.customs.notification.models.SendData.urlReads
-
-  implicit val reads: Reads[PushCallbackData] = Json.reads[PushCallbackData]
-}
-
 case class ClientData(clientId: ClientId,
                       sendData: SendData)
 
 object ClientData {
+//  implicit val writes: Writes[ClientData] = (o: ClientData) => Json.obj(
+//    "clientId" -> o.clientId.id,
+//    "fields" -> o.sendData
+//  )
   implicit val reads: Reads[ClientData] = (
     (__ \ "clientId").read[ClientId] and
       (__ \ "fields").read[SendData]
     )(ClientData.apply _)
+
+//  implicit val format: Format[ClientData] = Format(reads, writes)
 }
 
 case class RequestMetadata(csid: ClientSubscriptionId,

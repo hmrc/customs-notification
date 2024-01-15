@@ -30,13 +30,20 @@ case class FutureEither[+E, +A](value: Future[Either[E, A]]) {
       case Left(e1) => Future.successful(Left(e1))
     })
 
-  def withUnitAsError(implicit ec: ExecutionContext): FutureEither[Unit, A] =
+  def ignoreError(implicit ec: ExecutionContext): FutureEither[Unit, A] =
     FutureEither(value.map(_.leftMap(ignoreResult)))
 }
 
 object FutureEither {
-  object Implicits {
-    implicit class FutureEitherExtensions[E, A](fe: Future[Either[E, A]]) {
+  def pure[E, A](a: A): FutureEither[E, A] = FutureEither(Future.successful(Right(a)))
+
+  def unit[E]: FutureEither[E, Unit] = FutureEither(Future.successful(Right(())))
+
+  def liftF[E, A](a: Future[A])
+                 (implicit executionContext: ExecutionContext): FutureEither[E, A] = FutureEither(a.map(Right(_)))
+
+  object Ops {
+    implicit class FutureEitherOps[E, A](fe: Future[Either[E, A]]) {
       def toFutureEither: FutureEither[E, A] = FutureEither(fe)
     }
 

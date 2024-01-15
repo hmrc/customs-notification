@@ -18,12 +18,11 @@ package uk.gov.hmrc.customs.notification.connectors
 
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.{MimeTypes, Status}
-import play.api.libs.json.*
+import play.api.libs.json.Json
 import uk.gov.hmrc.customs.notification.config.SendConfig
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector.*
-import uk.gov.hmrc.customs.notification.connectors.SendConnector.Request.{ExternalPushDescriptor, InternalPushDescriptor, PullDescriptor}
 import uk.gov.hmrc.customs.notification.connectors.SendConnector.*
-import uk.gov.hmrc.customs.notification.models.Header.jsonFormat
+import uk.gov.hmrc.customs.notification.connectors.SendConnector.Request.*
 import uk.gov.hmrc.customs.notification.models.*
 import uk.gov.hmrc.customs.notification.services.AuditService
 import uk.gov.hmrc.customs.notification.util.HeaderNames.*

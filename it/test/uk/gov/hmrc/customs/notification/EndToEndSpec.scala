@@ -19,23 +19,22 @@ package uk.gov.hmrc.customs.notification
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.*
-import org.scalatest.*
 import org.scalatest.LoneElement.convertToCollectionLoneElementWrapper
 import org.scalatest.featurespec.AnyFeatureSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{DoNotDiscover, GivenWhenThen, Inside, Suite}
 import org.scalatestplus.play.ConfiguredServer
 import play.api.http.Status.*
-import play.api.libs.ws.WSClient
 import uk.gov.hmrc.customs.notification.config.RetryDelayConfig
 import uk.gov.hmrc.customs.notification.models.ProcessingStatus
 import uk.gov.hmrc.customs.notification.models.ProcessingStatus.{FailedAndBlocked, FailedButNotBlocked}
-import uk.gov.hmrc.customs.notification.repo.Repository
-import uk.gov.hmrc.customs.notification.repo.Repository.Dto
-import uk.gov.hmrc.customs.notification.util.*
+import uk.gov.hmrc.customs.notification.repositories.NotificationRepository
+import uk.gov.hmrc.customs.notification.repositories.NotificationRepository.Dto
 import uk.gov.hmrc.customs.notification.util.HeaderNames.*
 import uk.gov.hmrc.customs.notification.util.IntegrationTestHelpers.*
 import uk.gov.hmrc.customs.notification.util.IntegrationTestHelpers.PathFor.*
 import uk.gov.hmrc.customs.notification.util.TestData.*
+import uk.gov.hmrc.customs.notification.util.*
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import java.util.UUID
@@ -49,26 +48,17 @@ private class TestOnlyEndToEndSpec extends IntegrationSpecBase {
 
 class EndToEndSpec(protected val wireMockServer: WireMockServer,
                    protected val mockDateTimeService: MockDateTimeService,
-                   protected val mockObjectIdService: MockObjectIdService) extends AnyFeatureSpec
-  with ConfiguredServer
-  with WireMockHelpers
-  with WsClientHelpers
-  with RepositoryHelpers
-  with GivenWhenThen
-  with BeforeAndAfterEach
-  with Matchers
-  with Inside {
+                   protected val mockObjectIdService: MockObjectIdService)
+  extends AnyFeatureSpec
+    with ConfiguredServer
+    with WireMockHelpers
+    with WsClientHelpers
+    with RepositoriesFixture
+    with GivenWhenThen
+    with Matchers
+    with Inside {
 
   private lazy val retryDelayConfig = app.injector.instanceOf[RetryDelayConfig]
-  protected lazy val repo: Repository = app.injector.instanceOf[Repository]
-  override lazy implicit val wsClient: WSClient = app.injector.instanceOf[WSClient]
-
-  override def beforeEach(): Unit = {
-    repo.collection.drop().toFuture().futureValue
-    mockDateTimeService.timeTravelToNow()
-    mockObjectIdService.reset()
-    super.beforeEach()
-  }
 
   Feature("POST /notify endpoint") {
 
@@ -84,7 +74,7 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
 
       Then("it should save the succeeded notification in the database")
       val expectedNotification =
-        Repository.domainToRepo(
+        NotificationRepository.Mapping.domainToRepo(
           notification = Notification,
           status = ProcessingStatus.Succeeded,
           updatedAt = TimeNow.toInstant,
@@ -105,7 +95,7 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
       stubGetClientDataOk()
       stub(post)(Metrics, ACCEPTED)
 
-      Given("there is a previous notification set as FailedButNotBlocked for another csid (e.g. because of a 400 Bad Request)")
+      And("there is a previous notification set as FailedButNotBlocked for another csid (e.g. because of a 400 Bad Request)")
       mockDateTimeService.travelBackInTime(1.second)
       stub(post)(ExternalPush, BAD_REQUEST)
       val objectIdForOtherCsid = AnotherObjectId
@@ -132,14 +122,14 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
 
       And("it should save the notification as FailedAndBlocked in the database")
       val expectedWorkItem =
-        Repository.domainToRepo(
+        NotificationRepository.Mapping.domainToRepo(
           notification = Notification,
           status = ProcessingStatus.FailedAndBlocked,
           updatedAt = TimeNow.toInstant,
           failureCount = 1)
           .copy(
             failureCount = 1,
-            availableAt = TimeNow.plusSeconds(retryDelayConfig.failedAndBlocked.toSeconds).toInstant
+            availableAt = TimeNow.toInstant
           )
       val db = getDatabase()
       inside(db.find(_.id == ObjectId)) { case Some(actual) =>
@@ -148,12 +138,12 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
 
       And("it should set the previous notification for this csid to FailedAndBlocked")
       inside(db.find(_.id == otherObjectIdForThisCsid)) { case Some(actual) =>
-        actual.status shouldBe FailedAndBlocked.legacyStatus
+        actual.status shouldBe FailedAndBlocked.internalStatus
       }
 
       And("it should not change the status for the notification for another csid")
       inside(db.find(_.id == objectIdForOtherCsid)) { case Some(actual) =>
-        actual.status shouldBe FailedButNotBlocked.legacyStatus
+        actual.status shouldBe FailedButNotBlocked.internalStatus
       }
 
       And("it should return 202 Accepted")
@@ -188,7 +178,7 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
 
       And("it should save the notification as FailedButNotBlocked in the database")
       val expectedWorkItem =
-        Repository.domainToRepo(
+        NotificationRepository.Mapping.domainToRepo(
           notification = Notification,
           status = ProcessingStatus.FailedButNotBlocked,
           updatedAt = TimeNow.toInstant,
@@ -234,7 +224,7 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
 
     Scenario("A request is made and the Client Data Service is down") {
 
-      Given("the Client Data Service is down")
+      Given("the client data service is down")
       stub(get)(clientDataWithCsid(TranslatedCsid), INTERNAL_SERVER_ERROR)
 
       When("a request is made")
@@ -312,9 +302,9 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
       db.size shouldBe 3
       val (workItemsForThisClient, otherWorkItems) = db.partition(_.item.clientId == ClientId)
       workItemsForThisClient.size shouldBe 2
-      workItemsForThisClient.foreach(_.status shouldBe FailedButNotBlocked.legacyStatus)
+      workItemsForThisClient.foreach(_.status shouldBe FailedButNotBlocked.internalStatus)
       otherWorkItems.size shouldBe 1
-      otherWorkItems.head.status shouldBe FailedAndBlocked.legacyStatus
+      otherWorkItems.head.status shouldBe FailedAndBlocked.internalStatus
 
       Then("it should return 204 No Content")
       response.status shouldBe NO_CONTENT
@@ -336,5 +326,5 @@ class EndToEndSpec(protected val wireMockServer: WireMockServer,
   }
 
   private def getDatabase(): Seq[WorkItem[Dto.NotificationWorkItem]] =
-    repo.collection.find().toFuture().futureValue
+    notificationRepo.underlying.collection.find().toFuture().futureValue
 }

@@ -46,7 +46,6 @@
     </appender>
 
     <logger name="uk.gov.hmrc.customs.notification" level="DEBUG"/>
-    <logger name="integration" level="DEBUG"/>
 
     <root level="WARN">
         <appender-ref ref="FILE"/>

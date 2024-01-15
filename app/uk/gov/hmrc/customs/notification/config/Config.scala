@@ -30,16 +30,10 @@ import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration.*
 
-/**
- * Responsible for reading the HMRC style Play2 configuration file, error handling, and de-serialising config into
- * the Scala model.
- *
- * Note this class is bound as an EagerSingleton to bind at application startup time - any exceptions will STOP the
- * application. If startup completes without any exceptions being thrown then dependent classes can be sure that
- * config has been loaded correctly.
- *
- * @param c adaptor for config services that returns a `ValidatedNel`
- */
+@Singleton
+class BlockedCsidDbMigrationConfig @Inject()(c: ConfigValidator) {
+  val enabled: Boolean = c.enableBlockedCsidDbMigration
+}
 
 @Singleton
 class AppConfig @Inject()(c: ConfigValidator) {
@@ -64,6 +58,11 @@ class ClientDataConfig @Inject()(c: ConfigValidator) {
 }
 
 @Singleton
+class ClientDataCacheConfig @Inject()(c: ConfigValidator) {
+  val ttl: FiniteDuration = c.clientDataCacheTtl
+}
+
+@Singleton
 class MetricsConfig @Inject()(c: ConfigValidator) {
   val url: URL = c.metricsUrl
   val retryCounterName: String = c.retryMetricCounterName
@@ -80,18 +79,13 @@ class RetrySchedulerConfig @Inject()(c: ConfigValidator) {
   val enabled: Boolean = c.enableRetryScheduler
   val failedAndBlockedDelay: FiniteDuration = c.retryFailedAndBlockedDelay
   val failedButNotBlockedDelay: FiniteDuration = c.retryFailedButNotBlockedDelay
-  val retryBufferSize: Int = c.retryBufferSize
 }
 
 @Singleton
 class RepoConfig @Inject()(c: ConfigValidator) {
   val notificationTtl: FiniteDuration = c.notificationTtl
-
-  /**
-   * We should only have to retry 'inProgress' notifications if something exceptional happens during processing
-   * We'll retry as if it were 'FailedButNotBlocked'
-   */
   val inProgressRetryDelay: FiniteDuration = c.retryFailedButNotBlockedDelay
+  val maxTransactionRetries: Int = c.maxTransactionRetries
 }
 
 @Singleton
@@ -116,14 +110,16 @@ class ConfigValidator @Inject()(implicit config: Configuration) extends Logging 
     retryFailedButNotBlockedDelay: FiniteDuration,
     failedButNotBlockedAvailableAfter: FiniteDuration,
     failedAndBlockedAvailableAfter: FiniteDuration,
+    maxTransactionRetries: Int,
     retryMetricCounterName: String,
-    retryBufferSize: Int,
-    newByOldCsids: Map[ClientSubscriptionId, ClientSubscriptionId]
+    newByOldCsids: Map[ClientSubscriptionId, ClientSubscriptionId],
+    enableBlockedCsidDbMigration: Boolean,
+    clientDataCacheTtl: FiniteDuration
     ) = {
 
     (get[String]("appName"),
-      get[Authorization]("auth.token.internal"),
-      get[Set[ClientId]]("internal.clientIds"),
+      get[Authorization]("auth-token"),
+      get[Set[ClientId]]("internal-client-ids"),
       getServiceUrl("public-notification"),
       getServiceUrl("notification-queue"),
       getServiceUrl("api-subscription-fields"),
@@ -134,9 +130,11 @@ class ConfigValidator @Inject()(implicit config: Configuration) extends Logging 
       get[FiniteDuration]("retry.delay.failed-but-not-blocked"),
       get[FiniteDuration]("retry.available-after.failed-but-not-blocked"),
       get[FiniteDuration]("retry.available-after.failed-and-blocked"),
+      get[Int]("retry.max-transaction-retries"),
       get[String]("retry.metric-name"),
-      get[Int]("retry.buffer-size"),
-      get[Map[ClientSubscriptionId, ClientSubscriptionId]]("hotfix.translates")
+      get[Map[ClientSubscriptionId, ClientSubscriptionId]]("hotfix.translates"),
+      get[Boolean]("blocked-csid-migration-enabled"),
+      get[FiniteDuration]("client-data-cache-ttl")
     ).tupled match {
       case Valid(c) => c
       case Invalid(errors) =>

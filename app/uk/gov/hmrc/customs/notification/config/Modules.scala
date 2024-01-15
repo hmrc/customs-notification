@@ -30,3 +30,9 @@ private class RetrySchedulerModule extends AbstractModule {
     bind(classOf[RetryScheduler]).asEagerSingleton()
   }
 }
+
+private class BlockedCsidDbMigratorModule extends AbstractModule {
+  override def configure(): Unit = {
+    bind(classOf[BlockedCsidDbMigrationConfig]).asEagerSingleton()
+  }
+}

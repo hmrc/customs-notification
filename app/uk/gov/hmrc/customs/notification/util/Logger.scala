@@ -23,7 +23,7 @@ trait Logger {
 
   private val _logger: play.api.Logger = play.api.Logger(getClass)
   // So we can, for example, call 'logger.info()' instead of info because that's nicer
-  val logger: Logger = this
+  implicit val logger: Logger = this
 
   def debug(message: => String)(implicit lc: LogContext): Unit = {
     _logger.debug(format(message))

@@ -17,8 +17,9 @@
 package uk.gov.hmrc.customs.notification
 
 import org.scalatest.{SequentialNestedSuiteExecution, Suite, TestSuite}
-import uk.gov.hmrc.customs.notification.connectors.{ClientDataConnectorSpec, MetricsConnectorSpec, SendConnectorSpec}
+import uk.gov.hmrc.customs.notification.connectors.{MetricsConnectorSpec, SendConnectorSpec}
 import uk.gov.hmrc.customs.notification.controllers.errors.ControllerErrorSpec
+import uk.gov.hmrc.customs.notification.repositories.BlockedCsidDbMigratorSpec
 import uk.gov.hmrc.customs.notification.services.RetryServiceSpec
 
 class AllSpecs extends TestSuite
@@ -27,8 +28,8 @@ class AllSpecs extends TestSuite
   override def nestedSuites: IndexedSeq[Suite] =
     Vector(
       new MetricsConnectorSpec,
-      new ClientDataConnectorSpec(wireMockServer),
       new SendConnectorSpec(wireMockServer),
+      new BlockedCsidDbMigratorSpec(wireMockServer, mockDateTimeService, mockObjectIdService),
       new ControllerErrorSpec(wireMockServer, mockObjectIdService),
       new EndToEndSpec(wireMockServer, mockDateTimeService, mockObjectIdService),
       new RetryServiceSpec(wireMockServer, mockDateTimeService, mockObjectIdService),

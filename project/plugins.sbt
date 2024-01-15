@@ -6,7 +6,7 @@ resolvers += Resolver.jcenterRepo
 
 val playVersion = "3.0.0"
 
-addSbtPlugin("uk.gov.hmrc" % "sbt-auto-build" % "3.12.0")
+addSbtPlugin("uk.gov.hmrc" % "sbt-auto-build" % "3.15.0")
 
 addSbtPlugin("uk.gov.hmrc" % "sbt-settings" % "4.16.0")
 

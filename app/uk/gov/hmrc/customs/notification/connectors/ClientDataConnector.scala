@@ -16,10 +16,11 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
+import play.api.cache.{AsyncCacheApi, NamedCache}
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.http.Status.NOT_FOUND
-import uk.gov.hmrc.customs.notification.config.ClientDataConfig
+import uk.gov.hmrc.customs.notification.config.{ClientDataCacheConfig, ClientDataConfig}
 import uk.gov.hmrc.customs.notification.connectors.ClientDataConnector.*
 import uk.gov.hmrc.customs.notification.connectors.HttpConnector.*
 import uk.gov.hmrc.customs.notification.models.*
@@ -32,11 +33,13 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ClientDataConnector @Inject()(httpConnector: HttpConnector,
+                                    cacheConfig: ClientDataCacheConfig,
+                                    @NamedCache("client-data") cache: AsyncCacheApi,
                                     config: ClientDataConfig)
                                    (implicit ec: ExecutionContext) extends Logger {
   def get(csid: ClientSubscriptionId)
          (implicit hc: HeaderCarrier,
-          lc: LogContext): Future[Either[Error, Success]] = {
+          lc: LogContext): Future[Either[Error, ClientData]] = {
     val url = new URL(s"${config.url.toString}/$csid")
     val newHc = {
       HeaderCarrier(
@@ -47,28 +50,36 @@ class ClientDataConnector @Inject()(httpConnector: HttpConnector,
       )
     }
 
-    httpConnector.get[ClientData](
-      url = url,
-      hc = newHc,
-      requestDescriptor = "API subscription fields"
-    )
-  }.map {
-    case Right(a) =>
-      Right(Success(a))
-    case Left(ErrorResponse(_, response)) if response.status == NOT_FOUND =>
-      logger.error("Declarant data not found for client subscription ID")
-      Left(DeclarantNotFound)
-    case Left(e) =>
-      logger.error(e.message)
-      Left(OtherError)
+    cache.get[ClientData](csid.toString)
+      .flatMap {
+        case Some(cachedClientData) =>
+          Future.successful(Right(cachedClientData))
+        case None =>
+          httpConnector
+            .get[ClientData](
+              url = url,
+              hc = newHc,
+              requestDescriptor = "API subscription fields"
+            )
+            .flatMap {
+              case Right(clientData) =>
+                cache
+                  .set(csid.toString, clientData, cacheConfig.ttl)
+                  .map(_ => Right(clientData))
+              case Left(ErrorResponse(_, response)) if response.status == NOT_FOUND =>
+                logger.error("Declarant data not found for client subscription ID")
+                Future.successful(Left(DeclarantNotFound))
+              case Left(e) =>
+                logger.error(e.message)
+                Future.successful(Left(OtherError))
+            }
+      }
   }
 }
 
 object ClientDataConnector {
 
   sealed trait Error
-
-  case class Success(clientData: ClientData)
 
   case object DeclarantNotFound extends Error
 

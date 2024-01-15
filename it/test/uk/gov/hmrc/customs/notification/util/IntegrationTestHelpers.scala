@@ -31,18 +31,21 @@ object IntegrationTestHelpers {
   val AnotherObjectId = new ObjectId("bbbbbbbbbbbbbbbbbbbbbbbb")
   val YetAnotherObjectId = new ObjectId("cccccccccccccccccccccccc")
   val FourthObjectId = new ObjectId("dddddddddddddddddddddddd")
+  val FifthObjectId = new ObjectId("eeeeeeeeeeeeeeeeeeeeeeee")
   val AnotherClientId = models.ClientId("Client2")
   val AnotherCsid = models.ClientSubscriptionId(UUID.fromString("00000000-9999-4444-7777-555555555555"))
+  val YetAnotherCsid = models.ClientSubscriptionId(UUID.fromString("00000000-3333-4444-5555-666666666666"))
   val AnotherCallbackUrl = new URL("http://www.example.edu")
 
   object PathFor {
-    def clientDataWithCsid(csid: models.ClientSubscriptionId = TranslatedCsid): String = s"$ClientData/${csid.toString}"
-
     val ClientData = "/field"
     val InternalPush = "/some-custom-internal-push-url"
     val ExternalPush = "/notify-customs-declarant"
     val Metrics = "/log-times"
     val PullQueue = "/queue"
+    val defaultClientData: String = s"$ClientData/${TranslatedCsid.toString}"
+
+    def clientDataWithCsid(csid: models.ClientSubscriptionId): String = s"$ClientData/${csid.toString}"
   }
 
   object Endpoints {

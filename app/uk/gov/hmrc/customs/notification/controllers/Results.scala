@@ -22,7 +22,7 @@ import play.api.mvc.Results.{Ok, Status}
 import play.mvc.Http.Status.*
 
 private object Results {
-  def blockedCountOkResponseFrom(count: Int): Result = {
+  def blockedCountOkResponseFrom(count: Long): Result = {
     val countXml =
       <pushNotificationBlockedCount>
         {count}

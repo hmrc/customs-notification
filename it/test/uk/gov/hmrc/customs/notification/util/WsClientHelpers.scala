@@ -30,7 +30,7 @@ trait WsClientHelpers extends WsScalaTestClient
   with IntegrationPatience {
   self: ServerProvider =>
 
-  protected implicit def wsClient: WSClient
+  protected implicit lazy val wsClient: WSClient = app.injector.instanceOf[WSClient]
 
   protected def mockObjectIdService: MockObjectIdService
 
