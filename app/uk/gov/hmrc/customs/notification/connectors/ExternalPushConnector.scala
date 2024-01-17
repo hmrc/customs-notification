@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,8 +52,8 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
     val msg = "Calling external push notification service"
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
-    val headers = hc.headers(headerNames) ++ hc.extraHeaders
-    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
+    val headers = hc.headers(headerNames) ++ hc.extraHeaders ++ hc.headers(List("Accept", "Gov-Test-Scenario"))
+    logger.debug(s"********************$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
       .map[Either[ResultError, HttpResponse]]{ response =>

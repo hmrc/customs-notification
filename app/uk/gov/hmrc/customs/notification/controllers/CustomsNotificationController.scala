@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,6 +94,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
       implicit request =>
         val maybeXml = request.body.asXml
         implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, startTime)
+        logger.error(s"------------ ${request.headers}")
         implicit val headerCarrier: HeaderCarrier = hc(request).copy()
           .withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, rd.notificationId.toString))
         maybeXml match {

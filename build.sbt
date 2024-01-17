@@ -1,10 +1,11 @@
-import sbt.Keys._
+import play.sbt.PlayImport.PlayKeys.playDefaultPort
+import sbt.*
+import sbt.Keys.*
 import sbt.Tests.{Group, SubProcess}
-import sbt._
-import uk.gov.hmrc.DefaultBuildSettings.{addTestReportOption, targetJvm}
-import uk.gov.hmrc.gitstamp.GitStampPlugin._
-import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 import uk.gov.hmrc.DefaultBuildSettings
+import uk.gov.hmrc.DefaultBuildSettings.addTestReportOption
+import uk.gov.hmrc.gitstamp.GitStampPlugin.*
+import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin.*
 
 import scala.language.postfixOps
 
@@ -43,6 +44,7 @@ lazy val microservice = (project in file("."))
     scoverageSettings
   )
   .settings(majorVersion := 0)
+  .settings(playDefaultPort := 9821)
   .settings(scalacOptions ++= List(
     "-Yrangepos",
     "-Xlint:-missing-interpolator,_",
