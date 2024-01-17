@@ -90,11 +90,12 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
 
   def submit(): Action[AnyContent] = {
     val startTime = dateTimeService.zonedDateTimeUtc
+    println(s"@@@@@@@@ submit called at $startTime")
     validateHeaders(maybeBasicAuthToken) async {
       implicit request =>
         val maybeXml = request.body.asXml
         implicit val rd: RequestMetaData = requestMetaData(maybeXml, request.headers, startTime)
-        logger.error(s"------------ ${request.headers}")
+        println(s"------------ ${request.headers}")
         implicit val headerCarrier: HeaderCarrier = hc(request).copy()
           .withExtraHeaders((NOTIFICATION_ID_HEADER_NAME, rd.notificationId.toString))
         maybeXml match {

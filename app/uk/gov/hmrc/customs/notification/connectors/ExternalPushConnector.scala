@@ -55,7 +55,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     val headers = hc.headers(headerNames) ++ hc.extraHeaders ++ hc.headers(List("Accept", "Gov-Test-Scenario"))
     logger.debug(s"********************$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
 
-    http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
+    http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body, headers)
       .map[Either[ResultError, HttpResponse]]{ response =>
         response.status match {
           case status if is2xx(status) =>
