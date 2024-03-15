@@ -20,7 +20,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
-import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor
+import uk.gov.hmrc.customs.notification.config.ConfigValidatedNelAdaptor
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig

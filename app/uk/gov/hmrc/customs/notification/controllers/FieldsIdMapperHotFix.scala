@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.NotificationConfig
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 
 /**
  * Hot fix for

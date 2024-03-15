@@ -17,8 +17,8 @@
 package uk.gov.hmrc.customs.notification.services
 
 import akka.actor.ActorSystem
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientSubscriptionId, CustomsNotificationConfig, HttpResultError, NonHttpError, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
@@ -44,8 +44,8 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
       notificationWorkItemRepo.distinctPermanentlyFailedByCsId()
         .foreach { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
-          logger.info(s"Unblock - discovered [${permanentlyFailedCsids.size}] blocked csids (i.e. with status of ${PermanentlyFailed.name}: $permanentlyFailedCsids)")
-          logger.debug(s"Unblock - discovered [$permanentlyFailedCsids] blocked csids (i.e. with status of ${PermanentlyFailed.name}): $permanentlyFailedCsids")
+          logger.info(s"Unblock - discovered [${permanentlyFailedCsids.size}] blocked csids (i.e. with status of [${PermanentlyFailed.name}]: [$permanentlyFailedCsids])")
+          logger.debug(s"Unblock - discovered [$permanentlyFailedCsids] blocked csids (i.e. with status of [${PermanentlyFailed.name}]): [$permanentlyFailedCsids]")
 
           permanentlyFailedCsids.foreach(retry)
         }
@@ -61,7 +61,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         case Some(workItem) =>
           pushOrPull(workItem).foreach(handleResponse(csid))
         case None =>
-          logger.info(s"Unblock found no PermanentlyFailed notifications for CsId ${csid.toString}")
+          logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
       }
     }
   }
@@ -70,7 +70,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     case Success | ClientError =>
       notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid)
         .foreach { count =>
-          logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = $count for CsId ${csid.toString}")
+          logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = [$count] for CsId [${csid.toString}]")
         }
     case ServerError => ()
   }
@@ -82,24 +82,24 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-        logger.info(s"Unblock pilot for $connector succeeded. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status ${Succeeded.name} for $workItem")
+        logger.info(s"Unblock pilot for [$connector] succeeded. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status [${Succeeded.name}] for [$workItem]")
         Future.successful(Success)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Unblock pilot for $connector failed with error $resultError. CsId = ${workItem.item.clientSubscriptionId.toString}. Setting work item status back to ${PermanentlyFailed.name} for $workItem")
+        logger.info(s"Unblock pilot for [$connector] failed with error $resultError. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status back to [${PermanentlyFailed.name}] for [$workItem]")
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
           status <- {
             resultError match {
               case error@HttpResultError(status, _) if error.is3xx || error.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response $status received while trying unblock pilot, setting availableAt to $availableAt and status to Failed")
+                logger.error(s"Status response [$status] received while trying unblock pilot, setting availableAt to [$availableAt] and status to Failed")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt)
                   .map(_ => ClientError)
               case HttpResultError(status, _) =>
                 notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
                   .map(_ => ServerError)
               case NonHttpError(cause) =>
-                logger.error(s"Error received while unblocking notification: ${cause.getMessage}")
+                logger.error(s"Error received while unblocking notification: [${cause.getMessage}]")
                 Future.successful(ServerError)
             }
           }
@@ -109,7 +109,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         }
     }.recover {
       case NonFatal(e) => // Should never happen
-        logger.error(s"Unblock - error with pilot unblock of work item $workItem", e)
+        logger.error(s"Unblock - error with pilot unblock of work item [$workItem]", e)
         ServerError
     }
   }

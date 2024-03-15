@@ -19,10 +19,10 @@ package uk.gov.hmrc.customs.notification.connectors
 import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.CONTENT_TYPE
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig, NotificationId}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpClient, HttpErrorFunctions, HttpException, HttpResponse}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 
@@ -50,7 +50,7 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"Attempting to send notification to queue\nheaders=${headersToLog}} \npayload=${notification.payload}")
+    logger.debug(s"Attempting to send notification to queue\nheaders=[$headersToLog] \npayload=[${notification.payload}]")
 
     http.POSTString[HttpResponse](url, notification.payload)(readRaw, headerCarrier, ec).flatMap { response =>
         response.status match {
@@ -65,7 +65,7 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
           Future.failed(new RuntimeException(httpError))
 
         case e: Throwable =>
-          logger.error(s"Call to notification queue failed. url=$url")
+          logger.error(s"Call to notification queue failed. url=[$url]")
           Future.failed(e)
       }
   }

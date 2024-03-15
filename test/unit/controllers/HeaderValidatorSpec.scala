@@ -22,9 +22,9 @@ import play.api.http.HeaderNames._
 import play.api.mvc.Results._
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import play.api.test.{FakeRequest, Helpers}
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.HeaderValidator
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import util.RequestHeaders._

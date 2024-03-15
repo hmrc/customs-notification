@@ -21,11 +21,11 @@ import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.libs.json.Json
 import play.mvc.Http.Status._
-import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.controllers.FieldsIdMapperHotFix
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.http.HttpReads.Implicits._
@@ -49,14 +49,13 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     val safeFieldsId = fieldsIdMapperHotFix.translate(fieldsId)
     logger.debug("calling api-subscription-fields service")
     callApiSubscriptionFields(safeFieldsId, hc) map { response =>
-      logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
+      logger.debug(s"api-subscription-fields service response status=[${response.status}] response body=[${response.body}]")
 
       response.status match {
         case OK => parseResponseAsModel(response.body)
         case NOT_FOUND => None
         case status =>
-          val msg = s"unexpected subscription information service response status=$status"
-          logger.error(msg)
+          logger.error(s"unexpected subscription information service response status=[$status]")
           throw new Non2xxResponseException(status)
       }
     }
@@ -64,7 +63,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
 
   private def parseResponseAsModel(jsonResponse: String): Option[ApiSubscriptionFields] = {
     val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFields])
-    logger.debug(s"api-subscription-fields service parsed response=$response")
+    logger.debug(s"api-subscription-fields service parsed response=[$response]")
     response
   }
 
@@ -76,7 +75,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headersToLog}")
+    logger.debug(s"calling api-subscription-fields service with fieldsId=[$fieldsId] url=[$fullUrl] \nheaders=[${headersToLog}]")
 
     http.GET[HttpResponse](fullUrl)
       .recoverWith {
@@ -84,7 +83,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
           Future.failed(new RuntimeException(httpError)) //reserved for problems in making the request
 
         case e: Throwable =>
-          logger.error(s"call to subscription information service failed. GET url=$fullUrl")
+          logger.error(s"call to subscription information service failed. GET url=[$fullUrl]")
           Future.failed(e)
       }
   }

@@ -18,7 +18,6 @@ package uk.gov.hmrc.customs.notification.logging
 
 import com.google.inject.Inject
 import javax.inject.Singleton
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.{format, formatDebug, formatWithHeaders, formatWithoutHeaders}
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader

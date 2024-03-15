@@ -16,9 +16,8 @@
 
 package unit.logging
 
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.HasId
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.logging.{CdsLogger, NotificationLogger}
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
 
 case class StubNotificationLogger() extends  NotificationLogger(MockitoSugarHelper.mock[CdsLogger]) {

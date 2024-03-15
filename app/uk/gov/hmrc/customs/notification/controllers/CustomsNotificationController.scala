@@ -18,13 +18,12 @@ package uk.gov.hmrc.customs.notification.controllers
 
 import java.time.ZonedDateTime
 import java.util.UUID
-
 import javax.inject.{Inject, Singleton}
 import play.api.mvc._
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorInternalServerError, errorBadRequest, errorInternalServerError}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
@@ -116,7 +115,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
-    logger.debug(s"Received notification with payload: $xml, metaData: $md")
+    logger.debug(s"Received notification with payload: [$xml], metaData: [$md]")
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>
@@ -130,7 +129,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
             ErrorInternalServerError.XmlResult
         }.recover {
           case t: Throwable =>
-            logger.error(s"Processing failed for notification due to: $t")(requestMetaData)
+            logger.error(s"Processing failed for notification due to: [$t]")(requestMetaData)
             ErrorInternalServerError.XmlResult
         }
       case None =>
@@ -138,7 +137,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
         Future.successful(ErrorCdsClientIdNotFound.XmlResult)
     }.recover {
       case t: Throwable =>
-        notificationLogger.error(s"Failed to fetch declarant data for notification due to: $t")
+        notificationLogger.error(s"Failed to fetch declarant data for notification due to: [$t]")
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }

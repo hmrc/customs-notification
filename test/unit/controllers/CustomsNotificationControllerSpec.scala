@@ -26,10 +26,9 @@ import play.api.mvc._
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPORTED_MEDIA_TYPE}
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
+import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, ErrorResponse, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain.{NotificationConfig, _}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService

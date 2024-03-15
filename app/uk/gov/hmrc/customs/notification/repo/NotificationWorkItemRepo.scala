@@ -25,8 +25,8 @@ import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
 import org.mongodb.scala.model._
 import play.api.Configuration
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.helpers.NotificationWorkItemFields
 import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
@@ -153,7 +153,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus = InProgress): Future[WorkItem[NotificationWorkItem]] = {
-    logger.debug(s"saving a new notification work item in locked state (${processingStatus.name}) $notificationWorkItem")
+    logger.debug(s"saving a new notification work item in locked state [${processingStatus.name}] [$notificationWorkItem]")
 
     def processWithInitialStatus(item: NotificationWorkItem): ProcessingStatus = processingStatus
 
@@ -171,12 +171,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}")
+    logger.debug(s"setting completed status of [$status] for notification work item id: [${id.toString}]")
     complete(id, status).map(_ => ())
   }
 
   def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit] = {
-    logger.debug(s"setting completed status of ${PermanentlyFailed.name} for notification work item id: ${id.toString}")
+    logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for notification work item id: [${id.toString}]")
     complete(id, PermanentlyFailed).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         setMostRecentPushPullHttpStatus(id, Some(httpStatus))
@@ -187,8 +187,8 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of $status for notification work item id: ${id.toString}" +
-      s"with availableAt: $availableAt and mostRecentPushPullHttpStatus: $httpStatus")
+    logger.debug(s"setting completed status of [$status] for notification work item id: [${id.toString}]" +
+      s"with availableAt: [$availableAt] and mostRecentPushPullHttpStatus: [$httpStatus]")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         setMostRecentPushPullHttpStatus(id, Some(httpStatus))
@@ -199,13 +199,13 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
-    logger.debug(s"getting blocked count (i.e. those with status of ${PermanentlyFailed.name}) for clientId ${clientId.id}")
+    logger.debug(s"getting blocked count (i.e. those with status of [${PermanentlyFailed.name}]) for clientId [${clientId.id}]")
     val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)))
     collection.countDocuments(selector).toFuture().map(_.toInt)
   }
 
   override def deleteBlocked(clientId: ClientId): Future[Int] = {
-    logger.debug(s"deleting blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
+    logger.debug(s"deleting blocked flags (i.e. updating status of notifications from [${PermanentlyFailed.name}] to [${Failed.name}]) for clientId [${clientId.id}]")
     val selector = and(
       equal("clientNotification.clientId", Codecs.toBson(clientId)),
       equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed))
@@ -213,17 +213,17 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     val update = set(workItemFields.status, ProcessingStatus.toBson(Failed))
 
     collection.updateMany(selector, update).toFuture().map { result =>
-      logger.debug(s"deleted ${result.getModifiedCount} blocked flags (i.e. updating status of notifications from ${PermanentlyFailed.name} to ${Failed.name}) for clientId ${clientId.id}")
+      logger.debug(s"deleted [${result.getModifiedCount}] blocked flags (i.e. updating status of notifications from [${PermanentlyFailed.name}] to [${Failed.name}]) for clientId [${clientId.id}]")
       result.getModifiedCount.toInt
     }
   }
 
   override def toPermanentlyFailedByCsId(csid: ClientSubscriptionId): Future[Int] = {
-    logger.debug(s"setting all notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
+    logger.debug(s"setting all notifications with [${Failed.name}] status to [${PermanentlyFailed.name}] for clientSubscriptionId [${csid.id}]")
     val selector = csIdAndStatusSelector(csid, Failed)
     val update = updateStatusBson(PermanentlyFailed)
     collection.updateMany(selector, update).toFuture().map { result =>
-      logger.debug(s"updated ${result.getModifiedCount} notifications with ${Failed.name} status to ${PermanentlyFailed.name} for clientSubscriptionId ${csid.id}")
+      logger.debug(s"updated [${result.getModifiedCount}] notifications with [${Failed.name}] status to [${PermanentlyFailed.name}] for clientSubscriptionId [${csid.id}]")
       result.getModifiedCount.toInt
     }
   }
@@ -232,7 +232,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
     val update = updateStatusBson(Failed)
     collection.updateMany(selector, update).toFuture().map { result =>
-      logger.debug(s"updated ${result.getModifiedCount} notifications with status equal to ${PermanentlyFailed.name} to ${Failed.name} for csid ${csid.id}")
+      logger.debug(s"updated [${result.getModifiedCount}] notifications with status equal to [${PermanentlyFailed.name}] to [${Failed.name}] for csid [${csid.id}]")
       result.getModifiedCount.toInt
     }
   }
@@ -246,8 +246,8 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
 
     collection.find(selector).first().toFutureOption().map {
       case Some(workItem) =>
-        logger.info(s"Found existing permanently failed notification for client id: $csid " +
-          s"with mostRecentPushPullHttpStatus: ${workItem.item.notification.mostRecentPushPullHttpStatus.getOrElse("None")}")
+        logger.info(s"Found existing permanently failed notification for client id: [$csid] " +
+          s"with mostRecentPushPullHttpStatus: [${workItem.item.notification.mostRecentPushPullHttpStatus.getOrElse("None")}]")
         true
       case None => false
     }
@@ -276,7 +276,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   override def incrementFailureCount(id: ObjectId): Future[Unit] = {
-    logger.debug(s"incrementing failure count for notification work item id: ${id.toString}")
+    logger.debug(s"incrementing failure count for notification work item id: [${id.toString}]")
 
     val selector = equal(workItemFields.id, id)
     val update = inc(workItemFields.failureCount, 1)
@@ -288,7 +288,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     logger.debug(s"deleting all notifications")
 
     collection.deleteMany(BsonDocument()).toFuture().map { result =>
-      logger.debug(s"deleted ${result.getDeletedCount} notifications")
+      logger.debug(s"deleted [${result.getDeletedCount}] notifications")
     }
   }
 

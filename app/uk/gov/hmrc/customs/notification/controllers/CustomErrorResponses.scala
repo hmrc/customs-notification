@@ -18,9 +18,8 @@ package uk.gov.hmrc.customs.notification.controllers
 
 import play.mvc.Http.MimeTypes
 import play.mvc.Http.Status.UNAUTHORIZED
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
 
 object CustomErrorResponses {
 

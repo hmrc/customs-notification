@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.customs.notification.services.config
 
-import java.util.concurrent.TimeUnit
+import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple5Semigroupal, catsSyntaxTuple9Semigroupal}
 
-import cats.implicits._
+import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
 import uk.gov.hmrc.customs.notification.domain.{UnblockPollerConfig, _}
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 
 import scala.concurrent.duration._
 
@@ -50,7 +50,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
   private val config: CustomsNotificationConfig = {
 
     val authTokenInternalNel: CustomsValidatedNel[Option[String]] =
-      configValidatedNel.root.maybeString("auth.token.internal")
+      root.maybeString("auth.token.internal")
 
     val notificationQueueConfigNel: CustomsValidatedNel[NotificationQueueConfig] =
       configValidatedNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)

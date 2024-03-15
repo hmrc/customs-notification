@@ -19,9 +19,9 @@ package uk.gov.hmrc.customs.notification.connectors
 import javax.inject.{Inject, Singleton}
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, CustomsNotificationsMetricsRequest}
 import uk.gov.hmrc.customs.notification.http.{NoAuditHttpClient, Non2xxResponseException}
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpErrorFunctions, HttpException, HttpResponse}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 
@@ -45,7 +45,7 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
 
   private def post[A](request: CustomsNotificationsMetricsRequest, url: String)(implicit hc: HeaderCarrier): Future[Unit] = {
 
-    logger.debug(s"Sending request to customs notification metrics service. Url: $url Payload: ${request.toString}")
+    logger.debug(s"Sending request to customs notification metrics service. Url: [$url] Payload: [${request.toString}]")
     http.POST[CustomsNotificationsMetricsRequest, HttpResponse](url, request).map{ response =>
       response.status match {
         case status if is2xx(status) =>
@@ -57,10 +57,10 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
       }
     }.recoverWith {
       case httpError: HttpException =>
-        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=$url httpError=${httpError.responseCode}", httpError)
+        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=[$url] httpError=[${httpError.responseCode}]", httpError)
         Future.failed(new RuntimeException(httpError))
       case e: Throwable =>
-        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=$url", e)
+        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=[$url]", e)
         Future.failed(e)
     }
   }

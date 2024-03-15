@@ -19,10 +19,9 @@ package uk.gov.hmrc.customs.notification.controllers
 import play.api.http.HeaderNames._
 import play.api.mvc._
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses._
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.{X_CDS_CLIENT_ID_HEADER_NAME, X_CONVERSATION_ID_HEADER_NAME, X_CORRELATION_ID_HEADER_NAME}
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorAcceptHeaderInvalid, ErrorContentTypeHeaderInvalid, ErrorGenericBadRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -133,7 +132,7 @@ trait HeaderValidator {
 
   private def logValidationResult(headerName: => String, validationResult: => Boolean, validText: => String = validHeaderText, invalidText: String = invalidHeaderText)(implicit h: Headers) = {
     if (!validationResult) {
-      notificationLogger.errorWithHeaders(s"$headerName $invalidText", h.headers)
+      notificationLogger.errorWithHeaders(s"[$headerName] [$invalidText]", h.headers)
       None
     } else {
       Some(s"$headerName $validText")

@@ -24,9 +24,9 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers.{BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND}
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http._
 import util.CustomsNotificationMetricsTestData.ValidCustomsNotificationMetricsRequest
 import util.ExternalServicesConfiguration.{Host, Port}
