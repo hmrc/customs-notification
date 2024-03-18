@@ -32,7 +32,7 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
     private val mockServiceConfig = mock[ServicesConfig]
     lazy val cdsLogger = new CdsLogger(mockServiceConfig)
 
-    val cdsLoggerName = "customs-notification-gateway"
+    val cdsLoggerName = "customs-notification"
 
     when(mockServiceConfig.getString(any[String])).thenReturn(cdsLoggerName)
 
@@ -123,6 +123,7 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       output should have size 1
       val loggedMessage :: Nil = output
       loggedMessage should endWith(s"WARN $cdsLoggerName - $msg")
+      println(s"******************* $loggedMessage")
 
     }
 

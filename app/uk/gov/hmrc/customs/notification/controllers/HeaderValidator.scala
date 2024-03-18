@@ -132,7 +132,7 @@ trait HeaderValidator {
 
   private def logValidationResult(headerName: => String, validationResult: => Boolean, validText: => String = validHeaderText, invalidText: String = invalidHeaderText)(implicit h: Headers) = {
     if (!validationResult) {
-      notificationLogger.errorWithHeaders(s"[$headerName] [$invalidText]", h.headers)
+      notificationLogger.errorWithHeaders(s"$headerName $invalidText", h.headers)
       None
     } else {
       Some(s"$headerName $validText")

@@ -43,11 +43,11 @@ class CustomsNotificationBlockedController @Inject()(val customsNotificationBloc
         case Right(clientId) =>
           implicit val loggingContext: HasId = createLoggingContext(clientId.toString)
           customsNotificationBlockedService.blockedCount(ClientId(clientId.toString)).map { count =>
-            logger.info(s"blocked count of [$count] returned")
+            logger.info(s"blocked count of $count returned")
             blockedCountResponse(count)
           }.recover {
             case t: Throwable =>
-              logger.error(s"unable to get blocked count due to [$t]")
+              logger.error(s"unable to get blocked count due to $t")
               ErrorInternalServerError.XmlResult
           }
       }
@@ -61,15 +61,15 @@ class CustomsNotificationBlockedController @Inject()(val customsNotificationBloc
           implicit val loggingContext: HasId = createLoggingContext(clientId.toString)
           customsNotificationBlockedService.deleteBlocked(ClientId(clientId.toString)).map { deleted =>
             if (deleted) {
-              logger.info(s"blocked flags deleted for clientId [$clientId]")
+              logger.info(s"blocked flags deleted for clientId $clientId")
               NoContent
             } else {
-              logger.info(s"no blocked flags deleted for clientId [$clientId]")
+              logger.info(s"no blocked flags deleted for clientId $clientId")
               ErrorNotFound.XmlResult
             }
           }.recover {
             case t: Throwable =>
-              logger.error(s"unable to delete blocked flags due to [$t]")
+              logger.error(s"unable to delete blocked flags due to $t")
               ErrorInternalServerError.XmlResult
           }
       }
@@ -77,10 +77,10 @@ class CustomsNotificationBlockedController @Inject()(val customsNotificationBloc
 
   private def validateHeader(headers: Headers, endpointName: String): Either[ErrorResponse, ClientId] = {
     headers.get(X_CLIENT_ID_HEADER_NAME).fold[Either[ErrorResponse, ClientId]]{
-      logger.errorWithHeaders(s"missing [$X_CLIENT_ID_HEADER_NAME] header when calling [$endpointName] endpoint", headers.headers)
+      logger.errorWithHeaders(s"missing $X_CLIENT_ID_HEADER_NAME header when calling $endpointName endpoint", headers.headers)
       Left(ErrorClientIdMissing)
     } { clientId =>
-      logger.debugWithHeaders(s"called [$endpointName]", headers.headers)
+      logger.debugWithHeaders(s"called $endpointName", headers.headers)
       Right(ClientId(clientId))
     }
   }

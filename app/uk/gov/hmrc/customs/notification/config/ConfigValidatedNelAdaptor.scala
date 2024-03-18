@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.config
 
 import cats.data.Validated
 import cats.data.Validated.{Invalid, Valid}
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits._
 import play.api.Configuration
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
@@ -134,11 +134,7 @@ class ConfigValidatedNelAdaptor @Inject()(servicesConfig: ServicesConfig, config
       def url(base: String, context: String) = s"$base$context"
 
       val contextNel: CustomsValidatedNel[String] = string("context") andThen { context =>
-        if (context.startsWith("/")) {
-          Valid(context).toValidatedNel
-        } else {
-          Invalid(s"For service [$serviceName] context [$context] does not start with '/'").toValidatedNel
-        }
+        if (context.startsWith("/")) Valid(context).toValidatedNel else Invalid(s"For service '$serviceName' context '$context' does not start with '/'").toValidatedNel
       }
 
       (baseUrl, contextNel).mapN(url)
@@ -146,7 +142,7 @@ class ConfigValidatedNelAdaptor @Inject()(servicesConfig: ServicesConfig, config
 
     private def readConfig[T](key: String, f: (String, => T) => T) = {
       val serviceKey = s"$serviceName.$key"
-      f(serviceKey, throw new IllegalStateException(s"Service configuration not found for key: [$serviceKey]"))
+      f(serviceKey, throw new IllegalStateException(s"Service configuration not found for key: $serviceKey"))
     }
   }
 

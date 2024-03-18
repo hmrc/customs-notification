@@ -36,10 +36,10 @@ class ServiceConfigProvider @Inject()(servicesConfig: ServicesConfig) {
 
   private def overrideServiceWithEnvironment(serviceName: String, environment: String) = {
     try {
-      servicesConfig.baseUrl(s"$serviceName.$environment")
+      servicesConfig.baseUrl(serviceName + "." + environment)
       serviceOverrides.put(serviceName, environment)
     } catch {
-      case _: RuntimeException => throw new InvalidEnvironmentException("No configuration was found for service [$serviceName] in environment [$environment]s")
+      case _: RuntimeException => throw new InvalidEnvironmentException(s"No configuration was found for service $serviceName in environment $environment")
     }
   }
 
@@ -49,7 +49,7 @@ class ServiceConfigProvider @Inject()(servicesConfig: ServicesConfig) {
     val env = config.fold(default)(env => env)
 
     val baseUrl = servicesConfig.baseUrl(serviceKey)
-    val context = servicesConfig.getConfString(s"$serviceKey.context", throw new InvalidEnvironmentException(s"Context missing for service [$serviceName] in [$env] environment"))
+    val context = servicesConfig.getConfString(s"$serviceKey.context", throw new InvalidEnvironmentException(s"Context missing for service $serviceName in $env environment"))
     val bearer = servicesConfig.getConfString(s"$serviceKey.bearer-token", "")
     val maybeBearer = if (bearer == "") None else Some(bearer)
 

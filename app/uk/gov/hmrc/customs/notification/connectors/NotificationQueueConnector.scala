@@ -50,7 +50,7 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"Attempting to send notification to queue\nheaders=[$headersToLog] \npayload=[${notification.payload}]")
+    logger.debug(s"Attempting to send notification to queue\nheaders=${headersToLog}} \npayload=${notification.payload}")
 
     http.POSTString[HttpResponse](url, notification.payload)(readRaw, headerCarrier, ec).flatMap { response =>
         response.status match {
@@ -65,7 +65,7 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
           Future.failed(new RuntimeException(httpError))
 
         case e: Throwable =>
-          logger.error(s"Call to notification queue failed. url=[$url]")
+          logger.error(s"Call to notification queue failed. url=$url")
           Future.failed(e)
       }
   }

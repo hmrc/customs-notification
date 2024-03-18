@@ -44,17 +44,17 @@ class DynamicServiceConfigurationController @Inject()(serviceConfigProvider: Ser
       val body = ViewServiceConfigDto(service, config.environment, config.url, config.bearerToken.getOrElse(""))
       Ok(Json.toJson(body)).as(JSON)
     } catch {
-      case _: RuntimeException => NotFound(s"Configuration was not found for [$service]")
+      case _: RuntimeException => NotFound(s"Configuration was not found for $service")
     }
   }
 
   private def setEnvironmentForService(service: String, environment: String) = {
     try {
       serviceConfigProvider.setEnvironment(service, environment)
-      Ok(s"The service [$service] is now configured to use the [$environment] environment")
+      Ok(s"The service $service is now configured to use the $environment environment")
     }
     catch {
-      case _: InvalidEnvironmentException => NotFound(s"No configuration was found for service [$service] in environment [$environment]")
+      case _: InvalidEnvironmentException => NotFound(s"No configuration was found for service $service in environment $environment")
       case e: Throwable => throw e
     }
   }

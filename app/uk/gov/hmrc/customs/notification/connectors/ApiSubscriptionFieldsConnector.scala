@@ -49,13 +49,13 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     val safeFieldsId = fieldsIdMapperHotFix.translate(fieldsId)
     logger.debug("calling api-subscription-fields service")
     callApiSubscriptionFields(safeFieldsId, hc) map { response =>
-      logger.debug(s"api-subscription-fields service response status=[${response.status}] response body=[${response.body}]")
+      logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
 
       response.status match {
         case OK => parseResponseAsModel(response.body)
         case NOT_FOUND => None
         case status =>
-          logger.error(s"unexpected subscription information service response status=[$status]")
+          logger.error(s"unexpected subscription information service response status=$status")
           throw new Non2xxResponseException(status)
       }
     }
@@ -63,7 +63,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
 
   private def parseResponseAsModel(jsonResponse: String): Option[ApiSubscriptionFields] = {
     val response = Some(Json.parse(jsonResponse).as[ApiSubscriptionFields])
-    logger.debug(s"api-subscription-fields service parsed response=[$response]")
+    logger.debug(s"api-subscription-fields service parsed response=$response")
     response
   }
 
@@ -75,7 +75,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"calling api-subscription-fields service with fieldsId=[$fieldsId] url=[$fullUrl] \nheaders=[${headersToLog}]")
+    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headersToLog}")
 
     http.GET[HttpResponse](fullUrl)
       .recoverWith {
@@ -83,7 +83,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
           Future.failed(new RuntimeException(httpError)) //reserved for problems in making the request
 
         case e: Throwable =>
-          logger.error(s"call to subscription information service failed. GET url=[$fullUrl]")
+          logger.error(s"call to subscription information service failed. GET url=$fullUrl")
           Future.failed(e)
       }
   }

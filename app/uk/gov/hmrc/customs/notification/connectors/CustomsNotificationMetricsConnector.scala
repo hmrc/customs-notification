@@ -45,7 +45,7 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
 
   private def post[A](request: CustomsNotificationsMetricsRequest, url: String)(implicit hc: HeaderCarrier): Future[Unit] = {
 
-    logger.debug(s"Sending request to customs notification metrics service. Url: [$url] Payload: [${request.toString}]")
+    logger.debug(s"Sending request to customs notification metrics service. Url: $url Payload: ${request.toString}")
     http.POST[CustomsNotificationsMetricsRequest, HttpResponse](url, request).map{ response =>
       response.status match {
         case status if is2xx(status) =>
@@ -57,10 +57,10 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
       }
     }.recoverWith {
       case httpError: HttpException =>
-        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=[$url] httpError=[${httpError.responseCode}]", httpError)
+        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=$url httpError=${httpError.responseCode}", httpError)
         Future.failed(new RuntimeException(httpError))
       case e: Throwable =>
-        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=[$url]", e)
+        logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=$url", e)
         Future.failed(e)
     }
   }

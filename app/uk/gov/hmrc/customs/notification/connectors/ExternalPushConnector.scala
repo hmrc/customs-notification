@@ -53,7 +53,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     val msg = "Calling external push notification service"
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
-    logger.debug(s"[$msg] url=[${pnr.body.url}] \nheaders=[$headers] \npayload= [${pnr.body}]")
+    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
       .map[Either[ResultError, HttpResponse]]{ response =>
@@ -63,7 +63,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
           case status => //1xx, 3xx, 4xx, 5xx
             val httpException = new Non2xxResponseException(status)
-            logger.warn(s"Failed to push notification. Response status [${response.status}] and response body [${response.body}]")
+            logger.warn(s"Failed to push notification. Response status ${response.status} and response body ${response.body}")
             Left(HttpResultError(status, httpException))
         }
     }

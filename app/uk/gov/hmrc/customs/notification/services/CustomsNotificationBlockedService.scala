@@ -29,12 +29,12 @@ class CustomsNotificationBlockedService @Inject() (logger: CdsLogger,
                                                   (implicit ec: ExecutionContext) {
 
   def blockedCount(clientId: ClientId): Future[Int] = {
-    logger.debug(s"getting blocked count for clientId [${clientId.id}]")
+    logger.debug(s"getting blocked count for clientId ${clientId.id}")
     notificationWorkItemRepo.blockedCount(clientId)
   }
 
   def deleteBlocked(clientId: ClientId): Future[Boolean] = {
-    logger.debug(s"deleting blocked flags for clientId [${clientId.id}]")
+    logger.debug(s"deleting blocked flags for clientId ${clientId.id}")
     notificationWorkItemRepo.deleteBlocked(clientId).map { updateCount =>
       if (updateCount == 0) {
         false

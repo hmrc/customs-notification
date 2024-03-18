@@ -50,7 +50,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
   private val config: CustomsNotificationConfig = {
 
     val authTokenInternalNel: CustomsValidatedNel[Option[String]] =
-      root.maybeString("auth.token.internal")
+      configValidatedNel.root.maybeString("auth.token.internal")
 
     val notificationQueueConfigNel: CustomsValidatedNel[NotificationQueueConfig] =
       configValidatedNel.service("notification-queue").serviceUrl.map(NotificationQueueConfig.apply)
