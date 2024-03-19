@@ -16,15 +16,15 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsConnector
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
 
-import scala.util.control.NonFatal
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class CustomsNotificationMetricsService @Inject() (

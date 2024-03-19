@@ -16,9 +16,6 @@
 
 package util
 
-import java.net.URL
-import java.time.ZonedDateTime
-import java.util.UUID
 import com.typesafe.config.{Config, ConfigFactory}
 import org.bson.types.ObjectId
 import org.joda.time.DateTime
@@ -38,6 +35,9 @@ import util.CustomsNotificationMetricsTestData.UtcZoneId
 import util.RequestHeaders._
 import util.TestData._
 
+import java.net.URL
+import java.time.ZonedDateTime
+import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
 
 object TestData {

@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import java.util.UUID
-
 import play.api.libs.json._
+
+import java.util.UUID
 
 case class ConversationId(id: UUID) extends AnyVal {
   override def toString: String = id.toString

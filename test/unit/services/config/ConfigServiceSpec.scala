@@ -24,9 +24,9 @@ import uk.gov.hmrc.customs.notification.config.ConfigValidatedNelAdaptor
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import util.UnitSpec
 import unit.logging.StubCdsLogger
 import util.TestData.basicAuthTokenValue
+import util.UnitSpec
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

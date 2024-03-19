@@ -16,10 +16,10 @@
 
 package uk.gov.hmrc.customs.notification.modules
 
-import java.time.Clock
-
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.customs.notification.services.{UnblockPollerService, WorkItemProcessingScheduler}
+
+import java.time.Clock
 
 class NotificationPollingModule extends AbstractModule {
   override def configure(): Unit = {

@@ -16,7 +16,7 @@
 
 package util
 
-import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, post, postRequestedFor, stubFor, urlEqualTo, verify}
+import com.github.tomakehurst.wiremock.client.WireMock._
 import play.api.http.Status
 
 trait AuditService extends WireMockRunner {

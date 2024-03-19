@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
+
+import javax.inject.{Inject, Singleton}
 
 @Singleton
 class TestOnlyService @Inject() (notificationWorkItemRepo: NotificationWorkItemRepo) {

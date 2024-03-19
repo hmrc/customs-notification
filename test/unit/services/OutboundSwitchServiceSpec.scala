@@ -16,9 +16,6 @@
 
 package unit.services
 
-import java.net.URL
-import java.util.UUID
-
 import org.mockito.ArgumentMatchers.{any, eq => ameq}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
@@ -35,6 +32,8 @@ import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 import util.UnitSpec
 
+import java.net.URL
+import java.util.UUID
 import scala.concurrent.Future
 
 class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventually {

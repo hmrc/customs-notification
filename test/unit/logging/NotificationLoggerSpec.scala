@@ -19,9 +19,9 @@ package unit.logging
 import org.mockito.ArgumentMatchers.any
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.customs.notification.logging.{CdsLogger, NotificationLogger}
-import util.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.requestMetaData
+import util.UnitSpec
 
 class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
 

@@ -18,12 +18,13 @@ package uk.gov.hmrc.customs.notification.http
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import play.api.libs.ws.WSClient
-import uk.gov.hmrc.http.hooks.HttpHook
 import uk.gov.hmrc.http.HttpClient
+import uk.gov.hmrc.http.hooks.HttpHook
 import uk.gov.hmrc.play.http.ws._
+
+import javax.inject.{Inject, Singleton}
 
 @Singleton
 class NoAuditHttpClient @Inject()(override val actorSystem: ActorSystem,

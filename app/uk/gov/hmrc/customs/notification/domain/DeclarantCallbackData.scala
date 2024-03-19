@@ -16,10 +16,9 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import java.net.URL
-
 import play.api.libs.json._
 
+import java.net.URL
 import scala.util.Try
 
 case class CallbackUrl(url: Option[URL]) extends AnyVal {

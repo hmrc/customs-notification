@@ -16,9 +16,9 @@
 
 package util
 
-import java.time.{ZoneId, ZonedDateTime}
-
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
+
+import java.time.{ZoneId, ZonedDateTime}
 
 object CustomsNotificationMetricsTestData {
 

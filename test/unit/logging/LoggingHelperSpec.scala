@@ -17,9 +17,9 @@
 package unit.logging
 
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper
-import util.UnitSpec
 import util.RequestHeaders.LoggingHeadersWithAuth
 import util.TestData._
+import util.UnitSpec
 
 class LoggingHelperSpec extends UnitSpec {
 

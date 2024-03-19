@@ -16,11 +16,11 @@
 
 package unit.domain
 
-import java.net.URL
-
+import _root_.util.UnitSpec
 import play.api.libs.json._
 import uk.gov.hmrc.customs.notification.domain.{CallbackUrl, DeclarantCallbackData}
-import _root_.util.UnitSpec
+
+import java.net.URL
 
 class DeclarantCallbackDataSpec extends UnitSpec {
 

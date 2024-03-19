@@ -27,8 +27,8 @@ import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedCo
 import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
-import util.UnitSpec
 import util.TestData._
+import util.UnitSpec
 
 import scala.concurrent.Future
 

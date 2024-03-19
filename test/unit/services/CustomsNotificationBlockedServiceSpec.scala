@@ -23,9 +23,9 @@ import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
-import util.UnitSpec
 import unit.logging.StubCdsLogger
 import util.TestData._
+import util.UnitSpec
 
 import scala.concurrent.Future
 

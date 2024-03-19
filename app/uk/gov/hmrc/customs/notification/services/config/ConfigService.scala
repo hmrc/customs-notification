@@ -17,13 +17,12 @@
 package uk.gov.hmrc.customs.notification.services.config
 
 import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple5Semigroupal, catsSyntaxTuple9Semigroupal}
+import uk.gov.hmrc.customs.notification.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
+import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.notification.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
-import uk.gov.hmrc.customs.notification.domain.{UnblockPollerConfig, _}
-import uk.gov.hmrc.customs.notification.logging.CdsLogger
-
 import scala.concurrent.duration._
 
 /**
