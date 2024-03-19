@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,17 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
-import javax.inject.{Inject, Singleton}
 import play.api.http.ContentTypes
 import play.api.mvc._
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorClientIdMissing
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CLIENT_ID_HEADER_NAME
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.customs.notification.domain.{ClientId, HasId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,6 @@
  */
 
 package unit.services
-
-import java.net.URL
-import java.util.UUID
 
 import org.mockito.ArgumentMatchers.{any, eq => ameq}
 import org.mockito.Mockito._
@@ -35,6 +32,8 @@ import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 import util.UnitSpec
 
+import java.net.URL
+import java.util.UUID
 import scala.concurrent.Future
 
 class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventually {

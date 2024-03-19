@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package unit.connectors
 
 import org.mockito.Mockito.when
 import org.scalatestplus.mockito.MockitoSugar
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.{FieldsIdMapperHotFix, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain.NotificationConfig
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.UnitSpec
 

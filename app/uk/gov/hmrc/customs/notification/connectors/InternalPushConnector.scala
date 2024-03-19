@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,16 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import javax.inject.{Inject, Singleton}
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.mvc.Http.MimeTypes.XML
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{HttpResultError, PushNotificationRequest, ResultError}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
-import uk.gov.hmrc.http._
-import uk.gov.hmrc.http.HttpClient
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.{HttpClient, _}
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
@@ -54,7 +53,7 @@ class InternalPushConnector @Inject()(http: HttpClient,
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"Calling internal push notification service url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body.xmlPayload}")
+    logger.debug(s"Calling internal push notification service url=[${pnr.body.url}] \nheaders=[${headers}] \npayload=[${pnr.body.xmlPayload}]")
 
     http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
       .map[Either[ResultError, HttpResponse]] { response =>

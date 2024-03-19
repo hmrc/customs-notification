@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,19 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import javax.inject.{Inject, Singleton}
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
 import play.api.libs.json.Json
 import play.mvc.Http.Status._
-import uk.gov.hmrc.customs.api.common.config.ServiceConfigProvider
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
+import uk.gov.hmrc.customs.notification.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.controllers.FieldsIdMapperHotFix
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
-import uk.gov.hmrc.http._
-import uk.gov.hmrc.http.HttpClient
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.{HttpClient, _}
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -55,8 +54,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
         case OK => parseResponseAsModel(response.body)
         case NOT_FOUND => None
         case status =>
-          val msg = s"unexpected subscription information service response status=$status"
-          logger.error(msg)
+          logger.error(s"unexpected subscription information service response status=$status")
           throw new Non2xxResponseException(status)
       }
     }

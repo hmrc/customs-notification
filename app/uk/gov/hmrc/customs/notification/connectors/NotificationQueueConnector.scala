@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 
 package uk.gov.hmrc.customs.notification.connectors
 
-import javax.inject.{Inject, Singleton}
 import play.api.http.MimeTypes
 import play.mvc.Http.HeaderNames.CONTENT_TYPE
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotificationConfig, NotificationId}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
-import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpClient, HttpErrorFunctions, HttpException, HttpResponse}
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpClient, HttpErrorFunctions, HttpException, HttpResponse}
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton

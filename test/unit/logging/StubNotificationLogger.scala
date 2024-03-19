@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 package unit.logging
 
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.HasId
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.logging.{CdsLogger, NotificationLogger}
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
 
 case class StubNotificationLogger() extends  NotificationLogger(MockitoSugarHelper.mock[CdsLogger]) {

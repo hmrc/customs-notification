@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
-import uk.gov.hmrc.customs.api.common.config.ConfigValidatedNelAdaptor
+import uk.gov.hmrc.customs.notification.config.ConfigValidatedNelAdaptor
 import uk.gov.hmrc.customs.notification.domain.NotificationQueueConfig
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import util.UnitSpec
 import unit.logging.StubCdsLogger
 import util.TestData.basicAuthTokenValue
+import util.UnitSpec
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

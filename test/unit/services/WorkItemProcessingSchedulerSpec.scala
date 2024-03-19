@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,14 @@ import akka.actor.ActorSystem
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, NotificationConfig}
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.services.{WorkItemProcessingScheduler, WorkItemService}
-import util.UnitSpec
 import util.MockitoPassByNameHelper.PassByNameVerifier
+import util.UnitSpec
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

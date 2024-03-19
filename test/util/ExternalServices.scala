@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@
 
 package util
 
+import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.matching.UrlPattern
+import com.github.tomakehurst.wiremock.verification.LoggedRequest
+import org.scalatest.matchers.should.Matchers
 import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
@@ -24,10 +28,6 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, DeclarantCal
 import util.TestData._
 
 import java.util
-import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.matching.UrlPattern
-import com.github.tomakehurst.wiremock.verification.LoggedRequest
-import org.scalatest.matchers.should.Matchers
 
 trait PushNotificationService extends WireMockRunner with Matchers {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.PushNotificationServiceContext)

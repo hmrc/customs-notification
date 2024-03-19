@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@
 package uk.gov.hmrc.customs.notification.services
 
 import org.bson.types.ObjectId
-
-import javax.inject.Inject
 import uk.gov.hmrc.customs.notification.connectors.{ApiSubscriptionFieldsConnector, MapResultError, NotificationQueueConnector}
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
-import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, ClientId, ClientNotification, ClientSubscriptionId, HasId, NonHttpError, NotificationWorkItem, ResultError}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
+import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 

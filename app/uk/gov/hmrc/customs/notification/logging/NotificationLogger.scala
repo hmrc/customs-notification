@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 package uk.gov.hmrc.customs.notification.logging
 
 import com.google.inject.Inject
-import javax.inject.Singleton
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.LoggingHelper.{format, formatDebug, formatWithHeaders, formatWithoutHeaders}
 import uk.gov.hmrc.customs.notification.model.SeqOfHeader
+
+import javax.inject.Singleton
 
 @Singleton
 class NotificationLogger @Inject()(logger: CdsLogger) {

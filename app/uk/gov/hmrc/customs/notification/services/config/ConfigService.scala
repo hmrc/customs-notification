@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 package uk.gov.hmrc.customs.notification.services.config
 
+import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple5Semigroupal, catsSyntaxTuple9Semigroupal}
+import uk.gov.hmrc.customs.notification.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
+import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
+
 import java.util.concurrent.TimeUnit
-
-import cats.implicits._
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.customs.api.common.config.{ConfigValidatedNelAdaptor, CustomsValidatedNel}
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.domain.{UnblockPollerConfig, _}
-
 import scala.concurrent.duration._
 
 /**

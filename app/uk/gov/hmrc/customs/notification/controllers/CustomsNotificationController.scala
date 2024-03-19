@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,20 @@
 
 package uk.gov.hmrc.customs.notification.controllers
 
-import java.time.ZonedDateTime
-import java.util.UUID
-
-import javax.inject.{Inject, Singleton}
 import play.api.mvc._
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse._
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorCdsClientIdNotFound
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorInternalServerError, errorBadRequest, errorInternalServerError}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
+import java.time.ZonedDateTime
+import java.util.UUID
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 

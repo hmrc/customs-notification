@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,14 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import java.util.concurrent.{Executors, TimeUnit}
-
 import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.event.Logging
-import javax.inject.Inject
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 
+import java.util.concurrent.{Executors, TimeUnit}
+import javax.inject.Inject
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 

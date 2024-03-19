@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package unit.domain
 
-import java.net.URL
-
+import _root_.util.UnitSpec
 import play.api.libs.json._
 import uk.gov.hmrc.customs.notification.domain.{CallbackUrl, DeclarantCallbackData}
-import _root_.util.UnitSpec
+
+import java.net.URL
 
 class DeclarantCallbackDataSpec extends UnitSpec {
 

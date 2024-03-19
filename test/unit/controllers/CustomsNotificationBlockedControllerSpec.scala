@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@ import play.api.mvc._
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
 import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService
-import util.UnitSpec
 import util.TestData._
+import util.UnitSpec
 
 import scala.concurrent.Future
 

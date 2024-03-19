@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,10 @@ package unit.logging
 
 import org.mockito.ArgumentMatchers.any
 import org.scalatestplus.mockito.MockitoSugar
-import uk.gov.hmrc.customs.api.common.logging.CdsLogger
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import util.UnitSpec
+import uk.gov.hmrc.customs.notification.logging.{CdsLogger, NotificationLogger}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.requestMetaData
+import util.UnitSpec
 
 class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
 

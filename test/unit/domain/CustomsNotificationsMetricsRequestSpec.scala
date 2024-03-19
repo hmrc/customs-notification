@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package unit.domain
 
 import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationsMetricsRequest
-import util.UnitSpec
 import util.CustomsNotificationMetricsTestData.{EventEnd, EventStart}
 import util.TestData.conversationId
+import util.UnitSpec
 
 class CustomsNotificationsMetricsRequestSpec extends UnitSpec {
 

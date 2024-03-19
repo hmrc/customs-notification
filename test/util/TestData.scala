@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,6 @@
 
 package util
 
-import java.net.URL
-import java.time.ZonedDateTime
-import java.util.UUID
 import com.typesafe.config.{Config, ConfigFactory}
 import org.bson.types.ObjectId
 import org.joda.time.DateTime
@@ -28,9 +25,8 @@ import play.api.mvc.{AnyContentAsEmpty, AnyContentAsXml, Headers}
 import play.api.test.FakeRequest
 import play.api.test.Helpers.{DELETE, GET}
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, RequestMetaData}
+import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, ErrorResponse, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
@@ -39,6 +35,9 @@ import util.CustomsNotificationMetricsTestData.UtcZoneId
 import util.RequestHeaders._
 import util.TestData._
 
+import java.net.URL
+import java.time.ZonedDateTime
+import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
 
 object TestData {

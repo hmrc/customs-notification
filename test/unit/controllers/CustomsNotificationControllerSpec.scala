@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,10 @@ import play.api.mvc._
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import play.mvc.Http.Status.{BAD_REQUEST, NOT_ACCEPTABLE, UNAUTHORIZED, UNSUPPORTED_MEDIA_TYPE}
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse
-import uk.gov.hmrc.customs.api.common.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
 import uk.gov.hmrc.customs.notification.connectors.ApiSubscriptionFieldsConnector
-import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, RequestMetaData}
-import uk.gov.hmrc.customs.notification.domain.{NotificationConfig, _}
+import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{UnauthorizedCode, errorBadRequest}
+import uk.gov.hmrc.customs.notification.controllers.{CustomsNotificationController, ErrorResponse, RequestMetaData}
+import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationService, DateTimeService, UuidService}
