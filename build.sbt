@@ -43,6 +43,7 @@ lazy val microservice = (project in file("."))
     scoverageSettings
   )
   .settings(majorVersion := 0)
+  .settings(playDefaultPort := 9821)
   .settings(scalacOptions ++= List(
     "-Yrangepos",
     "-Xlint:-missing-interpolator,_",

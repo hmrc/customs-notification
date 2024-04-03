@@ -12,6 +12,50 @@ The objective of this service is
 
 5. Provide retry for notifications that have failed to be sent. This applies to notifications destined for the HMRC pull queue as well as pushing to external clients. 
 
+
+## Development Setup
+- This microservice requires mongoDB 4.+
+- Run locally: `sbt run` which runs on port `9821` by default
+- Run with test endpoints: `sbt 'run -Dapplication.router=testOnlyDoNotUseInAppConf.Routes'`
+
+##  Service Manager Profiles
+The Customs Notification service can be run locally from Service Manager, using the following profiles:
+
+| Profile Details                       | Command                                                           | Description                                                    |
+|---------------------------------------|:------------------------------------------------------------------|----------------------------------------------------------------|
+| CUSTOMS_DECLARATION_ALL               | sm2 --start CUSTOMS_DECLARATION_ALL                               | To run all CDS applications.                                   |
+| CUSTOMS_INVENTORY_LINKING_EXPORTS_ALL | sm2 --start CUSTOMS_INVENTORY_LINKING_EXPORTS_ALL                 | To run all CDS Inventory Linking Exports related applications. |
+| CUSTOMS_INVENTORY_LINKING_IMPORTS_ALL | sm2 --start CUSTOMS_INVENTORY_LINKING_IMPORTS_ALL                 | To run all CDS Inventory Linking Imports related applications. |
+
+## Run Tests
+- Run Unit Tests: `sbt test`
+- Run Integration Tests: `sbt IntegrationTest/test`
+- Run Unit and Integration Tests: `sbt test IntegrationTest/test`
+- Run Unit and Integration Tests with coverage report: `./run_all_tests.sh`<br/> which runs `clean scalastyle coverage test it:test coverageReport dependencyUpdates"`
+
+### Acceptance Tests
+To run the CDS acceptance tests, see [here](https://github.com/hmrc/customs-automation-test).
+
+### Performance Tests
+To run performance tests, see [here](https://github.com/hmrc/customs-notification-performance-test).
+
+
+## API documentation
+For Customs Notification API documentation, see [here](https://developer.service.hmrc.gov.uk/guides/customs-declarations-end-to-end-service-guide/documentation/notifications.html#notifications).
+
+### Customs Notification specific routes
+| Path - internal routes prefixed by `/customs-notification` | Supported Methods | Description                                                                               |
+|------------------------------------------------------------|:-----------------:|-------------------------------------------------------------------------------------------|
+| `/customs-notification/notify`                             |       POST        | Endpoint to submit a notification and save/update the state.                              |
+| `/customs-notification/blocked-count`                      |        GET        | Endpoint to retrieve blocked notifications in the PermanentlyFailed state.                |
+| `/customs-notification/blocked-flag`                       |      DELETE       | Endpoint to update the state of unblocked notifications from PermanentlyFailed to Failed. |
+
+### Test-only specific routes
+| Path                                  | Supported Methods | Description                           |
+|---------------------------------------|:-----------------:|---------------------------------------|
+| `/customs-notification/test-only/all` |      DELETE       | Endpoint to delete all notifications. |
+
+
 ## Configuration for Internal Clients
 
 Internal HMRC teams that have applications that receive Notifications need to have their client Ids added to the configuration.
