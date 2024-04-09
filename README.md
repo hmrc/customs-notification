@@ -1,6 +1,8 @@
 # Customs Notification
 
-The objective of this service is 
+Customs-notifications is a service designed to provide updates throughout the asynchronous customs declaration process. Through this service, traders are able to receive notifications from HMRC's systems about specific outcomes triggered by interactions with any of the CDS APIs. For each declaration, the service guarantees at a minimum, the delivery of notifications for acceptance and clearance, with the possibility of additional notifications being sent. Moreover, all CDS APIs that leverage notifications give users the choice between push or pull methods for receiving these updates. The method by which an application receives notifications from a CDS API is specified during the application’s subscription process to that API.
+
+The objective of this service is to:
 
 1. Receive an update from CDS Backend System (Messaging) regarding a declaration that a CDS Client made earlier using Customs Declarations API
 
