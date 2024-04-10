@@ -1,6 +1,7 @@
 # Customs Notification
 
-Customs-notifications is a service designed to provide updates throughout the asynchronous customs declaration process. Through this service, traders are able to receive notifications from HMRC's systems about specific outcomes triggered by interactions with any of the CDS APIs. For each declaration, the service guarantees at a minimum, the delivery of notifications for acceptance and clearance, with the possibility of additional notifications being sent. Moreover, all CDS APIs that leverage notifications give users the choice between push or pull methods for receiving these updates. The method by which an application receives notifications from a CDS API is specified during the application’s subscription process to that API.
+The customs-notification service provides updates throughout the asynchronous customs declaration process. External client applications use the service to receive notifications, from HMRC systems, of certain events resulting from interactions with one of the CDS APIs.
+For more information, see the [Customs Declarations end-to-end service guide](https://developer.service.hmrc.gov.uk/guides/customs-declarations-end-to-end-service-guide/documentation/notifications.html).
 
 The objective of this service is to:
 
@@ -46,11 +47,11 @@ To run performance tests, see [here](https://github.com/hmrc/customs-notificatio
 For Customs Notification API documentation, see [here](https://developer.service.hmrc.gov.uk/guides/customs-declarations-end-to-end-service-guide/documentation/notifications.html#notifications).
 
 ### Customs Notification specific routes
-| Path - internal routes prefixed by `/customs-notification` | Supported Methods | Description                                                                               |
-|------------------------------------------------------------|:-----------------:|-------------------------------------------------------------------------------------------|
-| `/customs-notification/notify`                             |       POST        | Endpoint to submit a notification and save/update the state.                              |
-| `/customs-notification/blocked-count`                      |        GET        | Endpoint to retrieve blocked notifications in the PermanentlyFailed state.                |
-| `/customs-notification/blocked-flag`                       |      DELETE       | Endpoint to update the state of unblocked notifications from PermanentlyFailed to Failed. |
+| Path                                  | Supported Methods | Description                                                                               |
+|---------------------------------------|:-----------------:|-------------------------------------------------------------------------------------------|
+| `/customs-notification/notify`        |       POST        | Endpoint to submit a notification and save/update the state.                              |
+| `/customs-notification/blocked-count` |        GET        | Endpoint to retrieve blocked notifications in the PermanentlyFailed state.                |
+| `/customs-notification/blocked-flag`  |      DELETE       | Endpoint to update the state of unblocked notifications from PermanentlyFailed to Failed. |
 
 ### Test-only specific routes
 | Path                                  | Supported Methods | Description                           |
