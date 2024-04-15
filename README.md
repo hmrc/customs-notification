@@ -47,11 +47,11 @@ To run performance tests, see [here](https://github.com/hmrc/customs-notificatio
 For Customs Notification API documentation, see [here](https://developer.service.hmrc.gov.uk/guides/customs-declarations-end-to-end-service-guide/documentation/notifications.html#notifications).
 
 ### Customs Notification specific routes
-| Path                                  | Supported Methods | Description                                                                               |
-|---------------------------------------|:-----------------:|-------------------------------------------------------------------------------------------|
-| `/customs-notification/notify`        |       POST        | Endpoint to submit a notification and save/update the state.                              |
-| `/customs-notification/blocked-count` |        GET        | Endpoint to retrieve blocked notifications in the PermanentlyFailed state.                |
-| `/customs-notification/blocked-flag`  |      DELETE       | Endpoint to update the state of unblocked notifications from PermanentlyFailed to Failed. |
+| Path - internal routes prefixed by `/customs-wco` | Supported Methods | Description                                                                               |
+|---------------------------------------------------|:-----------------:|-------------------------------------------------------------------------------------------|
+| `/customs-notification/notify`                    |       POST        | Endpoint to submit a notification and save/update the state.                              |
+| `/customs-notification/blocked-count`             |        GET        | Endpoint to retrieve blocked notifications in the PermanentlyFailed state.                |
+| `/customs-notification/blocked-flag`              |      DELETE       | Endpoint to update the state of unblocked notifications from PermanentlyFailed to Failed. |
 
 ### Test-only specific routes
 | Path                                  | Supported Methods | Description                           |
