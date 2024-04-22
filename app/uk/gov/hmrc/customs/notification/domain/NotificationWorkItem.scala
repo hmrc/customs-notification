@@ -17,13 +17,14 @@
 package uk.gov.hmrc.customs.notification.domain
 
 import org.bson.types.ObjectId
-import org.joda.time.DateTime
-import play.api.libs.json.{Format, Json}
-import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJodaFormats}
+import play.api.libs.json.{Format, Json, OFormat}
+import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJavatimeFormats}
+
+import java.time.{LocalDate, LocalDateTime}
 
 case class NotificationWorkItem(_id: ClientSubscriptionId,
                                 clientId: ClientId,
-                                metricsStartDateTime: Option[DateTime] = None,
+                                metricsStartDateTime: Option[LocalDateTime] = None,
                                 notification: Notification
 ) extends HasId with HasClientSubscriptionId {
   override def idName: String = "conversationId"
@@ -32,7 +33,7 @@ case class NotificationWorkItem(_id: ClientSubscriptionId,
 
 }
 object NotificationWorkItem {
-  implicit val dateFormats = MongoJodaFormats.dateTimeFormat
+  implicit val dateFormats: Format[LocalDate] = MongoJavatimeFormats.localDateFormat
   implicit val objectIdFormats: Format[ObjectId] = MongoFormats.objectIdFormat
-  implicit val format = Json.format[NotificationWorkItem]
+  implicit val format: OFormat[NotificationWorkItem] = Json.format[NotificationWorkItem]
 }

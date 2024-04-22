@@ -16,24 +16,24 @@
 
 package uk.gov.hmrc.customs.notification.util
 
-import org.joda.time.{DateTime, DateTimeZone}
-
-import java.time.ZonedDateTime
+import java.time.{LocalDateTime, ZonedDateTime}
 
 object DateTimeHelpers {
 
-  implicit class DateTimeToZonedDateTimeOps(val dateTime: DateTime) extends AnyVal {
+  implicit class DateTimeToZonedDateTimeOps(val localDateTime: LocalDateTime) extends AnyVal {
       def toZonedDateTime: ZonedDateTime = {
-        import java.time.{Instant, ZoneId, ZonedDateTime}
-        val instant = Instant.ofEpochMilli(dateTime.getMillis)
-        ZonedDateTime.ofInstant(instant, ZoneId.of("UTC"))
+        import java.time.ZoneId
+//        val instant = Instant.ofEpochMilli(dateTime.getMillis)
+//        ZonedDateTime.ofInstant(dateTime, ZoneId.of("UTC"))
+        localDateTime.atZone(ZoneId.of("UTC"))
       }
   }
 
   implicit class ZonedDateTimeToDateTimeOps(val zonedDateTime: ZonedDateTime) extends AnyVal {
-    def toDateTime: DateTime = {
-      val dateTimeZone = DateTimeZone.forID(zonedDateTime.getZone.getId)
-      new DateTime(zonedDateTime.toInstant.toEpochMilli, dateTimeZone)
+    def toDateTime: LocalDateTime = {
+//      val dateTimeZone = DateTimeZone.forID(zonedDateTime.getZone.getId)
+//      new DateTime(zonedDateTime.toInstant.toEpochMilli, dateTimeZone)
+      zonedDateTime.toLocalDateTime
     }
   }
 
