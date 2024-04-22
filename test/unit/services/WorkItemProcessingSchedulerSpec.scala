@@ -39,11 +39,12 @@ class WorkItemProcessingSchedulerSpec extends UnitSpec with MockitoSugar
   private[WorkItemProcessingSchedulerSpec] val exception = new Exception("planned failure")
 
   trait SetUp {
-    private[WorkItemProcessingSchedulerSpec] implicit val actorSystem = ActorSystem.create("WorkItemProcessingSchedulerSpec")
+    private[WorkItemProcessingSchedulerSpec] implicit val actorSystem: ActorSystem = ActorSystem.create("WorkItemProcessingSchedulerSpec")
 
-    private[WorkItemProcessingSchedulerSpec] implicit val applicationLifecycle = new ApplicationLifecycle {
-      
+    private[WorkItemProcessingSchedulerSpec] implicit val applicationLifecycle: ApplicationLifecycle = new ApplicationLifecycle {
+
       override def addStopHook(hook: () => Future[_]): Unit = {}
+
       override def stop(): Future[_] = {}
     }
 

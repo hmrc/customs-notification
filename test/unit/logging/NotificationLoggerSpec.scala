@@ -18,6 +18,7 @@ package unit.logging
 
 import org.mockito.ArgumentMatchers.any
 import org.scalatestplus.mockito.MockitoSugar
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.logging.{CdsLogger, NotificationLogger}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.requestMetaData
@@ -30,7 +31,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
     val logger = new NotificationLogger(mockCdsLogger)
   }
 
-  private implicit val implicitRequestMetaData = requestMetaData
+  private implicit val implicitRequestMetaData: RequestMetaData = requestMetaData
 
   "DeclarationsLogger" should {
     "debug(s: => String)" in new SetUp {

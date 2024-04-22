@@ -25,20 +25,19 @@ import uk.gov.hmrc.customs.notification.connectors.CustomsNotificationMetricsCon
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsRequest, HasId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.{CustomsNotificationMetricsService, DateTimeService}
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 import util.UnitSpec
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   trait SetUp {
-    private implicit val ec = Helpers.stubControllerComponents().executionContext
+    private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
     private[CustomsNotificationMetricsServiceSpec] val mockLogger = mock[NotificationLogger]
     private[CustomsNotificationMetricsServiceSpec] lazy val mockMetricsConnector = mock[CustomsNotificationMetricsConnector]
     private[CustomsNotificationMetricsServiceSpec] lazy val mockDateTimeService = mock[DateTimeService]

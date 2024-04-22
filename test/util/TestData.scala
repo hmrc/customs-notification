@@ -106,7 +106,10 @@ object TestData {
   val MinuteOfHour = 45
   val TimeReceivedZoned = ZonedDateTime.of(2016, 1, 30, 23, 46,
     59, 0, UtcZoneId)
-  val TimeReceivedDateTime = TimeReceivedZoned.toLocalDateTime
+  val TimeReceivedDateTime = {
+//    val dateTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX").withZone(UtcZoneId)
+    TimeReceivedZoned.toOffsetDateTime
+  }
   val TimeReceivedInstant = TimeReceivedZoned.toInstant
 
   val MetricsStartTimeZoned = ZonedDateTime.of(2016, 1, 30, 23, 44,

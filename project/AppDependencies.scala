@@ -17,9 +17,7 @@ object AppDependencies {
     "com.github.tomakehurst"        % "wiremock-standalone"           % "2.27.2"           % Test,
     "org.scalatestplus"            %% "scalatestplus-mockito"         % "1.0.0-M2"         % Test,
     "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-test-$playVersion" % mongoVersion       % Test,
-    "com.vladsch.flexmark"          % "flexmark-all"                  % "0.35.10"          % Test,
     "uk.gov.hmrc"                  %% s"bootstrap-test-$playVersion"  % boostrapVersion    % Test,
-    "org.mockito"                   % "mockito-core"                  % "5.3.1"            % Test,
     "com.fasterxml.jackson.module" %% "jackson-module-scala"          % "2.17.0"           % Test
   )
 }

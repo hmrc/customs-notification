@@ -36,14 +36,14 @@ import util.TestData._
 import util.UnitSpec
 
 import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.xml.Elem
 
 class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
 
   private val timeout = Mockito.timeout(5000).times(1)
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   private val eventuallyRightOfPush = Future.successful(Right(Push))

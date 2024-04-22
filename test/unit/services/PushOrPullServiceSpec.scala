@@ -29,14 +29,14 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import util.TestData._
 import util.UnitSpec
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class PushOrPullServiceSpec extends UnitSpec with MockitoSugar with Inside {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   trait SetUp {
-    private implicit val ec = Helpers.stubControllerComponents().executionContext
+    private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
     private[PushOrPullServiceSpec] val mockApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
     private[PushOrPullServiceSpec] val mockOutboundSwitchService = mock[OutboundSwitchService]
     private[PushOrPullServiceSpec] val mockNotificationQueueConnector = mock[NotificationQueueConnector]

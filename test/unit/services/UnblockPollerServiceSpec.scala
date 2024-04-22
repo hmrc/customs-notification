@@ -37,7 +37,7 @@ import util.TestData.{WorkItem1, validClientSubscriptionId1}
 import util.UnitSpec
 
 import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class UnblockPollerServiceSpec extends UnitSpec
@@ -45,7 +45,7 @@ class UnblockPollerServiceSpec extends UnitSpec
   with Eventually
   with BeforeAndAfterEach {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
 
   trait Setup {
     val csIdSetOfOne = Set(validClientSubscriptionId1)
