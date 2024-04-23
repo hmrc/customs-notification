@@ -366,5 +366,11 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       actual.get.item.notification.mostRecentPushPullHttpStatus shouldBe None
     }
 
+    "MetricsStartDateTime is stored correctly in mongoDB" in {
+      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItemWithMetricsTime1))
+      val savedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
+      savedItem.get.item.metricsStartDateTime shouldBe Some(TimeReceivedDateTime)
+    }
+
   }
 }

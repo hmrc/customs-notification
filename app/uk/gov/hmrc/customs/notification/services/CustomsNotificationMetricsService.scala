@@ -21,6 +21,7 @@ import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationsMetricsReque
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HeaderCarrier
 
+import java.time.{ZoneId, ZonedDateTime}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -39,7 +40,7 @@ class CustomsNotificationMetricsService @Inject() (
       lazy val request = CustomsNotificationsMetricsRequest(
         "NOTIFICATION",
         notificationWorkItem.notification.conversationId,
-        startTime.toZonedDateTime,
+        ZonedDateTime.ofInstant(startTime, ZoneId.of("UTC")),
         dateTimeService.zonedDateTimeUtc
       )
       metricsConnector.post(request).recover{

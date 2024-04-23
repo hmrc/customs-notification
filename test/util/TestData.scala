@@ -34,7 +34,7 @@ import util.RequestHeaders._
 import util.TestData._
 
 import java.net.URL
-import java.time.{LocalDateTime, ZonedDateTime}
+import java.time.{Instant, ZonedDateTime}
 import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
 
@@ -106,15 +106,13 @@ object TestData {
   val MinuteOfHour = 45
   val TimeReceivedZoned = ZonedDateTime.of(2016, 1, 30, 23, 46,
     59, 0, UtcZoneId)
-  val TimeReceivedDateTime = {
-//    val dateTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX").withZone(UtcZoneId)
-    TimeReceivedZoned.toOffsetDateTime
-  }
+  val TimeReceivedDateTime = TimeReceivedZoned.toInstant
+  val TimeReceivedDateTimeWithMilleSeconds = TimeReceivedZoned.withNano(2000000).toInstant
   val TimeReceivedInstant = TimeReceivedZoned.toInstant
 
   val MetricsStartTimeZoned = ZonedDateTime.of(2016, 1, 30, 23, 44,
     59, 0, UtcZoneId)
-  val MetricsStartTimeDateTime: LocalDateTime = TimeReceivedZoned.toLocalDateTime
+  val MetricsStartTimeDateTime: Instant = MetricsStartTimeZoned.toInstant
 
   val validClientSubscriptionId1String: String = "eaca01f9-ec3b-4ede-b263-61b626dde232"
   val validClientSubscriptionId1UUID: UUID = UUID.fromString(validClientSubscriptionId1String)
@@ -150,9 +148,11 @@ object TestData {
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
   val NotificationWorkItem3 = NotificationWorkItem(validClientSubscriptionId2, clientId2, notification = notification2)
   val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
+  val NotificationWorkItemWithMetricsTime2 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTimeWithMilleSeconds))
   val WorkItem1 = WorkItem(new ObjectId("5c46f7d70100000100ef835a"), TimeReceivedInstant, TimeReceivedInstant, TimeReceivedInstant, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
   val WorkItem3 = WorkItem1.copy(failureCount = 1)
+  val WorkItem4 = WorkItem1.copy(item = NotificationWorkItemWithMetricsTime2)
 
   val internalNotification = Notification(Some(notificationId), ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")
   val internalNotificationWorkItem = NotificationWorkItem(clientSubscriptionId, clientId1, None, internalNotification)

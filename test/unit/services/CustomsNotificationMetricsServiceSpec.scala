@@ -30,6 +30,7 @@ import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 import util.UnitSpec
 
+import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.{ExecutionContext, Future}
 
 class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
@@ -45,7 +46,7 @@ class CustomsNotificationMetricsServiceSpec extends UnitSpec with MockitoSugar {
     private[CustomsNotificationMetricsServiceSpec] val metricsRequest = CustomsNotificationsMetricsRequest(
       "NOTIFICATION",
       NotificationWorkItemWithMetricsTime1.notification.conversationId,
-      TimeReceivedDateTime.toZonedDateTime,
+      ZonedDateTime.ofInstant(TimeReceivedDateTime, ZoneId.of("UTC")),
       MetricsStartTimeZoned
     )
     private[CustomsNotificationMetricsServiceSpec] def verifyMetricsConnector(): Unit = {

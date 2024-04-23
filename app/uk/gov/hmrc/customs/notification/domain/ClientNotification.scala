@@ -18,17 +18,18 @@ package uk.gov.hmrc.customs.notification.domain
 
 import org.bson.types.ObjectId
 import play.api.libs.json.{Format, Json, OFormat}
-import uk.gov.hmrc.mongo.play.json.formats.MongoFormats
+import uk.gov.hmrc.mongo.play.json.formats.{MongoFormats, MongoJavatimeFormats}
 
-import java.time.OffsetDateTime
+import java.time.Instant
 
 case class ClientNotification(csid: ClientSubscriptionId,
                               notification: Notification,
-                              timeReceived: Option[OffsetDateTime] = None,
-                              metricsStartDateTime: Option[OffsetDateTime] = None,
+                              timeReceived: Option[Instant] = None,
+                              metricsStartDateTime: Option[Instant] = None,
                               id: ObjectId = new ObjectId())
 
 object ClientNotification {
+  implicit val dateFormats: Format[Instant] = MongoJavatimeFormats.instantFormat
   implicit val idFormat: Format[ObjectId] = MongoFormats.objectIdFormat
   implicit val clientNotificationJF: OFormat[ClientNotification] = Json.format[ClientNotification]
 }

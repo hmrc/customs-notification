@@ -50,7 +50,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     implicit val hasId: RequestMetaData = metaData
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
-      Some(metaData.startTime.toOffsetDateTime),
+      Some(metaData.startTime.toInstant),
       Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
