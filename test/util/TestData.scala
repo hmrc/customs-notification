@@ -107,7 +107,8 @@ object TestData {
   val TimeReceivedZoned = ZonedDateTime.of(2016, 1, 30, 23, 46,
     59, 0, UtcZoneId)
   val TimeReceivedDateTime = TimeReceivedZoned.toInstant
-  val TimeReceivedDateTimeWithMilleSeconds = TimeReceivedZoned.withNano(2000000).toInstant
+  val TimeReceivedDateTimeWithMilleSeconds = ZonedDateTime.of(2016, 1, 30, 23, 46,
+    59, 2000000, UtcZoneId).toInstant
   val TimeReceivedInstant = TimeReceivedZoned.toInstant
 
   val MetricsStartTimeZoned = ZonedDateTime.of(2016, 1, 30, 23, 44,
