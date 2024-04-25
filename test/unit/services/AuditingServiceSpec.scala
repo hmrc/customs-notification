@@ -35,8 +35,8 @@ import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.{NotificationWorkItem1, conversationId, internalPushNotificationRequest}
 import util.{TestData, UnitSpec}
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {

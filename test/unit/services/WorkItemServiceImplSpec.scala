@@ -32,8 +32,8 @@ import util.TestData._
 import util.UnitSpec
 
 import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
+import scala.concurrent.{ExecutionContext, Future}
 
 class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
 

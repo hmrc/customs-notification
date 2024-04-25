@@ -37,8 +37,8 @@ import util.TestData.{WorkItem1, validClientSubscriptionId1}
 import util.UnitSpec
 
 import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 class UnblockPollerServiceSpec extends UnitSpec
   with MockitoSugar
