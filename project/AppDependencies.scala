@@ -2,7 +2,7 @@ import sbt.*
 
 object AppDependencies {
 
-  private val mongoVersion = "1.8.0"
+  private val mongoVersion = "1.9.0"
   private val boostrapVersion = "8.5.0"
   private val playVersion = "play-30"
 
@@ -13,8 +13,8 @@ object AppDependencies {
   )
 
   val test = Seq(
-    "org.scalatestplus.play"       %% "scalatestplus-play"            % "5.1.0"            % Test,
-    "org.wiremock"                  % "wiremock-standalone"           % "3.5.3"            % Test,
+    "org.scalatestplus.play"       %% "scalatestplus-play"            % "7.0.1"            % Test,
+    "org.wiremock"                  % "wiremock-standalone"           % "3.5.4"            % Test,
     "org.scalatestplus"            %% "scalatestplus-mockito"         % "1.0.0-M2"         % Test,
     "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-test-$playVersion" % mongoVersion       % Test,
     "uk.gov.hmrc"                  %% s"bootstrap-test-$playVersion"  % boostrapVersion    % Test,
