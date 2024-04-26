@@ -16,7 +16,7 @@
 
 package unit.services
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
@@ -37,15 +37,15 @@ import util.TestData.{WorkItem1, validClientSubscriptionId1}
 import util.UnitSpec
 
 import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 class UnblockPollerServiceSpec extends UnitSpec
   with MockitoSugar
   with Eventually
   with BeforeAndAfterEach {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
 
   trait Setup {
     val csIdSetOfOne = Set(validClientSubscriptionId1)

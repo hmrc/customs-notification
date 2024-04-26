@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.customs.notification.domain
 
-import play.api.libs.json.Json
+import play.api.libs.json.{Json, OFormat}
 
 case class ApiSubscriptionFields(clientId: String,
                                  fields: DeclarantCallbackData) {
@@ -25,5 +25,5 @@ case class ApiSubscriptionFields(clientId: String,
 }
 
 object ApiSubscriptionFields {
-  implicit val jsonFormat = Json.format[ApiSubscriptionFields]
+  implicit val jsonFormat: OFormat[ApiSubscriptionFields] = Json.format[ApiSubscriptionFields]
 }

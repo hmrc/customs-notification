@@ -24,13 +24,14 @@ import play.api.libs.json.Writes
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.config.{ServiceConfig, ServiceConfigProvider}
 import uk.gov.hmrc.customs.notification.connectors.ExternalPushConnector
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpReads, HttpResponse}
 import util.TestData.{externalPushNotificationRequest, requestMetaData}
 import util.UnitSpec
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
 class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
@@ -38,9 +39,9 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
   private val mockHttpClient = mock[HttpClient]
   val mockLogger = mock[NotificationLogger]
   private val serviceConfigProvider = mock[ServiceConfigProvider]
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
   private implicit val hc: HeaderCarrier = HeaderCarrier()
-  private implicit val rm = requestMetaData
+  private implicit val rm: RequestMetaData = requestMetaData
 
   private val connector = new ExternalPushConnector(
     mockHttpClient,

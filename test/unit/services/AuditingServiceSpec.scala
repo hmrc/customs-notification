@@ -23,6 +23,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.HasId
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.AuditingService
@@ -34,19 +35,19 @@ import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.{NotificationWorkItem1, conversationId, internalPushNotificationRequest}
 import util.{TestData, UnitSpec}
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfterEach with Eventually {
 
-  implicit val ec = Helpers.stubControllerComponents().executionContext
-  override implicit val patienceConfig = PatienceConfig(timeout = 5 seconds)
+  implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 5 seconds)
 
   private val mockLogger = mock[NotificationLogger]
   private val mockAuditConnector = mock[AuditConnector]
-  private implicit val rm = TestData.requestMetaData
-  implicit val hc = HeaderCarrier(requestId = Some(RequestId("ABC")))
+  private implicit val rm: RequestMetaData = TestData.requestMetaData
+  implicit val hc: HeaderCarrier = HeaderCarrier(requestId = Some(RequestId("ABC")))
 
   override def beforeEach(): Unit = {
     reset(mockAuditConnector)

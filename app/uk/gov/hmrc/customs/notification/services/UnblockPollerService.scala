@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo

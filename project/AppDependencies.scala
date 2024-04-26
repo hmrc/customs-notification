@@ -2,23 +2,22 @@ import sbt.*
 
 object AppDependencies {
 
-  private val testScope = "test,it"
-  private val mongoVersion = "1.8.0"
+  private val mongoVersion = "1.9.0"
+  private val boostrapVersion = "8.5.0"
+  private val playVersion = "play-30"
 
   val compile = Seq(
-    "uk.gov.hmrc.mongo"            %% "hmrc-mongo-work-item-repo-play-28"      % mongoVersion,
-    "uk.gov.hmrc"                  %% "bootstrap-backend-play-28"              % "8.0.0",
-    "org.typelevel"                %% "cats-core"                              % "2.9.0"
+    "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-work-item-repo-$playVersion"      % mongoVersion,
+    "uk.gov.hmrc"                  %% s"bootstrap-backend-$playVersion"              % boostrapVersion,
+    "org.typelevel"                %% "cats-core"                                    % "2.10.0"
   )
 
   val test = Seq(
-    "org.scalatestplus.play"       %% "scalatestplus-play"      % "5.1.0"      % testScope,
-    "com.github.tomakehurst"        % "wiremock-standalone"     % "2.27.2"     % testScope,
-    "org.scalatestplus"            %% "scalatestplus-mockito"   % "1.0.0-M2"   % testScope,
-    "uk.gov.hmrc.mongo"            %% "hmrc-mongo-test-play-28" % mongoVersion % testScope,
-    "com.vladsch.flexmark"          % "flexmark-all"            % "0.35.10"    % testScope,
-    "uk.gov.hmrc"                  %% "bootstrap-test-play-28"  % "8.0.0"      % testScope,
-    "org.mockito"                   % "mockito-core"            % "5.3.1"      % testScope,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala"    % "2.17.0"     % testScope
+    "org.scalatestplus.play"       %% "scalatestplus-play"            % "7.0.1"            % Test,
+    "org.wiremock"                  % "wiremock-standalone"           % "3.5.4"            % Test,
+    "org.scalatestplus"            %% "scalatestplus-mockito"         % "1.0.0-M2"         % Test,
+    "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-test-$playVersion" % mongoVersion       % Test,
+    "uk.gov.hmrc"                  %% s"bootstrap-test-$playVersion"  % boostrapVersion    % Test,
+    "com.fasterxml.jackson.module" %% "jackson-module-scala"          % "2.17.0"           % Test
   )
 }

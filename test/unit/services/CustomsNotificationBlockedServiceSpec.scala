@@ -27,14 +27,14 @@ import unit.logging.StubCdsLogger
 import util.TestData._
 import util.UnitSpec
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class CustomsNotificationBlockedServiceSpec extends UnitSpec
   with MockitoSugar
   with Eventually
   with BeforeAndAfterEach {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
   private val stubCdsLogger = StubCdsLogger()
   private val mockRepo = mock[NotificationWorkItemRepo]
   private val service = new CustomsNotificationBlockedService(stubCdsLogger, mockRepo)

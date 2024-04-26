@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.services
 
-import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
-import akka.event.Logging
+import org.apache.pekko.actor.{Actor, ActorSystem, PoisonPill, Props}
+import org.apache.pekko.event.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
 import uk.gov.hmrc.customs.notification.logging.CdsLogger

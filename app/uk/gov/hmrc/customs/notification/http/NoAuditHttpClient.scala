@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.customs.notification.http
 
-import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import org.apache.pekko.actor.ActorSystem
 import play.api.Configuration
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.http.HttpClient

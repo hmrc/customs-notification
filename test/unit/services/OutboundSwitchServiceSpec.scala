@@ -23,6 +23,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.connectors.{ExternalPushConnector, InternalPushConnector}
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
@@ -34,7 +35,7 @@ import util.UnitSpec
 
 import java.net.URL
 import java.util.UUID
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventually {
 
@@ -48,8 +49,8 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
     val mockHttpResponse = mock[HttpResponse]
     val mockAuditingService = mock[AuditingService]
     val mockLogger = mock[NotificationLogger]
-    implicit val rm = requestMetaData
-    implicit val ec = Helpers.stubControllerComponents().executionContext
+    implicit val rm: RequestMetaData = requestMetaData
+    implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
     val switcher = new OutboundSwitchService(mockConfigService, mockExternalConnector, mockInternalPushService, mockAuditingService, mockLogger)
   }
 

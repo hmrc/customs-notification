@@ -22,7 +22,6 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotif
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.customs.notification.util.DateTimeHelpers._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
@@ -51,7 +50,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     implicit val hasId: RequestMetaData = metaData
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
-      Some(metaData.startTime.toDateTime),
+      Some(metaData.startTime.toInstant),
       Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
     val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)

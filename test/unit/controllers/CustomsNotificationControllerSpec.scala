@@ -37,12 +37,12 @@ import util.TestData._
 import util.UnitSpec
 
 import java.util.UUID
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.{Elem, NodeSeq}
 
 class CustomsNotificationControllerSpec extends UnitSpec with Matchers with MockitoSugar with BeforeAndAfterEach with ControllerSpecHelper {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
   private val mockNotificationLogger = mock[NotificationLogger]
   private val mockCustomsNotificationService = mock[CustomsNotificationService]
   private val mockConfigService = mock[ConfigService]

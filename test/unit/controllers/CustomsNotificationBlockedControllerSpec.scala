@@ -30,7 +30,7 @@ import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedServi
 import util.TestData._
 import util.UnitSpec
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class CustomsNotificationBlockedControllerSpec
   extends UnitSpec
@@ -38,7 +38,7 @@ class CustomsNotificationBlockedControllerSpec
     with BeforeAndAfterEach
     with ControllerSpecHelper {
 
-  private implicit val ec = Helpers.stubControllerComponents().executionContext
+  private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
   private val mockService = mock[CustomsNotificationBlockedService]
   private val mockLogger = mock[NotificationLogger]
   private val controller = new CustomsNotificationBlockedController(mockService, Helpers.stubControllerComponents(), mockLogger)
