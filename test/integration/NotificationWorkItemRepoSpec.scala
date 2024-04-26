@@ -367,9 +367,9 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
 
     "MetricsStartDateTime is stored correctly in mongoDB" in {
-      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItemWithMetricsTime1))
+      val result: WorkItem[NotificationWorkItem] = await(repository.saveWithLock(NotificationWorkItemWithMetricsTime2))
       val savedItem: Option[WorkItem[NotificationWorkItem]] = await(repository.findById(result.id))
-      savedItem.get.item.metricsStartDateTime shouldBe Some(TimeReceivedDateTime)
+      savedItem.get.item.metricsStartDateTime shouldBe Some(TimeReceivedDateTimeWithMilliSeconds)
     }
 
   }

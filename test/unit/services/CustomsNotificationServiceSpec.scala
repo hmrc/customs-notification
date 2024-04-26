@@ -59,11 +59,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
     val currentTimePlus2Hour = currentTime.plusHours(2)
     val mockPushOrPullService = mock[PushOrPullService]
     val mockNotificationLogger = mock[NotificationLogger]
-    // if we want a real logger
-    //    val serviceConfig = mock[ServicesConfig]
-    //    when(serviceConfig.getString("application.logger.name")).thenReturn("massive-CustomsNotificationServiceSpec")
-    //    val cdsLogger = new CdsLogger(serviceConfig)
-    //    val mockNotificationLogger = new NotificationLogger(cdsLogger)
     val mockNotificationWorkItemRepo = mock[NotificationWorkItemRepo]
     lazy val mockMetricsService = mock[CustomsNotificationMetricsService]
     lazy val mockDateTimeService = mock[DateTimeService]

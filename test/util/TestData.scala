@@ -107,7 +107,7 @@ object TestData {
   val TimeReceivedZoned = ZonedDateTime.of(2016, 1, 30, 23, 46,
     59, 0, UtcZoneId)
   val TimeReceivedDateTime = TimeReceivedZoned.toInstant
-  val TimeReceivedDateTimeWithMilleSeconds = ZonedDateTime.of(2016, 1, 30, 23, 46,
+  val TimeReceivedDateTimeWithMilliSeconds = ZonedDateTime.of(2016, 1, 30, 23, 46,
     59, 2000000, UtcZoneId).toInstant
   val TimeReceivedInstant = TimeReceivedZoned.toInstant
 
@@ -149,7 +149,7 @@ object TestData {
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)
   val NotificationWorkItem3 = NotificationWorkItem(validClientSubscriptionId2, clientId2, notification = notification2)
   val NotificationWorkItemWithMetricsTime1 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTime))
-  val NotificationWorkItemWithMetricsTime2 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTimeWithMilleSeconds))
+  val NotificationWorkItemWithMetricsTime2 = NotificationWorkItem1.copy(metricsStartDateTime = Some(TimeReceivedDateTimeWithMilliSeconds))
   val WorkItem1 = WorkItem(new ObjectId("5c46f7d70100000100ef835a"), TimeReceivedInstant, TimeReceivedInstant, TimeReceivedInstant, ToDo, 0, NotificationWorkItemWithMetricsTime1)
   val WorkItem2 = WorkItem1.copy(item = NotificationWorkItem2)
   val WorkItem3 = WorkItem1.copy(failureCount = 1)
