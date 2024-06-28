@@ -153,7 +153,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus = InProgress): Future[WorkItem[NotificationWorkItem]] = {
-    logger.debug(s"saving a new notification work item in locked state [${processingStatus.name}] [$notificationWorkItem]")
+    logger.debug(s"saving a new [$collectionName] in locked state [${processingStatus.name}] [$notificationWorkItem]")
 
     def processWithInitialStatus(item: NotificationWorkItem): ProcessingStatus = processingStatus
 
@@ -171,12 +171,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
-    logger.debug(s"setting completed status of [$status] for notification work item id: [${id.toString}]")
+    logger.debug(s"setting completed status of [$status] for [$collectionName] id: [${id.toString}]")
     complete(id, status).map(_ => ())
   }
 
   def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit] = {
-    logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for notification work item id: [${id.toString}]")
+    logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for [$collectionName] id: [${id.toString}]")
     complete(id, PermanentlyFailed).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         setMostRecentPushPullHttpStatus(id, Some(httpStatus))
@@ -187,7 +187,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of [$status] for notification work item id: [${id.toString}]" +
+    logger.debug(s"setting completed status of [$status] for [$collectionName] id: [${id.toString}]" +
       s"with availableAt: [$availableAt] and mostRecentPushPullHttpStatus: [$httpStatus]")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
@@ -276,12 +276,13 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   override def incrementFailureCount(id: ObjectId): Future[Unit] = {
-    logger.debug(s"incrementing failure count for notification work item id: [${id.toString}]")
-
     val selector = equal(workItemFields.id, id)
     val update = inc(workItemFields.failureCount, 1)
 
-    collection.findOneAndUpdate(selector, update).toFuture().map(_ => ())
+    collection.findOneAndUpdate(selector, update).toFuture().map { x =>
+      logger.debug(s"Incremented failure count to [${x.failureCount + 1}] for [$collectionName] [${id.toString}]")
+      ()
+    }
   }
 
   override def deleteAll(): Future[Unit] = {
