@@ -85,6 +85,10 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         logger.info(s"Unblock pilot for [$connector] succeeded. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status [${Succeeded.name}] for [$workItem]")
         Future.successful(Success)
       case Left(PushOrPullError(connector, resultError)) =>
+        //TODO WE NEED TO CHECK THE MONGO TO FOR TIME AND NOTIFICATION ID
+        println(Console.RED_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc}  Error: $connector , $resultError" + Console.RESET)
+        println(Console.CYAN_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc} Notification ID${workItem.item.notification.notificationId} " + Console.RESET)
+        println(Console.MAGENTA_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc} Function Code: ${workItem.item.notification.payload.subSequence(workItem.item.notification.payload.indexOf("p:FunctionCode"), workItem.item.notification.payload.indexOf("p:FunctionCode") + 20)} " + Console.RESET)
         logger.info(s"Unblock pilot for [$connector] failed with error $resultError. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status back to [${PermanentlyFailed.name}] for [$workItem]")
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
