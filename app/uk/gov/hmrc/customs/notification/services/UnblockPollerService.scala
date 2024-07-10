@@ -57,6 +57,10 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     } yield {
       maybeWorkItem match {
         case Some(workItem) =>
+          println(Console.RED_B + Console.BLACK + s"receivedAt: ${workItem.receivedAt} " + Console.RESET)
+          println(Console.CYAN_B + Console.BLACK + s"availableAt: ${workItem.availableAt}" + Console.RESET)
+          println(Console.CYAN_B + Console.BLACK + s"availableAt: ${workItem.updatedAt}" + Console.RESET)
+          println(Console.MAGENTA_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc} Function Code: ${workItem.item.notification.payload.subSequence(workItem.item.notification.payload.indexOf("p:FunctionCode"), workItem.item.notification.payload.indexOf("p:FunctionCode") + 20)} " + Console.RESET)
           pushOrPull(workItem).foreach(handleResponse(csid))
         case None =>
           logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
@@ -77,6 +81,14 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
+    //TODO MAKE A CHECK TO SEE WHEN LAST CALL WAS BY
+    // 1. CHCEKING LAST UPDATED BEFORE SENDING
+    // 2. WHILE PICKING UP CHNAGE STATUS OF NOTIFICATION
+
+    // if(lastUpdated >= timeOut && Picked == false){
+
+    //}else
+
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
@@ -93,11 +105,13 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
           status <- {
             resultError match {
               case error@HttpResultError(status, _) if error.is3xx || error.is4xx =>
+                println(Console.RED_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 400 OR 300 Error" + Console.RESET)
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response [$status] received while trying unblock pilot, setting availableAt to [$availableAt] and status to Failed")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt)
                   .map(_ => ClientError)
               case HttpResultError(status, _) =>
+                println(Console.RED_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500" + Console.RESET)
                 notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
                   .map(_ => ServerError)
               case NonHttpError(cause) =>
