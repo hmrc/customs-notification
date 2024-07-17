@@ -46,7 +46,7 @@ trait NotificationWorkItemRepo {
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit]
 
-  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit]
+  def setPermanentlyFailedWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
@@ -175,9 +175,9 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     complete(id, status).map(_ => ())
   }
 
-  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit] = {
-    logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for [$collectionName] id: [${id.toString}]")
-    complete(id, PermanentlyFailed).flatMap { updateSuccessful =>
+  def setPermanentlyFailedWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
+    logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for [$collectionName] id: [${id.toString}] next available at:[${}]")
+    markAs(id, PermanentlyFailed, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         setMostRecentPushPullHttpStatus(id, Some(httpStatus))
       } else {
