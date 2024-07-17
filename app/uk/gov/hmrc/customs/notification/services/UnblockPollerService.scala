@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
-import java.time.Instant
+import java.time.{Instant, LocalDateTime}
 import javax.inject._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -52,6 +52,10 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     }
   }
 
+  def colourln(colour: String, message: String): Unit = {
+    println(colour + Console.BLACK + LocalDateTime.now() + " " + message + Console.RESET)
+  }
+
   private def retry(csid: ClientSubscriptionId): Future[Unit] = {
     for {
       maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
@@ -59,22 +63,24 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
       maybeWorkItem match {
         case Some(workItem) =>
 
-          println(Console.MAGENTA_B + Console.BLACK + s"............." + Console.RESET)
-          println(Console.CYAN_B + Console.BLACK + s"updatedAt: ${workItem.updatedAt}" + Console.RESET)
-          println(Console.CYAN_B + Console.BLACK + s"AvailableAt: ${workItem.availableAt}" + Console.RESET)
-          println(Console.MAGENTA_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc} Function Code: ${workItem.item.notification.payload.subSequence(workItem.item.notification.payload.indexOf("p:FunctionCode"), workItem.item.notification.payload.indexOf("p:FunctionCode") + 20)} " + Console.RESET)
-          println(Console.MAGENTA_B + Console.BLACK + s"............." + Console.RESET)
+          colourln(Console.MAGENTA_B, s".............")
+          colourln(Console.CYAN_B, s"updatedAt: ${workItem.updatedAt}")
+          colourln(Console.CYAN_B, s"AvailableAt: ${workItem.availableAt}")
+          val payload = workItem.item.notification.payload
+          val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+          colourln(Console.MAGENTA_B, s"Function Code: ${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)} ")
+          colourln(Console.MAGENTA_B, s".............")
 
-          if (workItem.availableAt <=  Instant.now()){
-            println(Console.CYAN_B + Console.BLACK + s"............." + Console.RESET)
-            println(Console.MAGENTA_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc} Function Code: ${workItem.item.notification.payload.subSequence(workItem.item.notification.payload.indexOf("p:FunctionCode"), workItem.item.notification.payload.indexOf("p:FunctionCode") + 20)} " + Console.RESET)
-            println(Console.YELLOW_B + Console.BLACK + s"NOW WE SHOULD SEND ${Instant.now()} " + Console.RESET)
-            println(Console.CYAN_B + Console.BLACK + s"............." + Console.RESET)
+          if (workItem.availableAt <= Instant.now()) {
+            colourln(Console.CYAN_B, s".............")
+            colourln(Console.MAGENTA_B, s"Function Code: ${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)} ")
+            colourln(Console.YELLOW_B, s"NOW WE SHOULD SEND ${Instant.now()} ")
+            colourln(Console.CYAN_B, s".............")
             pushOrPull(workItem).foreach(handleResponse(csid))
-          }else{
-            println(Console.RED_B + Console.BLACK + s"..............." + Console.RESET)
-            println(Console.RED_B + Console.BLACK + s"NOT SENDING YET" + Console.RESET)
-            println(Console.RED_B + Console.BLACK + s"..............." + Console.RESET)
+          } else {
+            colourln(Console.RED_B, s"...............")
+            colourln(Console.RED_B, s"NOT SENDING YET")
+            colourln(Console.RED_B, s"...............")
           }
         case None =>
           logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
@@ -116,13 +122,13 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
           status <- {
             resultError match {
               case error@HttpResultError(status, _) if error.is3xx || error.is4xx =>
-                println(Console.RED_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 400 OR 300 Error" + Console.RESET)
+                colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 400 OR 300 Error")
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response [$status] received while trying unblock pilot, setting availableAt to [$availableAt] and status to Failed")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt)
                   .map(_ => ClientError)
               case HttpResultError(status, _) =>
-                println(Console.RED_B + Console.BLACK + s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500" + Console.RESET)
+                colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500")
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
                   .map(_ => ServerError)
