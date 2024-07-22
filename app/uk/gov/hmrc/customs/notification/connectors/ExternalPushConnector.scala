@@ -48,6 +48,15 @@ class ExternalPushConnector @Inject()(http: HttpClient,
   }
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier, rm: HasId): Future[Either[ResultError, HttpResponse]] = {
+    println(Console.YELLOW_B + Console.BLACK + "-------------------------" + Console.RESET)
+    val e = new Exception("see stack trace:")
+    e.printStackTrace()
+    println(Console.YELLOW_B + Console.BLACK + "-------------------------" + Console.RESET)
+    println(Console.MAGENTA_B + Console.BLACK + "-------------------------" + Console.RESET)
+    println(Console.MAGENTA_B + Console.BLACK + "SENDING NOTIFICATION HERE" + Console.RESET)
+    println(Console.MAGENTA_B + Console.BLACK + "WHAT DATA WE HAVE TO PASS ON:" + Console.RESET)
+    println(Console.CYAN_B + Console.BLACK + pnr.body + Console.RESET)
+    println(Console.MAGENTA_B + Console.BLACK + "-------------------------" + Console.RESET)
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     val msg = "Calling external push notification service"

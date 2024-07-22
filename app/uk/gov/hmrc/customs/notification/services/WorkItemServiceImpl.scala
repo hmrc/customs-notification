@@ -22,10 +22,12 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATI
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
+import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, Succeeded}
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
+import java.time.{Instant, ZoneId}
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -54,6 +56,9 @@ class WorkItemServiceImpl @Inject()(
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap {
       case Some(firstOutstandingItem) =>
         incrementCountMetric(metricName, firstOutstandingItem)
+        colourln(Console.CYAN_B, s".....................................")
+        colourln(Console.YELLOW_B, s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
+        colourln(Console.CYAN_B, s".....................................")
         pushOrPull(firstOutstandingItem).map { _ =>
           true
         }

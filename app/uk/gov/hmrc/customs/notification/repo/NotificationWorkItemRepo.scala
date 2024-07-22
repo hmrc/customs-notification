@@ -254,6 +254,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {
+    logger.info("Checking availableAt on PermanentlyFailed notifications")
     val selector = and(
       equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)),
       lt("availableAt", now()))

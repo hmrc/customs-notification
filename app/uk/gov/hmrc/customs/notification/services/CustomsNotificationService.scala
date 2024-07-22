@@ -22,12 +22,15 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotif
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
+import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
+import java.time.{Instant, ZoneId}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.math.Ordered.orderingToOrdered
 import scala.util.control.NonFatal
 import scala.xml.NodeSeq
 
@@ -87,7 +90,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
       workItem => {
         recordNotificationEndTimeMetric(workItem)
-        if (status == InProgress) pushOrPull(workItem, apiSubscriptionFields)
+        if (status == InProgress && workItem.availableAt <= Instant.now()) pushOrPull(workItem, apiSubscriptionFields)
         true
       }
     ).recover {
@@ -99,7 +102,9 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
                          apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
-
+    colourln(Console.RED_B  , "-------------------------")
+    colourln(Console.YELLOW_B, s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
+    colourln(Console.RED_B  ,"-------------------------" + Console.RESET)
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)

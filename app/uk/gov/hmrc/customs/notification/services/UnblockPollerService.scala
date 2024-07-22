@@ -24,7 +24,9 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
-import java.time.{Instant, LocalDateTime}
+import uk.gov.hmrc.customs.notification.services.Debug.colourln
+import java.time.Instant.now
+import java.time.{Instant, LocalDateTime, ZoneId}
 import javax.inject._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -52,36 +54,16 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     }
   }
 
-  def colourln(colour: String, message: String): Unit = {
-    println(colour + Console.BLACK + LocalDateTime.now() + " " + message + Console.RESET)
-  }
-
   private def retry(csid: ClientSubscriptionId): Future[Unit] = {
     for {
       maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
     } yield {
       maybeWorkItem match {
         case Some(workItem) =>
-
-          colourln(Console.MAGENTA_B, s".............")
-          colourln(Console.CYAN_B, s"updatedAt: ${workItem.updatedAt}")
-          colourln(Console.CYAN_B, s"AvailableAt: ${workItem.availableAt}")
-          val payload = workItem.item.notification.payload
-          val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
-          colourln(Console.MAGENTA_B, s"Function Code: ${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)} ")
-          colourln(Console.MAGENTA_B, s".............")
-
-          if (workItem.availableAt <= Instant.now()) {
-            colourln(Console.CYAN_B, s".............")
-            colourln(Console.MAGENTA_B, s"Function Code: ${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)} ")
-            colourln(Console.YELLOW_B, s"NOW WE SHOULD SEND ${Instant.now()} ")
-            colourln(Console.CYAN_B, s".............")
-            pushOrPull(workItem).foreach(handleResponse(csid))
-          } else {
-            colourln(Console.RED_B, s"...............")
-            colourln(Console.RED_B, s"NOT SENDING YET")
-            colourln(Console.RED_B, s"...............")
-          }
+          colourln(Console.GREEN_B  , "-------------------------")
+          colourln(Console.YELLOW_B, s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
+          colourln(Console.GREEN_B  ,"-------------------------" + Console.RESET)
+          pushOrPull(workItem).foreach(handleResponse(csid))
         case None =>
           logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
       }
@@ -101,34 +83,24 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
-    //TODO MAKE A CHECK TO SEE WHEN LAST CALL WAS BY
-    // 1. CHECKING LAST UPDATED BEFORE SENDING
-    // 2. WHILE PICKING UP CHNAGE STATUS OF NOTIFICATION
-
-    // if(lastUpdated >= timeOut && Picked == false){
-
-    //}else
-
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         logger.info(s"Unblock pilot for [$connector] succeeded. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status [${Succeeded.name}] for [$workItem]")
         Future.successful(Success)
       case Left(PushOrPullError(connector, resultError)) =>
-        //TODO WE NEED TO CHECK THE MONGO TO FOR TIME AND NOTIFICATION ID
         logger.info(s"Unblock pilot for [$connector] failed with error $resultError. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status back to [${PermanentlyFailed.name}] for [$workItem]")
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
           status <- {
             resultError match {
               case error@HttpResultError(status, _) if error.is3xx || error.is4xx =>
-                colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 400 OR 300 Error")
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response [$status] received while trying unblock pilot, setting availableAt to [$availableAt] and status to Failed")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt)
                   .map(_ => ClientError)
               case HttpResultError(status, _) =>
-                colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500")
+                logger.info(s"${colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500")}")
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
                   .map(_ => ServerError)
