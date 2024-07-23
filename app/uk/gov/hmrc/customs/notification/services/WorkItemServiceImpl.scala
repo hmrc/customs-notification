@@ -56,9 +56,6 @@ class WorkItemServiceImpl @Inject()(
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap {
       case Some(firstOutstandingItem) =>
         incrementCountMetric(metricName, firstOutstandingItem)
-        colourln(Console.CYAN_B, s".....................................")
-        colourln(Console.YELLOW_B, s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
-        colourln(Console.CYAN_B, s".....................................")
         pushOrPull(firstOutstandingItem).map { _ =>
           true
         }

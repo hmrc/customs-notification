@@ -102,9 +102,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
                          apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
-    colourln(Console.RED_B  , "-------------------------")
-    colourln(Console.YELLOW_B, s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
-    colourln(Console.RED_B  ,"-------------------------" + Console.RESET)
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)

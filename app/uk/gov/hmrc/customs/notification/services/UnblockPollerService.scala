@@ -25,12 +25,10 @@ import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import uk.gov.hmrc.customs.notification.services.Debug.colourln
-import java.time.Instant.now
-import java.time.{Instant, LocalDateTime, ZoneId}
+import java.time.{Instant, ZoneId}
 import javax.inject._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.math.Ordered.orderingToOrdered
 import scala.util.control.NonFatal
 
 @Singleton
