@@ -25,7 +25,6 @@ import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import uk.gov.hmrc.customs.notification.services.Debug.colourln
-import java.time.{Instant, ZoneId}
 import javax.inject._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -58,9 +57,6 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     } yield {
       maybeWorkItem match {
         case Some(workItem) =>
-          colourln(Console.GREEN_B  , "-------------------------")
-          colourln(Console.YELLOW_B, s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
-          colourln(Console.GREEN_B  ,"-------------------------" + Console.RESET)
           pushOrPull(workItem).foreach(handleResponse(csid))
         case None =>
           logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")

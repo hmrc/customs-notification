@@ -25,9 +25,11 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonF
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.{HttpClient, _}
 
+import java.time.{Instant, ZoneId}
 import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -48,15 +50,13 @@ class ExternalPushConnector @Inject()(http: HttpClient,
   }
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier, rm: HasId): Future[Either[ResultError, HttpResponse]] = {
-    println(Console.YELLOW_B + Console.BLACK + "-------------------------" + Console.RESET)
+
+    colourln(Console.YELLOW_B , "-------------------------" )
     val e = new Exception("see stack trace:")
-    e.printStackTrace()
-    println(Console.YELLOW_B + Console.BLACK + "-------------------------" + Console.RESET)
-    println(Console.MAGENTA_B + Console.BLACK + "-------------------------" + Console.RESET)
-    println(Console.MAGENTA_B + Console.BLACK + "SENDING NOTIFICATION HERE" + Console.RESET)
-    println(Console.MAGENTA_B + Console.BLACK + "WHAT DATA WE HAVE TO PASS ON:" + Console.RESET)
-    println(Console.CYAN_B + Console.BLACK + pnr.body + Console.RESET)
-    println(Console.MAGENTA_B + Console.BLACK + "-------------------------" + Console.RESET)
+    colourln(Console.GREEN_B  , "-------------------------")
+    colourln(Console.YELLOW_B , s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
+    colourln(Console.GREEN_B  ,"-------------------------")
+
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     val msg = "Calling external push notification service"
