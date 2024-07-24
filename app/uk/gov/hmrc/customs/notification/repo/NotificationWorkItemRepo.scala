@@ -269,10 +269,13 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     clientSubscriptionIds.map(id => ClientSubscriptionId(UUID.fromString(id))).toSet
   }
 
+  //TODO use createdAt DCWL-2372 to make sure it gets the oldest one per csid
   override def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
     val update = updateStatusBson(InProgress)
-    collection.findOneAndUpdate(selector, update, FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(false))
+    collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
+        returnDocument(ReturnDocument.AFTER).upsert(false).
+        sort(Sorts.ascending("createdAt")))
       .toFutureOption()
   }
 
