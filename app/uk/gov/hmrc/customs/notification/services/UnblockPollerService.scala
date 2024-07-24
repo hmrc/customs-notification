@@ -23,11 +23,13 @@ import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
-
 import uk.gov.hmrc.customs.notification.services.Debug.colourln
+
+import java.time.Instant
 import javax.inject._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.math.Ordered.orderingToOrdered
 import scala.util.control.NonFatal
 
 @Singleton
@@ -56,7 +58,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
       maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
     } yield {
       maybeWorkItem match {
-        case Some(workItem) =>
+        case Some(workItem) if(workItem.availableAt <= Instant.now())  =>
           pushOrPull(workItem).foreach(handleResponse(csid))
         case None =>
           logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
@@ -95,7 +97,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                   .map(_ => ClientError)
               case HttpResultError(status, _) =>
                 logger.info(s"${colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500")}")
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
                   .map(_ => ServerError)
               case NonHttpError(cause) =>

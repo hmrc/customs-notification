@@ -24,12 +24,13 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, Succeeded}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, PermanentlyFailed, Succeeded}
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import java.time.{Instant, ZoneId}
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
+import scala.math.Ordered.orderingToOrdered
 import scala.util.control.NonFatal
 @ImplementedBy(classOf[WorkItemServiceImpl])
 trait WorkItemService {
@@ -54,7 +55,7 @@ class WorkItemServiceImpl @Inject()(
     val failedBefore = dateTimeService.zonedDateTimeUtc.toInstant
     val availableBefore = failedBefore
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap {
-      case Some(firstOutstandingItem) =>
+      case Some(firstOutstandingItem) if(firstOutstandingItem.availableAt <= Instant.now()) =>
         incrementCountMetric(metricName, firstOutstandingItem)
         pushOrPull(firstOutstandingItem).map { _ =>
           true
@@ -91,9 +92,13 @@ class WorkItemServiceImpl @Inject()(
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
-              case _ =>
+              case httpResultError: HttpResultError =>
+                println(Console.YELLOW_B + Console.BLACK + s"WORK ITEM SERVICE IMPL SENT AND RECIEVED $httpResultError " + Console.RESET)
                 repository.setCompletedStatus(workItem.id, Failed) // increase failure count
                 repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ())
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+                repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
             }).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
