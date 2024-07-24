@@ -79,6 +79,11 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
+    val payload = workItem.item.notification.payload
+    val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+
+    colourln(Console.CYAN_B,s"UnblockPollerService - Function Code${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
+
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
@@ -96,8 +101,11 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt)
                   .map(_ => ClientError)
               case HttpResultError(status, _) =>
-                logger.info(s"${colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500")}")
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
+                val payload = workItem.item.notification.payload
+                val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+                logger.info(s"${colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500, Function Code${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")}")
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
                   .map(_ => ServerError)
               case NonHttpError(cause) =>

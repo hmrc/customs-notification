@@ -80,6 +80,11 @@ class WorkItemServiceImpl @Inject()(
       .withExtraHeaders(maybeAddNotificationId(workItem.item.notification.notificationId): _*)
 
     logger.debug(s"attempting retry of $workItem")
+    val payload = workItem.item.notification.payload
+    val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+
+    colourln(Console.YELLOW_B,s"WorkItemServiceImpl - Function Code${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
+
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         logger.info(s"$connector retry succeeded for $workItem")
@@ -93,12 +98,17 @@ class WorkItemServiceImpl @Inject()(
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
               case httpResultError: HttpResultError =>
-                println(Console.YELLOW_B + Console.BLACK + s"WORK ITEM SERVICE IMPL SENT AND RECIEVED $httpResultError " + Console.RESET)
                 repository.setCompletedStatus(workItem.id, Failed) // increase failure count
                 repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ())
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
-                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+                val payload = workItem.item.notification.payload
+                val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: ${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
                 repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
+              case _ =>
+                colourln(Console.RED_B , s"WORK ITEM SERVICE IMPL SENT AND RECEIVED UNKNOWN")
+                repository.setCompletedStatus(workItem.id, Failed) // increase failure count
+                repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ()) //TODO Not sure this is necessary
             }).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)

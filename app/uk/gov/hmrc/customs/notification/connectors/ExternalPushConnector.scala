@@ -51,10 +51,12 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier, rm: HasId): Future[Either[ResultError, HttpResponse]] = {
 
-    colourln(Console.YELLOW_B , "-------------------------" )
-    val e = new Exception("see stack trace:")
     colourln(Console.GREEN_B  , "-------------------------")
-    colourln(Console.YELLOW_B , s"SENDING ${Instant.now.atZone(ZoneId.of("UTC"))} ")
+    val payload = pnr.body.xmlPayload
+    val functionCodeIndex = payload.indexOf("p:FunctionCode")
+    colourln(Console.YELLOW_B , s"SENDING FunctionCode:${pnr.body.xmlPayload.subSequence(functionCodeIndex, functionCodeIndex + 20)}")
+    val e = new Exception("see stack trace:")
+    e.printStackTrace()
     colourln(Console.GREEN_B  ,"-------------------------")
 
     val url = serviceConfigProvider.getConfig("public-notification").url

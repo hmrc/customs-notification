@@ -102,6 +102,12 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
                          apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
+
+    val payload = workItem.item.notification.payload
+    val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+
+    colourln(Console.CYAN_B,s"CustomsNotificationService - Function Code${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
+
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
@@ -119,7 +125,10 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
               case HttpResultError(status, _) =>
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
+                val payload = workItem.item.notification.payload
+                val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt, FunctionCode: ${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
               case NonHttpError(cause) =>
                 logger.error(s"Error received while pushing notification: ${cause.getMessage}")
