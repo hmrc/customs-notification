@@ -44,6 +44,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
   private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
+
   trait setup {
     val timeout = Mockito.timeout(5000).times(1)
     val eventuallyRightOfPush = Future.successful(Right(Push))
@@ -60,6 +61,8 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
     val mockPushOrPullService = mock[PushOrPullService]
     val mockNotificationLogger = mock[NotificationLogger]
     val mockNotificationWorkItemRepo = mock[NotificationWorkItemRepo]
+    val retryPollerInProgressRetryAfter = 5
+    val availableAt = currentTime.plusSeconds(retryPollerInProgressRetryAfter)
     lazy val mockMetricsService = mock[CustomsNotificationMetricsService]
     lazy val mockDateTimeService = mock[DateTimeService]
     lazy val mockAuditingService = mock[AuditingService]
@@ -155,9 +158,9 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
         new setup {
           when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-          when(mockNotificationWorkItemRepo.setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(Future.successful(()))
+          when(mockNotificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)).thenReturn(Future.successful(()))
           when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-          when(mockNotificationWorkItemRepo.setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(eventuallyUnit)
+          when(mockNotificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)).thenReturn(eventuallyUnit)
           when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(eventuallyLeftOfPush500)
 
           val result = instance.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
@@ -166,7 +169,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
           eventually {
             verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
             verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id)
-            verify(mockNotificationWorkItemRepo).setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)
+            verify(mockNotificationWorkItemRepo).setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
             errorLogVerifier(mockNotificationLogger, s"Push failed PushOrPullError(Push,HttpResultError(500,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")

@@ -59,6 +59,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     } yield {
       maybeWorkItem match {
         case Some(workItem) if(workItem.availableAt <= Instant.now())  =>
+          colourln(Console.CYAN_B, s"maybeWorkItem -> $workItem")
           pushOrPull(workItem).foreach(handleResponse(csid))
         case None =>
           logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
