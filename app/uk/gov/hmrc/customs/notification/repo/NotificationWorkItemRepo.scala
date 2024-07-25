@@ -274,7 +274,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     val update = updateStatusBson(InProgress)
     collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
         returnDocument(ReturnDocument.AFTER).upsert(false).
-        sort(Sorts.ascending("createdAt")))  //TODO DCWL-2372 do we want to sort? As may be expensive.
+        sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.
       .toFutureOption()
   }
 

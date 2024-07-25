@@ -26,10 +26,13 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.logging.{CdsLogger}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
+import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import unit.logging.StubCdsLogger
 import util.TestData._
 import util.UnitSpec
@@ -48,7 +51,14 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with ScalaFutures {
 
   private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
-  private val mockCdsLogger: StubCdsLogger = mock[StubCdsLogger]
+
+  val mockConfig = mock[ServicesConfig]
+  when(mockConfig.getString("application.logger.name")).thenReturn("NotificationWorkItemRepoSpec")
+  //Use a real logger so can the logs during test run.
+  //    val mockNotificationLogger = mock[NotificationLogger]
+  val logger = new CdsLogger(mockConfig)
+
+//  private val mockCdsLogger: StubCdsLogger = mock[StubCdsLogger]
   private val mockUnblockPollerConfig: UnblockPollerConfig = mock[UnblockPollerConfig]
   private val mockConfiguration = mock[Configuration]
 
@@ -80,7 +90,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
     }
   }
 
-  private val repository = new NotificationWorkItemMongoRepo(mongoRepository, customsNotificationConfig, mockCdsLogger, mockConfiguration)
+  private val repository = new NotificationWorkItemMongoRepo(mongoRepository, customsNotificationConfig, logger, mockConfiguration)
 
   override def beforeEach(): Unit = {
     when(mockConfiguration.underlying).thenReturn(mock[Config])
@@ -308,8 +318,8 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))  //TODO DCWL-2372 sort so oldest sent first
-
+      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1)) //TODO DCWL-2372 sort so oldest sent first
+      colourln(Console.GREEN_B, s"Result [$result]")
       result.get.status shouldBe InProgress
       result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
     }
@@ -320,7 +330,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))
+      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))  //TODO DCWL-2372 sort so oldest sent first
 
       result.size shouldBe 0
     }
