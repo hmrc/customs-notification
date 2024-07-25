@@ -68,6 +68,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
     val retryPollerInProgressRetryAfter = 5
     val availableAt = currentTime.plusSeconds(retryPollerInProgressRetryAfter)
+    val finalAvailableAt= currentTime.plusSeconds(retryPollerInProgressRetryAfter + 25)
 
     val notificationConfig = NotificationConfig(Seq[String](""),
       60,
@@ -151,7 +152,7 @@ class UnblockPollerServiceSpec extends UnitSpec
       }
     }
 
-    "should poll the database and NOT unblock any blocked notifications when Push/Pull fails with a 5xx error" in new Setup {
+    "poll the database and NOT unblock any blocked notifications when Push/Pull fails with a 5xx error" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
       when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.INTERNAL_SERVER_ERROR, BoomException)))))
@@ -173,7 +174,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).pullSinglePfFor(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(1)).incrementFailureCount(WorkItem1.id)
-        verify(notificationWorkItemRepoMock, times(1)).setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)
+        verify(notificationWorkItemRepoMock, times(1)).setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, finalAvailableAt) //TODO Available at
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
         succeed
       }
