@@ -55,33 +55,58 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
     val eventuallyRightOfPull = Future.successful(Right(Pull))
     val eventuallyUnit = Future.successful(())
 
-    val ValidXML: Elem = <foo1></foo1>
+//    val ValidXML: Elem =  <urn:MetaData xs:schemaLocation="urn:wco:datamodel:WCO:DocumentMetaData-DMS:2 ../DocumentMetaData_2_DMS.xsd" xmlns:urn="urn:wco:datamodel:WCO:DocumentMetaData-DMS:2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+//      <md:WCODataModelVersionCode xmlns:md="urn:wco:datamodel:WCO:DocumentMetaData-DMS:2">3.6</md:WCODataModelVersionCode>
+//      <md:WCOTypeName xmlns:md="urn:wco:datamodel:WCO:DocumentMetaData-DMS:2">DEC</md:WCOTypeName>
+//      <md:ResponsibleCountryCode xmlns:md="urn:wco:datamodel:WCO:DocumentMetaData-DMS:2">NL</md:ResponsibleCountryCode>
+//      <md:ResponsibleAgencyName xmlns:md="urn:wco:datamodel:WCO:DocumentMetaData-DMS:2">Duane</md:ResponsibleAgencyName>
+//      <md:AgencyAssignedCustomizationVersionCode xmlns:md="urn:wco:datamodel:WCO:DocumentMetaData-DMS:2">v2.1</md:AgencyAssignedCustomizationVersionCode>
+//      <p:Response xsi:schemaLocation="urn:wco:datamodel:WCO:RES-DMS:2 ../WCO_RES_2_DMS.xsd " xmlns:p="urn:wco:datamodel:WCO:RES-DMS:2">
+//        <p:FunctionCode>01</p:FunctionCode>
+//        <p:FunctionalReferenceID>6c08edc35e8746c5b4316f46f1b8f665</p:FunctionalReferenceID>
+//        <p:IssueDateTime>
+//          <p2:DateTimeString formatCode="304" xmlns:p2="urn:wco:datamodel:WCO:Response_DS:DMS:2">20240115112811Z</p2:DateTimeString>
+//        </p:IssueDateTime>
+//        <p:Declaration>
+//          <p:AcceptanceDateTime>
+//            <p2:DateTimeString formatCode="304" xmlns:p2="urn:wco:datamodel:WCO:Response_DS:DMS:2">20240115112811Z</p2:DateTimeString>
+//          </p:AcceptanceDateTime>
+//          <p:FunctionalReferenceID>failWith-500</p:FunctionalReferenceID> //TODO DCWL-2372 add a method to make either type of payload
+//          <p:ID>24GB5008FW18748830</p:ID>
+//          <p:VersionID>1</p:VersionID>
+//        </p:Declaration>
+//      </p:Response>
+//    </urn:MetaData>
+
+    val ValidXML: Elem =  <foo1></foo1>
+
     val currentTime = ZonedDateTime.of(2024, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
     val currentTimePlus2Hour = currentTime.plusHours(2)
     val mockPushOrPullService = mock[PushOrPullService]
     val mockNotificationLogger = mock[NotificationLogger]
     val mockNotificationWorkItemRepo = mock[NotificationWorkItemRepo]
-    val retryPollerInProgressRetryAfter = 5
-    val availableAt = currentTime.plusSeconds(retryPollerInProgressRetryAfter)
-    val finalAvailableAt = currentTime.plusSeconds(retryPollerInProgressRetryAfter + 25)
+
 
     lazy val mockMetricsService = mock[CustomsNotificationMetricsService]
     lazy val mockDateTimeService = mock[DateTimeService]
     lazy val mockAuditingService = mock[AuditingService]
     lazy val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
 
+    val retryInterval = 5
 
     private val notificationConfig = NotificationConfig(Seq[String](""),
       60,
       false,
-      FiniteDuration(30, SECONDS),
-      FiniteDuration(30, SECONDS),
-      FiniteDuration(30, SECONDS),
+      FiniteDuration(retryInterval, SECONDS),
+      FiniteDuration(retryInterval, SECONDS),
+      FiniteDuration(retryInterval, SECONDS),
       1,
-      120)
+      120) //TODO DCWL-2372 find why 404 test fails.
 
     when(mockCustomsNotificationConfig.notificationConfig).thenReturn(notificationConfig)
     when(mockDateTimeService.zonedDateTimeUtc).thenReturn(currentTime)
+
+    val availableAt = currentTime.plusSeconds(retryInterval)
 
     val instance = new CustomsNotificationService(
       mockNotificationLogger,
@@ -156,8 +181,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
         }
       }
 
-      //TODO FIX THIS TEST
-      "return true when repo saves but push fails with 500" in {
+      "return true when repo saves but push fails with 500" in { //TODO DCWL-2372 fails
         new setup {
           when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
@@ -172,7 +196,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
           eventually {
             verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
             verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id)
-            verify(mockNotificationWorkItemRepo).setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, finalAvailableAt)
+            verify(mockNotificationWorkItemRepo).setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
             errorLogVerifier(mockNotificationLogger, s"Push failed PushOrPullError(Push,HttpResultError(500,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
