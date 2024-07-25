@@ -308,7 +308,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))
+      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))  //TODO DCWL-2372 sort so oldest sent first
 
       result.get.status shouldBe InProgress
       result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1

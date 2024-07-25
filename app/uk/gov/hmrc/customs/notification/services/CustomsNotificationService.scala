@@ -22,7 +22,7 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotif
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.customs.notification.services.Debug.colourln
+import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctionCode}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
@@ -104,9 +104,9 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                          apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
 
     val payload = workItem.item.notification.payload
-    val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+    val functionCode = extractFunctionCode(payload)
 
-    colourln(Console.CYAN_B,s"CustomsNotificationService - Function Code${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
+    colourln(Console.CYAN_B,s"CustomsNotificationService - Function Code[$functionCode]")
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
@@ -127,8 +127,10 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
               case HttpResultError(status, _) =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
                 val payload = workItem.item.notification.payload
-                val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
-                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt, FunctionCode: ${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
+
+                val functionCode = extractFunctionCode(payload)
+
+                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt, FunctionCode:[$functionCode]")
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
               case NonHttpError(cause) =>
                 logger.error(s"Error received while pushing notification: ${cause.getMessage}")

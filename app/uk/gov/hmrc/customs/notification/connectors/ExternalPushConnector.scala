@@ -25,7 +25,7 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonF
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.Debug.colourln
+import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctionCode}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.{HttpClient, _}
 
@@ -53,8 +53,8 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
     colourln(Console.GREEN_B  , "-------------------------")
     val payload = pnr.body.xmlPayload
-    val functionCodeIndex = payload.indexOf("p:FunctionCode")
-    colourln(Console.YELLOW_B , s"SENDING FunctionCode:${pnr.body.xmlPayload.subSequence(functionCodeIndex, functionCodeIndex + 20)}")
+    val functionCode = extractFunctionCode(payload)
+    colourln(Console.YELLOW_B , s"SENDING FunctionCode:[$functionCode]")
     val e = new Exception("see stack trace:")
     e.printStackTrace()
     colourln(Console.GREEN_B  ,"-------------------------")

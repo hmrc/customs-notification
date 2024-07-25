@@ -17,11 +17,18 @@
 package uk.gov.hmrc.customs.notification.services
 
 import java.time.LocalDateTime
+import scala.util.Try
 
-object Debug {
-
+trait Debug {
   def colourln(colour: String, message: String): Unit = {
     println(colour + Console.BLACK + LocalDateTime.now() + " " + message + Console.RESET)
   }
 
+
+  def extractFunctionCode(payload: String): String = Try {
+    val functionCodeIndex = payload.indexOf("p:FunctionCode")
+    payload.subSequence(functionCodeIndex, functionCodeIndex + 20).toString
+  }.getOrElse(s"FailedToGetFunctionCode from [$payload]")
 }
+
+object Debug extends Debug

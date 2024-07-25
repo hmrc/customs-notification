@@ -23,7 +23,7 @@ import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
-import uk.gov.hmrc.customs.notification.services.Debug.colourln
+import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctionCode}
 
 import java.time.Instant
 import javax.inject._
@@ -81,9 +81,9 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
     val payload = workItem.item.notification.payload
-    val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
+    val functionCode = extractFunctionCode(payload)
 
-    colourln(Console.CYAN_B,s"UnblockPollerService - Function Code${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")
+    colourln(Console.CYAN_B,s"UnblockPollerService - Function Code[$functionCode]")
 
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
@@ -105,8 +105,8 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
                 val payload = workItem.item.notification.payload
-                val FunctionCodeIndex = payload.indexOf("p:FunctionCode")
-                logger.info(s"${colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500, Function Code${payload.subSequence(FunctionCodeIndex, FunctionCodeIndex + 20)}")}")
+                val functionCode = extractFunctionCode(payload)
+                logger.info(s"${colourln(Console.RED_B, s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500, Function Code[$functionCode]")}")
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
                   .map(_ => ServerError)
               case NonHttpError(cause) =>
