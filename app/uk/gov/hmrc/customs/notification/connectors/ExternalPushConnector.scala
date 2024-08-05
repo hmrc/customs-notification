@@ -51,14 +51,6 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier, rm: HasId): Future[Either[ResultError, HttpResponse]] = {
 
-    colourln(Console.GREEN_B  , "-------------------------")
-    val payload = pnr.body.xmlPayload
-    val functionCode = extractFunctionCode(payload)
-    colourln(Console.YELLOW_B , s"SENDING FunctionCode:[$functionCode]")
-    val e = new Exception("see stack trace:")
-    e.printStackTrace()
-    colourln(Console.GREEN_B  ,"-------------------------")
-
     val url = serviceConfigProvider.getConfig("public-notification").url
 
     val msg = "Calling external push notification service"

@@ -26,6 +26,7 @@ import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctio
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
+import java.rmi.ServerError
 
 import java.time.{Instant, ZoneId}
 import javax.inject.{Inject, Singleton}
@@ -53,6 +54,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     implicit val hasId: RequestMetaData = metaData
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
+      isLocked = false,
       Some(metaData.startTime.toInstant),
       Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
@@ -106,7 +108,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     val payload = workItem.item.notification.payload
     val functionCode = extractFunctionCode(payload)
 
-    colourln(Console.CYAN_B,s"CustomsNotificationService - Function Code[$functionCode]")
+    colourln(Console.CYAN_B,s"CustomsNotificationService - Function Code[$functionCode] - availableAt = [${workItem.availableAt}] - createdAt = [${workItem.receivedAt}]")
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
@@ -124,17 +126,20 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
-              case HttpResultError(status, _) =>
+
+              case httpResultError: HttpResultError if httpResultError.is5xx=>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
                 val payload = workItem.item.notification.payload
-
                 val functionCode = extractFunctionCode(payload)
+                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt, FunctionCode:[$functionCode]")
+                notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
 
-                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt, FunctionCode:[$functionCode]")
+              case HttpResultError(status, _) =>
+                notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed) // increase failure count
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+                val functionCode = extractFunctionCode(workItem.item.notification.payload)
+                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
-              case NonHttpError(cause) =>
-                logger.error(s"Error received while pushing notification: ${cause.getMessage}")
-                Future.successful(())
             }
           }
         } yield ()).recover {

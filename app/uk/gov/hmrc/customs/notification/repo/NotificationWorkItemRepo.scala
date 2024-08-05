@@ -17,6 +17,7 @@
 package uk.gov.hmrc.customs.notification.repo
 
 import com.google.inject.ImplementedBy
+import net.ceedubs.ficus.readers.OptionReader
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
@@ -28,6 +29,7 @@ import play.api.Configuration
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.helpers.NotificationWorkItemFields
+import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, ResultStatus, WorkItem, WorkItemRepository}
@@ -38,6 +40,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 @ImplementedBy(classOf[NotificationWorkItemMongoRepo])
 trait NotificationWorkItemRepo {
@@ -51,6 +54,10 @@ trait NotificationWorkItemRepo {
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
+
+  def checkAndUpdateLock(csid: ObjectId):Future[Boolean]
+
+  def setLock(workItemId: ObjectId, isLocked: Boolean): Future[Option[WorkItem[NotificationWorkItem]]]
 
   def deleteBlocked(clientId: ClientId): Future[Int]
 
@@ -175,6 +182,35 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     complete(id, status).map(_ => ())
   }
 
+  override def checkAndUpdateLock(workItemId: ObjectId):Future[Boolean] = {
+    logger.debug(s"checking availablity status of [${workItemId.toString}] for [$collectionName]")
+
+   findById(workItemId).map {
+      case Some(workItem) if workItem.item.isLocked != true =>
+        logger.info(s"Found existing availible Work Item" +
+          s"with mostRecentPushPullHttpStatus: [${workItem.item.notification.mostRecentPushPullHttpStatus.getOrElse("None")}]")
+        val selector = Filters.equal(workItemFields.id, workItemId)
+        val update = set("isLocked", true)
+        collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
+          returnDocument(ReturnDocument.AFTER).upsert(false).
+          sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.
+          .toFutureOption()
+        true
+      case None => false
+    }
+  }
+
+  override def setLock(workItemId: ObjectId, isLocked: Boolean): Future[Option[WorkItem[NotificationWorkItem]]] = {
+    logger.debug(s"setting availability status for [$workItemId]to [$isLocked]")
+    colourln(Console.RED_B, s"Availablity: ${isLocked}")
+    val selector = Filters.equal(workItemFields.id, workItemId)
+    val update = set("isLocked", isLocked)
+    collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
+      returnDocument(ReturnDocument.AFTER).upsert(false).
+      sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.
+      .toFutureOption()
+  }
+
   def setPermanentlyFailedWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
     logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for [$collectionName] id: [${id.toString}] next available at:[${}]")
     markAs(id, PermanentlyFailed, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
@@ -271,11 +307,18 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
 
   override def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
-    val update = updateStatusBson(InProgress)
+    val update = combine(updateStatusBson(InProgress), set("isLocked", true))
     collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
         returnDocument(ReturnDocument.AFTER).upsert(false).
         sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.
       .toFutureOption()
+  }
+
+  private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
+    and(
+      equal("clientNotification._id", csid.id.toString),
+      equal(workItemFields.status, ProcessingStatus.toBson(status)),
+      lt("availableAt", now()))
   }
 
   override def incrementFailureCount(id: ObjectId): Future[Unit] = {
@@ -296,12 +339,6 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     }
   }
 
-  private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
-    and(
-      equal("clientNotification._id", csid.id.toString),
-      equal(workItemFields.status, ProcessingStatus.toBson(status)),
-      lt("availableAt", now()))
-  }
 
   private def updateStatusBson(updStatus: ProcessingStatus): Bson = {
     combine(
