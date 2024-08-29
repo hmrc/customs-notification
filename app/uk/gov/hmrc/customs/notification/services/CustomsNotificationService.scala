@@ -22,13 +22,12 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotif
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctionCode}
+import uk.gov.hmrc.customs.notification.services.Debug.extractFunctionCode
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
-import java.rmi.ServerError
 
-import java.time.{Instant, ZoneId}
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.Ordered.orderingToOrdered
@@ -54,7 +53,6 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     implicit val hasId: RequestMetaData = metaData
     val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
-      isLocked = false,
       Some(metaData.startTime.toInstant),
       Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
 
@@ -108,7 +106,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     val payload = workItem.item.notification.payload
     val functionCode = extractFunctionCode(payload)
 
-    colourln(Console.CYAN_B,s"CustomsNotificationService - Function Code[$functionCode] - availableAt = [${workItem.availableAt}] - createdAt = [${workItem.receivedAt}]")
+    logger.debug(s"CustomsNotificationService - Function Code[$functionCode] - availableAt = [${workItem.availableAt}] - createdAt = [${workItem.receivedAt}]")
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
@@ -127,7 +125,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
 
-              case httpResultError: HttpResultError if httpResultError.is5xx=>
+              case httpResultError: HttpResultError if httpResultError.is5xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
                 val payload = workItem.item.notification.payload
                 val functionCode = extractFunctionCode(payload)

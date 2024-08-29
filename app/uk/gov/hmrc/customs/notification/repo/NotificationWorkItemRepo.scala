@@ -55,10 +55,6 @@ trait NotificationWorkItemRepo {
 
   def blockedCount(clientId: ClientId): Future[Int]
 
-  def checkAndUpdateLock(csid: ObjectId):Future[Boolean]
-
-  def setLock(workItemId: ObjectId, isLocked: Boolean): Future[Option[WorkItem[NotificationWorkItem]]]
-
   def deleteBlocked(clientId: ClientId): Future[Int]
 
   def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int]
@@ -178,41 +174,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
-    logger.debug(s"setting completed status of [$status] for [$collectionName] id: [${id.toString}]")
+    logger.debug(s"Setting completed status of [$status] for [$collectionName] id: [${id.toString}]")
     complete(id, status).map(_ => ())
   }
 
-  override def checkAndUpdateLock(workItemId: ObjectId):Future[Boolean] = {
-    logger.debug(s"checking availablity status of [${workItemId.toString}] for [$collectionName]")
-
-   findById(workItemId).map {
-      case Some(workItem) if workItem.item.isLocked != true =>
-        logger.info(s"Found existing availible Work Item" +
-          s"with mostRecentPushPullHttpStatus: [${workItem.item.notification.mostRecentPushPullHttpStatus.getOrElse("None")}]")
-        val selector = Filters.equal(workItemFields.id, workItemId)
-        val update = set("isLocked", true)
-        collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
-          returnDocument(ReturnDocument.AFTER).upsert(false).
-          sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.
-          .toFutureOption()
-        true
-      case None => false
-    }
-  }
-
-  override def setLock(workItemId: ObjectId, isLocked: Boolean): Future[Option[WorkItem[NotificationWorkItem]]] = {
-    logger.debug(s"setting availability status for [$workItemId]to [$isLocked]")
-    colourln(Console.RED_B, s"Availablity: ${isLocked}")
-    val selector = Filters.equal(workItemFields.id, workItemId)
-    val update = set("isLocked", isLocked)
-    collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
-      returnDocument(ReturnDocument.AFTER).upsert(false).
-      sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.
-      .toFutureOption()
-  }
-
   def setPermanentlyFailedWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for [$collectionName] id: [${id.toString}] next available at:[${}]")
+    logger.debug(s"Setting completed status of [${PermanentlyFailed.name}] for [$collectionName] id: [${id.toString}] next available at:[${}]")
     markAs(id, PermanentlyFailed, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         setMostRecentPushPullHttpStatus(id, Some(httpStatus))
@@ -223,7 +190,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of [$status] for [$collectionName] id: [${id.toString}]" +
+    logger.debug(s"Setting completed status of [$status] for [$collectionName] id: [${id.toString}]" +
       s"with availableAt: [$availableAt] and mostRecentPushPullHttpStatus: [$httpStatus]")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
@@ -290,7 +257,6 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {
-    logger.info("Checking availableAt on PermanentlyFailed notifications")
     val selector = and(
       equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)),
       lt("availableAt", now()))
@@ -307,7 +273,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
 
   override def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
-    val update = combine(updateStatusBson(InProgress), set("isLocked", true))
+    val update = combine(updateStatusBson(InProgress))
     collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
         returnDocument(ReturnDocument.AFTER).upsert(false).
         sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.

@@ -19,7 +19,7 @@ package uk.gov.hmrc.customs.notification.services
 import com.codahale.metrics.MetricRegistry
 import com.google.inject.ImplementedBy
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATION_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NonHttpError, NotificationId, NotificationWorkItem}
+import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctionCode}
@@ -27,12 +27,12 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, PermanentlyFailed, Succeeded}
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
-import java.rmi.ServerError
-import java.time.{Instant, ZoneId}
+import java.time.Instant
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.Ordered.orderingToOrdered
 import scala.util.control.NonFatal
+
 @ImplementedBy(classOf[WorkItemServiceImpl])
 trait WorkItemService {
 
@@ -86,7 +86,7 @@ class WorkItemServiceImpl @Inject()(
     val payload = workItem.item.notification.payload
     val functionCode = extractFunctionCode(payload)
 
-    colourln(Console.YELLOW_B,s"WorkItemServiceImpl - Function Code[$functionCode] - availableAt = [${workItem.availableAt}] - createdAt = [${workItem.receivedAt}]")
+    logger.debug(s"WorkItemServiceImpl - Function Code[$functionCode] - availableAt = [${workItem.availableAt}] - createdAt = [${workItem.receivedAt}]")
 
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
@@ -96,28 +96,28 @@ class WorkItemServiceImpl @Inject()(
         logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
           s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
         (resultError match {
-              case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
-                repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
+          case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
+            val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
+            logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+            repository.setCompletedStatusWithAvailableAt(workItem.id, Failed, httpResultError.status, availableAt) // increase failure count
 
-              case httpResultError: HttpResultError if httpResultError.is5xx =>
-                colourln(Console.RED_B,s"WorkItemServiceImpl - Recieved [${httpResultError.status}]")
-                repository.setCompletedStatus(workItem.id, Failed) // increase failure count
-                repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ())
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
-                val functionCode = extractFunctionCode(workItem.item.notification.payload)
-                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
-                repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
+          case httpResultError: HttpResultError if httpResultError.is5xx =>
+            logger.debug(s"WorkItemServiceImpl - Recieved [${httpResultError.status}]")
+            repository.setCompletedStatus(workItem.id, Failed) // increase failure count
+            repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ())
+            val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+            val functionCode = extractFunctionCode(workItem.item.notification.payload)
+            logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+            repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
 
-              case HttpResultError(status, _) =>
-                colourln(Console.RED_B,s"WorkItemServiceImpl - Recieved [$status]")
-                repository.setCompletedStatus(workItem.id, Failed) // increase failure count
-                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
-                val functionCode = extractFunctionCode(workItem.item.notification.payload)
-                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
-                repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
-            }).recover {
+          case HttpResultError(status, _) =>
+            logger.debug(s"WorkItemServiceImpl - Recieved [$status]")
+            repository.setCompletedStatus(workItem.id, Failed) // increase failure count
+            val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+            val functionCode = extractFunctionCode(workItem.item.notification.payload)
+            logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+            repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
+        }).recover {
           case NonFatal(e) =>
             logger.error("Error updating database", e)
         }

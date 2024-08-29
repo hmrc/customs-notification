@@ -26,14 +26,12 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.{CdsLogger}
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import unit.logging.StubCdsLogger
 import util.TestData._
 import util.UnitSpec
 
@@ -319,7 +317,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
       val result = await(repository.pullSinglePfFor(validClientSubscriptionId1)) //TODO DCWL-2372 sort so oldest sent first
-      colourln(Console.GREEN_B, s"Result [$result]")
+      logger.debug(s"Result [$result]")
       result.get.status shouldBe InProgress
       result.get.item.clientSubscriptionId shouldBe validClientSubscriptionId1
     }
@@ -330,7 +328,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), failed))
 
-      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1))  //TODO DCWL-2372 sort so oldest sent first
+      val result = await(repository.pullSinglePfFor(validClientSubscriptionId1)) //TODO DCWL-2372 sort so oldest sent first
 
       result.size shouldBe 0
     }

@@ -25,11 +25,9 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonF
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
-import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctionCode}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.{HttpClient, _}
 
-import java.time.{Instant, ZoneId}
 import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -53,10 +51,11 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
     val url = serviceConfigProvider.getConfig("public-notification").url
 
-    val msg = "Calling external push notification service"
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
-    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
+    logger.debug(s"Calling external push notification service: url=${pnr.body.url}")
+    logger.debug(s"headers=${headers}")
+    logger.debug(s"payload= ${pnr.body}")
 
     http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
       .map[Either[ResultError, HttpResponse]]{ response =>

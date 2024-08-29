@@ -53,7 +53,9 @@ class InternalPushConnector @Inject()(http: HttpClient,
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"Calling internal push notification service url=[${pnr.body.url}] \nheaders=[${headers}] \npayload=[${pnr.body.xmlPayload}]")
+    logger.debug(s"Calling internal push notification service url=[${pnr.body.url}]")
+    logger.debug(s"headers=[${headers}]")
+    logger.debug(s"payload=[${pnr.body.xmlPayload}]")
 
     http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
       .map[Either[ResultError, HttpResponse]] { response =>

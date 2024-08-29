@@ -24,7 +24,6 @@ import java.time.Instant
 
 case class NotificationWorkItem(_id: ClientSubscriptionId,
                                 clientId: ClientId,
-                                isLocked: Boolean = true,
                                 metricsStartDateTime: Option[Instant] = None,
                                 notification: Notification
 ) extends HasId with HasClientSubscriptionId {
