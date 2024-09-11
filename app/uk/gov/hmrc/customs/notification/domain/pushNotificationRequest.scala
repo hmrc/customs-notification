@@ -30,7 +30,9 @@ object Header {
 
 case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String, conversationId: String,
                                        outboundCallHeaders: Seq[Header], xmlPayload: String) {
-  override def toString: String = s"url: ${url.url.toString}, conversationId: $conversationId, outboundCallHeaders: ${outboundCallHeaders.toString()}"
+  override def toString: String = s"[url=${url.url.toString}]" +
+    s"[conversationId=$conversationId]" +
+    s"[outboundCallHeaders=${outboundCallHeaders.toString()}]"
 }
 
 object PushNotificationRequestBody {
@@ -39,7 +41,12 @@ object PushNotificationRequestBody {
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
 }
 
-case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotificationRequestBody)
+case class PushNotificationRequest(clientSubscriptionId: String, pushNotificationRequestBody: PushNotificationRequestBody) {
+  override def toString: String = {
+    s"[csId=${ clientSubscriptionId }]" +
+      s"[pushNotificationRequestBody=${ pushNotificationRequestBody }]"
+  }
+}
 
 object PushNotificationRequest {
 
@@ -69,7 +76,11 @@ case class Notification(notificationId: Option[NotificationId],
 
   def getHeaderAsTuple(headerName: String): Option[(String, String)] = getHeader(headerName).map { h => h.name -> h.value }
 
-  override def toString: String = s"notificationId: ${notificationId.toString}, conversationId: ${conversationId.toString}, headers: ${headers.toString()}, contentType: $contentType"
+  override def toString: String = s"[notificationId=${notificationId}]" +
+    s"[conversationId=${conversationId}]" +
+    s"[headers=${headers.mkString(",")}]" +
+    s"[contentType=$contentType]" +
+    s"[mostRecentPushPullHttpStatus=${mostRecentPushPullHttpStatus.getOrElse("[empty]")}]"
 }
 
 object Notification {

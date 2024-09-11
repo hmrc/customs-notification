@@ -53,9 +53,9 @@ class ExternalPushConnector @Inject()(http: HttpClient,
     val msg = "Calling external push notification service"
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
-    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
+    logger.debug(s"$msg url=${pnr.pushNotificationRequestBody.url} \nheaders=${headers} \npayload= ${pnr.pushNotificationRequestBody}")
 
-    http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
+    http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.pushNotificationRequestBody)
       .map[Either[ResultError, HttpResponse]]{ response =>
         response.status match {
           case status if is2xx(status) =>
@@ -63,7 +63,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
           case status => //1xx, 3xx, 4xx, 5xx
             val httpException = new Non2xxResponseException(status)
-            logger.warn(s"Failed to push notification. Response status ${response.status} and response body ${response.body}")
+            logger.warn(s"${ pnr } Failed to push notification. Response status ${response.status} and response body ${response.body}")
             Left(HttpResultError(status, httpException))
         }
     }
@@ -78,7 +78,7 @@ class ExternalPushConnector @Inject()(http: HttpClient,
   }
 
   private def removeDateHeaderFromRequestBody(pushNotificationRequest: PushNotificationRequest): PushNotificationRequest = {
-    val headersWithoutDate: Seq[Header] = pushNotificationRequest.body.outboundCallHeaders.filterNot(h => h.name.equals(ISSUE_DATE_TIME_HEADER))
-    pushNotificationRequest.copy(body = pushNotificationRequest.body.copy(outboundCallHeaders = headersWithoutDate))
+    val headersWithoutDate: Seq[Header] = pushNotificationRequest.pushNotificationRequestBody.outboundCallHeaders.filterNot(h => h.name.equals(ISSUE_DATE_TIME_HEADER))
+    pushNotificationRequest.copy(pushNotificationRequestBody = pushNotificationRequest.pushNotificationRequestBody.copy(outboundCallHeaders = headersWithoutDate))
   }
 }

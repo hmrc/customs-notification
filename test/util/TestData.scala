@@ -155,7 +155,7 @@ object TestData {
   val WorkItem3 = WorkItem1.copy(failureCount = 1)
   val WorkItem4 = WorkItem1.copy(item = NotificationWorkItemWithMetricsTime2)
 
-  val internalNotification = Notification(Some(notificationId), ConversationId(UUID.fromString(internalPushNotificationRequest.body.conversationId)), internalPushNotificationRequest.body.outboundCallHeaders, ValidXML.toString(), "application/xml")
+  val internalNotification = Notification(Some(notificationId), ConversationId(UUID.fromString(internalPushNotificationRequest.pushNotificationRequestBody.conversationId)), internalPushNotificationRequest.pushNotificationRequestBody.outboundCallHeaders, ValidXML.toString(), "application/xml")
   val internalNotificationWorkItem = NotificationWorkItem(clientSubscriptionId, clientId1, None, internalNotification)
   val internalWorkItem = WorkItem(new ObjectId("5c46f7d70100000100ef835a"), TimeReceivedInstant, TimeReceivedInstant, TimeReceivedInstant, ToDo, 0, internalNotificationWorkItem)
   

@@ -44,21 +44,23 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   type HasSaved = Boolean
 
   def handleNotification(xml: NodeSeq,
-                         metaData: RequestMetaData,
+                         requestMetaData: RequestMetaData,
                          apiSubscriptionFields: ApiSubscriptionFields)(implicit hc: HeaderCarrier): Future[HasSaved] = {
 
-    implicit val hasId: RequestMetaData = metaData
-    val notificationWorkItem = NotificationWorkItem(metaData.clientSubscriptionId,
+    implicit val hasId: RequestMetaData = requestMetaData
+    val notificationWorkItem = NotificationWorkItem(requestMetaData.clientSubscriptionId,
       ClientId(apiSubscriptionFields.clientId),
-      Some(metaData.startTime.toInstant),
-      Notification(Some(metaData.notificationId), metaData.conversationId, buildHeaders(metaData), xml.toString, MimeTypes.XML))
+      Some(requestMetaData.startTime.toInstant),
+      Notification(Some(requestMetaData.notificationId), requestMetaData.conversationId, buildHeaders(requestMetaData), xml.toString, MimeTypes.XML))
 
     val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
     auditingService.auditNotificationReceived(pnr)
 
+    logger.info(s"Handling notification from DMS")(requestMetaData)
+
     (for {
-      isAnyPF <- notificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(notificationWorkItem.clientSubscriptionId)
-      hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, isAnyPF, apiSubscriptionFields)
+      existingPermanentlyFailedForCsId <- notificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(notificationWorkItem.clientSubscriptionId)
+      hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, existingPermanentlyFailedForCsId, apiSubscriptionFields)
     } yield hasSaved)
       .recover {
         case NonFatal(e) =>
@@ -76,8 +78,8 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                                                                 apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
 
     val status = if (isAnyPF) {
-      logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
-        "Setting notification to permanently failed")
+      logger.info(s"${notificationWorkItem} Setting NotificationWorkItem to ${ PermanentlyFailed.name } " +
+        s"because there are previous NotificationWorkItems with status of ${ PermanentlyFailed.name }")
       PermanentlyFailed
     }
     else {
@@ -92,7 +94,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
       }
     ).recover {
       case NonFatal(e) =>
-        logger.error(s"failed saving notification work item as permanently failed with csid: ${notificationWorkItem._id.toString} and conversationId: ${notificationWorkItem.notification.conversationId.toString} due to: $e")
+        logger.error(s"${ notificationWorkItem } Failed saving NotificationWorkItem due to: $e")
         false
     }
   }
@@ -103,10 +105,12 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-        logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.toString}")
+        val message = if (connector == Pull) "Add to Pull queue:" else connector
+
+        logger.info(s"${ workItem }${ apiSubscriptionFields } $message ${Succeeded.name}")
         true
       case Left(pushOrPullError) =>
-        val msg = s"${pushOrPullError.source} failed ${pushOrPullError.toString} for workItemId ${workItem.id.toString}"
+        val msg = s"${ workItem }${ apiSubscriptionFields } ${pushOrPullError.source} FAILED: ${pushOrPullError.toString}"
         logger.warn(msg)
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
@@ -114,12 +118,12 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
             pushOrPullError.resultError match {
               case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
-                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
+                logger.error(s"${ workItem }${ apiSubscriptionFields } Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
               case HttpResultError(status, _) =>
                 notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
               case NonHttpError(cause) =>
-                logger.error(s"Error received while pushing notification: ${cause.getMessage}")
+                logger.error(s"${ workItem }${ apiSubscriptionFields } Error received while pushing notification: ${cause.getMessage}")
                 Future.successful(())
             }
           }

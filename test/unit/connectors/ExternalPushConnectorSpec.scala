@@ -66,7 +66,7 @@ class ExternalPushConnectorSpec extends UnitSpec with MockitoSugar {
       verify(mockHttpClient).POST(ArgumentMatchers.eq(url), requestBody.capture(), any[Seq[(String,String)]]())(
         any[Writes[PushNotificationRequestBody]](), any[HttpReads[HttpResponse]](), any(), any())
       val body = requestBody.getValue.asInstanceOf[PushNotificationRequestBody]
-      body shouldEqual externalPushNotificationRequest.body
+      body shouldEqual externalPushNotificationRequest.pushNotificationRequestBody
     }
 
     "propagate exception in HTTP VERBS post" in {

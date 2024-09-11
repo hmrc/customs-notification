@@ -41,10 +41,11 @@ class PushOrPullService @Inject()(
 )
 (implicit ec: ExecutionContext) extends MapResultError {
 
+  /** caller handles logging */
   def send(n: NotificationWorkItem)(implicit hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
     implicit val hasId = n
 
-    clientData(n._id).flatMap{
+    clientData(n._id).flatMap {
       case Right(fields) =>
         send(n, fields)
       case Left(pushOrPullError) =>
@@ -68,15 +69,14 @@ class PushOrPullService @Inject()(
 
 
   // existing controllers can reuse this method
-  def send(n: NotificationWorkItem, apiSubscriptionFields: ApiSubscriptionFields)(implicit hasId: HasId, hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
+  def send(notificationWorkItem: NotificationWorkItem, apiSubscriptionFields: ApiSubscriptionFields)(implicit hasId: HasId, hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
     if (apiSubscriptionFields.isPush) {
-      val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, n)
+      val pnr = pushNotificationRequestFrom(apiSubscriptionFields.fields, notificationWorkItem)
+
       pushOutboundSwitchService.send(ClientId(apiSubscriptionFields.clientId), pnr).map[Either[PushOrPullError, ConnectorSource]]{
         case Right(_) =>
-          logger.debug(s"successfully pushed notification id ${n.notification.notificationId}")
           Right(Push)
         case Left(resultError) =>
-          logger.debug(s"failed to push $n")
           Left(PushOrPullError(Push, resultError))
       }
       .recover{
@@ -84,7 +84,7 @@ class PushOrPullService @Inject()(
           Left(PushOrPullError(Push, mapResultError(e)))
       }
     } else {
-      pull(n)
+      pull(notificationWorkItem)
     }
   }
 

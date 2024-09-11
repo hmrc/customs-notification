@@ -153,7 +153,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus = InProgress): Future[WorkItem[NotificationWorkItem]] = {
-    logger.debug(s"saving a new notification work item in locked state [${processingStatus.name}] [$notificationWorkItem]")
+    logger.debug(s"Saving a new notification work item in locked state [${processingStatus.name}] [$notificationWorkItem]")
 
     def processWithInitialStatus(item: NotificationWorkItem): ProcessingStatus = processingStatus
 
@@ -244,13 +244,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
       csIdAndStatusSelector(csid, PermanentlyFailed)
     )
 
-    collection.find(selector).first().toFutureOption().map {
-      case Some(workItem) =>
-        logger.info(s"Found existing permanently failed notification for client id: [$csid] " +
-          s"with mostRecentPushPullHttpStatus: [${workItem.item.notification.mostRecentPushPullHttpStatus.getOrElse("None")}]")
-        true
-      case None => false
-    }
+    collection.find(selector).first().toFutureOption().map(_.isDefined)
   }
 
   override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {

@@ -45,7 +45,6 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
       notificationWorkItemRepo.distinctPermanentlyFailedByCsId()
         .foreach { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
           logger.info(s"Unblock - discovered [${permanentlyFailedCsids.size}] blocked csids (i.e. with status of [${PermanentlyFailed.name}]: [$permanentlyFailedCsids])")
-          logger.debug(s"Unblock - discovered [$permanentlyFailedCsids] blocked csids (i.e. with status of [${PermanentlyFailed.name}]): [$permanentlyFailedCsids]")
 
           permanentlyFailedCsids.foreach(retry)
         }
@@ -61,7 +60,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
         case Some(workItem) =>
           pushOrPull(workItem).foreach(handleResponse(csid))
         case None =>
-          logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
+          logger.info(s"Unblock found no ${ PermanentlyFailed.name } notifications for CsId [${csid.toString}]")
       }
     }
   }
@@ -70,7 +69,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     case Success | ClientError =>
       notificationWorkItemRepo.fromPermanentlyFailedToFailedByCsId(csid)
         .foreach { count =>
-          logger.info(s"Unblock - number of notifications set from PermanentlyFailed to Failed = [$count] for CsId [${csid.toString}]")
+          logger.info(s"Unblock - number of notifications set from ${ PermanentlyFailed.name } to ${ Failed.name } = [$count] for CsId [${csid.toString}]")
         }
     case ServerError => ()
   }
@@ -82,10 +81,10 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-        logger.info(s"Unblock pilot for [$connector] succeeded. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status [${Succeeded.name}] for [$workItem]")
+        logger.info(s"${ workItem } Unblock pilot for [$connector] succeeded. Setting work item status [${Succeeded.name}]")
         Future.successful(Success)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"Unblock pilot for [$connector] failed with error $resultError. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status back to [${PermanentlyFailed.name}] for [$workItem]")
+        logger.info(s"${ workItem } Unblock pilot for [$connector] failed with error $resultError. Setting work item status back to [${PermanentlyFailed.name}]")
         (for {
           _ <- notificationWorkItemRepo.incrementFailureCount(workItem.id)
           status <- {
