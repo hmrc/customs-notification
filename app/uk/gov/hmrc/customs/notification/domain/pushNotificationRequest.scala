@@ -30,8 +30,7 @@ object Header {
 
 case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String, conversationId: String,
                                        outboundCallHeaders: Seq[Header], xmlPayload: String) {
-  override def toString: String = s"[url=${url.url.toString}]" +
-    s"[conversationId=$conversationId]" +
+  override def toString: String = s"[conversationId=$conversationId]" +
     s"[outboundCallHeaders=${outboundCallHeaders.toString()}]"
 }
 

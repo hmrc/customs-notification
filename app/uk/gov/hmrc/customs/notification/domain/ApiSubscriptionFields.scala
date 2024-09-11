@@ -23,8 +23,7 @@ case class ApiSubscriptionFields(clientId: String,
 
   def isPush: Boolean = fields.callbackUrl.isPush
 
-  override def toString: String = s"[clientId=${clientId}]" +
-    s"[callbackUrl=${fields.callbackUrl}]"
+  override def toString: String = s"[clientId=${clientId}]"
 }
 
 object ApiSubscriptionFields {

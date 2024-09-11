@@ -53,6 +53,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
   }
 
   private def retry(csid: ClientSubscriptionId): Future[Unit] = {
+    logger.info(s"[csId=$csid] Retrying for csid")
     for {
       maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
     } yield {
