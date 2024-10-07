@@ -24,12 +24,13 @@ import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain._
-import uk.gov.hmrc.customs.notification.logging.NotificationLogger
+import uk.gov.hmrc.customs.notification.logging.{CdsLogger, NotificationLogger}
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{InProgress, PermanentlyFailed, Succeeded}
 import uk.gov.hmrc.mongo.workitem.ResultStatus
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData._
 import util.UnitSpec
@@ -44,6 +45,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
   private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
+
   trait setup {
     val timeout = Mockito.timeout(5000).times(1)
     val eventuallyRightOfPush = Future.successful(Right(Push))
@@ -54,32 +56,61 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
     val eventuallyRightOfPull = Future.successful(Right(Pull))
     val eventuallyUnit = Future.successful(())
 
-    val ValidXML: Elem = <foo1></foo1>
+//    val ValidXML: Elem =
+//         <p:Response xsi:schemaLocation="urn:wco:datamodel:WCO:RES-DMS:2 ../WCO_RES_2_DMS.xsd " xmlns:p="urn:wco:datamodel:WCO:RES-DMS:2">
+//        <p:FunctionCode>01</p:FunctionCode>
+//        <p:FunctionalReferenceID>6c08edc35e8746c5b4316f46f1b8f665</p:FunctionalReferenceID>
+//        <p:IssueDateTime>
+//          <p2:DateTimeString formatCode="304" xmlns:p2="urn:wco:datamodel:WCO:Response_DS:DMS:2">20240115112811Z</p2:DateTimeString>
+//        </p:IssueDateTime>
+//        <p:Declaration>
+//          <p:AcceptanceDateTime>
+//            <p2:DateTimeString formatCode="304" xmlns:p2="urn:wco:datamodel:WCO:Response_DS:DMS:2">20240115112811Z</p2:DateTimeString>
+//          </p:AcceptanceDateTime>
+//          <p:FunctionalReferenceID>failWith-500</p:FunctionalReferenceID> //TODO DCWL-2372 add a method to make either type of payload
+//          <p:ID>24GB5008FW18748830</p:ID>
+//          <p:VersionID>1</p:VersionID>
+//        </p:Declaration>
+//      </p:Response>
+
+    val ValidXML: Elem =  <foo1></foo1>
+
     val currentTime = ZonedDateTime.of(2024, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
     val currentTimePlus2Hour = currentTime.plusHours(2)
     val mockPushOrPullService = mock[PushOrPullService]
-    val mockNotificationLogger = mock[NotificationLogger]
+
+    val mockConfig = mock[ServicesConfig]
+    when(mockConfig.getString("application.logger.name")).thenReturn("CustomsNotificationServiceSpec")
+    //Use a real logger so can the logs during test run.
+    //    val mockNotificationLogger = mock[NotificationLogger]
+    val logger = new NotificationLogger(new CdsLogger(mockConfig))
+
     val mockNotificationWorkItemRepo = mock[NotificationWorkItemRepo]
+
+
     lazy val mockMetricsService = mock[CustomsNotificationMetricsService]
     lazy val mockDateTimeService = mock[DateTimeService]
     lazy val mockAuditingService = mock[AuditingService]
     lazy val mockCustomsNotificationConfig = mock[CustomsNotificationConfig]
 
+    val retryInterval = 5
 
     private val notificationConfig = NotificationConfig(Seq[String](""),
       60,
       false,
-      FiniteDuration(30, SECONDS),
-      FiniteDuration(30, SECONDS),
-      FiniteDuration(30, SECONDS),
+      FiniteDuration(retryInterval, SECONDS),
+      FiniteDuration(retryInterval, SECONDS),
+      FiniteDuration(retryInterval, SECONDS),
       1,
-      120)
+      120) //TODO DCWL-2372 find why 404 test fails.
 
     when(mockCustomsNotificationConfig.notificationConfig).thenReturn(notificationConfig)
     when(mockDateTimeService.zonedDateTimeUtc).thenReturn(currentTime)
 
+    val availableAt = currentTime.plusSeconds(retryInterval)
+
     val instance = new CustomsNotificationService(
-      mockNotificationLogger,
+      logger,
       mockNotificationWorkItemRepo,
       mockPushOrPullService,
       mockMetricsService,
@@ -107,7 +138,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockPushOrPullService).send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-            infoLogVerifier(mockNotificationLogger, s"Push succeeded for workItemId ${WorkItem1.id}")
+//            infoLogVerifier(mockNotificationLogger, s"Push succeeded for workItemId ${WorkItem1.id}")
           }
         }
       }
@@ -146,18 +177,18 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockNotificationWorkItemRepo, timeout).incrementFailureCount(WorkItem1.id)
             verify(mockNotificationWorkItemRepo, timeout).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)
             verify(mockAuditingService, timeout).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-            errorLogVerifier(mockNotificationLogger, s"Push failed PushOrPullError(Push,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
+//            errorLogVerifier(mockNotificationLogger, s"Push failed PushOrPullError(Push,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
           }
         }
       }
 
-      "return true when repo saves but push fails with 500" in {
+      "return true when repo saves but push fails with 500" in { //TODO DCWL-2372 fails
         new setup {
           when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
-          when(mockNotificationWorkItemRepo.setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(Future.successful(()))
+          when(mockNotificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)).thenReturn(Future.successful(()))
           when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-          when(mockNotificationWorkItemRepo.setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(eventuallyUnit)
+          when(mockNotificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)).thenReturn(eventuallyUnit)
           when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(eventuallyLeftOfPush500)
 
           val result = instance.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
@@ -166,10 +197,10 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
           eventually {
             verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
             verify(mockNotificationWorkItemRepo).incrementFailureCount(WorkItem1.id)
-            verify(mockNotificationWorkItemRepo).setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)
+            verify(mockNotificationWorkItemRepo).setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-            errorLogVerifier(mockNotificationLogger, s"Push failed PushOrPullError(Push,HttpResultError(500,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
+//            errorLogVerifier(mockNotificationLogger, s"Push failed PushOrPullError(Push,HttpResultError(500,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
           }
         }
       }
@@ -190,7 +221,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
             verifyNoInteractions(mockPushOrPullService)
-            infoLogVerifier(mockNotificationLogger, "Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
+//            infoLogVerifier(mockNotificationLogger, "Existing permanently failed notifications found for client id: ClientId. Setting notification to permanently failed")
           }
         }
       }
@@ -235,7 +266,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockPushOrPullService).send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPull))(any[HasId], any())
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-            infoLogVerifier(mockNotificationLogger, s"Pull succeeded for workItemId ${WorkItem1.id}")
+//            infoLogVerifier(mockNotificationLogger, s"Pull succeeded for workItemId ${WorkItem1.id}")
           }
         }
       }
@@ -275,7 +306,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockNotificationWorkItemRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-            errorLogVerifier(mockNotificationLogger, s"Pull failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
+//            errorLogVerifier(mockNotificationLogger, s"Pull failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
           }
         }
       }

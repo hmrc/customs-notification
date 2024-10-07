@@ -115,7 +115,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
-    logger.debug(s"Received notification with payload: $xml, metaData: $md")
+    //logger.debug(s"Received notification with payload: $xml, metaData: $md")
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>

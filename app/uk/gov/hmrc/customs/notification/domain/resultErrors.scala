@@ -34,6 +34,8 @@ case class HttpResultError(status: Int, cause: Throwable) extends ResultError {
     status >= 300 && status < 400
   def is4xx: Boolean =
     status >= 400 && status < 500
+  def is5xx: Boolean =
+    status >= 500
   def not3xxOr4xx: Boolean =
     !(is3xx || is4xx)
 }
