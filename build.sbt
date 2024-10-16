@@ -28,12 +28,10 @@ lazy val allTest = Seq(testAll := (ComponentTest / test)
 
 lazy val microservice = (project in file("."))
   .enablePlugins(PlayScala)
-  .enablePlugins(SbtAutoBuildPlugin)
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
   .settings(scalaVersion := "2.13.13",
-    DefaultBuildSettings.targetJvm := "jvm-11",
     IntegrationTest / parallelExecution := false,
     Test / parallelExecution := false)
   .settings(
