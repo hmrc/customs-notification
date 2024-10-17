@@ -38,7 +38,7 @@
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <logger name="customs-notification" level="INFO"/> <!-- TODO: revert before commit -->
+    <logger name="customs-notification" level="${logger.customs-notification:-DEBUG}"/>
 
     <root level="ERROR">
         <appender-ref ref="FILE"/>
