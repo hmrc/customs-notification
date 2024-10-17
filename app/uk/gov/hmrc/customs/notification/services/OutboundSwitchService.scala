@@ -38,19 +38,18 @@ class OutboundSwitchService @Inject()(configService: ConfigService,
 
     val response: (String, Future[Either[ResultError, HttpResponse]]) =
       if (configService.notificationConfig.internalClientIds.contains(clientId.toString)) {
-        logger.info(s"About to push internally")
+        logger.info(s"${ pnr } About to push internally")
         ("internal", internalPushWithAuditing(pnr))
       } else {
-        logger.info(s"About to push externally")
+        logger.info(s"${ pnr } About to push externally")
         ("external", externalPush.send(pnr))
       }
 
+    /** caller handles logging */
     response._2.map {
       case r@Right(_) =>
-        logger.info(s"${response._1} push notification call succeeded")
         r
       case l@Left(resultError: ResultError) =>
-        logger.warn(s"Call to ${response._1} push notification call failed. POST url=${pnr.body.url}")
         l
     }
   }

@@ -115,14 +115,11 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
-    logger.debug(s"Received notification with payload: $xml, metaData: $md")
-
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>
         val requestMetaData: RequestMetaData = md.copy(maybeClientId = Some(ClientId(apiSubscriptionFields.clientId)))
         handleNotification(xml, requestMetaData, apiSubscriptionFields).map {
           case true =>
-            logger.info(s"Saved notification")(requestMetaData)
             Results.Accepted
           case false =>
             logger.error(s"Processing failed for notification")(requestMetaData)

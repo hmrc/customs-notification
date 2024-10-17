@@ -23,7 +23,7 @@ import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpR
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, Succeeded}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, PermanentlyFailed, Succeeded}
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import javax.inject.Inject
@@ -72,18 +72,19 @@ class WorkItemServiceImpl @Inject()(
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem]): Future[Unit] = {
 
-    implicit val loggingContext = workItem.item
+    implicit val loggingContext: NotificationWorkItem = workItem.item
     implicit val hc: HeaderCarrier = HeaderCarrier()
       .withExtraHeaders(maybeAddNotificationId(workItem.item.notification.notificationId): _*)
 
     logger.debug(s"attempting retry of $workItem")
     pushOrPullService.send(workItem.item).flatMap {
       case Right(connector) =>
-        logger.info(s"$connector retry succeeded for $workItem")
+        logger.info(s"${ workItem } $connector retry succeeded")
         repository.setCompletedStatus(workItem.id, Succeeded)
       case Left(PushOrPullError(connector, resultError)) =>
-        logger.info(s"$connector retry failed for $workItem with error $resultError. Setting status to " +
-          s"PermanentlyFailed for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
+        logger.info(s"${ workItem } $connector retry failed with error $resultError. " +
+          s"Setting status to ${ PermanentlyFailed.name } for all notifications with clientSubscriptionId ${workItem.item.clientSubscriptionId.toString}")
+
         (resultError match {
               case httpResultError: HttpResultError if httpResultError.is3xx || httpResultError.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)

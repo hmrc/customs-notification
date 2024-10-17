@@ -74,10 +74,6 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       eventually {
         verify(mockAuditingService).auditSuccessfulNotification(pnrOne)
       }
-      PassByNameVerifier(mockLogger, "info")
-        .withByNameParam("About to push internally")
-        .withParamMatcher(any[HasId])
-        .verify()
     }
 
     "audit internal push when config property internal.clientIds contains a matching clientId and push fails with HttpException" in new SetUp {
@@ -95,11 +91,6 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
 
         verify(mockAuditingService).auditFailedNotification(pnrOne, Some("status: 400 body: BOOM"))
       }
-      PassByNameVerifier(mockLogger, "info")
-        .withByNameParam("About to push internally")
-        .withParamMatcher(any[HasId])
-        .verify()
-
     }
 
     "not audit internal push when config property internal.clientIds contains a matching clientId and push fails with NON HttpException" in new SetUp {
@@ -116,11 +107,6 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       eventually {
         verifyNoInteractions(mockAuditingService)
       }
-      PassByNameVerifier(mockLogger, "info")
-        .withByNameParam("About to push internally")
-        .withParamMatcher(any[HasId])
-        .verify()
-
     }
 
     "route externally when config property internal.clientIds does not contains a matching clientId" in new SetUp {
@@ -133,10 +119,6 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       actual shouldBe Right(mockHttpResponse)
       verify(mockExternalConnector).send(ameq(pnrOne))(any(), any[HasId])
       verifyNoInteractions(mockInternalPushService)
-      PassByNameVerifier(mockLogger, "info")
-        .withByNameParam("About to push externally")
-        .withParamMatcher(any[HasId])
-        .verify()
     }
 
   }

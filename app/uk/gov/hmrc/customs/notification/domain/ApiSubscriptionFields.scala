@@ -22,6 +22,8 @@ case class ApiSubscriptionFields(clientId: String,
                                  fields: DeclarantCallbackData) {
 
   def isPush: Boolean = fields.callbackUrl.isPush
+
+  override def toString: String = s"[clientId=${clientId}]"
 }
 
 object ApiSubscriptionFields {
