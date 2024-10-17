@@ -45,7 +45,7 @@ trait PushNotificationService extends WireMockRunner with Matchers {
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.JSON))
       .withHeader(NOTIFICATION_ID_HEADER_NAME, equalTo(notificationId.toString))
       .withoutHeader(ISSUE_DATE_TIME_HEADER)
-      .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest.pushNotificationRequestBody).toString()))
+      .withRequestBody(equalToJson(Json.toJson(pushNotificationRequest.body).toString()))
     )
   }
 
@@ -83,10 +83,10 @@ trait InternalPushNotificationService {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
       .withHeader(ACCEPT, equalTo(XML))
-      .withHeader(AUTHORIZATION, equalTo(pnr.pushNotificationRequestBody.authHeaderToken))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(pnr.pushNotificationRequestBody.conversationId))
+      .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(pnr.body.conversationId))
       .withHeader(USER_AGENT, equalTo("customs-notification"))
-      .withRequestBody(equalToXml(pnr.pushNotificationRequestBody.xmlPayload))
+      .withRequestBody(equalToXml(pnr.body.xmlPayload))
     )
 
   }
@@ -96,14 +96,14 @@ trait InternalPushNotificationService {
     verify(1, postRequestedFor(urlMatchingRequestPath)
       .withHeader(CONTENT_TYPE, equalTo(XML))
       .withHeader(ACCEPT, equalTo(XML))
-      .withHeader(AUTHORIZATION, equalTo(pnr.pushNotificationRequestBody.authHeaderToken))
+      .withHeader(AUTHORIZATION, equalTo(pnr.body.authHeaderToken))
       .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(conversationId.toString))
       .withHeader(USER_AGENT, equalTo("customs-notification"))
       .withHeader(X_CORRELATION_ID_HEADER_NAME, equalTo(correlationId))
       .withHeader(X_SUBMITTER_ID_HEADER_NAME, equalTo(submitterNumber))
       .withHeader(X_BADGE_ID_HEADER_NAME, equalTo(badgeId))
       .withHeader(ISSUE_DATE_TIME_HEADER, equalTo(issueDateTime))
-      .withRequestBody(equalToXml(pnr.pushNotificationRequestBody.xmlPayload))
+      .withRequestBody(equalToXml(pnr.body.xmlPayload))
     )
 
   }
@@ -183,7 +183,7 @@ trait NotificationQueueService extends WireMockRunner {
   private val urlMatchingRequestPath = urlMatching(ExternalServicesConfiguration.NotificationQueueContext)
 
   def getBadgeIdHeader(request: PushNotificationRequest): Option[String] =
-    extractBadgeIdHeaderValue(request.pushNotificationRequestBody.outboundCallHeaders)
+    extractBadgeIdHeaderValue(request.body.outboundCallHeaders)
 
 
   private def extractHeader(headers: Seq[Header], name: String) = {
@@ -224,9 +224,9 @@ trait NotificationQueueService extends WireMockRunner {
 
     stubFor(post(urlMatchingRequestPath)
       .withHeader(HeaderNames.CONTENT_TYPE, equalTo(MimeTypes.XML))
-      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.pushNotificationRequestBody.authHeaderToken))
+      .withHeader(HeaderNames.AUTHORIZATION, equalTo(request.body.authHeaderToken))
       .withHeader(HeaderNames.USER_AGENT, equalTo(userAgent))
-      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.pushNotificationRequestBody.conversationId))
+      .withHeader(X_CONVERSATION_ID_HEADER_NAME, equalTo(request.body.conversationId))
       .withHeader(SUBSCRIPTION_FIELDS_ID_HEADER_NAME, equalTo(fieldsId))
       willReturn aResponse()
       .withStatus(status))

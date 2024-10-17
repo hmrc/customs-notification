@@ -40,10 +40,10 @@ object PushNotificationRequestBody {
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
 }
 
-case class PushNotificationRequest(clientSubscriptionId: String, pushNotificationRequestBody: PushNotificationRequestBody) {
+case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotificationRequestBody) {
   override def toString: String = {
     s"[csId=${ clientSubscriptionId }]" +
-      s"[pushNotificationRequestBody=${ pushNotificationRequestBody }]"
+      s"[pushNotificationRequestBody=${ body }]"
   }
 }
 

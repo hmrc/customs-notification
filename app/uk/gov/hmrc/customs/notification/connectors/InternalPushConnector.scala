@@ -36,15 +36,15 @@ class InternalPushConnector @Inject()(http: HttpClient,
                                      (implicit ec: ExecutionContext) extends MapResultError with HttpErrorFunctions {
 
   def send(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier): Future[Either[ResultError, HttpResponse]] = {
-    val outBoundHeaders: Seq[(String, String)] = pnr.pushNotificationRequestBody.outboundCallHeaders.map(h => (h.name, h.value))
+    val outBoundHeaders: Seq[(String, String)] = pnr.body.outboundCallHeaders.map(h => (h.name, h.value))
 
     val headers: Seq[(String, String)] = Seq(
       CONTENT_TYPE -> XML,
       ACCEPT -> XML,
-      X_CONVERSATION_ID_HEADER_NAME -> pnr.pushNotificationRequestBody.conversationId
+      X_CONVERSATION_ID_HEADER_NAME -> pnr.body.conversationId
     ) ++ outBoundHeaders
 
-    implicit val headerCarrier: HeaderCarrier = hc.copy(authorization = Some(Authorization(pnr.pushNotificationRequestBody.authHeaderToken))).withExtraHeaders(headers:_*)
+    implicit val headerCarrier: HeaderCarrier = hc.copy(authorization = Some(Authorization(pnr.body.authHeaderToken))).withExtraHeaders(headers:_*)
     doSend(pnr)(headerCarrier)
   }
 
@@ -53,9 +53,9 @@ class InternalPushConnector @Inject()(http: HttpClient,
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"Calling internal push notification service url=[${pnr.pushNotificationRequestBody.url}] \nheaders=[${headers}] \npayload=[${pnr.pushNotificationRequestBody.xmlPayload}]")
+    logger.debug(s"Calling internal push notification service url=[${pnr.body.url}] \nheaders=[${headers}] \npayload=[${pnr.body.xmlPayload}]")
 
-    http.POSTString[HttpResponse](pnr.pushNotificationRequestBody.url.toString, pnr.pushNotificationRequestBody.xmlPayload)
+    http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
       .map[Either[ResultError, HttpResponse]] { response =>
         response.status match {
           case status if is2xx(status) =>
