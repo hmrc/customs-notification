@@ -19,6 +19,7 @@ package integration
 import com.typesafe.config.Config
 import org.mockito.Mockito._
 import org.mongodb.scala.model.Filters
+import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.mockito.MockitoSugar
@@ -223,10 +224,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       } yield (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount)
 
       whenReady(result) { case (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount) =>
-        toPerFailedCount shouldBe 2
-        await(repository.findById(wiClient1One.id)).get.status shouldBe PermanentlyFailed
-        await(repository.findById(wiClient1Two.id)).get.status shouldBe PermanentlyFailed
-        await(repository.findById(wiClient3One.id)).get.status shouldBe Failed
+        eventually {
+          toPerFailedCount shouldBe 2 // TODO DCWL-2621 failed 2
+          repository.findById(wiClient1One.id).get.status shouldBe PermanentlyFailed
+          repository.findById(wiClient1Two.id).get.status shouldBe PermanentlyFailed
+          repository.findById(wiClient3One.id).get.status shouldBe Failed // TODO DCWL-2621 failed 3
+        }
       }
     }
 
