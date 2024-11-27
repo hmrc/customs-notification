@@ -27,11 +27,11 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
-import unit.logging.StubCdsLogger
 import util.TestData._
 import util.UnitSpec
 
@@ -49,7 +49,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with ScalaFutures {
 
   private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
-  private val mockCdsLogger: StubCdsLogger = mock[StubCdsLogger]
+  private val mockCdsLogger = app.injector.instanceOf[CdsLogger]
   private val mockUnblockPollerConfig: UnblockPollerConfig = mock[UnblockPollerConfig]
   private val mockConfiguration = mock[Configuration]
 

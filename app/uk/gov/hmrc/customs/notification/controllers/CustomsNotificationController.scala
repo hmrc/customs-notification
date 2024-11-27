@@ -83,7 +83,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
                                              (implicit ec: ExecutionContext)
                extends BackendController(cc) with HeaderValidator {
 
-  override val notificationLogger: NotificationLogger = logger
+  override val notificationLogger: NotificationLogger = logger // TODO: have a look at using self-type?
   override val controllerComponents: ControllerComponents = cc
   private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private lazy val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
