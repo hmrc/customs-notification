@@ -1,5 +1,6 @@
 digital-service: CDS
 repoVisibility: public_0C3F0CE3E6E6448FAD341E7BFA50FCD333E06A20CFF05FCACE61154DDBBADF71
+description: The customs-notification service provides updates throughout the asynchronous customs declaration process. External client applications use the service to receive notifications, from HMRC systems, of certain events resulting from interactions with one of the CDS APIs.
 test-repositories:
   - customs-notification-performance-test
   - customs-automation-test
