@@ -31,6 +31,7 @@ import java.time.ZonedDateTime
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
@@ -82,7 +83,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
                                              (implicit ec: ExecutionContext)
                extends BackendController(cc) with HeaderValidator {
 
-  override val notificationLogger: NotificationLogger = logger
+  override val notificationLogger: NotificationLogger = logger // TODO: have a look at using self-type?
   override val controllerComponents: ControllerComponents = cc
   private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private lazy val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
@@ -115,14 +116,18 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
-    //logger.debug(s"Received notification with payload: $xml, metaData: $md")
+    if (logger.isDebugEnabled) {
+      logger.debug(s"Received notification with payload: $xml, metaData: $md")
+    } else {
+      logger.info(s"Received notification")
+    }
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>
         val requestMetaData: RequestMetaData = md.copy(maybeClientId = Some(ClientId(apiSubscriptionFields.clientId)))
         handleNotification(xml, requestMetaData, apiSubscriptionFields).map {
           case true =>
-            logger.info(s"Saved notification")(requestMetaData)
+            logger.info(s"Processed notification")(requestMetaData)
             Results.Accepted
           case false =>
             logger.error(s"Processing failed for notification")(requestMetaData)
@@ -136,8 +141,8 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
         logger.error(s"Declarant data not found for notification")
         Future.successful(ErrorCdsClientIdNotFound.XmlResult)
     }.recover {
-      case t: Throwable =>
-        notificationLogger.error(s"Failed to fetch declarant data for notification due to: $t")
+      case NonFatal(e) =>
+        notificationLogger.error(s"Failed to fetch declarant data for notification due to: $e")
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }
