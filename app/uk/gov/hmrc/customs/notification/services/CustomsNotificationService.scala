@@ -103,11 +103,11 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
-       connector match {
-         case Push => logger.info(s"$connector ${Succeeded.name} for workItemId ${workItem.id.toString}")
-         case Pull => logger.info(s"Placing on $connector queue ${Succeeded.name} for workItemId ${workItem.id.toString}")
-       }
-
+        val start = connector match {
+          case Push => s"$connector ${Succeeded.name}"
+          case Pull => s"Placing on $connector queue ${Succeeded.name}"
+        }
+        logger.info(start + s" for workItemId ${workItem.id.toString}")
         true
       case Left(pushOrPullError) =>
         val msg = pushOrPullError.source match {
