@@ -235,7 +235,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockPushOrPullService).send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPull))(any[HasId], any())
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-            infoLogVerifier(mockNotificationLogger, s"Pull succeeded for workItemId ${WorkItem1.id}")
+            infoLogVerifier(mockNotificationLogger, s"Placing on Pull queue succeeded for workItemId ${WorkItem1.id}")
           }
         }
       }
@@ -275,7 +275,8 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockNotificationWorkItemRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-            errorLogVerifier(mockNotificationLogger, s"Pull failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
+//            errorLogVerifier(mockNotificationLogger, s"Pull failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
+            errorLogVerifier(mockNotificationLogger, s"Placing on Pull queue failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
           }
         }
       }
