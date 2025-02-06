@@ -9,7 +9,7 @@ object AppDependencies {
   val compile = Seq(
     "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-work-item-repo-$playVersion"      % mongoVersion,
     "uk.gov.hmrc"                  %% s"bootstrap-backend-$playVersion"              % boostrapVersion,
-    "org.typelevel"                %% "cats-core"                                    % "2.10.0"
+    "org.typelevel"                %% "cats-core"                                    % "2.13.0"
   )
 
   val test = Seq(
