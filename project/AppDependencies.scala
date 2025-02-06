@@ -13,11 +13,11 @@ object AppDependencies {
   )
 
   val test = Seq(
-    "org.scalatestplus.play"       %% "scalatestplus-play"            % "7.0.1"            % Test,
-    "org.wiremock"                  % "wiremock-standalone"           % "3.11.0"            % Test,
-    "org.scalatestplus"            %% "scalatestplus-mockito"         % "1.0.0-M2"         % Test,
-    "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-test-$playVersion" % mongoVersion       % Test,
-    "uk.gov.hmrc"                  %% s"bootstrap-test-$playVersion"  % boostrapVersion    % Test,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala"          % "2.17.0"           % Test
-  )
+    "org.scalatestplus.play"       %% "scalatestplus-play"            % "7.0.1" ,
+    "org.wiremock"                  % "wiremock-standalone"           % "3.11.0"  ,
+    "org.scalatestplus"            %% "scalatestplus-mockito"         % "1.0.0-M2" ,
+    "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-test-$playVersion" % mongoVersion,
+    "uk.gov.hmrc"                  %% s"bootstrap-test-$playVersion"  % boostrapVersion,
+    "com.fasterxml.jackson.module" %% "jackson-module-scala"          % "2.17.0"
+  ).map(_ % Test)
 }
