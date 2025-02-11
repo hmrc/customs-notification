@@ -275,7 +275,6 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
             verify(mockNotificationWorkItemRepo).setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
-//            errorLogVerifier(mockNotificationLogger, s"Pull failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
             errorLogVerifier(mockNotificationLogger, s"Placing on Pull queue failed PushOrPullError(Pull,HttpResultError(404,java.lang.Exception: Boom)) for workItemId ${WorkItem1.id}")
           }
         }
