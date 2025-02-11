@@ -19,6 +19,7 @@ package uk.gov.hmrc.customs.notification.connectors
 import com.google.inject.Inject
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
+import play.api.libs.json.Json
 import uk.gov.hmrc.customs.notification.config.ServiceConfigProvider
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.ISSUE_DATE_TIME_HEADER
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequestBody.jsonFormat
@@ -26,14 +27,16 @@ import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
-import uk.gov.hmrc.http.{HttpClient, _}
+import uk.gov.hmrc.http._
+import uk.gov.hmrc.http.client.HttpClientV2
+import play.api.libs.ws.JsonBodyWritables._
 
 import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
-class ExternalPushConnector @Inject()(http: HttpClient,
+class ExternalPushConnector @Inject()(http: HttpClientV2,
                                       logger: NotificationLogger,
                                       serviceConfigProvider: ServiceConfigProvider)
                                      (implicit ec: ExecutionContext) extends MapResultError with HttpErrorFunctions {
@@ -49,14 +52,19 @@ class ExternalPushConnector @Inject()(http: HttpClient,
 
   private def doSend(pnr: PushNotificationRequest)(implicit hc: HeaderCarrier, rm: HasId): Future[Either[ResultError, HttpResponse]] = {
     val url = serviceConfigProvider.getConfig("public-notification").url
-
-    val msg = "Calling external push notification service"
-    val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
+    val headerNames = HeaderNames.explicitlyIncludedHeaders
+    logger.debug(s"hc.extraHeaders [${hc.extraHeaders}]")
     val headers = hc.headers(headerNames) ++ hc.extraHeaders
-    logger.debug(s"$msg url=${pnr.body.url} \nheaders=${headers} \npayload= ${pnr.body}")
-
-    http.POST[PushNotificationRequestBody, HttpResponse](url, pnr.body)
-      .map[Either[ResultError, HttpResponse]]{ response =>
+//    val headers = Seq()
+    logger.debug(s"Calling external push notification service [$url] \nheaders=[$headers] \npayload=[${pnr.body}]")
+    logger.info(s" ######## url[$url]")
+    http
+      .post(url"$url")
+      .setHeader(headers: _*)
+      .withBody(Json.toJson(pnr.body))
+//      .withBody(Json.toJson("this ain't testing properly"))
+      .execute[HttpResponse]
+      .map[Either[ResultError, HttpResponse]] { response =>
         response.status match {
           case status if is2xx(status) =>
             Right(response)
@@ -66,15 +74,15 @@ class ExternalPushConnector @Inject()(http: HttpClient,
             logger.warn(s"Failed to push notification. Response status ${response.status} and response body ${response.body}")
             Left(HttpResultError(status, httpException))
         }
-    }
-    .recoverWith{
-      case httpException: HttpException =>
-        logger.error(httpException.message, httpException)
-        Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
-      case NonFatal(e) =>
-        val error: ResultError = mapResultError(e)
-        Future.successful(Left(error))
-    }
+      }
+      .recoverWith {
+        case httpException: HttpException =>
+          logger.error(httpException.message, httpException)
+          Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
+        case NonFatal(e) =>
+          val error: ResultError = mapResultError(e)
+          Future.successful(Left(error))
+      }
   }
 
   private def removeDateHeaderFromRequestBody(pushNotificationRequest: PushNotificationRequest): PushNotificationRequest = {

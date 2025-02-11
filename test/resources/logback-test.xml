@@ -30,15 +30,16 @@
 
 
 
-    <logger name="uk.gov" level="ERROR"/>
+    <logger name="uk.gov" level="DEBUG"/>
 
-    <logger name="application" level="WARN"/>
+    <logger name="application" level="DEBUG"/>
 
-    <logger name="connector" level="ERROR">
+    <logger name="connector" level="DEBUG">
         <appender-ref ref="STDOUT"/>
     </logger>
 
     <logger name="customs-notification" level="DEBUG"/>
+    <logger name="StubNotificationLogger" level="DEBUG"/>
 
     <root level="ERROR">
         <appender-ref ref="FILE"/>

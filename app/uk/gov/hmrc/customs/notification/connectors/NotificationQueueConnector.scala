@@ -23,13 +23,14 @@ import uk.gov.hmrc.customs.notification.domain.{ClientNotification, CustomsNotif
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
-import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpClient, HttpErrorFunctions, HttpException, HttpResponse}
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpErrorFunctions, HttpException, HttpResponse, StringContextOps}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, configServices: CustomsNotificationConfig)
+class NotificationQueueConnector @Inject()(http: HttpClientV2, logger: CdsLogger, configServices: CustomsNotificationConfig)
                                           (implicit ec: ExecutionContext) extends HttpErrorFunctions {
 
   def enqueue(request: ClientNotification)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
@@ -52,7 +53,10 @@ class NotificationQueueConnector @Inject()(http: HttpClient, logger: CdsLogger, 
 
     logger.debug(s"Attempting to send notification to queue\nheaders=${headersToLog}} \npayload=${notification.payload}")
 
-    http.POSTString[HttpResponse](url, notification.payload)(readRaw, headerCarrier, ec).flatMap { response =>
+    http.post(url"$url")
+    .setHeader(headersToLog: _*)
+    .withBody(notification.payload)
+    .execute[HttpResponse].flatMap { response =>
         response.status match {
           case status if is2xx(status) =>
             Future.successful(response)

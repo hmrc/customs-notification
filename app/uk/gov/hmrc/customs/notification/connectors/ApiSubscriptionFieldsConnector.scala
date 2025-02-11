@@ -25,14 +25,15 @@ import uk.gov.hmrc.customs.notification.controllers.FieldsIdMapperHotFix
 import uk.gov.hmrc.customs.notification.domain.{ApiSubscriptionFields, CustomsNotificationConfig}
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
-import uk.gov.hmrc.http.HttpReads.Implicits._
-import uk.gov.hmrc.http.{HttpClient, _}
+import uk.gov.hmrc.http._
+import uk.gov.hmrc.http.client.HttpClientV2
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
-class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
+class ApiSubscriptionFieldsConnector @Inject()(http: HttpClientV2,
                                                logger: CdsLogger,
                                                serviceConfigProvider: ServiceConfigProvider,
                                                configService: CustomsNotificationConfig)
@@ -70,18 +71,18 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     implicit val headerCarrier: HeaderCarrier = HeaderCarrier(requestId = hc.requestId, extraHeaders = headers)
 
     val baseUrl = serviceConfigProvider.getConfig("api-subscription-fields").url
-    val fullUrl = s"$baseUrl/$fieldsId"
+    val fullUrl = url"$baseUrl/$fieldsId"
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
     logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headersToLog}")
 
-    http.GET[HttpResponse](fullUrl)
+    http.get(fullUrl).execute
       .recoverWith {
         case httpError: HttpException =>
           Future.failed(new RuntimeException(httpError)) //reserved for problems in making the request
 
-        case e: Throwable =>
+        case NonFatal(e) =>
           logger.error(s"call to subscription information service failed. GET url=$fullUrl")
           Future.failed(e)
       }

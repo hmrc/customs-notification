@@ -18,6 +18,7 @@ package uk.gov.hmrc.customs.notification.domain
 
 import play.api.libs.json.Format._
 import play.api.libs.json._
+import play.api.libs.ws.BodyWritable
 import play.api.mvc.Headers
 
 import java.util.UUID
@@ -26,6 +27,8 @@ case class Header(name: String, value: String)
 
 object Header {
   implicit val jsonFormat: OFormat[Header] = Json.format[Header]
+
+
 }
 
 case class PushNotificationRequestBody(url: CallbackUrl, authHeaderToken: String, conversationId: String,
@@ -37,6 +40,11 @@ object PushNotificationRequestBody {
 
   implicit val callbackUrlFormat: DeclarantCallbackData.CallbackUrlFormat.type = DeclarantCallbackData.CallbackUrlFormat
   implicit val jsonFormat: OFormat[PushNotificationRequestBody] = Json.format[PushNotificationRequestBody]
+
+  // Haseem said don't need
+//  implicit def jsonBodyWritable[T](implicit
+//                                   writes: Writes[T],
+//                                   jsValueBodyWritable: BodyWritable[JsValue]): BodyWritable[T] = jsValueBodyWritable.map(writes.writes)
 }
 
 case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotificationRequestBody)

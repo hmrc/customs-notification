@@ -23,7 +23,8 @@ import uk.gov.hmrc.customs.notification.domain.{HttpResultError, PushNotificatio
 import uk.gov.hmrc.customs.notification.http.Non2xxResponseException
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
-import uk.gov.hmrc.http.{HttpClient, _}
+import uk.gov.hmrc.http._
+import uk.gov.hmrc.http.client.HttpClientV2
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,7 +32,7 @@ import scala.util.control.NonFatal
 
 
 @Singleton
-class InternalPushConnector @Inject()(http: HttpClient,
+class InternalPushConnector @Inject()(http: HttpClientV2,
                                       logger: CdsLogger)
                                      (implicit ec: ExecutionContext) extends MapResultError with HttpErrorFunctions {
 
@@ -44,7 +45,8 @@ class InternalPushConnector @Inject()(http: HttpClient,
       X_CONVERSATION_ID_HEADER_NAME -> pnr.body.conversationId
     ) ++ outBoundHeaders
 
-    implicit val headerCarrier: HeaderCarrier = hc.copy(authorization = Some(Authorization(pnr.body.authHeaderToken))).withExtraHeaders(headers:_*)
+    // TODO Haseem says may not need this.
+    implicit val headerCarrier: HeaderCarrier = hc.copy(authorization = Some(Authorization(pnr.body.authHeaderToken))).withExtraHeaders(headers: _*)
     doSend(pnr)(headerCarrier)
   }
 
@@ -55,7 +57,10 @@ class InternalPushConnector @Inject()(http: HttpClient,
 
     logger.debug(s"Calling internal push notification service url=[${pnr.body.url}] \nheaders=[${headers}] \npayload=[${pnr.body.xmlPayload}]")
 
-    http.POSTString[HttpResponse](pnr.body.url.toString, pnr.body.xmlPayload)
+    http.post(url"${pnr.body.url.toString}")
+    .setHeader(headers: _*)
+    .withBody(pnr.body.xmlPayload)
+    .execute[HttpResponse]
       .map[Either[ResultError, HttpResponse]] { response =>
         response.status match {
           case status if is2xx(status) =>
@@ -66,13 +71,13 @@ class InternalPushConnector @Inject()(http: HttpClient,
             logger.error(httpException.message, httpException)
             Left(HttpResultError(status, httpException))
         }
-    }.recoverWith {
-      case httpException: HttpException =>
-        logger.error(httpException.message, httpException)
-        Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
-      case NonFatal(e) =>
-        val resultError = mapResultError(e)
-        Future.successful(Left(resultError))
-    }
+      }.recoverWith {
+        case httpException: HttpException =>
+          logger.error(httpException.message, httpException)
+          Future.successful(Left(HttpResultError(httpException.responseCode, httpException)))
+        case NonFatal(e) =>
+          val resultError = mapResultError(e)
+          Future.successful(Left(resultError))
+      }
   }
 }
