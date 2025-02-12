@@ -31,9 +31,7 @@ lazy val microservice = (project in file("."))
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
-  .settings(scalaVersion := "2.13.13",
-    IntegrationTest / parallelExecution := false,
-    Test / parallelExecution := false)
+  .settings(scalaVersion := "2.13.13")
   .settings(
     commonSettings,
     unitTestSettings,
@@ -58,6 +56,7 @@ lazy val unitTestSettings =
     Seq(
       Test / testOptions := Seq(Tests.Filter(unitTestFilter)),
       Test / unmanagedSourceDirectories := Seq((Test / baseDirectory).value / "test"),
+      Test / parallelExecution := false,
       addTestReportOption(Test, "test-reports")
     )
 
@@ -70,7 +69,7 @@ lazy val integrationComponentTestSettings =
       CdsIntegrationComponentTest / testGrouping := forkedJvmPerTestConfig((Test / definedTests).value, "integration", "component")
     )
 
-lazy val commonSettings: Seq[Setting[_]] = publishingSettings ++ gitStampSettings
+lazy val commonSettings: Seq[Setting[_]] = gitStampSettings
 
 lazy val scoverageSettings: Seq[Setting[_]] = Seq(
   coverageExcludedPackages := List(
