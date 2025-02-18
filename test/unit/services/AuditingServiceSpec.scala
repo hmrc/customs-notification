@@ -87,7 +87,7 @@ class AuditingServiceSpec extends UnitSpec with MockitoSugar with BeforeAndAfter
         (actualExtendedDataEvent.detail \ "payloadHeaders").as[String] should include("X-Request-ID,ABC") // Ignore request change
         (actualExtendedDataEvent.detail \ "result").as[String] shouldBe "SUCCESS"
         actualExtendedDataEvent.eventId should fullyMatch regex """[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"""
-        actualExtendedDataEvent.generatedAt.toString() should have size 24
+        actualExtendedDataEvent.generatedAt.toString should have size 24
       }
     }
 
