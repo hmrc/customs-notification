@@ -35,7 +35,7 @@ class AuditingService @Inject()(logger: NotificationLogger, auditConnector: Audi
                                (implicit ec: ExecutionContext) {
 
   private val appName = "customs-notification"
-  private val transactionNameValue = "customs-declaration-outbound-call"
+  private val transactionNameValue = "customs-declaration-outbound-call" // TODO: is this correct?
   private val declarationNotificationOutboundCall = "DeclarationNotificationOutboundCall"
   private val declarationNotificationInboundCall = "DeclarationNotificationInboundCall"
   private val outboundCallUrl = "outboundCallUrl"
