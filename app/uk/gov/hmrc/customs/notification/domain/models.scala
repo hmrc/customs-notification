@@ -83,6 +83,14 @@ case class Mrn(value: String) extends AnyVal {
   override def toString: String = value.toString
 }
 
+case class EntryNumber(value: String) extends AnyVal {
+  override def toString: String = value.toString
+}
+
+case class Ics(value: String) extends AnyVal {
+  override def toString: String = value.toString
+}
+
 trait HasId {
   def idName: String
   def idValue: String
@@ -123,3 +131,13 @@ trait HasMaybeIssueDateTime {
 trait HasMaybeMrn {
   def maybeMrn: Option[Mrn]
 }
+
+trait HasMaybeEntryNumber {
+  def maybeEntryNumber: Option[EntryNumber]
+}
+
+trait HasMaybeIcs {
+  def maybeIcs: Option[Ics]
+}
+
+
