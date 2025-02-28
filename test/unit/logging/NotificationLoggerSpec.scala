@@ -38,14 +38,14 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
       logger.debug("msg")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969][entryNumber=GB12121212121][ics=1] msg")
         .verify()
     }
     "debug(s: => String, url: => String)" in new SetUp {
       logger.debug("msg", "url")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg url=url")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969][entryNumber=GB12121212121][ics=1] msg url=url")
         .verify()
     }
 
@@ -53,7 +53,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
       logger.debug("msg", "url", "payload")
 
       PassByNameVerifier(mockCdsLogger, "debug")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg url=url\npayload=\npayload")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969][entryNumber=GB12121212121][ics=1] msg url=url\npayload=\npayload")
         .verify()
     }
 
@@ -69,7 +69,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
       logger.info("msg")
 
       PassByNameVerifier(mockCdsLogger, "info")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969][entryNumber=GB12121212121][ics=1] msg")
         .verify()
     }
 
@@ -77,7 +77,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
       logger.warn("msg")
 
       PassByNameVerifier(mockCdsLogger, "warn")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969][entryNumber=GB12121212121][ics=1] msg")
         .verify()
     }
 
@@ -85,7 +85,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
       logger.error("msg")
 
       PassByNameVerifier(mockCdsLogger, "error")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969][entryNumber=GB12121212121][ics=1] msg")
         .verify()
     }
     
@@ -93,7 +93,7 @@ class NotificationLoggerSpec extends UnitSpec with MockitoSugar {
       logger.error("msg", new Exception("message"))
 
       PassByNameVerifier(mockCdsLogger, "error")
-        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969] msg")
+        .withByNameParam("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231][clientId=ClientId][fieldsId=eaca01f9-ec3b-4ede-b263-61b626dde232][notificationId=58373a04-2c45-4f43-9ea2-74e56be2c6d7][badgeId=ABCDEF1234][submitterIdentifier=IAMSUBMITTER][correlationId=CORRID2234][functionCode=01][issueDateTime=20190925104103Z][mrn=19GB3955NQ36213969][entryNumber=GB12121212121][ics=1] msg")
         .withByNameParamMatcher[Throwable](any[Throwable])
         .verify()
     }

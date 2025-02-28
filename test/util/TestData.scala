@@ -143,7 +143,7 @@ object TestData {
   val client2Notification1WithTimeReceived = ClientNotification(validClientSubscriptionId2, notification1, Some(TimeReceivedDateTime), None)
 
   val requestMetaData = RequestMetaData(validClientSubscriptionId1, conversationId, notificationId, Some(clientId1),Some(BadgeId(badgeId)),
-    Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)), Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned)
+    Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)), Some(FunctionCode(functionCode)), Some(IssueDateTime(issueDateTime)), Some(Mrn(mrn)), TimeReceivedZoned,  Some(EntryNumber("GB12121212121")), Some(Ics("1")))
 
   val NotificationWorkItem1 = NotificationWorkItem(validClientSubscriptionId1, clientId1, None, notification = notification1)
   val NotificationWorkItem2 = NotificationWorkItem(validClientSubscriptionId2, clientId1, notification = notification2)

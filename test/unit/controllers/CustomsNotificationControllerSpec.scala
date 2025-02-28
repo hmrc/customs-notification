@@ -74,7 +74,7 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
   private val expectedRequestMetaData = RequestMetaData(clientSubscriptionId, conversationId, notificationId,
     Some(clientId1), Some(BadgeId(badgeId)), Some(Submitter(submitterNumber)), Some(CorrelationId(correlationId)),
-    None, None, None, mockDateTimeService.zonedDateTimeUtc)
+    None, None, None, mockDateTimeService.zonedDateTimeUtc, None, None)
 
   private val eventualTrue = Future.successful(true)
 
@@ -252,6 +252,20 @@ class CustomsNotificationControllerSpec extends UnitSpec with Matchers with Mock
 
       val functionCodeXml = <Too><Response><Declaration><ID>123456</ID></Declaration></Response></Too>
       controller().extractMrn(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(Mrn("123456"))
+    }
+
+    "extract EntryNumber from xml payload when present" in {
+      controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+
+      val functionCodeXml = <Too><entryNumber>123456</entryNumber></Too>
+      controller().extractEntryNumber(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(EntryNumber("123456"))
+    }
+
+    "extract ICS from xml payload when present" in {
+      controller().extractFunctionCode(elementToOptionalNodeSeq(ValidXML)) shouldBe None
+
+      val functionCodeXml = <Too><ics>123456</ics></Too>
+      controller().extractIcs(elementToOptionalNodeSeq(functionCodeXml)) shouldBe Some(Ics("123456"))
     }
   }
 

@@ -43,7 +43,9 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
                            maybeFunctionCode: Option[FunctionCode],
                            maybeIssueDateTime: Option[IssueDateTime],
                            maybeMrn: Option[Mrn],
-                           startTime: ZonedDateTime)
+                           startTime: ZonedDateTime,
+                           maybeEntryNumber: Option[EntryNumber],
+                           maybeIcs: Option[Ics])
   extends HasId
   with HasClientSubscriptionId
   with HasNotificationId
@@ -54,6 +56,8 @@ case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
   with HasMaybeFunctionCode
   with HasMaybeIssueDateTime
   with HasMaybeMrn
+  with HasMaybeEntryNumber
+  with HasMaybeIcs
 {
   def maybeBadgeIdHeader: Option[Header] = asHeader(X_BADGE_ID_HEADER_NAME, maybeBadgeId)
 
@@ -111,7 +115,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
       NotificationId(uuidService.uuid()), None, headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId),
       headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter), headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
-      extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml, headers.get(ISSUE_DATE_TIME_HEADER)), extractMrn(maybeXml), startTime)
+      extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml, headers.get(ISSUE_DATE_TIME_HEADER)), extractMrn(maybeXml), startTime, extractEntryNumber(maybeXml),extractIcs(maybeXml))
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
@@ -167,6 +171,20 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   def extractMrn(maybeXml: Option[NodeSeq]): Option[Mrn]= {
     maybeXml match {
       case Some(xml) => extractValues(xml \ "Response" \ "Declaration" \ "ID").fold{val tmp: Option[Mrn] = None; tmp}(x => Some(Mrn(x)))
+      case _ => None
+    }
+  }
+
+  def extractEntryNumber(maybeXml: Option[NodeSeq]): Option[EntryNumber]= {
+    maybeXml match {
+      case Some(xml) => extractValues(xml \ "entryNumber").fold{val tmp: Option[EntryNumber] = None; tmp}(x => Some(EntryNumber(x)))
+      case _ => None
+    }
+  }
+
+  def extractIcs(maybeXml: Option[NodeSeq]): Option[Ics]= {
+    maybeXml match {
+      case Some(xml) => extractValues(xml \ "ics").fold{val tmp: Option[Ics] = None; tmp}(x => Some(Ics(x)))
       case _ => None
     }
   }
