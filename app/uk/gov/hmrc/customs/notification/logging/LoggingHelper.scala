@@ -62,53 +62,74 @@ object LoggingHelper {
   }
 
   private def formatLogPrefix(rm: HasId): String = {
+
     def fieldsId = rm match {
       case has: HasClientSubscriptionId =>
         s"[fieldsId=${has.clientSubscriptionId}]"
       case _ => ""
     }
+
     def notificationId = rm match {
       case has: HasNotificationId =>
         s"[notificationId=${has.notificationId}]"
       case _ => ""
     }
+
     def clientId = rm match {
       case has: HasMaybeClientId =>
         formatOptional("clientId", has.maybeClientId)
       case _ => ""
     }
+
     def correlationId = rm match {
       case has: HasMaybeCorrelationId =>
         formatOptional("correlationId", has.maybeCorrelationId)
       case _ => ""
     }
+
     def badgeId = rm match {
       case has: HasMaybeBadgeId =>
         formatOptional("badgeId", has.maybeBadgeId)
       case _ => ""
     }
+
     def submitter = rm match {
       case has: HasMaybeSubmitter =>
         formatOptional("submitterIdentifier", has.maybeSubmitterNumber)
       case _ => ""
     }
+
     def functionCode = rm match {
       case has: HasMaybeFunctionCode =>
         formatOptional("functionCode", has.maybeFunctionCode)
       case _ => ""
     }
+
     def issueDateTime = rm match {
       case has: HasMaybeIssueDateTime =>
         formatOptional("issueDateTime", has.maybeIssueDateTime)
       case _ => ""
     }
+
     def mrn = rm match {
       case has: HasMaybeMrn =>
         formatOptional("mrn", has.maybeMrn)
       case _ => ""
     }
 
-    s"[${rm.idName}=${rm.idValue}]$clientId$fieldsId$notificationId$badgeId$submitter$correlationId$functionCode$issueDateTime$mrn"
+    def entryNumber = rm match {
+      case has: HasMaybeEntryNumber =>
+        formatOptional("entryNumber", has.maybeEntryNumber)
+      case _ => ""
+    }
+
+    def ics = rm match {
+      case has: HasMaybeIcs =>
+        formatOptional("ics", has.maybeIcs)
+      case _ => ""
+    }
+
+    s"[${rm.idName}=${rm.idValue}]$clientId$fieldsId$notificationId$badgeId$submitter$correlationId$functionCode$issueDateTime$mrn$entryNumber$ics"
   }
 
   private def formatOptional[T](name: String, maybeValue: Option[T]) = {
