@@ -20,7 +20,7 @@ import com.google.inject.ImplementedBy
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.model.Filters.{and, equal, gte, lt}
+import org.mongodb.scala.model.Filters.{and, equal, gte, lt, or}
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
 import org.mongodb.scala.model._
@@ -57,9 +57,11 @@ trait NotificationWorkItemRepo {
 
   def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int]
 
-  def permanentlyFailedAndHttp5xxByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
+  def csIdAlreadyWorking(csId: ClientSubscriptionId): Future[Boolean]
 
   def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]]
+
+  def distinctInProgressByCsId(): Future[Set[ClientSubscriptionId]]
 
   def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
 
@@ -238,16 +240,20 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     }
   }
 
-  override def permanentlyFailedAndHttp5xxByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
+  override def csIdAlreadyWorking(csid: ClientSubscriptionId): Future[Boolean] = {
     val ServerErrorCodeMin = 500
-    val selector = and(
-      gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, ServerErrorCodeMin),
-      csIdAndStatusSelector(csid, PermanentlyFailed)
+    val selector = or(
+      and(
+        gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, ServerErrorCodeMin),
+        and(csIdAndStatusSelector(csid, PermanentlyFailed))
+      ),
+      csIdAndStatusSelector(csid, InProgress),
+      csIdAndStatusSelector(csid, Failed)
     )
 
     collection.find(selector).first().toFutureOption().map {
       case Some(workItem) =>
-        logger.info(s"Found existing permanently failed notification for client id: [$csid] " +
+        logger.info(s"Found existing ${ PermanentlyFailed.name } or ${ InProgress.name } notification for csId: [$csid] " +
           s"with mostRecentPushPullHttpStatus: [${workItem.item.notification.mostRecentPushPullHttpStatus.getOrElse("None")}]")
         true
       case None => false
@@ -260,9 +266,15 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
       lt("availableAt", now()))
     collection.distinct[String]("clientNotification._id", selector)
       .toFuture()
-      .map(
-        convertToClientSubscriptionIdSet(_)
-      )
+      .map(convertToClientSubscriptionIdSet(_))
+  }
+
+  override def distinctInProgressByCsId(): Future[Set[ClientSubscriptionId]] = {
+    val selector = and(
+      equal(workItemFields.status, ProcessingStatus.toBson(InProgress)))
+    collection.distinct[String]("clientNotification._id", selector)
+      .toFuture()
+      .map(convertToClientSubscriptionIdSet(_))
   }
 
   private def convertToClientSubscriptionIdSet(clientSubscriptionIds: Seq[String]): Set[ClientSubscriptionId] = {

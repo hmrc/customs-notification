@@ -60,8 +60,8 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     auditingService.auditNotificationReceived(pnr)
 
     (for {
-      isAnyPF <- notificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(notificationWorkItem.clientSubscriptionId)
-      hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, isAnyPF, apiSubscriptionFields)
+      csIdAlreadyWorking <- notificationWorkItemRepo.csIdAlreadyWorking(notificationWorkItem.clientSubscriptionId)
+      hasSaved <- saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem, csIdAlreadyWorking, apiSubscriptionFields)
     } yield hasSaved)
       .recover {
         case NonFatal(e) =>
@@ -75,12 +75,12 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
   }
 
   private def saveNotificationToDatabaseAndPushOrPullIfNotAnyPF(notificationWorkItem: NotificationWorkItem,
-                                                                isAnyPF: Boolean,
+                                                                csIdAlreadyWorking: Boolean,
                                                                 apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
 
-    val status = if (isAnyPF) {
-      logger.info(s"Existing permanently failed notifications found for client id: ${notificationWorkItem.clientId.toString}. " +
-        "Setting notification to permanently failed")
+    val status = if (csIdAlreadyWorking) {
+      logger.info(s"Existing ${ PermanentlyFailed.name } or ${ InProgress.name } notifications found for csId: ${notificationWorkItem.clientId.toString}. " +
+        s"Setting notification to ${ PermanentlyFailed.name }")
       PermanentlyFailed
     }
     else {
@@ -143,7 +143,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                 notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed) // increase failure count
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
                 val functionCode = extractFunctionCode(workItem.item.notification.payload)
-                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt, FunctionCode: [$functionCode]")
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
             }
           }

@@ -123,7 +123,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
     "for push" should {
       "send notification with metrics time to third party when url present and call metrics service" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
           when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(eventuallyRightOfPush)
           when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(Future.successful(()))
@@ -144,7 +144,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
       "return false and not push when it is unable to save notification to repository" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.failed(emulatedServiceFailure))
 
           val result = instance.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPush)
@@ -161,7 +161,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
       "return true when repo saves but push fails with 404" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
           when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
           when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
@@ -183,7 +183,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
       "return true when repo saves but push fails with 500" in { //TODO DCWL-2372 fails
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
           when(mockNotificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)).thenReturn(Future.successful(()))
           when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
@@ -206,7 +206,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
       "return true and not push when there are existing permanently failed notifications with 5xx errors" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(true))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(true))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed))).thenReturn(Future.successful(WorkItem1))
           when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
 
@@ -214,7 +214,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
           await(result) shouldBe true
           eventually {
-            verify(mockNotificationWorkItemRepo).permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
+            verify(mockNotificationWorkItemRepo).csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
             verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(PermanentlyFailed))
             verify(mockNotificationWorkItemRepo, times(0)).setCompletedStatus(any[ObjectId], any[ResultStatus])
             verify(mockMetricsService).notificationMetric(NotificationWorkItemWithMetricsTime1)
@@ -227,7 +227,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
       "return true BEFORE push has succeeded" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
           when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, PermanentlyFailed)).thenReturn(Future.successful(()))
           when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPush))(any[HasId], any())).thenReturn(
@@ -239,7 +239,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
           await(result) shouldBe true
           eventually {
-            verify(mockNotificationWorkItemRepo).permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
+            verify(mockNotificationWorkItemRepo).csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)
             verify(mockNotificationWorkItemRepo).saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))
             verify(mockNotificationWorkItemRepo, times(1)).setCompletedStatus(any[ObjectId], any[ResultStatus])
             verify(mockAuditingService).auditNotificationReceived(any[PushNotificationRequest])(any[HasId], any())
@@ -251,7 +251,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
     "for pull" should {
       "send notification to pull queue and call metrics service when url absent" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
           when(mockPushOrPullService.send(refEq(NotificationWorkItemWithMetricsTime1), ameq(ApiSubscriptionFieldsOneForPull))(any[HasId], any())).thenReturn(eventuallyRightOfPull)
           when(mockNotificationWorkItemRepo.setCompletedStatus(WorkItem1.id, Succeeded)).thenReturn(Future.successful(()))
@@ -272,7 +272,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
       "fail when it was unable to save notification to repository" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.failed(emulatedServiceFailure))
 
           val result = instance.handleNotification(ValidXML, requestMetaData, ApiSubscriptionFieldsOneForPull)
@@ -289,7 +289,7 @@ class CustomsNotificationServiceSpec extends UnitSpec with MockitoSugar with Eve
 
       "return true and call metrics service when repo saves but pull fails with 404" in {
         new setup {
-          when(mockNotificationWorkItemRepo.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
+          when(mockNotificationWorkItemRepo.csIdAlreadyWorking(NotificationWorkItemWithMetricsTime1.clientSubscriptionId)).thenReturn(Future.successful(false))
           when(mockNotificationWorkItemRepo.saveWithLock(refEq(NotificationWorkItemWithMetricsTime1), refEq(InProgress))).thenReturn(Future.successful(WorkItem1))
           when(mockNotificationWorkItemRepo.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
           when(mockNotificationWorkItemRepo.setCompletedStatusWithAvailableAt(WorkItem1.id, PermanentlyFailed, Helpers.NOT_FOUND, currentTimePlus2Hour)).thenReturn(eventuallyUnit)

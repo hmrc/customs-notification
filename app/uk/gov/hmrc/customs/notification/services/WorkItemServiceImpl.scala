@@ -22,7 +22,7 @@ import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.NOTIFICATI
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, HttpResultError, NotificationId, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
-import uk.gov.hmrc.customs.notification.services.Debug.{colourln, extractFunctionCode}
+import uk.gov.hmrc.customs.notification.services.Debug.{extractFunctionCode}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, PermanentlyFailed, Succeeded}
 import uk.gov.hmrc.mongo.workitem.WorkItem
@@ -52,15 +52,15 @@ class WorkItemServiceImpl @Inject()(
   private val metricName = "declaration-digital-notification-retry-total"
 
   def processOne(): Future[Boolean] = {
-
     val failedBefore = dateTimeService.zonedDateTimeUtc.toInstant
     val availableBefore = failedBefore
     val eventuallyProcessedOne: Future[Boolean] = repository.pullOutstanding(failedBefore, availableBefore).flatMap {
-      case Some(firstOutstandingItem) if(firstOutstandingItem.availableAt <= Instant.now()) =>
-        colourln(Console.CYAN_B, s"WorkItemServiceImpl time now = ${Instant.now()}")
-        colourln(Console.CYAN_B, s"WorkItemServiceImpl availableAt = ${firstOutstandingItem.availableAt}")
-        incrementCountMetric(metricName, firstOutstandingItem)
-        pushOrPull(firstOutstandingItem).map { _ =>
+      // TODO: where is availableAt set
+      case Some(item: WorkItem[NotificationWorkItem]) if item.availableAt <= Instant.now() =>
+        println(s"Processing WorkItem because it is now available: ${ item.item.toString } (createdAt: ${ item.availableAt }) (now: ${ Instant.now() })")
+
+        incrementCountMetric(metricName, item)
+        pushOrPull(item).map { _ =>
           true
         }
       case None =>
@@ -107,7 +107,7 @@ class WorkItemServiceImpl @Inject()(
             repository.toPermanentlyFailedByCsId(workItem.item.clientSubscriptionId).map(_ => ())
             val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
             val functionCode = extractFunctionCode(workItem.item.notification.payload)
-            logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+            logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt, FunctionCode: [$functionCode]")
             repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
 
           case HttpResultError(status, _) =>
@@ -115,7 +115,7 @@ class WorkItemServiceImpl @Inject()(
             repository.setCompletedStatus(workItem.id, Failed) // increase failure count
             val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
             val functionCode = extractFunctionCode(workItem.item.notification.payload)
-            logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+            logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt, FunctionCode: [$functionCode]")
             repository.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
         }).recover {
           case NonFatal(e) =>

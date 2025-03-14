@@ -46,12 +46,24 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
   if (config.unblockPollerConfig.pollerEnabled) {
     val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
-    actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
-        notificationWorkItemRepo.distinctPermanentlyFailedByCsId() //TODO we should block here
-          .foreach { permanentlyFailedCsids =>
-            logger.info(s"""(scheduled every ${ pollerInterval }) UnblockPollerService - there are [${permanentlyFailedCsids.size}] blocked csids (i.e. with valid availableAt and status of [${PermanentlyFailed.name}] [${permanentlyFailedCsids.mkString(",")}])""")
-            permanentlyFailedCsids.foreach(retry)
+
+    actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () =>
+      for {
+        permanentlyFailedCsIds <- notificationWorkItemRepo.distinctPermanentlyFailedByCsId()
+        csIdsInProgress <- notificationWorkItemRepo.distinctInProgressByCsId()
+      } yield {
+        val csIdsToActuallyRetry = permanentlyFailedCsIds -- csIdsInProgress
+
+        if (permanentlyFailedCsIds.nonEmpty) {
+          logger.info(s"""(scheduled every $pollerInterval) UnblockPollerService - there are [${permanentlyFailedCsIds.size}] blocked csids (i.e. with valid availableAt and status of [${PermanentlyFailed.name}] [${permanentlyFailedCsIds.mkString(",")}])""")
+
+          if (csIdsToActuallyRetry.nonEmpty) {
+            logger.info(s"Retrying for the following CsIds: [${csIdsToActuallyRetry.mkString(",")}]")
+            csIdsToActuallyRetry.foreach(retry)
+          } else {
+            logger.info("none to actually retry")
           }
+        }
       }
     }
   }
@@ -126,7 +138,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
               case HttpResultError(status, _) =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
                 val functionCode = extractFunctionCode(workItem.item.notification.payload)
-                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt, FunctionCode: [$functionCode]")
 
                 //notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed) // increase failure count
                 notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt).map(_ => ServerError)
