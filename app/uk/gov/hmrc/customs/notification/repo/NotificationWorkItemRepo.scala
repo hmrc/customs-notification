@@ -17,7 +17,6 @@
 package uk.gov.hmrc.customs.notification.repo
 
 import com.google.inject.ImplementedBy
-import net.ceedubs.ficus.readers.OptionReader
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
@@ -29,7 +28,6 @@ import play.api.Configuration
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.helpers.NotificationWorkItemFields
-import uk.gov.hmrc.customs.notification.services.Debug.colourln
 import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, ResultStatus, WorkItem, WorkItemRepository}
