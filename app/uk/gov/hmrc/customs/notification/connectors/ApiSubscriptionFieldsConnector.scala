@@ -46,7 +46,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
   def getClientData(fieldsId: String)(implicit hc: HeaderCarrier): Future[Option[ApiSubscriptionFields]] = {
     val fieldsIdMapperHotFix = new FieldsIdMapperHotFix(logger, configService.notificationConfig)
     val safeFieldsId = fieldsIdMapperHotFix.translate(fieldsId)
-
+    logger.debug("calling api-subscription-fields service")
     callApiSubscriptionFields(safeFieldsId, hc) map { response =>
       logger.debug(s"api-subscription-fields service response status=${response.status} response body=${response.body}")
 
@@ -74,7 +74,7 @@ class ApiSubscriptionFieldsConnector @Inject()(http: HttpClient,
     val headerNames: Seq[String] = HeaderNames.explicitlyIncludedHeaders
     val headersToLog = hc.headers(headerNames) ++ hc.extraHeaders
 
-    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl headers=${headersToLog}")
+    logger.debug(s"calling api-subscription-fields service with fieldsId=$fieldsId url=$fullUrl \nheaders=${headersToLog}")
 
     http.GET[HttpResponse](fullUrl)
       .recoverWith {

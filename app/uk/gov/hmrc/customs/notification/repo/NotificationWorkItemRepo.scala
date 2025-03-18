@@ -20,7 +20,7 @@ import com.google.inject.ImplementedBy
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.model.Filters.{and, equal, gte, lt, or}
+import org.mongodb.scala.model.Filters.{and, equal, gte, lt}
 import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
 import org.mongodb.scala.model._
@@ -57,11 +57,9 @@ trait NotificationWorkItemRepo {
 
   def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int]
 
-  def csIdAlreadyWorking(csId: ClientSubscriptionId): Future[Boolean]
+  def permanentlyFailedAndHttp5xxByCsIdExists(csId: ClientSubscriptionId): Future[Boolean]
 
   def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]]
-
-  def distinctInProgressByCsId(): Future[Set[ClientSubscriptionId]]
 
   def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]]
 
@@ -156,7 +154,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def saveWithLock(notificationWorkItem: NotificationWorkItem, processingStatus: ProcessingStatus = InProgress): Future[WorkItem[NotificationWorkItem]] = {
-    logger.debug(s"saving a new [$collectionName] in locked state [${processingStatus.name}] [$notificationWorkItem]")
+    logger.debug(s"saving a new notification work item in locked state [${processingStatus.name}] [$notificationWorkItem]")
 
     def processWithInitialStatus(item: NotificationWorkItem): ProcessingStatus = processingStatus
 
@@ -174,7 +172,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit] = {
-    logger.debug(s"Setting completed status of [$status] for [$collectionName] id: [${id.toString}]")
+    logger.debug(s"setting completed status of [$status] for notification work item id: [${id.toString}]")
     complete(id, status).map(_ => ())
   }
 
@@ -240,20 +238,16 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     }
   }
 
-  override def csIdAlreadyWorking(csid: ClientSubscriptionId): Future[Boolean] = {
+  override def permanentlyFailedAndHttp5xxByCsIdExists(csid: ClientSubscriptionId): Future[Boolean] = {
     val ServerErrorCodeMin = 500
-    val selector = or(
-      and(
-        gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, ServerErrorCodeMin),
-        and(csIdAndStatusSelector(csid, PermanentlyFailed))
-      ),
-      csIdAndStatusSelector(csid, InProgress),
-      csIdAndStatusSelector(csid, Failed)
+    val selector = and(
+      gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, ServerErrorCodeMin),
+      csIdAndStatusSelector(csid, PermanentlyFailed)
     )
 
     collection.find(selector).first().toFutureOption().map {
       case Some(workItem) =>
-        logger.info(s"Found existing ${ PermanentlyFailed.name } or ${ InProgress.name } notification for csId: [$csid] " +
+        logger.info(s"Found existing permanently failed notification for client id: [$csid] " +
           s"with mostRecentPushPullHttpStatus: [${workItem.item.notification.mostRecentPushPullHttpStatus.getOrElse("None")}]")
         true
       case None => false
@@ -266,15 +260,9 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
       lt("availableAt", now()))
     collection.distinct[String]("clientNotification._id", selector)
       .toFuture()
-      .map(convertToClientSubscriptionIdSet(_))
-  }
-
-  override def distinctInProgressByCsId(): Future[Set[ClientSubscriptionId]] = {
-    val selector = and(
-      equal(workItemFields.status, ProcessingStatus.toBson(InProgress)))
-    collection.distinct[String]("clientNotification._id", selector)
-      .toFuture()
-      .map(convertToClientSubscriptionIdSet(_))
+      .map(
+        convertToClientSubscriptionIdSet(_)
+      )
   }
 
   private def convertToClientSubscriptionIdSet(clientSubscriptionIds: Seq[String]): Set[ClientSubscriptionId] = {

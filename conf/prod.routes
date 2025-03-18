@@ -1,8 +1,5 @@
 ->          /                                    health.Routes
 
 POST        /customs-notification/notify         @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationController.submit()
-
 GET         /customs-notification/blocked-count  @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController.blockedCount()
 DELETE      /customs-notification/blocked-flag   @uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController.deleteBlocked()
-
-## TODO: GET items in progress for a single csId, so can use in customs-automation-test

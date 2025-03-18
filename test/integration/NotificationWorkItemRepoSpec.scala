@@ -239,7 +239,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now(), permanentlyFailed))
 
-      val result = await(repository.csIdAlreadyWorking(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
     }
@@ -252,7 +252,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem1WithHttp500, repository.now(), permanentlyFailed))
 
-      val result = await(repository.csIdAlreadyWorking(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe true
     }
@@ -264,7 +264,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now(), inProgress))
       await(repository.pushNew(NotificationWorkItem1WithHttp404, repository.now(), permanentlyFailed))
 
-      val result = await(repository.csIdAlreadyWorking(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
     }
@@ -274,7 +274,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.pushNew(NotificationWorkItem1, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
       await(repository.pushNew(NotificationWorkItem3, repository.now().plus(120, ChronoUnit.MINUTES), permanentlyFailed))
 
-      val result = await(repository.csIdAlreadyWorking(NotificationWorkItem1.clientSubscriptionId))
+      val result = await(repository.permanentlyFailedAndHttp5xxByCsIdExists(NotificationWorkItem1.clientSubscriptionId))
 
       result shouldBe false
     }

@@ -31,14 +31,7 @@ case class NotificationWorkItem(_id: ClientSubscriptionId,
   override def idValue: String = notification.conversationId.toString
   override def clientSubscriptionId: ClientSubscriptionId = _id
 
-  override def toString: String = {
-    s"[_id=${ _id }]" +
-      s"[clientId=${ clientId }]" +
-      s"[metricsStartDateTime=${ metricsStartDateTime }]" +
-      s"[notification=${notification}]"
-  }
 }
-
 object NotificationWorkItem {
   implicit val dateFormats: Format[Instant] = MongoJavatimeFormats.instantFormat
   implicit val objectIdFormats: Format[ObjectId] = MongoFormats.objectIdFormat

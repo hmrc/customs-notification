@@ -26,7 +26,11 @@
         </encoder>
     </appender>
 
-    <logger name="uk.gov" level="DEBUG"/>
+
+
+
+
+    <logger name="uk.gov" level="ERROR"/>
 
     <logger name="application" level="WARN"/>
 

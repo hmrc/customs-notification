@@ -31,7 +31,6 @@ import java.time.ZonedDateTime
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
 import scala.xml.NodeSeq
 
 case class RequestMetaData(clientSubscriptionId: ClientSubscriptionId,
@@ -131,7 +130,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
         val requestMetaData: RequestMetaData = md.copy(maybeClientId = Some(ClientId(apiSubscriptionFields.clientId)))
         handleNotification(xml, requestMetaData, apiSubscriptionFields).map {
           case true =>
-            logger.info(s"Processed notification")(requestMetaData)
+            logger.info(s"Saved notification")(requestMetaData)
             Results.Accepted
           case false =>
             logger.error(s"Processing failed for notification")(requestMetaData)
@@ -145,8 +144,8 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
         logger.error(s"Declarant data not found for notification")
         Future.successful(ErrorCdsClientIdNotFound.XmlResult)
     }.recover {
-      case NonFatal(e) =>
-        notificationLogger.error(s"Failed to fetch declarant data for notification due to: $e")
+      case t: Throwable =>
+        notificationLogger.error(s"Failed to fetch declarant data for notification due to: $t")
         errorInternalServerError("Internal Server Error").XmlResult
     }
   }
