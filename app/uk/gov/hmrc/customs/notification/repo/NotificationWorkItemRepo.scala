@@ -53,6 +53,8 @@ trait NotificationWorkItemRepo {
 
   def blockedCount(clientId: ClientId): Future[Int]
 
+  def inProgressCount(clientId: ClientId): Future[Int]
+
   def deleteBlocked(clientId: ClientId): Future[Int]
 
   def toPermanentlyFailedByCsId(csId: ClientSubscriptionId): Future[Int]
@@ -202,6 +204,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   override def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count (i.e. those with status of [${PermanentlyFailed.name}]) for clientId [${clientId.id}]")
     val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)))
+    collection.countDocuments(selector).toFuture().map(_.toInt)
+  }
+
+  override def inProgressCount(clientId: ClientId): Future[Int] = {
+    logger.debug(s"Getting count of ${ InProgress.name } for clientId [${clientId.id}]")
+    val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, ProcessingStatus.toBson(InProgress)))
     collection.countDocuments(selector).toFuture().map(_.toInt)
   }
 
