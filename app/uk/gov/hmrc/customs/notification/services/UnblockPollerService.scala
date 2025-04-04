@@ -17,16 +17,22 @@
 package uk.gov.hmrc.customs.notification.services
 
 import org.apache.pekko.actor.ActorSystem
+import org.playframework.cachecontrol.Seconds
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
+import uk.gov.hmrc.customs.notification.services.Debug.extractFunctionCode
 
+import java.time.Instant
 import javax.inject._
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.language.postfixOps
+import scala.math.Ordered.orderingToOrdered
 import scala.util.control.NonFatal
 
 @Singleton
@@ -40,26 +46,30 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
   if (config.unblockPollerConfig.pollerEnabled) {
     val pollerInterval: FiniteDuration = config.unblockPollerConfig.pollerInterval
-
     actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
-      notificationWorkItemRepo.distinctPermanentlyFailedByCsId()
-        .foreach { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
-          logger.info(s"Unblock - discovered [${permanentlyFailedCsids.size}] blocked csids (i.e. with status of [${PermanentlyFailed.name}]: [$permanentlyFailedCsids])")
-          logger.debug(s"Unblock - discovered [$permanentlyFailedCsids] blocked csids (i.e. with status of [${PermanentlyFailed.name}]): [$permanentlyFailedCsids]")
-
-          permanentlyFailedCsids.foreach(retry)
-        }
-    }
+        notificationWorkItemRepo.distinctPermanentlyFailedByCsId() //TODO we should block here
+          .foreach { permanentlyFailedCsids =>
+            logger.info(s"""(scheduled every ${ pollerInterval }) UnblockPollerService - there are [${permanentlyFailedCsids.size}] blocked csids (i.e. with valid availableAt and status of [${PermanentlyFailed.name}] [${permanentlyFailedCsids.mkString(",")}])""")
+            permanentlyFailedCsids.foreach(retry)
+          }
+      }
     }
   }
 
   private def retry(csid: ClientSubscriptionId): Future[Unit] = {
+    logger.debug(s"Retrying for csid: ${ csid }")
     for {
       maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
     } yield {
       maybeWorkItem match {
         case Some(workItem) =>
-          pushOrPull(workItem).foreach(handleResponse(csid))
+          logger.debug(s"Found a single item for csid: ${ csid }")
+          if (workItem.availableAt <= Instant.now()) {
+            logger.debug(s"workItem (${ workItem.id }) has an availableAt in the past, now proceeding with pushOrPull")
+            pushOrPull(workItem).foreach(handleResponse(csid))
+          } else {
+            logger.debug(s"workItem (${ workItem.id }) has an availableAt in the future, so not retrying just yet...")
+          }
         case None =>
           logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
       }
@@ -79,11 +89,18 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
     implicit val hc: HeaderCarrier = HeaderCarrier()
 
+    val payload = workItem.item.notification.payload
+    val functionCode = extractFunctionCode(payload)
+
+    logger.debug(s"UnblockPollerService - Function Code[$functionCode] - availableAt = [${workItem.availableAt}] - createdAt = [${workItem.receivedAt}]")
+
     pushOrPullService.send(workItem.item).flatMap {
+
       case Right(connector) =>
         notificationWorkItemRepo.setCompletedStatus(workItem.id, Succeeded)
         logger.info(s"Unblock pilot for [$connector] succeeded. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status [${Succeeded.name}] for [$workItem]")
         Future.successful(Success)
+
       case Left(PushOrPullError(connector, resultError)) =>
         logger.info(s"Unblock pilot for [$connector] failed with error $resultError. CsId = [${workItem.item.clientSubscriptionId.toString}]. Setting work item status back to [${PermanentlyFailed.name}] for [$workItem]")
         (for {
@@ -93,14 +110,26 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
               case error@HttpResultError(status, _) if error.is3xx || error.is4xx =>
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response [$status] received while trying unblock pilot, setting availableAt to [$availableAt] and status to Failed")
-                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt)
-                  .map(_ => ClientError)
+
+                //notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed) // increase failure count
+                notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, Failed, status, availableAt).map(_ => ClientError)
+
+              case error@HttpResultError(status, _) if error.is5xx =>
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
+                val payload = workItem.item.notification.payload
+                val functionCode = extractFunctionCode(payload)
+                logger.info(s"Time: ${dateTimeService.zonedDateTimeUtc}  Hitting 500, Function Code[$functionCode]")
+
+                //notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed) // increase failure count
+                notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt).map(_ => ServerError)
+
               case HttpResultError(status, _) =>
-                notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
-                  .map(_ => ServerError)
-              case NonHttpError(cause) =>
-                logger.error(s"Error received while unblocking notification: [${cause.getMessage}]")
-                Future.successful(ServerError)
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+                val functionCode = extractFunctionCode(workItem.item.notification.payload)
+                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+
+                //notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed) // increase failure count
+                notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt).map(_ => ServerError)
             }
           }
         } yield status).recover {

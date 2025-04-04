@@ -22,12 +22,15 @@ import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotif
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
+import uk.gov.hmrc.customs.notification.services.Debug.extractFunctionCode
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.math.Ordered.orderingToOrdered
 import scala.util.control.NonFatal
 import scala.xml.NodeSeq
 
@@ -87,7 +90,7 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
     notificationWorkItemRepo.saveWithLock(notificationWorkItem, status).map(
       workItem => {
         recordNotificationEndTimeMetric(workItem)
-        if (status == InProgress) pushOrPull(workItem, apiSubscriptionFields)
+        if (status == InProgress && workItem.availableAt <= Instant.now()) pushOrPull(workItem, apiSubscriptionFields)
         true
       }
     ).recover {
@@ -99,6 +102,11 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
 
   private def pushOrPull(workItem: WorkItem[NotificationWorkItem],
                          apiSubscriptionFields: ApiSubscriptionFields)(implicit rm: HasId, hc: HeaderCarrier): Future[HasSaved] = {
+
+    val payload = workItem.item.notification.payload
+    val functionCode = extractFunctionCode(payload)
+
+    logger.debug(s"CustomsNotificationService - Function Code[$functionCode] - availableAt = [${workItem.availableAt}] - createdAt = [${workItem.receivedAt}]")
 
     pushOrPullService.send(workItem.item, apiSubscriptionFields).map {
       case Right(connector) =>
@@ -123,11 +131,20 @@ class CustomsNotificationService @Inject()(logger: NotificationLogger,
                 val availableAt = dateTimeService.zonedDateTimeUtc.plusMinutes(customsNotificationConfig.notificationConfig.nonBlockingRetryAfterMinutes)
                 logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt")
                 notificationWorkItemRepo.setCompletedStatusWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
+
+              case httpResultError: HttpResultError if httpResultError.is5xx =>
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerInProgressRetryAfter.toSeconds)
+                val payload = workItem.item.notification.payload
+                val functionCode = extractFunctionCode(payload)
+                logger.error(s"Status response ${httpResultError.status} received while pushing notification, setting availableAt to $availableAt, FunctionCode:[$functionCode]")
+                notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, httpResultError.status, availableAt)
+
               case HttpResultError(status, _) =>
-                notificationWorkItemRepo.setPermanentlyFailed(workItem.id, status)
-              case NonHttpError(cause) =>
-                logger.error(s"Error received while pushing notification: ${cause.getMessage}")
-                Future.successful(())
+                notificationWorkItemRepo.setCompletedStatus(workItem.id, Failed) // increase failure count
+                val availableAt = dateTimeService.zonedDateTimeUtc.plusSeconds(customsNotificationConfig.notificationConfig.retryPollerAfterFailureInterval.toSeconds)
+                val functionCode = extractFunctionCode(workItem.item.notification.payload)
+                logger.error(s"Status response ${status} received while pushing notification, setting availableAt to $availableAt ,FunctionCode: [$functionCode]")
+                notificationWorkItemRepo.setPermanentlyFailedWithAvailableAt(workItem.id, PermanentlyFailed, status, availableAt)
             }
           }
         } yield ()).recover {

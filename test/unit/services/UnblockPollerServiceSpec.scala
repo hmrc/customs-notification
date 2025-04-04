@@ -66,6 +66,10 @@ class UnblockPollerServiceSpec extends UnitSpec
     val currentTime = ZonedDateTime.of(2020, 1, 1, 0, 0, 0, 0, ZoneId.of("UTC"))
     val currentTimePlus2Hour = currentTime.plusMinutes(120)
 
+    val retryPollerInProgressRetryAfter = 5
+    val availableAt = currentTime.plusSeconds(retryPollerInProgressRetryAfter)
+    val finalAvailableAt= currentTime.plusSeconds(retryPollerInProgressRetryAfter + 25)
+
     val notificationConfig = NotificationConfig(Seq[String](""),
       60,
       false,
@@ -148,14 +152,14 @@ class UnblockPollerServiceSpec extends UnitSpec
       }
     }
 
-    "should poll the database and NOT unblock any blocked notifications when Push/Pull fails with a 5xx error" in new Setup {
+    "poll the database and NOT unblock any blocked notifications when Push/Pull fails with a 5xx error" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne), Future.successful(csIdSetOfOne))
       when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Some(WorkItem1))
       when(mockPushOrPullService.send(any[NotificationWorkItem]())(any())).thenReturn(Future.successful(Left(PushOrPullError(Pull, HttpResultError(Helpers.INTERNAL_SERVER_ERROR, BoomException)))))
       when(mockUnblockPollerConfig.pollerEnabled) thenReturn true
       when(mockUnblockPollerConfig.pollerInterval).thenReturn(LARGE_DELAY_TO_ENSURE_ONCE_ONLY_EXECUTION)
       when(notificationWorkItemRepoMock.incrementFailureCount(WorkItem1.id)).thenReturn(eventuallyUnit)
-      when(notificationWorkItemRepoMock.setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)).thenReturn(eventuallyUnit)
+      when(notificationWorkItemRepoMock.setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, availableAt)).thenReturn(eventuallyUnit)
 
       new UnblockPollerService(configServiceMock,
         testActorSystem,
@@ -170,7 +174,7 @@ class UnblockPollerServiceSpec extends UnitSpec
         verify(notificationWorkItemRepoMock, times(1)).pullSinglePfFor(validClientSubscriptionId1)
         verify(mockPushOrPullService, times(1)).send(any[NotificationWorkItem]())(any())
         verify(notificationWorkItemRepoMock, times(1)).incrementFailureCount(WorkItem1.id)
-        verify(notificationWorkItemRepoMock, times(1)).setPermanentlyFailed(WorkItem1.id, Helpers.INTERNAL_SERVER_ERROR)
+        verify(notificationWorkItemRepoMock, times(1)).setPermanentlyFailedWithAvailableAt(WorkItem1.id,PermanentlyFailed, Helpers.INTERNAL_SERVER_ERROR, finalAvailableAt) //TODO Available at
         verify(notificationWorkItemRepoMock, times(0)).fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)
         succeed
       }

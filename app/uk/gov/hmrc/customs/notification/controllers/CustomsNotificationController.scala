@@ -86,7 +86,7 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
                                              (implicit ec: ExecutionContext)
                extends BackendController(cc) with HeaderValidator {
 
-  override val notificationLogger: NotificationLogger = logger
+  override val notificationLogger: NotificationLogger = logger // TODO: have a look at using self-type?
   override val controllerComponents: ControllerComponents = cc
   private lazy val maybeBasicAuthToken: Option[String] = configService.maybeBasicAuthToken
   private lazy val xmlValidationErrorMessage = "Request body does not contain well-formed XML."
@@ -119,7 +119,11 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
   }
 
   private def process(xml: NodeSeq)(implicit md: RequestMetaData, hc: HeaderCarrier): Future[Result] = {
-    logger.debug(s"Received notification with payload: $xml, metaData: $md")
+    if (logger.isDebugEnabled) {
+      logger.debug(s"Received notification with payload: $xml, metaData: $md")
+    } else {
+      logger.info(s"Received notification")
+    }
 
     callbackDetailsConnector.getClientData(md.clientSubscriptionId.toString()).flatMap {
       case Some(apiSubscriptionFields) =>

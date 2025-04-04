@@ -35,5 +35,6 @@ class CdsLogger @Inject()(serviceConfig: ServicesConfig) {
   def warn(msg: => String, e: => Throwable): Unit = logger.warn(msg, e)
   def error(msg: => String): Unit = logger.error(msg)
   def error(msg: => String, e: => Throwable): Unit = logger.error(msg, e)
+  def isDebugEnabled: Boolean = logger.isDebugEnabled
 
 }

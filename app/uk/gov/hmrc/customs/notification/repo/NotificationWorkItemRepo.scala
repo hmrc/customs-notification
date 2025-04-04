@@ -38,6 +38,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 @ImplementedBy(classOf[NotificationWorkItemMongoRepo])
 trait NotificationWorkItemRepo {
@@ -46,11 +47,13 @@ trait NotificationWorkItemRepo {
 
   def setCompletedStatus(id: ObjectId, status: ResultStatus): Future[Unit]
 
-  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit]
+  def setPermanentlyFailedWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit]
 
   def blockedCount(clientId: ClientId): Future[Int]
+
+  def inProgressCount(clientId: ClientId): Future[Int]
 
   def deleteBlocked(clientId: ClientId): Future[Int]
 
@@ -175,9 +178,9 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     complete(id, status).map(_ => ())
   }
 
-  def setPermanentlyFailed(id: ObjectId, httpStatus: Int): Future[Unit] = {
-    logger.debug(s"setting completed status of [${PermanentlyFailed.name}] for notification work item id: [${id.toString}]")
-    complete(id, PermanentlyFailed).flatMap { updateSuccessful =>
+  def setPermanentlyFailedWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
+    logger.debug(s"Setting completed status of [${PermanentlyFailed.name}] for [$collectionName] id: [${id.toString}] next available at:[${}]")
+    markAs(id, PermanentlyFailed, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
         setMostRecentPushPullHttpStatus(id, Some(httpStatus))
       } else {
@@ -187,7 +190,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   }
 
   def setCompletedStatusWithAvailableAt(id: ObjectId, status: ResultStatus, httpStatus: Int, availableAt: ZonedDateTime): Future[Unit] = {
-    logger.debug(s"setting completed status of [$status] for notification work item id: [${id.toString}]" +
+    logger.debug(s"Setting completed status of [$status] for [$collectionName] id: [${id.toString}]" +
       s"with availableAt: [$availableAt] and mostRecentPushPullHttpStatus: [$httpStatus]")
     markAs(id, status, Some(availableAt.toInstant)).flatMap { updateSuccessful =>
       if (updateSuccessful) {
@@ -201,6 +204,12 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   override def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count (i.e. those with status of [${PermanentlyFailed.name}]) for clientId [${clientId.id}]")
     val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)))
+    collection.countDocuments(selector).toFuture().map(_.toInt)
+  }
+
+  override def inProgressCount(clientId: ClientId): Future[Int] = {
+    logger.debug(s"Getting count of ${ InProgress.name } for clientId [${clientId.id}]")
+    val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, ProcessingStatus.toBson(InProgress)))
     collection.countDocuments(selector).toFuture().map(_.toInt)
   }
 
@@ -270,18 +279,28 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
 
   override def pullSinglePfFor(csid: ClientSubscriptionId): Future[Option[WorkItem[NotificationWorkItem]]] = {
     val selector = csIdAndStatusSelector(csid, PermanentlyFailed)
-    val update = updateStatusBson(InProgress)
-    collection.findOneAndUpdate(selector, update, FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(false))
+    val update = combine(updateStatusBson(InProgress))
+    collection.findOneAndUpdate(selector, update, new FindOneAndUpdateOptions().
+        returnDocument(ReturnDocument.AFTER).upsert(false).
+        sort(Sorts.ascending("createdAt"))) //TODO DCWL-2372 do we want to sort? As may be expensive.
       .toFutureOption()
   }
 
-  override def incrementFailureCount(id: ObjectId): Future[Unit] = {
-    logger.debug(s"incrementing failure count for notification work item id: [${id.toString}]")
+  private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
+    and(
+      equal("clientNotification._id", csid.id.toString),
+      equal(workItemFields.status, ProcessingStatus.toBson(status)),
+      lt("availableAt", now()))
+  }
 
+  override def incrementFailureCount(id: ObjectId): Future[Unit] = {
     val selector = equal(workItemFields.id, id)
     val update = inc(workItemFields.failureCount, 1)
 
-    collection.findOneAndUpdate(selector, update).toFuture().map(_ => ())
+    collection.findOneAndUpdate(selector, update).toFuture().map { x =>
+      logger.debug(s"Incremented failure count to [${x.failureCount + 1}] for [$collectionName] [${id.toString}]")
+      ()
+    }
   }
 
   override def deleteAll(): Future[Unit] = {
@@ -292,12 +311,6 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     }
   }
 
-  private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
-    and(
-      equal("clientNotification._id", csid.id.toString),
-      equal(workItemFields.status, ProcessingStatus.toBson(status)),
-      lt("availableAt", now()))
-  }
 
   private def updateStatusBson(updStatus: ProcessingStatus): Bson = {
     combine(

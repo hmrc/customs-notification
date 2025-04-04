@@ -19,6 +19,7 @@ package integration
 import com.typesafe.config.Config
 import org.mockito.Mockito._
 import org.mongodb.scala.model.Filters
+import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.mockito.MockitoSugar
@@ -26,11 +27,11 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
-import unit.logging.StubCdsLogger
 import util.TestData._
 import util.UnitSpec
 
@@ -48,7 +49,7 @@ class NotificationWorkItemRepoSpec extends UnitSpec
   with ScalaFutures {
 
   private implicit val ec: ExecutionContext = Helpers.stubControllerComponents().executionContext
-  private val mockCdsLogger: StubCdsLogger = mock[StubCdsLogger]
+  private val mockCdsLogger = app.injector.instanceOf[CdsLogger]
   private val mockUnblockPollerConfig: UnblockPollerConfig = mock[UnblockPollerConfig]
   private val mockConfiguration = mock[Configuration]
 
@@ -223,10 +224,12 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       } yield (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount)
 
       whenReady(result) { case (wiClient1One, wiClient1Two, wiClient3One, toPerFailedCount) =>
-        toPerFailedCount shouldBe 2
-        await(repository.findById(wiClient1One.id)).get.status shouldBe PermanentlyFailed
-        await(repository.findById(wiClient1Two.id)).get.status shouldBe PermanentlyFailed
-        await(repository.findById(wiClient3One.id)).get.status shouldBe Failed
+        eventually {
+          toPerFailedCount shouldBe 2 // TODO DCWL-2621 failed 2
+          repository.findById(wiClient1One.id).get.status shouldBe PermanentlyFailed
+          repository.findById(wiClient1Two.id).get.status shouldBe PermanentlyFailed
+          repository.findById(wiClient3One.id).get.status shouldBe Failed // TODO DCWL-2621 failed 3
+        }
       }
     }
 

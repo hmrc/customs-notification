@@ -60,4 +60,6 @@ class NotificationLogger @Inject()(logger: CdsLogger) {
     logger.error(format(msg, rm), t)
   }
 
+  def isDebugEnabled: Boolean = logger.isDebugEnabled
+
 }
