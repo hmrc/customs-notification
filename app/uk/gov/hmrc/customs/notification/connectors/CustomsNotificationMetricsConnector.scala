@@ -18,10 +18,12 @@ package uk.gov.hmrc.customs.notification.connectors
 
 import play.api.http.HeaderNames.{ACCEPT, CONTENT_TYPE}
 import play.api.http.MimeTypes
+import play.api.libs.json.Json
 import uk.gov.hmrc.customs.notification.domain.{CustomsNotificationConfig, CustomsNotificationsMetricsRequest}
 import uk.gov.hmrc.customs.notification.http.{NoAuditHttpClient, Non2xxResponseException}
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.{HeaderCarrier, HttpErrorFunctions, HttpException, HttpResponse}
 
 import javax.inject.{Inject, Singleton}
@@ -46,15 +48,20 @@ class CustomsNotificationMetricsConnector @Inject()(http: NoAuditHttpClient,
   private def post[A](request: CustomsNotificationsMetricsRequest, url: String)(implicit hc: HeaderCarrier): Future[Unit] = {
 
     logger.debug(s"Sending request to customs notification metrics service. Url: $url Payload: ${request.toString}")
-    http.POST[CustomsNotificationsMetricsRequest, HttpResponse](url, request).map{ response =>
-      response.status match {
-        case status if is2xx(status) =>
-          logger.debug(s"[conversationId=${request.conversationId}]: customs notification metrics sent successfully")
-          ()
 
-        case status => //1xx, 3xx, 4xx, 5xx
-          throw new Non2xxResponseException(status)
-      }
+    http
+      .post(url"$url")(hc)
+      .withBody(Json.toJson(request))
+      .execute[HttpResponse]
+      .map{ response =>
+        response.status match {
+          case status if is2xx(status) =>
+            logger.debug(s"[conversationId=${request.conversationId}]: customs notification metrics sent successfully")
+            ()
+
+          case status => //1xx, 3xx, 4xx, 5xx
+            throw new Non2xxResponseException(status)
+        }
     }.recoverWith {
       case httpError: HttpException =>
         logger.warn(s"[conversationId=${request.conversationId}]: Call to customs notification metrics service failed. url=$url httpError=${httpError.responseCode}", httpError)

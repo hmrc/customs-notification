@@ -43,6 +43,8 @@ case class PushNotificationRequest(clientSubscriptionId: String, body: PushNotif
 
 object PushNotificationRequest {
 
+  implicit val jsonFormat: OFormat[PushNotificationRequest] = Json.format[PushNotificationRequest]
+
   def pushNotificationRequestFrom(declarantCallbackData: DeclarantCallbackData, n: NotificationWorkItem): PushNotificationRequest = {
     PushNotificationRequest(
       n._id.id.toString,

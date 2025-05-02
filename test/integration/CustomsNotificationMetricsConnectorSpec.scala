@@ -48,6 +48,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
   }
 
   override protected def beforeEach(): Unit = {
+    startMockServer()
     resetMockServer()
     stubAuditService()
     Mockito.reset(mockLogger)
@@ -84,7 +85,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
       verifyExpectedErrorCaught(NOT_FOUND)
 
       eventually(verifyNoAuditWrite())
-      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=404", mockLogger)
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:6001/log-times httpError=404", mockLogger)
     }
 
     "return a failed future when external service returns 400" in {
@@ -93,7 +94,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
       verifyExpectedErrorCaught(BAD_REQUEST)
 
       eventually(verifyNoAuditWrite())
-      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=400", mockLogger)
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:6001/log-times httpError=400", mockLogger)
     }
 
     "return a failed future when external service returns 500" in {
@@ -102,7 +103,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
       verifyExpectedErrorCaught(INTERNAL_SERVER_ERROR)
 
       eventually(verifyNoAuditWrite())
-      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=500", mockLogger)
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:6001/log-times httpError=500", mockLogger)
     }
 
     "return a failed future when fail to connect the external service" in {
@@ -111,7 +112,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
       intercept[RuntimeException](await(sendValidRequest())).getCause.getClass shouldBe classOf[BadGatewayException]
 
       startMockServer()
-      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:11111/log-times httpError=502", mockLogger)
+      verifyCdsLoggerWarn("[conversationId=eaca01f9-ec3b-4ede-b263-61b626dde231]: Call to customs notification metrics service failed. url=http://localhost:6001/log-times httpError=502", mockLogger)
     }
   }
 

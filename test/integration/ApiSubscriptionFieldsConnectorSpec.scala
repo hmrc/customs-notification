@@ -86,6 +86,8 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
     "return None when external service responds with 404 (NOT FOUND)" in {
       setupApiSubscriptionFieldsServiceToReturn(NOT_FOUND, validFieldsId)
 
+      print("wiremock mappings = " + wireMockServer.getStubMappings);
+
       await(connector.getClientData(validFieldsId)) shouldBe None
 
       verifyApiSubscriptionFieldsServiceWasCalled(validFieldsId)

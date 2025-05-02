@@ -16,6 +16,7 @@
 
 package unit
 
+import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 
 trait DynamicServiceTestData {
@@ -39,7 +40,7 @@ trait DynamicServiceTestData {
 
   protected val defaultEnvironment = "default"
 
-  val configuredApplication = GuiceApplicationBuilder(
+  val configuredApplication: Application = GuiceApplicationBuilder(
     modules = Seq()).
     configure(
       Map(
