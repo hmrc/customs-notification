@@ -257,9 +257,15 @@ trait NotificationQueueService extends WireMockRunner {
     }
 
     request.notification.notificationId match {
-      case Some(notificationId) => allRequestsMade.get(0).getHeader(NOTIFICATION_ID_HEADER_NAME) shouldBe notificationId.toString
-      case None => allRequestsMade.get(0).getAllHeaderKeys.contains(NOTIFICATION_ID_HEADER_NAME) shouldBe false
+      case Some(`notificationId`) =>
+        allRequestsMade.get(0).getHeader(NOTIFICATION_ID_HEADER_NAME) shouldBe notificationId.toString
+      case None =>
+        allRequestsMade.get(0).getAllHeaderKeys.contains(NOTIFICATION_ID_HEADER_NAME) shouldBe false
+      case _ =>
+        throw new MatchError("Unexpected NotificationId structure")
     }
+
+
   }
 
   def verifyNotificationQueueServiceWasNotCalled(): Unit =

@@ -59,7 +59,7 @@ class CustomsNotificationMetricsConnectorSpec extends IntegrationTestSpec
   }
 
   override implicit lazy val app: Application =
-    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(mockLogger).asGuiceableModule)).configure(Map(
+    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(mockLogger).asGuiceableModule)).configure(Map[String, Any](
       "auditing.consumer.baseUri.host" -> Host,
       "auditing.consumer.baseUri.port" -> Port,
       "auditing.enabled" -> true,

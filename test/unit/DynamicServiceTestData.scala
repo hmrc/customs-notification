@@ -43,7 +43,7 @@ trait DynamicServiceTestData {
   val configuredApplication: Application = GuiceApplicationBuilder(
     modules = Seq()).
     configure(
-      Map(
+      Map[String, Any](
         "play.http.router" -> "dynamicservice.Routes",
         "appName" -> "customs-declarations",
         s"microservice.services.$validService.host" -> validServiceHost,

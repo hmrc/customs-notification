@@ -143,7 +143,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
             .partialFilterExpression(
               Filters.and(
                 Filters.gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, 500),
-                equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed))))
+                equal(workItemFields.status, PermanentlyFailed)))
             .unique(false)
         )
       )
@@ -200,7 +200,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
 
   override def blockedCount(clientId: ClientId): Future[Int] = {
     logger.debug(s"getting blocked count (i.e. those with status of [${PermanentlyFailed.name}]) for clientId [${clientId.id}]")
-    val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)))
+    val selector = and(equal("clientNotification.clientId", Codecs.toBson(clientId)), equal(workItemFields.status, PermanentlyFailed))
     collection.countDocuments(selector).toFuture().map(_.toInt)
   }
 
@@ -208,9 +208,9 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
     logger.debug(s"deleting blocked flags (i.e. updating status of notifications from [${PermanentlyFailed.name}] to [${Failed.name}]) for clientId [${clientId.id}]")
     val selector = and(
       equal("clientNotification.clientId", Codecs.toBson(clientId)),
-      equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed))
+      equal(workItemFields.status, PermanentlyFailed)
     )
-    val update = set(workItemFields.status, ProcessingStatus.toBson(Failed))
+    val update = set(workItemFields.status, Failed)
 
     collection.updateMany(selector, update).toFuture().map { result =>
       logger.debug(s"deleted [${result.getModifiedCount}] blocked flags (i.e. updating status of notifications from [${PermanentlyFailed.name}] to [${Failed.name}]) for clientId [${clientId.id}]")
@@ -255,7 +255,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
 
   override def distinctPermanentlyFailedByCsId(): Future[Set[ClientSubscriptionId]] = {
     val selector = and(
-      equal(workItemFields.status, ProcessingStatus.toBson(PermanentlyFailed)),
+      equal(workItemFields.status, PermanentlyFailed),
       lt("availableAt", now()))
     collection.distinct[String]("clientNotification._id", selector)
       .toFuture()
@@ -295,13 +295,13 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
   private def csIdAndStatusSelector(csid: ClientSubscriptionId, status: ProcessingStatus): Bson = {
     and(
       equal("clientNotification._id", csid.id.toString),
-      equal(workItemFields.status, ProcessingStatus.toBson(status)),
+      equal(workItemFields.status, status),
       lt("availableAt", now()))
   }
 
   private def updateStatusBson(updStatus: ProcessingStatus): Bson = {
     combine(
-      set(workItemFields.status, ProcessingStatus.toBson(updStatus)),
+      set(workItemFields.status, updStatus),
       set(workItemFields.updatedAt, now())
     )
   }
