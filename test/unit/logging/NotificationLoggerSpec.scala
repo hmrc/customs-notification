@@ -18,7 +18,7 @@ package unit.logging
 
 import org.mockito.ArgumentMatchers.any
 import org.scalatestplus.mockito.MockitoSugar
-import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
+import uk.gov.hmrc.customs.notification.controllers.customnotification.RequestMetaData
 import uk.gov.hmrc.customs.notification.logging.{CdsLogger, NotificationLogger}
 import util.MockitoPassByNameHelper.PassByNameVerifier
 import util.TestData.requestMetaData

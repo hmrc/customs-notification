@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.controllers
+package uk.gov.hmrc.customs.notification.controllers.documentation
 
 import controllers.Assets
 import play.api.mvc.{Action, AnyContent, ControllerComponents}

@@ -18,7 +18,8 @@ package unit.connectors
 
 import org.mockito.Mockito.when
 import org.scalatestplus.mockito.MockitoSugar
-import uk.gov.hmrc.customs.notification.controllers.{FieldsIdMapperHotFix, RequestMetaData}
+import uk.gov.hmrc.customs.notification.controllers.FieldsIdMapperHotFix
+import uk.gov.hmrc.customs.notification.controllers.customnotification.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.NotificationConfig
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import util.MockitoPassByNameHelper.PassByNameVerifier

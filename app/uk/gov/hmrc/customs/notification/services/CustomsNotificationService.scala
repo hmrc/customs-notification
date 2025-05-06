@@ -17,7 +17,7 @@
 package uk.gov.hmrc.customs.notification.services
 
 import play.api.http.MimeTypes
-import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
+import uk.gov.hmrc.customs.notification.controllers.customnotification.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain.PushNotificationRequest.pushNotificationRequestFrom
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger

@@ -25,7 +25,8 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers.{DELETE, GET}
 import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
-import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, ErrorResponse, RequestMetaData}
+import uk.gov.hmrc.customs.notification.controllers.customnotification.RequestMetaData
+import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, ErrorResponse}
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.http.StringContextOps
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
