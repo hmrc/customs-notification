@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.controllers.customnotification
+package uk.gov.hmrc.customs.notification.controllers
 
 import play.api.http.ContentTypes
 import play.api.mvc._
 import uk.gov.hmrc.customs.notification.controllers.CustomErrorResponses.ErrorClientIdMissing
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames.X_CLIENT_ID_HEADER_NAME
-import uk.gov.hmrc.customs.notification.controllers.ErrorResponse
 import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.customs.notification.domain.{ClientId, HasId}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger

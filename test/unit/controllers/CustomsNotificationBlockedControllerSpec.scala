@@ -23,7 +23,7 @@ import play.api.mvc._
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import play.mvc.Http.MimeTypes
-import uk.gov.hmrc.customs.notification.controllers.customnotification.CustomsNotificationBlockedController
+import uk.gov.hmrc.customs.notification.controllers.CustomsNotificationBlockedController
 import uk.gov.hmrc.customs.notification.controllers.ErrorResponse.{ErrorInternalServerError, ErrorNotFound, errorBadRequest}
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.customs.notification.services.CustomsNotificationBlockedService

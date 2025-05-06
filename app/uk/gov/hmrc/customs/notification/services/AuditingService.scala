@@ -18,7 +18,7 @@ package uk.gov.hmrc.customs.notification.services
 
 import com.google.inject.Inject
 import play.api.libs.json.{JsObject, JsString, JsValue}
-import uk.gov.hmrc.customs.notification.controllers.customnotification.RequestMetaData
+import uk.gov.hmrc.customs.notification.controllers.RequestMetaData
 import uk.gov.hmrc.customs.notification.domain._
 import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames}
