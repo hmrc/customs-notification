@@ -37,7 +37,7 @@ class DocumentationControllerSpec extends IntegrationTestSpec with MockitoSugar 
   override implicit lazy val app: Application = GuiceApplicationBuilder(
     modules = Seq()).
     configure(
-      Map(
+      Map[String, Any](
         "play.http.router" -> "definition.Routes",
         "application.logger.name" -> "customs-api-common",
         "appName" -> "customs-declarations",

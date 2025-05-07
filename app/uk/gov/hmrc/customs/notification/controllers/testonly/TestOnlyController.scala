@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.customs.notification.controllers
+package uk.gov.hmrc.customs.notification.controllers.testonly
 
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.customs.notification.services.TestOnlyService

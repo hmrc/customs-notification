@@ -58,7 +58,7 @@ class ApiSubscriptionFieldsConnectorSpec extends IntegrationTestSpec
   }
 
   override implicit lazy val app: Application =
-    GuiceApplicationBuilder().configure(Map(
+    GuiceApplicationBuilder().configure(Map[String, Any](
       "auditing.enabled" -> false,
       "microservice.services.api-subscription-fields.host" -> Host,
       "microservice.services.api-subscription-fields.port" -> Port,

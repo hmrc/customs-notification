@@ -53,7 +53,7 @@ class ExternalPushConnectorSpec extends IntegrationTestSpec
   }
 
   override implicit lazy val app: Application =
-    GuiceApplicationBuilder().configure(Map(
+    GuiceApplicationBuilder().configure(Map[String, Any](
       "auditing.enabled" -> false,
       "microservice.services.public-notification.host" -> Host,
       "microservice.services.public-notification.port" -> Port,

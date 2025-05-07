@@ -42,7 +42,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
 
   private lazy val connector = app.injector.instanceOf[InternalPushConnector]
   private val stubCdsLogger = StubCdsLogger()
-  private val validUrl = Some(new URL(s"http://localhost:11111${ExternalServicesConfiguration.InternalPushServiceContext}"))
+  private val validUrl = Some(new URL(s"http://localhost:6001${ExternalServicesConfiguration.InternalPushServiceContext}"))
 
   def pnr(url: Option[URL] = validUrl): PushNotificationRequest = PushNotificationRequest(
     CsidOne.id.toString,
@@ -72,7 +72,7 @@ class InternalPushConnectorSpec extends IntegrationTestSpec
   }
 
   override implicit lazy val app: Application =
-    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(stubCdsLogger).asGuiceableModule)).configure(Map(
+    GuiceApplicationBuilder(overrides = Seq(IntegrationTestModule(stubCdsLogger).asGuiceableModule)).configure(Map[String, Any](
       "auditing.enabled" -> false,
       "non.blocking.retry.after.minutes" -> 10
     )).build()

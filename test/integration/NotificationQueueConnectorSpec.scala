@@ -55,7 +55,7 @@ class NotificationQueueConnectorSpec extends IntegrationTestSpec
   }
 
   override implicit lazy val app: Application =
-    GuiceApplicationBuilder().configure(Map(
+    GuiceApplicationBuilder().configure(Map[String, Any](
       "auditing.enabled" -> false,
       "microservice.services.notification-queue.host" -> Host,
       "microservice.services.notification-queue.port" -> Port,

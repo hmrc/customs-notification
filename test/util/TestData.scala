@@ -27,6 +27,7 @@ import play.mvc.Http.MimeTypes
 import uk.gov.hmrc.customs.notification.controllers.CustomHeaderNames._
 import uk.gov.hmrc.customs.notification.controllers.{CustomMimeType, ErrorResponse, RequestMetaData}
 import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.http.StringContextOps
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import uk.gov.hmrc.mongo.workitem.WorkItem
 import util.CustomsNotificationMetricsTestData.UtcZoneId
@@ -70,13 +71,15 @@ object TestData {
   val emulatedServiceFailure = new EmulatedServiceFailure("Emulated service failure.")
 
   val callbackUrl = CallbackUrl(Some(new URL("http://callback")))
-  val internalCallbackUrl = new URL("http://localhost:11111" + ExternalServicesConfiguration.InternalPushServiceContext)
+  val internalCallbackUrl = new URL("http://localhost:6001" + ExternalServicesConfiguration.InternalPushServiceContext)
   val invalidCallbackUrl = "Im-Invalid"
   val securityToken = "securityToken"
   val callbackData = DeclarantCallbackData(callbackUrl, securityToken)
   val internalCallbackData = DeclarantCallbackData(CallbackUrl(Some(internalCallbackUrl)), securityToken)
   lazy val badgeIdHeader = Header(X_BADGE_ID_HEADER_NAME, badgeId)
   lazy val dateHeader = Header(ISSUE_DATE_TIME_HEADER, issueDateTime)
+  lazy val submitterIdHeader = Header(X_SUBMITTER_ID_HEADER_NAME, submitterNumber)
+  lazy val correlationIdHeader = Header(X_CORRELATION_ID_HEADER_NAME, correlationId)
 
   val url = "http://some-url"
   val errorMsg = "ERROR"
@@ -93,8 +96,8 @@ object TestData {
   val issueDateTime = "20190925104103Z"
   val mrn = "19GB3955NQ36213969"
 
-  val externalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader)
-  val internalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader, dateHeader)
+  val externalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader, submitterIdHeader, correlationIdHeader)
+  val internalPushNotificationRequestBodyHeaders: Seq[Header] = Seq(badgeIdHeader, dateHeader, submitterIdHeader, correlationIdHeader)
   lazy val somePushNotificationRequest: Option[PushNotificationRequest] = Some(externalPushNotificationRequest)
   lazy val externalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, headers = externalPushNotificationRequestBodyHeaders)
   lazy val internalPushNotificationRequest: PushNotificationRequest = pushNotificationRequest(ValidXML, internalCallbackData, internalPushNotificationRequestBodyHeaders)
@@ -166,7 +169,7 @@ object TestData {
   val ApiSubscriptionFieldsOneForPush = ApiSubscriptionFields(clientId1.toString, DeclarantCallbackDataOneForPush)
   val ApiSubscriptionFieldsOneForPull = ApiSubscriptionFields(clientId1.toString, DeclarantCallbackDataOneForPull)
 
-  val PushNotificationRequest1 = PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody(CallbackUrl(Some(new URL("http://URL"))), "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
+  val PushNotificationRequest1 = new PushNotificationRequest(validClientSubscriptionId1.id.toString, PushNotificationRequestBody(CallbackUrl(Some(url"http://URL")), "SECURITY_TOKEN", conversationId.id.toString, requestMetaDataHeaders, payload1))
 
   def clientNotification(withBadgeId: Boolean = true, withCorrelationId: Boolean = true, withNotificationId: Boolean = true): ClientNotification = {
 

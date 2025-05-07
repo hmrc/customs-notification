@@ -67,9 +67,15 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output should have size 1
-      val loggedMessage :: Nil = output
-      loggedMessage should endWith(s"DEBUG $cdsLoggerName -- $msg")
+
+      output match {
+        case List(loggedMessage) =>
+          loggedMessage should endWith(s"DEBUG $cdsLoggerName -- $msg")
+        case other =>
+          fail(s"Expected exactly one log message, but got: $other")
+      }
     }
+
 
     "log debug with exception" in new Setup {
       val msg = "debug"
@@ -80,11 +86,17 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output.size should be > 2
-      val loggedMessage :: exceptionMessage :: stacktrace = output
-      loggedMessage should endWith(s"DEBUG $cdsLoggerName -- $msg")
-      exceptionMessage shouldBe exception.toString
-      stacktrace foreach(_ should startWith("\tat "))
+
+      output match {
+        case loggedMessage :: exceptionMessage :: stacktrace if stacktrace.nonEmpty =>
+          loggedMessage should endWith(s"DEBUG $cdsLoggerName -- $msg")
+          exceptionMessage shouldBe exception.toString
+          stacktrace foreach (_ should startWith("\tat "))
+        case _ =>
+          fail("The log output doesn't contain the expected elements.")
+      }
     }
+
 
     "log info" in new Setup {
       val msg = "info"
@@ -94,9 +106,15 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output should have size 1
-      val loggedMessage :: Nil = output
-      loggedMessage should endWith(s"INFO $cdsLoggerName -- $msg")
+
+      output match {
+        case List(loggedMessage) =>
+          loggedMessage should endWith(s"INFO $cdsLoggerName -- $msg")
+        case other =>
+          fail(s"Expected exactly one log message, but got: $other")
+      }
     }
+
 
     "log info with exception" in new Setup {
       val msg = "info"
@@ -107,11 +125,17 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output.size should be > 2
-      val loggedMessage :: exceptionMessage :: stacktrace = output
-      loggedMessage should endWith(s"INFO $cdsLoggerName -- $msg")
-      exceptionMessage shouldBe exception.toString
-      stacktrace foreach(_ should startWith("\tat "))
+
+      output match {
+        case loggedMessage :: exceptionMessage :: stacktrace if stacktrace.nonEmpty =>
+          loggedMessage should endWith(s"INFO $cdsLoggerName -- $msg")
+          exceptionMessage shouldBe exception.toString
+          stacktrace foreach (_ should startWith("\tat "))
+        case _ =>
+          fail("The log output doesn't contain the expected elements.")
+      }
     }
+
 
     "log warn" in new Setup {
       val msg = "warn"
@@ -121,11 +145,17 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output should have size 1
-      val loggedMessage :: Nil = output
-      loggedMessage should endWith(s"WARN $cdsLoggerName -- $msg")
-      println(s"******************* $loggedMessage")
 
+      output match {
+        case loggedMessage :: Nil =>
+          loggedMessage should endWith(s"WARN $cdsLoggerName -- $msg")
+        case _ =>
+          fail("The log output doesn't contain exactly one message.")
+      }
+
+      println(s"******************* $output")
     }
+
 
     "log warn with exception" in new Setup {
       val msg = "warn"
@@ -136,11 +166,17 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output.size should be > 2
-      val loggedMessage :: exceptionMessage :: stacktrace = output
-      loggedMessage should endWith(s"WARN $cdsLoggerName -- $msg")
-      exceptionMessage shouldBe exception.toString
-      stacktrace foreach(_ should startWith("\tat "))
+
+      output match {
+        case loggedMessage :: exceptionMessage :: stacktrace if stacktrace.nonEmpty =>
+          loggedMessage should endWith(s"WARN $cdsLoggerName -- $msg")
+          exceptionMessage shouldBe exception.toString
+          stacktrace foreach (_ should startWith("\tat "))
+        case _ =>
+          fail("The log output doesn't contain the expected elements.")
+      }
     }
+
 
     "log error" in new Setup {
       val msg = "error"
@@ -150,8 +186,13 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output should have size 1
-      val loggedMessage :: Nil = output
-      loggedMessage should endWith(s"ERROR $cdsLoggerName -- $msg")
+
+      output match {
+        case loggedMessage :: Nil =>
+          loggedMessage should endWith(s"ERROR $cdsLoggerName -- $msg")
+        case _ =>
+          fail("The log output doesn't contain exactly one message.")
+      }
     }
 
     "log error with exception" in new Setup {
@@ -163,10 +204,15 @@ class CdsLoggerSpec extends UnitSpec with MockitoSugar {
       }
 
       output.size should be > 2
-      val loggedMessage :: exceptionMessage :: stacktrace = output
-      loggedMessage should endWith(s"ERROR $cdsLoggerName -- $msg")
-      exceptionMessage shouldBe exception.toString
-      stacktrace foreach(_ should startWith("\tat "))
+
+      output match {
+        case loggedMessage :: exceptionMessage :: stacktrace if stacktrace.nonEmpty =>
+          loggedMessage should endWith(s"ERROR $cdsLoggerName -- $msg")
+          exceptionMessage shouldBe exception.toString
+          stacktrace foreach (_ should startWith("\tat "))
+        case _ =>
+          fail("The log output doesn't contain the expected elements.")
+      }
     }
   }
 }

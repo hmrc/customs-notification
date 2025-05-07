@@ -257,9 +257,15 @@ trait NotificationQueueService extends WireMockRunner {
     }
 
     request.notification.notificationId match {
-      case Some(notificationId) => allRequestsMade.get(0).getHeader(NOTIFICATION_ID_HEADER_NAME) shouldBe notificationId.toString
-      case None => allRequestsMade.get(0).getAllHeaderKeys.contains(NOTIFICATION_ID_HEADER_NAME) shouldBe false
+      case Some(`notificationId`) =>
+        allRequestsMade.get(0).getHeader(NOTIFICATION_ID_HEADER_NAME) shouldBe notificationId.toString
+      case None =>
+        allRequestsMade.get(0).getAllHeaderKeys.contains(NOTIFICATION_ID_HEADER_NAME) shouldBe false
+      case _ =>
+        throw new MatchError("Unexpected NotificationId structure")
     }
+
+
   }
 
   def verifyNotificationQueueServiceWasNotCalled(): Unit =
@@ -268,10 +274,10 @@ trait NotificationQueueService extends WireMockRunner {
 }
 
 object ExternalServicesConfiguration {
-  val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "11111").toInt
+  val Port: Int = sys.env.getOrElse("WIREMOCK_SERVICE_PORT", "6001").toInt
   val Host = "localhost"
   val PushNotificationServiceContext = "/notify-customs-declarant"
-  val ApiSubscriptionFieldsServiceContext = "/api-subscription-fields"
+  val ApiSubscriptionFieldsServiceContext = "/field"
   val NotificationQueueContext = "/queue"
   val CustomsNotificationMetricsContext = "/log-times"
   val InternalPushServiceContext = "/internal/notify"
