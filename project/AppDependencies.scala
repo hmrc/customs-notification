@@ -3,7 +3,7 @@ import sbt.*
 object AppDependencies {
 
   private val mongoVersion = "2.6.0"
-  private val boostrapVersion = "9.11.0"
+  private val boostrapVersion = "9.13.0"
   private val playVersion = "play-30"
 
   val compile = Seq(
@@ -13,9 +13,9 @@ object AppDependencies {
   )
 
   val test = Seq(
-    "org.scalatestplus.play"       %% "scalatestplus-play"            % "7.0.1" ,
+
     "org.wiremock"                  % "wiremock-standalone"           % "3.12.0"  ,
-    "org.scalatestplus"            %% "scalatestplus-mockito"         % "1.0.0-M2" ,
+    "org.scalatestplus"            %% "mockito-4-11"                  % "3.2.17.0" ,
     "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-test-$playVersion" % mongoVersion,
     "uk.gov.hmrc"                  %% s"bootstrap-test-$playVersion"  % boostrapVersion,
     "com.fasterxml.jackson.module" %% "jackson-module-scala"          % "2.18.2"

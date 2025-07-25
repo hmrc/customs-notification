@@ -32,6 +32,9 @@ import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, ResultStatus, WorkItem, WorkItemRepository}
 import uk.gov.hmrc.mongo.{MongoComponent, MongoUtils}
+import org.mongodb.scala.SingleObservableFuture
+import org.mongodb.scala.ObservableFuture
+
 
 import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
@@ -101,7 +104,7 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
           indexOptions = IndexOptions()
             .name(TTL_INDEX_NAME)
             .unique(false)
-            .expireAfter(ttlInSeconds, TimeUnit.SECONDS)
+            .expireAfter(ttlInSeconds.toLong, TimeUnit.SECONDS)
         ),
         IndexModel(
           keys = descending("clientNotification.clientId"),

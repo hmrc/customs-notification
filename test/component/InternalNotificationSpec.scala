@@ -22,6 +22,7 @@ import play.api.test.Helpers._
 import util.ExternalServicesConfiguration.{Host, Port}
 import util.TestData._
 import util._
+import org.mongodb.scala.SingleObservableFuture
 
 class InternalNotificationSpec extends ComponentTestSpec
   with ApiSubscriptionFieldsService
