@@ -36,9 +36,6 @@ import uk.gov.hmrc.mongo.workitem.ResultStatus
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import util.TestData.{WorkItem1, validClientSubscriptionId1}
 import util.UnitSpec
-import org.mockito.Mockito.{times, verify, when}
-import org.scalatest.time.{Seconds, Span}
-import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
 import scala.concurrent.{ExecutionContext, Future}

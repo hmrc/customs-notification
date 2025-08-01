@@ -34,7 +34,6 @@ import unit.logging.StubCdsLogger
 import util.TestData._
 import util.UnitSpec
 import org.mongodb.scala.SingleObservableFuture
-import org.mongodb.scala.ObservableFuture
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.ExecutionContext
