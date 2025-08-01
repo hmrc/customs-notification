@@ -28,7 +28,7 @@ import javax.inject._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-import scala.util.{Success, Failure}
+
 
 @Singleton
 class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
