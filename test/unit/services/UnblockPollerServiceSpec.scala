@@ -18,27 +18,29 @@ package unit.services
 
 import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentMatchers
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
+import org.mockito.ArgumentMatchers.*
+import org.mockito.Mockito.*
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers
 import uk.gov.hmrc.customs.notification.domain.CustomsNotificationConfig
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.*
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
-import uk.gov.hmrc.customs.notification.services._
+import uk.gov.hmrc.customs.notification.services.*
 import uk.gov.hmrc.customs.notification.services.config.ConfigService
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.*
 import uk.gov.hmrc.mongo.workitem.ResultStatus
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import util.TestData.{WorkItem1, validClientSubscriptionId1}
 import util.UnitSpec
 import org.mockito.Mockito.{times, verify, when}
+import org.scalatest.time.{Seconds, Span}
+import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
 import java.time.{ZoneId, ZonedDateTime}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.concurrent.{ExecutionContext, Future}
 
 class UnblockPollerServiceSpec extends UnitSpec
@@ -84,7 +86,7 @@ class UnblockPollerServiceSpec extends UnitSpec
 
   "UnblockPollerService" should {
 
-    "should poll the database and unblock any blocked notifications when ONE distinct CsId found" in new Setup {
+    "poll the database and unblock any blocked notifications when ONE distinct CsId found" in new Setup {
       when(notificationWorkItemRepoMock.distinctPermanentlyFailedByCsId()).thenReturn(Future.successful(csIdSetOfOne))
       when(notificationWorkItemRepoMock.pullSinglePfFor(validClientSubscriptionId1)).thenReturn(Future(WorkItem1))
       when(notificationWorkItemRepoMock.fromPermanentlyFailedToFailedByCsId(validClientSubscriptionId1)).thenReturn(Future.successful(CountOfChangedStatuses))

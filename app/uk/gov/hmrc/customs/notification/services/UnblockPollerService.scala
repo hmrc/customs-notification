@@ -53,16 +53,15 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     }
   }
 
+
   private def retry(csid: ClientSubscriptionId): Future[Unit] = {
-    for {
-      maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
-    } yield {
-      maybeWorkItem match {
-        case Some(workItem) =>
-          pushOrPull(workItem).foreach(handleResponse(csid))
-        case None =>
-          logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
-      }
+    notificationWorkItemRepo.pullSinglePfFor(csid).map {
+      case Some(workItem) =>
+        pushOrPull(workItem).foreach(handleResponse(csid))
+      case None =>
+        logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
+    }.recover {
+      case exception => logger.error(s"Failed retrying permanently failed csids ${exception}")
     }
   }
 
