@@ -17,7 +17,7 @@
 package integration
 
 import com.typesafe.config.Config
-import org.mockito.Mockito._
+import org.mockito.Mockito.*
 import org.mongodb.scala.model.Filters
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -25,19 +25,21 @@ import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
 import play.api.test.Helpers
-import uk.gov.hmrc.customs.notification.domain._
+import uk.gov.hmrc.customs.notification.domain.*
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.*
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import unit.logging.StubCdsLogger
-import util.TestData._
+import util.TestData.*
 import util.UnitSpec
 import org.mongodb.scala.SingleObservableFuture
+import util.MockitoPassByNameHelper.PassByNameVerifier
+
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.language.postfixOps
 
 class NotificationWorkItemRepoSpec extends UnitSpec
@@ -357,6 +359,10 @@ class NotificationWorkItemRepoSpec extends UnitSpec
       await(repository.deleteAll())
 
       collectionSize shouldBe 0
+
+      PassByNameVerifier(mockCdsLogger, "debug")
+        .withByNameParam("deleting all notifications")
+        .verify()
     }
 
     "successfully get a notification that does not have a mostRecentPushPullHttpStatus" in {

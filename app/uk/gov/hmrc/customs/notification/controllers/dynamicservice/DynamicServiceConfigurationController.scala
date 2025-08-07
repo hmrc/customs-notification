@@ -25,8 +25,9 @@ import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 class DynamicServiceConfigurationController @Inject()(serviceConfigProvider: ServiceConfigProvider,
                                                       cc: ControllerComponents)
   extends BackendController(cc) {
-
-  private implicit val rds: Reads[ServiceConfigDto] = Json.reads[ServiceConfigDto]
+  implicit lazy val rds: Format[ServiceConfigDto] = Format(
+    (__ \ "environment").read[String].map(ServiceConfigDto(_)),
+    (__ \ "environment").write[String].contramap(_.environment))
   private implicit val wrt: OWrites[ViewServiceConfigDto] = Json.writes[ViewServiceConfigDto]
 
   def setConfigurationForService(service: String): Action[AnyContent] = Action { request =>

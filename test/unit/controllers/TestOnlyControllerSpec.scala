@@ -21,6 +21,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.customs.notification.controllers.testonly.TestOnlyController
+import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemRepo
 import uk.gov.hmrc.customs.notification.services.TestOnlyService
 import util.UnitSpec
 
@@ -39,6 +40,11 @@ class TestOnlyControllerSpec extends UnitSpec
       verify(mockTestOnlyService).deleteAll()
       status(result) shouldBe OK
     }
+    "call deleteAll on notificationWorkItemRepo" in {
+      val mockNotificationWorkItemRepo: NotificationWorkItemRepo = mock[NotificationWorkItemRepo]
+      val service = new TestOnlyService(mockNotificationWorkItemRepo)
+      service.deleteAll()
+      verify(mockNotificationWorkItemRepo).deleteAll()
+    }
   }
-
 }
