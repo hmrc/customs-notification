@@ -32,10 +32,6 @@ import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, ResultStatus, WorkItem, WorkItemRepository}
 import uk.gov.hmrc.mongo.{MongoComponent, MongoUtils}
-import org.mongodb.scala.SingleObservableFuture
-import org.mongodb.scala.ObservableFuture
-
-
 import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit

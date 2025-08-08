@@ -119,6 +119,7 @@ class CustomsNotificationBlockedControllerSpec
           await(result) shouldBe ErrorInternalServerError.XmlResult
         }
         verifyLog("error", s"unable to delete blocked flags due to java.lang.UnsupportedOperationException: Emulated service failure.", mockLogger)
+        verifyLogWithHeaders("debugWithHeaders","called delete blocked-flag",mockLogger)
       }
     }
 }
