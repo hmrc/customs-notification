@@ -88,6 +88,13 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
         .withParamMatcher(any[HasId])
         .verify()
     }
+
+    private[WorkItemServiceImplSpec] def verifyDebugLog(msg: String) = {
+      PassByNameVerifier(mockLogger, "debug")
+        .withByNameParam(msg)
+        .withParamMatcher(any[HasId])
+        .verify()
+    }
   }
 
   "For PUSH processOne" should {
@@ -117,6 +124,7 @@ class WorkItemServiceImplSpec extends UnitSpec with MockitoSugar {
       verify(mockRepo).setCompletedStatus(WorkItem4.id, Succeeded)
       verify(mockCounter).inc()
       verifyInfoLog("Push retry succeeded for WorkItem(5c46f7d70100000100ef835a,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,2016-01-30T23:46:59Z,ToDo,0,NotificationWorkItem(eaca01f9-ec3b-4ede-b263-61b626dde232,ClientId,Some(2016-01-30T23:46:59.002Z),notificationId: Some(58373a04-2c45-4f43-9ea2-74e56be2c6d7), conversationId: eaca01f9-ec3b-4ede-b263-61b626dde231, headers: List(Header(X-Badge-Identifier,ABCDEF1234), Header(X-Submitter-Identifier,IAMSUBMITTER), Header(X-Correlation-ID,CORRID2234), Header(X-IssueDateTime,20190925104103Z)), contentType: application/xml))")
+      verifyDebugLog("incrementing counter for metric: declaration-digital-notification-retry-total")
     }
 
     "return Future of true and set WorkItem status to Success when PULL returns 2XX" in new SetUp {

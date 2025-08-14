@@ -88,7 +88,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       retryPollerInstancesNel,
       nonBlockingRetryAfterMinutesNel,
       hotfixTranslate
-    ).mapN(NotificationConfig)
+    ).mapN(uk.gov.hmrc.customs.notification.domain.NotificationConfig.apply)
 
     val unblockPollerEnabledNel: CustomsValidatedNel[Boolean] =
       root.boolean("unblock.poller.enabled")
@@ -97,7 +97,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
     val unblockPollerConfigNel: CustomsValidatedNel[UnblockPollerConfig] =
       (unblockPollerEnabledNel,
         unblockPollerIntervalNel
-    ).mapN(UnblockPollerConfig)
+    ).mapN(uk.gov.hmrc.customs.notification.domain.UnblockPollerConfig.apply)
 
     val validatedConfig: CustomsValidatedNel[CustomsNotificationConfig] = (
       authTokenInternalNel,
@@ -105,7 +105,7 @@ class ConfigService @Inject()(configValidatedNel: ConfigValidatedNelAdaptor, log
       notificationConfig,
       notificationMetricsConfigNel,
       unblockPollerConfigNel
-    ).mapN(CustomsNotificationConfigImpl)
+    ).mapN(this.CustomsNotificationConfigImpl.apply)
 
       /*
        * the fold below is also similar to how we handle the error/success cases for Play2 forms - again the underlying

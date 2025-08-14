@@ -25,7 +25,7 @@ import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus._
 import util.TestData._
 import util._
-
+import org.mongodb.scala.ObservableFuture
 import scala.concurrent.Future
 
 class CustomsNotificationFailureSpec extends ComponentTestSpec

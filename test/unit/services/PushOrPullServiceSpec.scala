@@ -54,7 +54,7 @@ class PushOrPullServiceSpec extends UnitSpec with MockitoSugar with Inside {
     private[PushOrPullServiceSpec] val eventualLeftResultError = Future.successful(Left(mockResultError))
     private[PushOrPullServiceSpec] val eventualEmulatedServiceFailure = Future.failed(emulatedServiceFailure)
 
-    private[PushOrPullServiceSpec] val eventuallyNone = Future.successful(Future.successful(None))
+    private[PushOrPullServiceSpec] val eventuallyNone = Future.successful(None)
     private[PushOrPullServiceSpec] val eventuallySomePushClientCallbackData = Future.successful(Some(ApiSubscriptionFieldsOneForPush))
     private[PushOrPullServiceSpec] val eventuallySomePullClientCallbackData = Future.successful(Some(ApiSubscriptionFieldsOneForPull))
     private[PushOrPullServiceSpec] val clientNotification = ClientNotification(NotificationWorkItem1._id, NotificationWorkItem1.notification, None, None, new ObjectId(NotUsedBsonId))

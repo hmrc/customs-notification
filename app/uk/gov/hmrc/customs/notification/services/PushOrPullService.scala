@@ -42,8 +42,7 @@ class PushOrPullService @Inject()(
 (implicit ec: ExecutionContext) extends MapResultError {
 
   def send(n: NotificationWorkItem)(implicit hc: HeaderCarrier): Future[Either[PushOrPullError, ConnectorSource]] = {
-    implicit val hasId = n
-
+    implicit val hasId: NotificationWorkItem = n
     clientData(n._id).flatMap{
       case Right(fields) =>
         send(n, fields)

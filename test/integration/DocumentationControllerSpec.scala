@@ -51,6 +51,13 @@ class DocumentationControllerSpec extends IntegrationTestSpec with MockitoSugar 
     "serve definition.json" in assertRoutedContent("/api/definition", definitionJsonContent)
   }
 
+  "serve conf raml" in{
+   val version ="1.0"
+    val file =  "application.raml"
+    val expectedContent =  getResourceFileContent(s"/public/api/conf/$version/$file")
+    assertRoutedContent(s"/api/conf/$version/$file",expectedContent)
+  }
+
   private def assertRoutedContent(uri: String, expectedContent: String) = {
 
     val result: Option[Future[Result]] = route(app, FakeRequest("GET", uri))

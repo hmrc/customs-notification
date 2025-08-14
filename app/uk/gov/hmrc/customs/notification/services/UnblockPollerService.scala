@@ -29,6 +29,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
+
 @Singleton
 class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
                                      actorSystem: ActorSystem,
@@ -43,7 +44,7 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
 
     actorSystem.scheduler.scheduleWithFixedDelay(0.seconds, pollerInterval) { () => {
       notificationWorkItemRepo.distinctPermanentlyFailedByCsId()
-        .foreach { permanentlyFailedCsids: Set[ClientSubscriptionId] =>
+        .foreach { (permanentlyFailedCsids: Set[ClientSubscriptionId] )=>
           logger.info(s"Unblock - discovered [${permanentlyFailedCsids.size}] blocked csids (i.e. with status of [${PermanentlyFailed.name}]: [$permanentlyFailedCsids])")
           logger.debug(s"Unblock - discovered [$permanentlyFailedCsids] blocked csids (i.e. with status of [${PermanentlyFailed.name}]): [$permanentlyFailedCsids]")
 
@@ -53,16 +54,15 @@ class UnblockPollerService @Inject()(config: CustomsNotificationConfig,
     }
   }
 
+
   private def retry(csid: ClientSubscriptionId): Future[Unit] = {
-    for {
-      maybeWorkItem <- notificationWorkItemRepo.pullSinglePfFor(csid)
-    } yield {
-      maybeWorkItem match {
-        case Some(workItem) =>
-          pushOrPull(workItem).foreach(handleResponse(csid))
-        case None =>
-          logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
-      }
+    notificationWorkItemRepo.pullSinglePfFor(csid).map {
+      case Some(workItem) =>
+        pushOrPull(workItem).foreach(handleResponse(csid))
+      case None =>
+        logger.info(s"Unblock found no PermanentlyFailed notifications for CsId [${csid.toString}]")
+    }.recover {
+      case exception => logger.error(s"Failed retrying permanently failed csids ${exception}")
     }
   }
 

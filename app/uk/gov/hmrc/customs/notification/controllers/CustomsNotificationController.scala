@@ -113,8 +113,8 @@ class CustomsNotificationController @Inject()(val customsNotificationService: Cu
     // headers have been validated so safe to do a naked get except badgeId, submitter and correlation id which are optional
     RequestMetaData(ClientSubscriptionId(UUID.fromString(headers.get(X_CDS_CLIENT_ID_HEADER_NAME).get)),
       ConversationId(UUID.fromString(headers.get(X_CONVERSATION_ID_HEADER_NAME).get)),
-      NotificationId(uuidService.uuid()), None, headers.get(X_BADGE_ID_HEADER_NAME).map(BadgeId),
-      headers.get(X_SUBMITTER_ID_HEADER_NAME).map(Submitter), headers.get(X_CORRELATION_ID_HEADER_NAME).map(CorrelationId),
+      NotificationId(uuidService.uuid()), None, headers.get(X_BADGE_ID_HEADER_NAME).map(uk.gov.hmrc.customs.notification.domain.BadgeId.apply),
+      headers.get(X_SUBMITTER_ID_HEADER_NAME).map(uk.gov.hmrc.customs.notification.domain.Submitter.apply), headers.get(X_CORRELATION_ID_HEADER_NAME).map(uk.gov.hmrc.customs.notification.domain.CorrelationId.apply),
       extractFunctionCode(maybeXml), extractIssueDateTime(maybeXml, headers.get(ISSUE_DATE_TIME_HEADER)), extractMrn(maybeXml), startTime, extractEntryNumber(maybeXml),extractIcs(maybeXml))
   }
 

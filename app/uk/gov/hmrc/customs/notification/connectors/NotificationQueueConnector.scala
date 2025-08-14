@@ -25,8 +25,7 @@ import uk.gov.hmrc.customs.notification.logging.CdsLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HeaderNames, HttpErrorFunctions, HttpException, HttpResponse}
-
+import play.api.libs.ws.writeableOf_String
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 

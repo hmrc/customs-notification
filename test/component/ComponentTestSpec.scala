@@ -28,6 +28,7 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers._
 import uk.gov.hmrc.customs.notification.repo.NotificationWorkItemMongoRepo
 import util.ExternalServicesConfiguration
+import org.mongodb.scala.SingleObservableFuture
 
 trait ComponentTestSpec extends AnyFeatureSpec
   with GivenWhenThen

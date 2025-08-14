@@ -84,7 +84,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       when(mockConfigService.notificationConfig).thenReturn(mockNotificationConfig)
       when(mockNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
       val httpResultError = HttpResultError(BAD_REQUEST, new HttpException("BOOM", BAD_REQUEST))
-      when(mockInternalPushService.send(any[PushNotificationRequest])(any())).thenReturn(Left(httpResultError))
+      when(mockInternalPushService.send(any[PushNotificationRequest])(any())).thenReturn(Future(Left(httpResultError)))
 
       private val actual = await(switcher.send(ClientIdOne, pnrOne))
 
@@ -106,7 +106,7 @@ class OutboundSwitchServiceSpec extends UnitSpec with MockitoSugar with Eventual
       when(mockConfigService.notificationConfig).thenReturn(mockNotificationConfig)
       when(mockNotificationConfig.internalClientIds).thenReturn(Seq(ClientIdStringOne))
       val nonHttpError = NonHttpError(new Exception("BOOM"))
-      when(mockInternalPushService.send(any[PushNotificationRequest])(any())).thenReturn(Left(nonHttpError))
+      when(mockInternalPushService.send(any[PushNotificationRequest])(any())).thenReturn(Future(Left(nonHttpError)))
 
       private val actual = await(switcher.send(ClientIdOne, pnrOne))
 

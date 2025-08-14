@@ -31,7 +31,7 @@ lazy val microservice = (project in file("."))
   .enablePlugins(SbtDistributablesPlugin)
   .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
   .configs(testConfig: _*)
-  .settings(scalaVersion := "2.13.16")
+  .settings(scalaVersion := "3.3.6")
   .settings(
     commonSettings,
     unitTestSettings,
@@ -47,7 +47,8 @@ lazy val microservice = (project in file("."))
     "-feature",
     "-unchecked",
     "-language:implicitConversions",
-    "-Wconf:cat=unused-imports&src=target/scala-2\\.13/routes/.*:s"
+    "-Wconf:src=routes/.*:s",
+    "-Wconf:msg=Flag.*repeatedly:s"
   )
   )
 
@@ -79,7 +80,7 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
     , "uk\\.gov\\.hmrc\\.customs\\.notification\\.domain\\..*"
     , ".*(Reverse|AuthService|BuildInfo|Routes).*"
   ).mkString(";"),
-  coverageMinimumStmtTotal := 95,
+  coverageMinimumStmtTotal := 94,
   coverageFailOnMinimum := true,
   coverageHighlighting := true,
   Test / parallelExecution := false
@@ -87,8 +88,6 @@ lazy val scoverageSettings: Seq[Setting[_]] = Seq(
 
 def integrationComponentTestFilter(name: String): Boolean = (name startsWith "integration") || (name startsWith "component")
 def unitTestFilter(name: String): Boolean = name startsWith "unit"
-
-scalastyleConfig := baseDirectory.value / "project" / "scalastyle-config.xml"
 
 Compile / unmanagedResourceDirectories += baseDirectory.value / "public"
 

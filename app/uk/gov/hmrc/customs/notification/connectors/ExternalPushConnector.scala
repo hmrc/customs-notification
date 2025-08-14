@@ -29,7 +29,7 @@ import uk.gov.hmrc.customs.notification.logging.NotificationLogger
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.http.client.HttpClientV2
-
+import play.api.libs.ws.writeableOf_JsValue
 import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
