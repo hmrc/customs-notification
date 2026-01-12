@@ -21,9 +21,9 @@ import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.{and, equal, gte, lt}
-import org.mongodb.scala.model.Indexes.{compoundIndex, descending}
+import org.mongodb.scala.model.Indexes.{ascending, compoundIndex, descending}
 import org.mongodb.scala.model.Updates.{combine, inc, set}
-import org.mongodb.scala.model._
+import org.mongodb.scala.model.*
 import play.api.Configuration
 import uk.gov.hmrc.customs.notification.domain.{ClientId, ClientSubscriptionId, CustomsNotificationConfig, NotificationWorkItem}
 import uk.gov.hmrc.customs.notification.logging.CdsLogger
@@ -32,6 +32,7 @@ import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus.{Failed, InProgress, PermanentlyFailed}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, ResultStatus, WorkItem, WorkItemRepository}
 import uk.gov.hmrc.mongo.{MongoComponent, MongoUtils}
+
 import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -144,6 +145,15 @@ class NotificationWorkItemMongoRepo @Inject()(mongo: MongoComponent,
                 Filters.gte(NotificationWorkItemFields.mostRecentPushPullHttpStatusFieldName, 500),
                 equal(workItemFields.status, PermanentlyFailed)))
             .unique(false)
+        ),
+        IndexModel(
+          keys = ascending(
+            NotificationWorkItemFields.workItemFields.status,
+            NotificationWorkItemFields.workItemFields.updatedAt,
+            NotificationWorkItemFields.workItemFields.availableAt),
+          indexOptions = IndexOptions()
+            .name(s"${NotificationWorkItemFields.workItemFields.status}-${NotificationWorkItemFields.workItemFields.updatedAt}-${NotificationWorkItemFields.workItemFields.availableAt}-index")
+            .background(true)
         )
       )
     }
