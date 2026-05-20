@@ -2,8 +2,8 @@ import sbt.*
 
 object AppDependencies {
 
-  private val mongoVersion = "2.11.0"
-  private val boostrapVersion = "10.5.0"
+  private val mongoVersion = "2.12.0"
+  private val boostrapVersion = "10.7.0"
   private val playVersion = "play-30"
 
   val compile = Seq(
@@ -18,6 +18,6 @@ object AppDependencies {
     "org.scalatestplus"            %% "mockito-4-11"                  % "3.2.18.0" ,
     "uk.gov.hmrc.mongo"            %% s"hmrc-mongo-test-$playVersion" % mongoVersion,
     "uk.gov.hmrc"                  %% s"bootstrap-test-$playVersion"  % boostrapVersion,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala"          % "2.20.1"
+    "com.fasterxml.jackson.module" %% "jackson-module-scala"          % "2.21.3"
   ).map(_ % Test)
 }
