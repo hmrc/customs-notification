@@ -2,7 +2,7 @@ import sbt.*
 
 object AppDependencies {
 
-  private val mongoVersion = "2.12.0"
+  private val mongoVersion = "2.13.0"
   private val boostrapVersion = "10.7.0"
   private val playVersion = "play-30"
 
