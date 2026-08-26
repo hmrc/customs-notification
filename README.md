@@ -40,7 +40,7 @@ The Customs Notification service can be run locally from Service Manager, using 
 To run the CDS acceptance tests, see [here](https://github.com/hmrc/customs-automation-test).
 
 ### Performance Tests
-To run performance tests, see [here](https://github.com/hmrc/customs-notification-performance-test).
+To run performance tests, see [here](https://github.com/hmrc/customs-declaration-performance-test).
 
 
 ## API documentation
